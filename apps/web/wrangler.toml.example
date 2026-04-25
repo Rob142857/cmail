@@ -1,0 +1,31 @@
+#:schema node_modules/wrangler/config-schema.json
+# ─── cmail web app — Cloudflare Pages config ──────────────────────────────
+# Copy this file to `wrangler.toml` and fill in YOUR Cloudflare tenant values.
+# `wrangler.toml` is gitignored so your IDs never leak to forks/clones.
+
+name = "cmail-web"
+compatibility_date = "2025-04-01"
+pages_build_output_dir = ".svelte-kit/cloudflare"
+
+# D1 binding — run `pnpm d1:create` then paste the returned database_id here.
+[[d1_databases]]
+binding = "DB"
+database_name = "cmail-db"
+database_id = "YOUR_D1_DATABASE_ID"
+
+# R2 binding — run `pnpm r2:create` first.
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "cmail-storage"
+
+# Uncomment to enable Cloudflare Email Service (Workers Paid plan required)
+# [[send_email]]
+# name = "EMAIL"
+
+# Public, non-secret variables. Override per environment as needed.
+# Anything sensitive (OAuth secrets, SESSION_SECRET, RESEND_API_KEY, etc.)
+# MUST go via `wrangler pages secret put <NAME>` — never commit them here.
+[vars]
+APP_NAME = "cmail"
+MAIL_DOMAIN = "mail.example.com"
+APP_URL = "https://mail.example.com"

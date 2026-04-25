@@ -1,0 +1,27 @@
+{
+  "name": "@cmail/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "pnpm build && wrangler pages deploy .svelte-kit/cloudflare",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-cloudflare": "^6",
+    "@sveltejs/kit": "^2",
+    "@sveltejs/vite-plugin-svelte": "^5",
+    "svelte": "^5",
+    "svelte-check": "^4",
+    "typescript": "^5.7",
+    "vite": "^6",
+    "wrangler": "^4"
+  },
+  "dependencies": {
+    "mimetext": "^3"
+  }
+}

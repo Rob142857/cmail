@@ -1,0 +1,22 @@
+#:schema node_modules/wrangler/config-schema.json
+# ─── cmail inbound email worker — Cloudflare Workers config ───────────────
+# Copy this file to `wrangler.toml` and fill in YOUR Cloudflare tenant values.
+# `wrangler.toml` is gitignored so your IDs never leak to forks/clones.
+
+name = "cmail-email-worker"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+
+# D1 binding — must match the database_id used by the web app.
+[[d1_databases]]
+binding = "DB"
+database_name = "cmail-db"
+database_id = "YOUR_D1_DATABASE_ID"
+
+# R2 binding — same bucket as the web app.
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "cmail-storage"
+
+# Email Routing — configure a catch-all in the Cloudflare dashboard
+# pointing all inbound mail at this worker.

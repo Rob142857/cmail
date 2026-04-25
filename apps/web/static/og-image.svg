@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="cmail — open-source email on Cloudflare">
+  <title>cmail — open-source email on Cloudflare</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0A1929"/>
+      <stop offset="50%" stop-color="#0F2744"/>
+      <stop offset="100%" stop-color="#0A1929"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0078D4"/>
+      <stop offset="50%" stop-color="#2B88D8"/>
+      <stop offset="100%" stop-color="#50E6FF"/>
+    </linearGradient>
+    <linearGradient id="markFace" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2B88D8"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="markEdge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#106EBE"/>
+      <stop offset="100%" stop-color="#005A9E"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#50E6FF" stop-opacity="0.35"/>
+      <stop offset="60%" stop-color="#0078D4" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#0078D4" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
+      <feOffset dx="0" dy="8" result="offsetblur"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="textShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="0" dy="3" result="offsetblur"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="grid" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1E3A5F" stroke-width="0.5" opacity="0.3"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <!-- Ambient glow -->
+  <ellipse cx="280" cy="315" rx="320" ry="260" fill="url(#glow)"/>
+  <ellipse cx="900" cy="315" rx="280" ry="220" fill="url(#glow)" opacity="0.6"/>
+
+  <!-- Decorative depth layers (offset envelopes) -->
+  <g opacity="0.18" transform="translate(115, 195)">
+    <rect x="0" y="0" width="200" height="200" rx="36" fill="#50E6FF"/>
+  </g>
+  <g opacity="0.32" transform="translate(135, 215)">
+    <rect x="0" y="0" width="200" height="200" rx="36" fill="#0078D4"/>
+  </g>
+
+  <!-- Main mark -->
+  <g transform="translate(155, 175)" filter="url(#softShadow)">
+    <rect x="0" y="0" width="220" height="220" rx="40" fill="url(#markFace)" stroke="url(#markEdge)" stroke-width="2"/>
+    <!-- Envelope -->
+    <path d="M48 88 L110 132 L172 88" stroke="#fff" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M48 88 L48 168 L172 168 L172 88" stroke="#fff" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Notification dot -->
+    <circle cx="172" cy="48" r="20" fill="#50E6FF" stroke="#fff" stroke-width="3"/>
+    <!-- Inner highlight -->
+    <rect x="6" y="6" width="208" height="60" rx="36" fill="#fff" opacity="0.08"/>
+  </g>
+
+  <!-- Wordmark -->
+  <g transform="translate(440, 280)" font-family="'Segoe UI', 'SF Pro Display', system-ui, -apple-system, BlinkMacSystemFont, sans-serif" filter="url(#textShadow)">
+    <text x="0" y="0" font-size="200" font-weight="200" letter-spacing="-8" fill="url(#accent)">cmail</text>
+  </g>
+
+  <!-- Tagline -->
+  <g transform="translate(444, 360)" font-family="'Segoe UI', system-ui, sans-serif" fill="#A6C8E5">
+    <text x="0" y="0" font-size="28" font-weight="400" letter-spacing="2">OPEN&#8209;SOURCE&#160;&#160;·&#160;&#160;CLOUDFLARE&#160;NATIVE&#160;&#160;·&#160;&#160;BYO&#160;DOMAIN</text>
+  </g>
+
+  <!-- Feature chips -->
+  <g transform="translate(444, 420)" font-family="'Segoe UI', system-ui, sans-serif" font-size="20">
+    <g>
+      <rect x="0" y="0" width="200" height="44" rx="22" fill="#0078D4" opacity="0.15" stroke="#0078D4" stroke-width="1.5"/>
+      <text x="100" y="29" text-anchor="middle" fill="#50E6FF" font-weight="500">Google · Microsoft SSO</text>
+    </g>
+    <g transform="translate(220, 0)">
+      <rect x="0" y="0" width="170" height="44" rx="22" fill="#0078D4" opacity="0.15" stroke="#0078D4" stroke-width="1.5"/>
+      <text x="85" y="29" text-anchor="middle" fill="#50E6FF" font-weight="500">Shared Mailboxes</text>
+    </g>
+    <g transform="translate(410, 0)">
+      <rect x="0" y="0" width="160" height="44" rx="22" fill="#0078D4" opacity="0.15" stroke="#0078D4" stroke-width="1.5"/>
+      <text x="80" y="29" text-anchor="middle" fill="#50E6FF" font-weight="500">D1 · R2 · Workers</text>
+    </g>
+  </g>
+
+  <!-- Footer chrome -->
+  <g transform="translate(60, 580)" font-family="'Segoe UI', system-ui, sans-serif" font-size="18" fill="#5A8AB5">
+    <text x="0" y="0">github.com/Rob142857/cmail</text>
+    <text x="1080" y="0" text-anchor="end">MIT licensed</text>
+  </g>
+</svg>

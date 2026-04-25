@@ -1,0 +1,31 @@
+{
+  "name": "cmail",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-source email platform on Cloudflare — Google/Microsoft SSO, D1, R2, Email Routing",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "pnpm --filter @cmail/web dev",
+    "dev:worker": "pnpm --filter @cmail/email-worker dev",
+    "build": "pnpm --filter @cmail/web build",
+    "preview": "pnpm --filter @cmail/web preview",
+    "deploy": "pnpm run deploy:web && pnpm run deploy:email-worker",
+    "deploy:web": "pnpm --filter @cmail/web deploy",
+    "deploy:email-worker": "pnpm --filter @cmail/email-worker deploy",
+    "d1:create": "wrangler d1 create cmail-db",
+    "r2:create": "wrangler r2 bucket create cmail-storage",
+    "db:migrate": "wrangler d1 execute cmail-db --remote --file=packages/shared/src/schema.sql",
+    "db:migrate:local": "wrangler d1 execute cmail-db --local --file=packages/shared/src/schema.sql",
+    "lint": "pnpm -r lint",
+    "check": "pnpm -r check"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  },
+  "keywords": ["email", "cloudflare", "workers", "sveltekit", "sso", "open-source"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}

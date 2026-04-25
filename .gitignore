@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.wrangler/
+.svelte-kit/
+build/
+.env
+.env.local
+.dev.vars
+.mf/
+*.log
+.DS_Store
+Thumbs.db
+
+# Wrangler configs hold tenant-specific IDs once filled in.
+# We commit *.toml.example as templates; the real ones are local-only.
+apps/web/wrangler.toml
+apps/email-worker/wrangler.toml
