@@ -23,7 +23,7 @@ type ProviderName = 'cloudflare-worker' | 'resend' | 'postmark' | 'none';
 
 export function detectProvider(env: Record<string, unknown>): ProviderName {
   // Cloudflare Worker relay (has EMAIL_WORKER_URL env var)
-  if (env.EMAIL_WORKER_URL) return 'cloudflare-worker';
+  if (env.EMAIL_WORKER_URL && env.EMAIL_API_KEY) return 'cloudflare-worker';
   if (env.RESEND_API_KEY) return 'resend';
   if (env.POSTMARK_API_KEY) return 'postmark';
   return 'none';

@@ -50,6 +50,50 @@ function getAuthResults(headers: Headers): { spf: string | null; dkim: string | 
   };
 }
 
+function normalizeLineBreaks(value: string): string {
+  return value.replace(/\r?\n/g, '\r\n');
+}
+
+function escapeHeaderValue(value: string): string {
+  return value.replace(/[\r\n]+/g, ' ').trim();
+}
+
+function buildRawEmail(message: {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}): string {
+  const boundary = `cmail_${crypto.randomUUID()}`;
+  const textBody = normalizeLineBreaks(message.text || message.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+  const htmlBody = normalizeLineBreaks(message.html);
+
+  return [
+    `From: ${escapeHeaderValue(message.from)}`,
+    `To: ${escapeHeaderValue(message.to)}`,
+    `Subject: ${escapeHeaderValue(message.subject)}`,
+    'MIME-Version: 1.0',
+    `Message-ID: <${crypto.randomUUID()}@cmail-worker>`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    textBody,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    htmlBody,
+    '',
+    `--${boundary}--`,
+    '',
+  ].join('\r\n');
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -89,17 +133,16 @@ export default {
           });
         }
 
-        // Build MIME message using mimetext
-        const { createMimeMessage } = await import('mimetext');
         const recipients = Array.isArray(body.to) ? body.to : [body.to];
 
         for (const recipient of recipients) {
-          const msg = createMimeMessage();
-          msg.setSender(body.from);
-          msg.setRecipient(recipient);
-          msg.setSubject(body.subject);
-          if (body.text) msg.addMessage({ contentType: 'text/plain', data: body.text });
-          msg.addMessage({ contentType: 'text/html', data: body.html });
+          const raw = buildRawEmail({
+            from: body.from,
+            to: recipient,
+            subject: body.subject,
+            html: body.html,
+            text: body.text,
+          });
 
           const message: EmailMessage = {
             from: body.from,
@@ -112,7 +155,7 @@ export default {
           }).send({
             from: body.from,
             to: recipient,
-            raw: msg.asRaw(),
+            raw,
           });
         }
 
