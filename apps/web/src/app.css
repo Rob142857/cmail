@@ -393,15 +393,31 @@ tbody tr:hover { background: var(--bg-hover); }
    Responsive
    ───────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .app-layout { grid-template-columns: 1fr; }
+  /* Switch to a simple vertical stack on mobile so the topbar can't stretch
+     and the main content fills the remaining viewport height. */
+  .app-layout {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
   .main-content {
+    flex: 1 1 auto;
     padding: 14px 14px 28px;
     padding-left: max(14px, env(safe-area-inset-left));
     padding-right: max(14px, env(safe-area-inset-right));
     padding-bottom: max(28px, env(safe-area-inset-bottom));
   }
 
-  .mobile-topbar { display: flex; }
+  .mobile-topbar {
+    display: flex;
+    flex: 0 0 auto;
+    height: 56px;
+    min-height: 56px;
+    box-sizing: content-box;
+  }
+  .mobile-topbar .menu-btn svg { pointer-events: none; }
 
   .sidebar {
     position: fixed;
