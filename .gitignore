@@ -15,3 +15,6 @@ Thumbs.db
 # We commit *.toml.example as templates; the real ones are local-only.
 apps/web/wrangler.toml
 apps/email-worker/wrangler.toml
+
+# Private fork docs
+FIRSTRUN.md
