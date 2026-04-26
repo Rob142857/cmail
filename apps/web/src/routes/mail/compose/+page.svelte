@@ -83,17 +83,20 @@
     }
   }
 
-  // Autosave: 8s after last edit, only when dirty and there is something to save
-  let timer = $state(/** @type {any} */ (null));
+  // Autosave: 8s after last edit, only when dirty and there is something to save.
+  // NOTE: `timer` must NOT be $state — writing it inside this effect would
+  // re-trigger the effect and explode (effect_update_depth_exceeded).
+  /** @type {any} */
+  let timer = null;
   $effect(() => {
-    // depend on body/subject/to/cc/from
-    void body; void subject; void to; void cc; void from;
+    // depend on body/subject/to/cc/from + dirty
+    void body; void subject; void to; void cc; void from; void dirty;
     if (!dirty) return;
     if (timer) clearTimeout(timer);
     if (!from) return;
     if (!body && !subject && !to && !cc) return;
     timer = setTimeout(() => { saveDraft(); }, 8000);
-    return () => { if (timer) clearTimeout(timer); };
+    return () => { if (timer) { clearTimeout(timer); timer = null; } };
   });
 </script>
 
