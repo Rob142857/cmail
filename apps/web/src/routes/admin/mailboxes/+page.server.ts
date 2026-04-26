@@ -42,7 +42,7 @@ export const actions: Actions = {
 
       const id = generateId();
       await env.DB.prepare(
-        'INSERT INTO mailboxes (id, address, display_name, type, status, created_at, updated_at) VALUES (?, ?, ?, ?, \'active\', datetime(\'now\'), datetime(\'now\'))',
+        'INSERT INTO mailboxes (id, address, display_name, type, status, created_at) VALUES (?, ?, ?, ?, \'active\', datetime(\'now\'))'
       ).bind(id, address, displayName, type).run();
 
       // ✅ Audit with error handling

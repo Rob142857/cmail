@@ -63,6 +63,9 @@ async function sendViaCloudflareWorker(email: OutboundEmail, env: Record<string,
     if (!apiKey) {
       return { success: false, provider: 'cloudflare-worker', error: 'EMAIL_API_KEY not configured' };
     }
+    if (!workerUrl) {
+      return { success: false, provider: 'cloudflare-worker', error: 'EMAIL_WORKER_URL not configured' };
+    }
     const res = await fetch(`${workerUrl}/send`, {
       method: 'POST',
       headers: {
@@ -77,6 +80,7 @@ async function sendViaCloudflareWorker(email: OutboundEmail, env: Record<string,
         text: email.text,
       }),
     });
+    console.log('[WORKER] Response:', res.status, res.statusText);
 
     if (!res.ok) {
       const text = await res.text();

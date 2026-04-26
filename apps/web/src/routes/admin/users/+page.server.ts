@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import type { User } from '@cmail/shared/types';
 import { generateId, audit } from '$lib/server/db';
-import { sendEmail } from '$lib/server/outbound';
+import { sendEmail, detectProvider } from '$lib/server/outbound';
 import { generateInviteEmail } from '$lib/server/invite-email';
 
 export const load: PageServerLoad = async ({ platform, url }) => {
@@ -67,6 +67,7 @@ export const actions: Actions = {
         // ✅ Use SYSTEM_EMAIL (desk@maatara.io) or fallback to noreply
         const fromEmail = (env.SYSTEM_EMAIL as string) || 'noreply@maatara.io';
 
+        console.log('[INVITE] Sending to:', email, 'from:', fromEmail, 'provider:', detectProvider(env as Record<string, unknown>));
         const result = await sendEmail(
           {
             from: fromEmail,
@@ -77,8 +78,10 @@ export const actions: Actions = {
           },
           env as unknown as Record<string, unknown>
         );
+        console.log('[INVITE] Send result:', result);
 
         if (!result.success) {
+          console.error('[INVITE] Email send failed:', result);
           inviteResult = { success: false, error: `Invite email failed: ${result.error}` };
           await audit(env.DB, {
             event_type: 'email.failed',
