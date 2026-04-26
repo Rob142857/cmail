@@ -3,7 +3,13 @@ dist/
 .wrangler/
 .svelte-kit/
 build/
-# .env, .dev.vars, and wrangler.toml are tracked in this private repo
+.dev.vars
+wrangler.toml
+AUDIT_REPORT.md
+FINAL_SETUP_CHECKLIST.md
+FIRSTRUN.md
+QUICK_FIXES.md
+SETUP_GUIDE.md
 .mf/
 *.log
 .DS_Store
