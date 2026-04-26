@@ -3,7 +3,6 @@ import type { PageServerLoad, Actions } from './$types';
 import { audit, generateId } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
-  if (!locals.user) throw redirect(302, '/');
   const env = platform?.env;
   if (!env) throw redirect(302, '/');
 
@@ -11,17 +10,24 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
     'SELECT * FROM ict_policy_versions ORDER BY published_at DESC LIMIT 1',
   ).first<{ id: string; version_label: string; body_text: string; published_at: string }>();
 
-  if (!latestPolicy) throw redirect(302, '/mail');
+  if (!latestPolicy) {
+    // No policy published — authenticated users go to mail, guests see nothing useful
+    if (locals.user) throw redirect(302, '/mail');
+    return { policy: null, alreadySigned: false };
+  }
 
-  // Check if already signed
-  const existing = await env.DB.prepare(
-    'SELECT id FROM ict_policy_signatures WHERE user_id = ? AND policy_version_id = ?',
-  ).bind(locals.user.id, latestPolicy.id).first<{ id: string }>();
-
-  if (existing) throw redirect(302, '/mail');
+  // Check if the logged-in user has already signed this version
+  let alreadySigned = false;
+  if (locals.user) {
+    const existing = await env.DB.prepare(
+      'SELECT id FROM ict_policy_signatures WHERE user_id = ? AND policy_version_id = ?',
+    ).bind(locals.user.id, latestPolicy.id).first<{ id: string }>();
+    if (existing) alreadySigned = true;
+  }
 
   return {
     policy: latestPolicy,
+    alreadySigned,
   };
 };
 

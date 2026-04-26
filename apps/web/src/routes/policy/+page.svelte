@@ -5,31 +5,48 @@
 <div class="policy-wrap">
   <div class="card policy-card">
     <h2 class="policy-title">ICT Usage Policy</h2>
-    <p class="policy-lede">
-      You must read and accept the current policy before accessing your mailbox.
-    </p>
-    <p class="policy-meta">
-      Version {data.policy.version_label} · Published {new Date(data.policy.published_at).toLocaleDateString()}
-    </p>
 
-    <div class="policy-body">
-      {@html data.policy.body_text}
-    </div>
+    {#if data.policy}
+      <p class="policy-meta">
+        Version {data.policy.version_label} · Published {new Date(data.policy.published_at).toLocaleDateString()}
+      </p>
 
-    {#if form?.error}
-      <div class="badge badge-error policy-error">{form.error}</div>
+      <div class="policy-body">
+        {@html data.policy.body_text}
+      </div>
+
+      {#if !data.user}
+        <!-- Public / unauthenticated visitor — read-only -->
+        <div class="policy-info">
+          <p>You're viewing this policy as a guest. <a href="/">Sign in</a> to accept and access your mailbox.</p>
+        </div>
+      {:else if data.alreadySigned}
+        <div class="policy-info signed">
+          <p>✓ You have already accepted this policy version. <a href="/mail">Go to mailbox</a></p>
+        </div>
+      {:else}
+        {#if form?.error}
+          <div class="badge badge-error policy-error">{form.error}</div>
+        {/if}
+
+        <p class="policy-lede">
+          You must read and accept the current policy before accessing your mailbox.
+        </p>
+
+        <form method="POST" class="policy-form">
+          <input type="hidden" name="policy_version_id" value={data.policy.id} />
+          <label class="policy-accept">
+            <input type="checkbox" name="accept" value="1" required />
+            <span>I have read and accept this ICT usage policy.</span>
+          </label>
+          <button type="submit" class="btn btn-primary policy-submit">
+            Accept &amp; Continue
+          </button>
+        </form>
+      {/if}
+    {:else}
+      <p class="policy-lede">No policy has been published yet.</p>
     {/if}
-
-    <form method="POST" class="policy-form">
-      <input type="hidden" name="policy_version_id" value={data.policy.id} />
-      <label class="policy-accept">
-        <input type="checkbox" name="accept" value="1" required />
-        <span>I have read and accept this ICT usage policy.</span>
-      </label>
-      <button type="submit" class="btn btn-primary policy-submit">
-        Accept &amp; Continue
-      </button>
-    </form>
   </div>
 </div>
 
@@ -97,6 +114,18 @@
     padding: 8px 12px;
     margin-bottom: 12px;
   }
+  .policy-info {
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-hover);
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .policy-info p { margin: 0; }
+  .policy-info a { color: var(--accent, #6aa8ff); }
+  .policy-info.signed { border-color: #1e6e44; background: #0d3d24; color: #c4f5d8; }
 
   .policy-form {
     display: flex;
