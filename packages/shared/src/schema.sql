@@ -1,8 +1,7 @@
 -- cmail D1 schema
 -- Run: pnpm db:migrate (remote) or pnpm db:migrate:local (local)
 
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
+-- Note: PRAGMA journal_mode and foreign_keys are managed by D1 automatically.
 
 -- ─── Users ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
