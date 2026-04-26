@@ -31,6 +31,8 @@ export const actions: Actions = {
   create: async ({ request, platform, locals }) => {
     const env = platform?.env;
     if (!env) return { error: 'Platform not available' };
+    if (!locals.user) return { error: 'Not authenticated' };
+    if (locals.user.role !== 'manager') return { error: 'Manager role required' };
 
     const data = await request.formData();
     const email = (data.get('email') as string)?.toLowerCase().trim();
@@ -168,6 +170,8 @@ export const actions: Actions = {
   updateStatus: async ({ request, platform, locals }) => {
     const env = platform?.env;
     if (!env) return { error: 'Platform not available' };
+    if (!locals.user) return { error: 'Not authenticated' };
+    if (locals.user.role !== 'manager') return { error: 'Manager role required' };
 
     const data = await request.formData();
     const userId = data.get('user_id') as string;
@@ -175,6 +179,11 @@ export const actions: Actions = {
 
     const valid = ['active', 'paused', 'offboarded'];
     if (!valid.includes(status)) return { error: 'Invalid status' };
+    if (!userId || typeof userId !== 'string') return { error: 'Invalid user_id' };
+    // Don't let an admin lock themselves out
+    if (userId === locals.user.id && status !== 'active') {
+      return { error: 'Cannot change your own account to paused/offboarded' };
+    }
 
     await env.DB.prepare('UPDATE users SET status = ?, updated_at = datetime(\'now\') WHERE id = ?').bind(status, userId).run();
 
@@ -194,6 +203,8 @@ export const actions: Actions = {
   resendInvite: async ({ request, platform, locals }) => {
     const env = platform?.env;
     if (!env) return { error: 'Platform not available' };
+    if (!locals.user) return { error: 'Not authenticated' };
+    if (locals.user.role !== 'manager') return { error: 'Manager role required' };
 
     const data = await request.formData();
     const userId = data.get('user_id') as string;

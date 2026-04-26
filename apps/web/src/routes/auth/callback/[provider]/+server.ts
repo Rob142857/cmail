@@ -5,7 +5,7 @@ import { exchangeCode, fetchUserInfo } from '$lib/server/auth';
 import { createSessionToken, buildSessionCookie } from '$lib/server/session';
 import { audit, generateId, nowISO } from '$lib/server/db';
 
-export const GET: RequestHandler = async ({ params, url, platform, cookies }) => {
+export const GET: RequestHandler = async ({ params, url, platform, cookies, request }) => {
   const provider = params.provider as AuthProvider;
   const env = platform?.env;
   if (!env) throw redirect(302, '/?error=no_platform');
@@ -100,7 +100,7 @@ export const GET: RequestHandler = async ({ params, url, platform, cookies }) =>
   // Create session
   const { token, hash, expiresAt } = await createSessionToken(user.id, env.SESSION_SECRET);
   const sessionId = generateId();
-  const clientIp = url.searchParams.get('cf-connecting-ip') || '';
+  const clientIp = request.headers.get('cf-connecting-ip') || request.headers.get('x-real-ip') || '';
 
   await env.DB.prepare(
     'INSERT INTO sessions (id, user_id, token_hash, issued_at, expires_at, ip_address, revoked) VALUES (?, ?, ?, datetime(\'now\'), ?, ?, 0)',

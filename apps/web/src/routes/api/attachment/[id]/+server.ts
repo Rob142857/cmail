@@ -1,6 +1,23 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+const SAFE_CONTENT_TYPE_RX = /^[\w.+/-]+(?:;\s*[\w.+/-]+=[\w.+/"-]+)*$/;
+
+function safeContentType(t: string | null | undefined): string {
+  if (!t) return 'application/octet-stream';
+  return SAFE_CONTENT_TYPE_RX.test(t) ? t : 'application/octet-stream';
+}
+
+function buildContentDisposition(filename: string): string {
+  // Strip control chars + path separators that could enable header injection or
+  // path traversal hints in clients.
+  const sanitized = filename.replace(/[\x00-\x1f\x7f"\\/]/g, '_').slice(0, 255) || 'download';
+  // RFC 5987: encode unicode as filename* with UTF-8, plus an ASCII fallback.
+  const ascii = sanitized.replace(/[^\x20-\x7e]/g, '_').replace(/"/g, '_');
+  const encoded = encodeURIComponent(sanitized).replace(/['()]/g, escape);
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+}
+
 export const GET: RequestHandler = async ({ locals, platform, params }) => {
   if (!locals.user) throw error(401);
   const env = platform?.env;
@@ -23,10 +40,11 @@ export const GET: RequestHandler = async ({ locals, platform, params }) => {
 
   return new Response(object.body as ReadableStream, {
     headers: {
-      'Content-Type': att.content_type,
-      'Content-Disposition': `attachment; filename="${att.filename.replace(/"/g, '\\"')}"`,
+      'Content-Type': safeContentType(att.content_type),
+      'Content-Disposition': buildContentDisposition(att.filename),
       'Content-Length': att.size_bytes.toString(),
-      'Cache-Control': 'private, max-age=3600',
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
     },
   });
 };

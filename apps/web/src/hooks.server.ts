@@ -35,11 +35,42 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   const response = await resolve(event);
 
-  // Security headers
+  // ─── Security headers ────────────────────────────────────
+  // Defense in depth. Email HTML is *also* rendered inside a sandboxed iframe
+  // with its own restrictive CSP, so even malformed inbound mail can't escape.
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()');
+  response.headers.set(
+    'Content-Security-Policy',
+    [
+      "default-src 'self'",
+      "script-src 'self'",
+      // Svelte ships scoped <style> blocks; allow inline styles. No inline scripts.
+      "style-src 'self' 'unsafe-inline'",
+      // Allow images from any HTTPS source (email may include external images) + data: for icons
+      "img-src 'self' data: https:",
+      "font-src 'self' data:",
+      "connect-src 'self'",
+      // Permit our own srcdoc iframes (they have their own restrictive CSP)
+      "frame-src 'self'",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+      // Cookies are HttpOnly + Secure already; this just hardens upgrade
+      'upgrade-insecure-requests',
+    ].join('; '),
+  );
+  // HSTS (Cloudflare may also add this at the edge — duplicate is harmless)
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  // Don't let search engines index the app
+  response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  // Authenticated content should not sit in shared/proxy caches
+  if (event.locals.user) {
+    response.headers.set('Cache-Control', 'private, no-store');
+  }
 
   return response;
 };

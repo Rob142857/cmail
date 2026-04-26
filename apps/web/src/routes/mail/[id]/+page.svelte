@@ -67,22 +67,31 @@
       </div>
     {/if}
 
-    <div class="message-body">
-      {@html data.body}
-    </div>
+    <!--
+      Email HTML is rendered inside a fully-sandboxed iframe with a strict CSP:
+      no scripts, no plugins, no forms, no same-origin access, no remote subresources
+      except images. This neutralises the XSS attack surface from inbound HTML.
+    -->
+    <iframe
+      class="message-body"
+      title="Email content"
+      sandbox=""
+      referrerpolicy="no-referrer"
+      srcdoc={`<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: https: http:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none';"><base target="_blank"><style>html,body{margin:0;padding:0;font-family:system-ui,sans-serif;line-height:1.5;color:#e5e7eb;background:transparent;word-break:break-word;overflow-wrap:break-word;}img{max-width:100%;height:auto;}a{color:#60a5fa;}blockquote{margin-left:8px;padding-left:8px;border-left:2px solid #4b5563;color:#9ca3af;}</style></head><body>${data.body || ''}</body></html>`}
+    ></iframe>
   </div>
 </div>
 
 <style>
   .message-body {
-    padding: 16px 0;
-    line-height: 1.6;
-    word-break: break-word;
-    overflow-wrap: break-word;
-  }
-  .message-body :global(img) {
-    max-width: 100%;
-    height: auto;
+    display: block;
+    width: 100%;
+    min-height: 360px;
+    height: 65vh;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: transparent;
+    margin-top: 8px;
   }
   .btn-ghost-danger { background: transparent; border-color: transparent; color: var(--danger); }
   .btn-ghost-danger:hover { background: var(--danger-soft); }
