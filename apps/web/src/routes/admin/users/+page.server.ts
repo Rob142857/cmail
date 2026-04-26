@@ -101,6 +101,7 @@ export const actions: Actions = {
           appUrl: env.APP_URL || 'https://mail.example.com',
           senderName: locals.user?.display_name || locals.user?.email || 'An administrator',
           systemEmail: env.SYSTEM_EMAIL as string,
+          mailboxAddress: mailboxResult.success && mailboxResult.address ? mailboxResult.address : undefined,
         });
 
         // ✅ Use SYSTEM_EMAIL (desk@maatara.io) or fallback to noreply

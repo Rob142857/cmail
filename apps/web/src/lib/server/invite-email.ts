@@ -7,12 +7,19 @@ export interface InviteEmailOptions {
   appUrl: string;
   senderName: string;
   systemEmail?: string;
+  mailboxAddress?: string;
 }
 
 export function generateInviteEmail(options: InviteEmailOptions): { subject: string; html: string; text: string } {
-  const { email, displayName, appName, appUrl, senderName, systemEmail } = options;
+  const { email, displayName, appName, appUrl, senderName, mailboxAddress } = options;
 
   const subject = `You're invited to ${appName}`;
+  const mailboxBlockHtml = mailboxAddress
+    ? `<div class="provider-info" style="background: #ecfdf5; border-left: 4px solid #059669; color: #065f46;"><strong>📬 Your mailbox</strong><br><span style="font-family: monospace; font-size: 15px;">${mailboxAddress}</span><br><span style="font-size: 13px;">Mail addressed to this address will appear in your ${appName} inbox after you sign in.</span></div>`
+    : '';
+  const mailboxBlockText = mailboxAddress
+    ? `\n✉ Your mailbox: ${mailboxAddress}\n   Mail sent to this address will appear in your ${appName} inbox after you sign in.\n`
+    : '';
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -71,6 +78,8 @@ export function generateInviteEmail(options: InviteEmailOptions): { subject: str
       <a href="${appUrl}/auth/login/google" class="btn">Sign in with Google</a>
     </div>
 
+    ${mailboxBlockHtml}
+
     <div class="provider-info">
       <strong>💡 Which provider should I choose?</strong>
       <ul style="margin: 8px 0; padding-left: 20px;">
@@ -108,7 +117,7 @@ To get started, sign in with your email address. Choose your sign-in provider:
   (Use if your email is @gmail or a corporate Google Workspace account)
 
 You can use any provider as long as you sign in with ${email}.
-
+${mailboxBlockText}
 🔒 Security note: ${appName} uses your email address to verify your identity. We don't access your personal inbox, files, or search history. Only organisational communication through ${appName} will be managed here.
 
 If you did not expect this invitation, you can safely ignore this email.

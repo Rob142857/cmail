@@ -1,5 +1,14 @@
 <script>
   let { data } = $props();
+  /** @type {any} */
+  const d = $derived(data);
+
+  /** @param {any} e */
+  function actorLabel(e) {
+    if (e.actor_email) return e.actor_display_name ? `${e.actor_display_name} <${e.actor_email}>` : e.actor_email;
+    if (e.actor_id) return e.actor_id.slice(0, 8) + '…';
+    return 'system';
+  }
 </script>
 
 <div>
@@ -8,16 +17,14 @@
     <form method="GET" style="display: flex; gap: 8px;">
       <select name="event_type">
         <option value="">All Events</option>
-        <option value="auth.sign_in" selected={data.eventType === 'auth.sign_in'}>Sign In</option>
-        <option value="auth.session_expired" selected={data.eventType === 'auth.session_expired'}>Sign Out</option>
-        <option value="user.provisioned" selected={data.eventType === 'user.provisioned'}>User Created</option>
-        <option value="user.offboarded" selected={data.eventType === 'user.offboarded'}>User Offboarded</option>
-        <option value="email.moved" selected={data.eventType === 'email.moved'}>Email Moved</option>
-        <option value="policy.signed" selected={data.eventType === 'policy.signed'}>Policy Signed</option>
-        <option value="policy.published" selected={data.eventType === 'policy.published'}>Policy Published</option>
-        <option value="mailbox.created" selected={data.eventType === 'mailbox.created'}>Mailbox Created</option>
+        {#each d.eventTypes as et}
+          <option value={et} selected={d.eventType === et}>{et}</option>
+        {/each}
       </select>
       <button type="submit">Filter</button>
+      {#if d.eventType}
+        <a href="?" class="btn">Clear</a>
+      {/if}
     </form>
   </div>
 
@@ -33,25 +40,30 @@
         </tr>
       </thead>
       <tbody>
-        {#each data.entries as entry}
+        {#each d.entries as entry}
           <tr style="border-bottom: 1px solid var(--border);">
-            <td style="padding: 8px 16px; white-space: nowrap;">{new Date(entry.created_at).toLocaleString()}</td>
+            <td style="padding: 8px 16px; white-space: nowrap;">{new Date(entry.timestamp).toLocaleString()}</td>
             <td style="padding: 8px;"><span class="badge">{entry.event_type}</span></td>
-            <td style="padding: 8px;">{entry.actor_id}</td>
+            <td style="padding: 8px;">{actorLabel(entry)}</td>
             <td style="padding: 8px;">{entry.detail || '—'}</td>
             <td style="padding: 8px; font-size: 12px;">{entry.ip_address || '—'}</td>
           </tr>
         {/each}
+        {#if d.entries.length === 0}
+          <tr><td colspan="5" style="padding: 24px; text-align: center; color: var(--text-muted);">No audit entries.</td></tr>
+        {/if}
       </tbody>
     </table>
   </div>
 
-  {#if data.entries.length >= 100}
+  {#if d.entries.length >= 100 || d.page > 1}
     <div style="display: flex; justify-content: center; gap: 8px; margin-top: 12px;">
-      {#if data.page > 1}
-        <a href="?page={data.page - 1}&event_type={data.eventType}" class="btn">← Newer</a>
+      {#if d.page > 1}
+        <a href="?page={d.page - 1}{d.eventType ? `&event_type=${d.eventType}` : ''}" class="btn">← Newer</a>
       {/if}
-      <a href="?page={data.page + 1}&event_type={data.eventType}" class="btn">Older →</a>
+      {#if d.entries.length >= 100}
+        <a href="?page={d.page + 1}{d.eventType ? `&event_type=${d.eventType}` : ''}" class="btn">Older →</a>
+      {/if}
     </div>
   {/if}
 </div>

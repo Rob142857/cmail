@@ -1,6 +1,8 @@
 <script>
   import { page } from '$app/state';
   let { data, children } = $props();
+  /** @type {any} */
+  const d = $derived(data);
 
   const folders = [
     { name: 'Inbox', slug: '', icon: '📥' },
@@ -11,14 +13,37 @@
     { name: 'Trash', slug: 'trash', icon: '🗑️' },
   ];
 
-  let currentMailbox = $state(data.mailboxes[0]?.id || '');
+  /** Build a /mail href that preserves the currently-selected mailbox (if any) */
+  function folderHref(slug) {
+    const params = new URLSearchParams();
+    if (slug) params.set('folder', slug);
+    const mb = page.url.searchParams.get('mailbox');
+    if (mb) params.set('mailbox', mb);
+    const qs = params.toString();
+    return qs ? `/mail?${qs}` : '/mail';
+  }
+
+  /** Build a /mail href for a specific mailbox, preserving the current folder */
+  function mailboxHref(mailboxId) {
+    const params = new URLSearchParams();
+    const folder = page.url.searchParams.get('folder');
+    if (folder) params.set('folder', folder);
+    if (mailboxId) params.set('mailbox', mailboxId);
+    const qs = params.toString();
+    return qs ? `/mail?${qs}` : '/mail';
+  }
+
+  const personalMailboxes = $derived((d.mailboxes || []).filter((/** @type {any} */ m) => m.type === 'personal'));
+  const sharedMailboxes = $derived((d.mailboxes || []).filter((/** @type {any} */ m) => m.type === 'shared'));
+  const currentMailboxId = $derived(page.url.searchParams.get('mailbox') || '');
+  const currentFolder = $derived(page.url.searchParams.get('folder') || '');
 </script>
 
 <div class="app-layout">
   <aside class="sidebar">
     <div class="sidebar-header">
       <img src="/icon.svg" alt="" width="22" height="22" style="vertical-align: middle; margin-right: 6px;" />
-      {data.appName || 'cmail'}
+      {d.appName || 'cmail'}
     </div>
 
     <div style="padding: 12px 8px;">
@@ -27,39 +52,70 @@
       </a>
     </div>
 
+    <div class="sidebar-section">Folders</div>
     <nav class="sidebar-nav">
       {#each folders as folder}
-        {@const href = folder.slug ? `/mail?folder=${folder.slug}` : '/mail'}
-        <a {href} class:active={(!page.url.searchParams.get('folder') && !folder.slug) || page.url.searchParams.get('folder') === folder.slug}>
+        <a href={folderHref(folder.slug)} class:active={currentFolder === folder.slug}>
           <span>{folder.icon}</span>
           <span>{folder.name}</span>
+          {#if folder.slug === '' && d.totalUnread > 0 && !currentMailboxId}
+            <span class="badge badge-info" style="margin-left: auto;">{d.totalUnread}</span>
+          {/if}
         </a>
       {/each}
     </nav>
 
-    {#if data.mailboxes.length > 0}
+    {#if d.mailboxes && d.mailboxes.length > 0}
       <div class="sidebar-section">Mailboxes</div>
       <nav class="sidebar-nav">
-        {#each data.mailboxes as mb}
-          <a href="/mail?mailbox={mb.id}" class:active={page.url.searchParams.get('mailbox') === mb.id}>
-            <span>{mb.type === 'shared' ? '👥' : '👤'}</span>
-            <span>{mb.display_name || mb.address}</span>
-            {#if mb.unread_count > 0}
-              <span class="badge badge-info">{mb.unread_count}</span>
-            {/if}
-          </a>
-        {/each}
+        <a href={mailboxHref('')} class:active={!currentMailboxId}>
+          <span>📬</span>
+          <span>All mailboxes</span>
+          {#if d.totalUnread > 0}
+            <span class="badge badge-info" style="margin-left: auto;">{d.totalUnread}</span>
+          {/if}
+        </a>
       </nav>
+
+      {#if personalMailboxes.length > 0}
+        <div class="sidebar-subsection">Personal</div>
+        <nav class="sidebar-nav">
+          {#each personalMailboxes as mb}
+            <a href={mailboxHref(mb.id)} class:active={currentMailboxId === mb.id} title={mb.address}>
+              <span>👤</span>
+              <span class="mb-label">{mb.display_name || mb.address}</span>
+              {#if mb.unread_count > 0}
+                <span class="badge badge-info" style="margin-left: auto;">{mb.unread_count}</span>
+              {/if}
+            </a>
+          {/each}
+        </nav>
+      {/if}
+
+      {#if sharedMailboxes.length > 0}
+        <div class="sidebar-subsection">Shared</div>
+        <nav class="sidebar-nav">
+          {#each sharedMailboxes as mb}
+            <a href={mailboxHref(mb.id)} class:active={currentMailboxId === mb.id} title={`${mb.address} — ${mb.permissions}`}>
+              <span>👥</span>
+              <span class="mb-label">{mb.display_name || mb.address}</span>
+              {#if mb.unread_count > 0}
+                <span class="badge badge-info" style="margin-left: auto;">{mb.unread_count}</span>
+              {/if}
+            </a>
+          {/each}
+        </nav>
+      {/if}
     {/if}
 
     <div style="margin-top: auto; padding: 12px 16px; border-top: 1px solid var(--border); font-size: 13px;">
       <div style="display: flex; align-items: center; justify-content: space-between;">
-        <span>{data.user?.display_name || data.user?.email}</span>
+        <span>{d.user?.display_name || d.user?.email}</span>
         <form method="POST" action="/auth/logout">
           <button type="submit" style="padding: 4px 8px; font-size: 12px;">Sign out</button>
         </form>
       </div>
-      {#if data.user?.role === 'manager'}
+      {#if d.user?.role === 'manager'}
         <a href="/admin" style="font-size: 12px; margin-top: 4px; display: block;">⚙️ Admin Dashboard</a>
       {/if}
     </div>
@@ -69,3 +125,19 @@
     {@render children()}
   </main>
 </div>
+
+<style>
+  .sidebar-subsection {
+    padding: 8px 16px 4px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+  .mb-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 140px;
+  }
+</style>

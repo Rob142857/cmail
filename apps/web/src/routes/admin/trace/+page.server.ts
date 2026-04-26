@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ platform, url }) => {
       // ✅ Parameterized query prevents SQL injection
       const term = `%${search}%`;
       traces = await env.DB.prepare(
-        'SELECT * FROM mail_trace WHERE envelope_from LIKE ? OR envelope_to LIKE ? OR subject LIKE ? OR message_id_header LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+        'SELECT * FROM mail_trace WHERE envelope_from LIKE ? OR envelope_to LIKE ? OR subject LIKE ? OR message_id_header LIKE ? ORDER BY timestamp DESC LIMIT ? OFFSET ?',
       ).bind(term, term, term, term, pageSize, offset).all();
     } else if (direction) {
       // ✅ Validate direction enum
@@ -29,11 +29,11 @@ export const load: PageServerLoad = async ({ platform, url }) => {
         return { traces: [], search, direction, page, error: 'Invalid direction' };
       }
       traces = await env.DB.prepare(
-        'SELECT * FROM mail_trace WHERE direction = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+        'SELECT * FROM mail_trace WHERE direction = ? ORDER BY timestamp DESC LIMIT ? OFFSET ?',
       ).bind(direction, pageSize, offset).all();
     } else {
       traces = await env.DB.prepare(
-        'SELECT * FROM mail_trace ORDER BY created_at DESC LIMIT ? OFFSET ?',
+        'SELECT * FROM mail_trace ORDER BY timestamp DESC LIMIT ? OFFSET ?',
       ).bind(pageSize, offset).all();
     }
 

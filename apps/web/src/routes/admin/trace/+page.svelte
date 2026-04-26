@@ -31,7 +31,7 @@
       <tbody>
         {#each data.traces as trace}
           <tr style="border-bottom: 1px solid var(--border);">
-            <td style="padding: 8px 16px; white-space: nowrap;">{new Date(trace.created_at).toLocaleString()}</td>
+            <td style="padding: 8px 16px; white-space: nowrap;">{new Date(trace.timestamp).toLocaleString()}</td>
             <td style="padding: 8px;">
               <span class="badge" class:badge-info={trace.direction === 'inbound'}>
                 {trace.direction === 'inbound' ? '📥' : '📤'} {trace.direction}

@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
-import type { Mailbox, MailboxAssignment } from '@cmail/shared/types';
+import type { Mailbox } from '@cmail/shared/types';
 
 export const load: LayoutServerLoad = async ({ locals, platform }) => {
   if (!locals.user) throw redirect(302, '/');
@@ -8,30 +8,22 @@ export const load: LayoutServerLoad = async ({ locals, platform }) => {
   const env = platform?.env;
   if (!env) throw redirect(302, '/');
 
-  // Get user's mailboxes (personal + assigned shared)
-  const personalMailbox = await env.DB.prepare(
-    'SELECT * FROM mailboxes WHERE id IN (SELECT mailbox_id FROM mailbox_assignments WHERE user_id = ?) OR (type = \'personal\' AND address LIKE ?)',
-  ).bind(locals.user.id, `%`).all<Mailbox>();
-
-  // Get assigned shared mailboxes
-  const sharedAssignments = await env.DB.prepare(
-    `SELECT m.*, ma.permissions FROM mailboxes m
-     INNER JOIN mailbox_assignments ma ON m.id = ma.mailbox_id
-     WHERE ma.user_id = ? AND m.type = 'shared' AND m.status = 'active'`,
-  ).bind(locals.user.id).all<Mailbox & { permissions: string }>();
-
-  // Get unread counts per mailbox
+  // Per-mailbox unread counts (inbox folder)
   const userMailboxes = await env.DB.prepare(
-    `SELECT m.id, m.address, m.type, m.display_name,
+    `SELECT m.id, m.address, m.type, m.display_name, m.status, ma.permissions,
             (SELECT COUNT(*) FROM messages WHERE mailbox_id = m.id AND folder = 'inbox' AND is_read = 0) as unread_count
      FROM mailboxes m
      INNER JOIN mailbox_assignments ma ON m.id = ma.mailbox_id
      WHERE ma.user_id = ? AND m.status = 'active'
-     ORDER BY m.type ASC, m.address ASC`,
-  ).bind(locals.user.id).all<Mailbox & { unread_count: number }>();
+     ORDER BY CASE m.type WHEN 'personal' THEN 0 ELSE 1 END, m.address ASC`,
+  ).bind(locals.user.id).all<Mailbox & { unread_count: number; permissions: string }>();
+
+  const mailboxes = userMailboxes.results || [];
+  const totalUnread = mailboxes.reduce((sum, m) => sum + (m.unread_count || 0), 0);
 
   return {
     user: locals.user,
-    mailboxes: userMailboxes.results || [],
+    mailboxes,
+    totalUnread,
   };
 };
