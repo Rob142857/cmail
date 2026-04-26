@@ -7,6 +7,7 @@ interface Env {
   STORAGE: R2Bucket;
   EMAIL: SendEmail;
   EMAIL_API_KEY?: string;
+  RESEND_API_KEY?: string;
 }
 
 interface SendEmail {
@@ -135,28 +136,45 @@ export default {
 
         const recipients = Array.isArray(body.to) ? body.to : [body.to];
 
+        // Prefer Resend if configured; fall back to Cloudflare Email binding
+        const useResend = !!env.RESEND_API_KEY;
+
         for (const recipient of recipients) {
-          const raw = buildRawEmail({
-            from: body.from,
-            to: recipient,
-            subject: body.subject,
-            html: body.html,
-            text: body.text,
-          });
-
-          const message: EmailMessage = {
-            from: body.from,
-            to: recipient,
-          };
-
-          // Send via Cloudflare Email Service
-          await (env.EMAIL as unknown as {
-            send: (msg: { from: string; to: string; raw?: string }) => Promise<void>;
-          }).send({
-            from: body.from,
-            to: recipient,
-            raw,
-          });
+          if (useResend) {
+            const resendRes = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                from: body.from,
+                to: recipient,
+                subject: body.subject,
+                html: body.html,
+                text: body.text,
+              }),
+            });
+            if (!resendRes.ok) {
+              const errText = await resendRes.text();
+              throw new Error(`Resend API ${resendRes.status}: ${errText}`);
+            }
+          } else {
+            const raw = buildRawEmail({
+              from: body.from,
+              to: recipient,
+              subject: body.subject,
+              html: body.html,
+              text: body.text,
+            });
+            await (env.EMAIL as unknown as {
+              send: (msg: { from: string; to: string; raw?: string }) => Promise<void>;
+            }).send({
+              from: body.from,
+              to: recipient,
+              raw,
+            });
+          }
         }
 
         // Log to mail_trace
