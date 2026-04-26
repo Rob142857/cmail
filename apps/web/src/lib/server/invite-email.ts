@@ -15,10 +15,10 @@ export function generateInviteEmail(options: InviteEmailOptions): { subject: str
 
   const subject = `You're invited to ${appName}`;
   const mailboxBlockHtml = mailboxAddress
-    ? `<div class="provider-info" style="background: #ecfdf5; border-left: 4px solid #059669; color: #065f46;"><strong>📬 Your mailbox</strong><br><span style="font-family: monospace; font-size: 15px;">${mailboxAddress}</span><br><span style="font-size: 13px;">Mail addressed to this address will appear in your ${appName} inbox after you sign in.</span></div>`
+    ? `<div class="provider-info" style="background: #ecfdf5; border-left: 4px solid #059669; color: #065f46;"><strong>Your mailbox</strong><br><span style="font-family: monospace; font-size: 15px;">${mailboxAddress}</span><br><span style="font-size: 13px;">Mail addressed to this address will appear in your ${appName} inbox after you sign in.</span></div>`
     : '';
   const mailboxBlockText = mailboxAddress
-    ? `\n✉ Your mailbox: ${mailboxAddress}\n   Mail sent to this address will appear in your ${appName} inbox after you sign in.\n`
+    ? `\nYour mailbox: ${mailboxAddress}\n   Mail sent to this address will appear in your ${appName} inbox after you sign in.\n`
     : '';
 
   const html = `<!DOCTYPE html>
@@ -59,7 +59,7 @@ export function generateInviteEmail(options: InviteEmailOptions): { subject: str
 <body>
   <div class="container">
     <div class="header">
-      <div class="logo">✉️ ${appName}</div>
+      <div class="logo">${appName}</div>
     </div>
 
     <div class="content">
@@ -81,7 +81,7 @@ export function generateInviteEmail(options: InviteEmailOptions): { subject: str
     ${mailboxBlockHtml}
 
     <div class="provider-info">
-      <strong>💡 Which provider should I choose?</strong>
+      <strong>Which provider should I choose?</strong>
       <ul style="margin: 8px 0; padding-left: 20px;">
         <li><strong>Microsoft:</strong> Use if your email is @hotmail, @live, @outlook, or a corporate Microsoft account</li>
         <li><strong>Google:</strong> Use if your email is @gmail or a corporate Google Workspace account</li>
@@ -90,7 +90,7 @@ export function generateInviteEmail(options: InviteEmailOptions): { subject: str
     </div>
 
     <div class="footnote">
-      <strong>🔒 Security note:</strong> ${appName} uses your email address to verify your identity. We don't access your personal inbox, files, or search history. Only organisational communication through ${appName} will be managed here.
+      <strong>Security note:</strong> ${appName} uses your email address to verify your identity. We don't access your personal inbox, files, or search history. Only organisational communication through ${appName} will be managed here.
     </div>
 
     <div class="footer">
@@ -118,7 +118,7 @@ To get started, sign in with your email address. Choose your sign-in provider:
 
 You can use any provider as long as you sign in with ${email}.
 ${mailboxBlockText}
-🔒 Security note: ${appName} uses your email address to verify your identity. We don't access your personal inbox, files, or search history. Only organisational communication through ${appName} will be managed here.
+Security note: ${appName} uses your email address to verify your identity. We don't access your personal inbox, files, or search history. Only organisational communication through ${appName} will be managed here.
 
 If you did not expect this invitation, you can safely ignore this email.
 

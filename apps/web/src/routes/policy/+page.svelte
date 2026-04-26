@@ -4,7 +4,7 @@
 
 <div style="max-width: 720px; margin: 40px auto; padding: 0 16px;">
   <div class="card">
-    <h2 style="margin-bottom: 8px;">📋 ICT Usage Policy</h2>
+    <h2 style="margin-bottom: 8px;">ICT Usage Policy</h2>
     <p style="color: var(--text-muted); margin-bottom: 16px;">
       You must read and accept the current policy before accessing your mailbox.
     </p>

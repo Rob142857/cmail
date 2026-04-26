@@ -23,7 +23,7 @@
 </script>
 
 <div>
-  <h2 style="margin-bottom: 16px;">✏️ Compose</h2>
+  <h2 style="margin-bottom: 16px;">Compose</h2>
 
   {#if form?.error}
     <div class="badge badge-error" style="margin-bottom: 12px; display: block; padding: 8px;">{form.error}</div>
@@ -74,7 +74,7 @@
 
     <div style="display: flex; gap: 8px; justify-content: flex-end;">
       <a href="/mail" class="btn">Cancel</a>
-      <button type="submit" class="btn btn-primary">Send ✉️</button>
+      <button type="submit" class="btn btn-primary">Send</button>
     </div>
   </form>
 </div>

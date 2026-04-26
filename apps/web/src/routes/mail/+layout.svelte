@@ -1,16 +1,20 @@
 <script>
   import { page } from '$app/state';
+  import { afterNavigate } from '$app/navigation';
   let { data, children } = $props();
   /** @type {any} */
   const d = $derived(data);
 
+  let menuOpen = $state(false);
+  afterNavigate(() => { menuOpen = false; });
+
   const folders = [
-    { name: 'Inbox', slug: '', icon: '📥' },
-    { name: 'Sent', slug: 'sent', icon: '📤' },
-    { name: 'Drafts', slug: 'drafts', icon: '📝' },
-    { name: 'Archive', slug: 'archive', icon: '📁' },
-    { name: 'Spam', slug: 'spam', icon: '⚠️' },
-    { name: 'Trash', slug: 'trash', icon: '🗑️' },
+    { name: 'Inbox', slug: '' },
+    { name: 'Sent', slug: 'sent' },
+    { name: 'Drafts', slug: 'drafts' },
+    { name: 'Archive', slug: 'archive' },
+    { name: 'Spam', slug: 'spam' },
+    { name: 'Trash', slug: 'trash' },
   ];
 
   /** Build a /mail href that preserves the currently-selected mailbox (if any) */
@@ -40,7 +44,17 @@
 </script>
 
 <div class="app-layout">
-  <aside class="sidebar">
+  <div class="mobile-topbar">
+    <button class="menu-btn" type="button" aria-label="Open navigation" onclick={() => (menuOpen = true)}>
+      <span aria-hidden="true">&#9776;</span>
+    </button>
+    <strong>{d.appName || 'cmail'}</strong>
+    <a href="/mail/compose" class="btn btn-primary" style="margin-left: auto; padding: 6px 12px;">Compose</a>
+  </div>
+
+  <div class="sidebar-overlay" class:open={menuOpen} onclick={() => (menuOpen = false)} role="presentation"></div>
+
+  <aside class="sidebar" class:open={menuOpen}>
     <div class="sidebar-header">
       <img src="/icon.svg" alt="" width="22" height="22" style="vertical-align: middle; margin-right: 6px;" />
       {d.appName || 'cmail'}
@@ -48,7 +62,7 @@
 
     <div style="padding: 12px 8px;">
       <a href="/mail/compose" class="btn btn-primary" style="width: 100%; justify-content: center;">
-        ✏️ Compose
+        Compose
       </a>
     </div>
 
@@ -56,7 +70,6 @@
     <nav class="sidebar-nav">
       {#each folders as folder}
         <a href={folderHref(folder.slug)} class:active={currentFolder === folder.slug}>
-          <span>{folder.icon}</span>
           <span>{folder.name}</span>
           {#if folder.slug === '' && d.totalUnread > 0 && !currentMailboxId}
             <span class="badge badge-info" style="margin-left: auto;">{d.totalUnread}</span>
@@ -69,7 +82,6 @@
       <div class="sidebar-section">Mailboxes</div>
       <nav class="sidebar-nav">
         <a href={mailboxHref('')} class:active={!currentMailboxId}>
-          <span>📬</span>
           <span>All mailboxes</span>
           {#if d.totalUnread > 0}
             <span class="badge badge-info" style="margin-left: auto;">{d.totalUnread}</span>
@@ -82,7 +94,6 @@
         <nav class="sidebar-nav">
           {#each personalMailboxes as mb}
             <a href={mailboxHref(mb.id)} class:active={currentMailboxId === mb.id} title={mb.address}>
-              <span>👤</span>
               <span class="mb-label">{mb.display_name || mb.address}</span>
               {#if mb.unread_count > 0}
                 <span class="badge badge-info" style="margin-left: auto;">{mb.unread_count}</span>
@@ -97,7 +108,6 @@
         <nav class="sidebar-nav">
           {#each sharedMailboxes as mb}
             <a href={mailboxHref(mb.id)} class:active={currentMailboxId === mb.id} title={`${mb.address} — ${mb.permissions}`}>
-              <span>👥</span>
               <span class="mb-label">{mb.display_name || mb.address}</span>
               {#if mb.unread_count > 0}
                 <span class="badge badge-info" style="margin-left: auto;">{mb.unread_count}</span>
@@ -116,7 +126,7 @@
         </form>
       </div>
       {#if d.user?.role === 'manager'}
-        <a href="/admin" style="font-size: 12px; margin-top: 4px; display: block;">⚙️ Admin Dashboard</a>
+        <a href="/admin" style="font-size: 12px; margin-top: 4px; display: block;">Admin Dashboard</a>
       {/if}
     </div>
   </aside>

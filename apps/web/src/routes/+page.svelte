@@ -16,7 +16,6 @@
       <p class="subtitle">Secure email for your organisation</p>
 
       <div class="trust-message">
-        <span class="shield">🛡️</span>
         <p>Sign-in only verifies your identity. We cannot access your personal inbox, drive, or search history.</p>
       </div>
 

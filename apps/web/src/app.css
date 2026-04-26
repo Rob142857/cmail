@@ -160,6 +160,35 @@ input:focus, textarea:focus, select:focus {
 .main-content {
   padding: 16px 24px;
   overflow-y: auto;
+  min-width: 0;
+}
+
+/* Mobile top bar (hidden on desktop) */
+.mobile-topbar {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+.mobile-topbar .menu-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  font-size: 18px;
+  line-height: 1;
+}
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 40;
 }
 
 /* Message list */
@@ -188,6 +217,52 @@ input:focus, textarea:focus, select:focus {
 /* Responsive */
 @media (max-width: 768px) {
   .app-layout { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
-  .message-row .from { min-width: auto; }
+  .main-content { padding: 12px 14px; }
+
+  .mobile-topbar { display: flex; }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 84%;
+    max-width: 320px;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    z-index: 50;
+    box-shadow: 0 0 24px rgba(0,0,0,0.2);
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-overlay.open { display: block; }
+
+  /* Bigger tap targets */
+  .sidebar-nav a { padding: 12px 14px; font-size: 15px; min-height: 44px; }
+  button, .btn { min-height: 40px; }
+
+  /* Message rows: stack metadata under sender on narrow screens */
+  .message-row,
+  .message-row.with-mb {
+    grid-template-columns: 1fr auto !important;
+    grid-template-areas:
+      "from date"
+      "middle middle"
+      "mb mb";
+    row-gap: 4px;
+    padding: 12px 14px;
+  }
+  .message-row .from { min-width: 0; grid-area: from; }
+  .message-row .date { grid-area: date; }
+  .message-row .middle { grid-area: middle; }
+  .message-row .mb-tag { grid-area: mb; justify-self: start; }
+
+  /* Forms full-width */
+  input, textarea, select { font-size: 16px; } /* prevent iOS zoom */
+  table { font-size: 13px; }
+}
+
+@media (max-width: 480px) {
+  h1 { font-size: 22px; }
+  h2 { font-size: 18px; }
+  .card { padding: 12px; }
 }
