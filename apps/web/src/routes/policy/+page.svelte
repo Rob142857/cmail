@@ -2,33 +2,146 @@
   let { data, form } = $props();
 </script>
 
-<div style="max-width: 720px; margin: 40px auto; padding: 0 16px;">
-  <div class="card">
-    <h2 style="margin-bottom: 8px;">ICT Usage Policy</h2>
-    <p style="color: var(--text-muted); margin-bottom: 16px;">
+<div class="policy-wrap">
+  <div class="card policy-card">
+    <h2 class="policy-title">ICT Usage Policy</h2>
+    <p class="policy-lede">
       You must read and accept the current policy before accessing your mailbox.
     </p>
-    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
-      Version: {data.policy.version_label} — Published {new Date(data.policy.published_at).toLocaleDateString()}
+    <p class="policy-meta">
+      Version {data.policy.version_label} · Published {new Date(data.policy.published_at).toLocaleDateString()}
     </p>
 
-    <div style="max-height: 400px; overflow-y: auto; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; background: var(--bg-hover);">
+    <div class="policy-body">
       {@html data.policy.body_text}
     </div>
 
     {#if form?.error}
-      <div class="badge badge-error" style="margin-bottom: 12px; display: block; padding: 8px;">{form.error}</div>
+      <div class="badge badge-error policy-error">{form.error}</div>
     {/if}
 
-    <form method="POST">
+    <form method="POST" class="policy-form">
       <input type="hidden" name="policy_version_id" value={data.policy.id} />
-      <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; cursor: pointer;">
+      <label class="policy-accept">
         <input type="checkbox" name="accept" value="1" required />
-        <span>I have read and accept this ICT usage policy</span>
+        <span>I have read and accept this ICT usage policy.</span>
       </label>
-      <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
-        Accept & Continue
+      <button type="submit" class="btn btn-primary policy-submit">
+        Accept &amp; Continue
       </button>
     </form>
   </div>
 </div>
+
+<style>
+  .policy-wrap {
+    max-width: 720px;
+    margin: 40px auto;
+    padding: 0 16px;
+  }
+  .policy-card {
+    padding: 24px;
+  }
+  .policy-title {
+    margin: 0 0 6px;
+  }
+  .policy-lede {
+    color: var(--text-muted);
+    margin: 0 0 4px;
+  }
+  .policy-meta {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0 0 16px;
+  }
+  .policy-body {
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 16px 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-hover);
+    margin-bottom: 20px;
+    line-height: 1.55;
+  }
+  .policy-body :global(h3) {
+    margin: 0 0 12px;
+    font-size: 18px;
+  }
+  .policy-body :global(h4) {
+    margin: 18px 0 6px;
+    font-size: 15px;
+  }
+  .policy-body :global(p) {
+    margin: 0 0 10px;
+  }
+  .policy-body :global(ul) {
+    margin: 0 0 10px;
+    padding-left: 22px;
+  }
+  .policy-body :global(li) {
+    margin-bottom: 4px;
+  }
+  .policy-body :global(code) {
+    background: rgba(255,255,255,0.08);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12.5px;
+  }
+  .policy-body :global(em) {
+    color: var(--text-muted);
+  }
+
+  .policy-error {
+    display: block;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+  }
+
+  .policy-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .policy-accept {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-hover);
+    line-height: 1.4;
+  }
+  .policy-accept input[type="checkbox"] {
+    margin: 2px 0 0;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    cursor: pointer;
+  }
+  .policy-accept span {
+    flex: 1 1 auto;
+  }
+  .policy-submit {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 16px;
+    font-size: 15px;
+  }
+
+  @media (max-width: 600px) {
+    .policy-wrap {
+      margin: 16px auto;
+      padding: 0 12px;
+    }
+    .policy-card {
+      padding: 16px;
+    }
+    .policy-body {
+      max-height: 55vh;
+      padding: 12px 14px;
+    }
+  }
+</style>
