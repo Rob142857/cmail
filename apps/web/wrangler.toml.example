@@ -29,3 +29,12 @@ bucket_name = "cmail-storage"
 APP_NAME = "cmail"
 MAIL_DOMAIN = "mail.example.com"
 APP_URL = "https://mail.example.com"
+
+# Organisation branding
+ORG_NAME = "Your Organisation"
+ORG_SHORT_NAME = "Your Org"
+ORG_URL = "https://example.com"
+SUPPORT_EMAIL = "desk@example.com"
+LANDING_URL = "https://cmail.example.com"
+POLICY_URL = "https://mail.example.com/policy"
+REPO_URL = "https://github.com/Rob142857/cmail"

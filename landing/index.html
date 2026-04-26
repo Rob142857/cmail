@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>cmail — Secure organisational email, open source</title>
+  <meta name="description" content="cmail is open-source, self-hostable email for small organisations. Built on Cloudflare Workers, D1, and R2.">
+  <meta property="og:title" content="cmail — Secure organisational email, open source">
+  <meta property="og:description" content="Open-source email for organisations, hosted on Cloudflare.">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232563eb'%3E%3Cpath d='M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0l-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-alt: #f7f8fa;
+      --text: #111827;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-soft: #eff6ff;
+      --radius: 10px;
+      --shadow: 0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b0d10;
+        --bg-alt: #14171c;
+        --text: #e6e8eb;
+        --text-muted: #9ca3af;
+        --border: #262b32;
+        --primary: #3b82f6;
+        --primary-hover: #60a5fa;
+        --primary-soft: #1e293b;
+      }
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-feature-settings: 'cv02','cv03','cv04','cv11';
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 0;
+    }
+    .logo {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-weight: 600; font-size: 17px; letter-spacing: -0.01em; color: var(--text);
+    }
+    .logo svg { color: var(--primary); }
+    nav .links { display: flex; gap: 18px; align-items: center; font-size: 14px; }
+    nav .links a { color: var(--text-muted); }
+    nav .links a:hover { color: var(--text); text-decoration: none; }
+
+    header.hero { padding: 70px 0 50px; text-align: center; }
+    h1 {
+      font-size: clamp(34px, 6vw, 52px);
+      font-weight: 700; letter-spacing: -0.025em; line-height: 1.1;
+      margin-bottom: 18px;
+    }
+    h1 .accent { color: var(--primary); }
+    .lede {
+      font-size: clamp(16px, 2.2vw, 19px);
+      color: var(--text-muted);
+      max-width: 620px; margin: 0 auto 32px;
+    }
+    .cta { display: inline-flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 11px 20px;
+      border-radius: 8px;
+      font-weight: 500; font-size: 14px;
+      border: 1px solid transparent;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
+      cursor: pointer;
+    }
+    .btn-primary { background: var(--primary); color: #fff !important; }
+    .btn-primary:hover { background: var(--primary-hover); text-decoration: none; }
+    .btn-ghost { color: var(--text); border-color: var(--border); background: var(--bg); }
+    .btn-ghost:hover { background: var(--bg-alt); text-decoration: none; }
+    .btn:active { transform: translateY(1px); }
+
+    section.features {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+      margin: 50px 0 30px;
+    }
+    .feature {
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .feature h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.005em; }
+    .feature p { font-size: 14px; color: var(--text-muted); }
+
+    section.about {
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin: 30px 0;
+    }
+    section.about h2 { font-size: 20px; font-weight: 600; margin-bottom: 10px; letter-spacing: -0.01em; }
+    section.about p { color: var(--text-muted); font-size: 15px; }
+    section.about p + p { margin-top: 10px; }
+
+    .stack {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      margin-top: 14px;
+    }
+    .chip {
+      display: inline-block;
+      padding: 3px 10px;
+      font-size: 12px; font-weight: 500;
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-radius: 999px;
+    }
+
+    section.contact {
+      text-align: center; padding: 40px 0 20px;
+    }
+    section.contact h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.01em; }
+    section.contact p { color: var(--text-muted); margin-bottom: 16px; }
+    .contact-email {
+      display: inline-block;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 16px;
+      padding: 10px 18px;
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 26px 0;
+      margin-top: 30px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    footer p + p { margin-top: 4px; }
+    footer a { color: var(--text-muted); }
+    footer a:hover { color: var(--text); }
+
+    @media (max-width: 700px) {
+      section.features { grid-template-columns: 1fr; }
+      header.hero { padding: 50px 0 36px; }
+      nav .links a:not(.gh) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <nav>
+      <a class="logo" href="/">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0l-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/></svg>
+        cmail
+      </a>
+      <div class="links">
+        <a href="#about">About</a>
+        <a href="#contact">Contact</a>
+        <a class="gh" href="https://github.com/Rob142857/cmail" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <h1>Open-source email,<br><span class="accent">built for organisations</span></h1>
+      <p class="lede">cmail is a self-hostable email platform that lets a small team run its own organisational mail on Cloudflare's edge. No agents. No tracking pixels. No vendor lock-in.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/Rob142857/cmail" target="_blank" rel="noopener">View on GitHub</a>
+        <a class="btn btn-ghost" href="#contact">Get in touch</a>
+      </div>
+    </header>
+
+    <section class="features">
+      <div class="feature">
+        <h3>Cloudflare-native</h3>
+        <p>Runs on Workers, Pages, D1, and R2. Cheap, fast, globally distributed by default.</p>
+      </div>
+      <div class="feature">
+        <h3>SSO from day one</h3>
+        <p>Sign in with Microsoft or Google. No passwords to manage, no separate identity store.</p>
+      </div>
+      <div class="feature">
+        <h3>Audit-first</h3>
+        <p>Every message, login, policy change, and admin action is logged for compliance review.</p>
+      </div>
+    </section>
+
+    <section class="about" id="about">
+      <h2>What it is</h2>
+      <p>cmail provides organisational mailboxes for a custom domain — inbound delivery, outbound sending, threading, drafts, archive/spam/trash, and an admin console for users, mailboxes, policy, and audit. Designed for organisations that want to own their email infrastructure without operating a server.</p>
+      <p>It's released under the MIT licence. Use it, fork it, run it for your team, embed it in something larger — that's the point.</p>
+      <div class="stack">
+        <span class="chip">SvelteKit</span>
+        <span class="chip">Cloudflare Workers</span>
+        <span class="chip">D1</span>
+        <span class="chip">R2</span>
+        <span class="chip">Resend</span>
+        <span class="chip">MIT</span>
+      </div>
+    </section>
+
+    <section class="contact" id="contact">
+      <h2>Get in touch</h2>
+      <p>For deployment enquiries, partnerships, or general questions:</p>
+      <a class="contact-email" href="mailto:desk@maatara.io">desk@maatara.io</a>
+    </section>
+
+    <footer>
+      <p>cmail · Open source under the <a href="https://github.com/Rob142857/cmail/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a></p>
+      <p>Source on <a href="https://github.com/Rob142857/cmail" target="_blank" rel="noopener">GitHub</a> · Maintained by <a href="https://maatara.io" target="_blank" rel="noopener">Ma'atara</a></p>
+    </footer>
+
+  </div>
+</body>
+</html>

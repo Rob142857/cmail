@@ -102,6 +102,12 @@ export const actions: Actions = {
           senderName: locals.user?.display_name || locals.user?.email || 'An administrator',
           systemEmail: env.SYSTEM_EMAIL as string,
           mailboxAddress: mailboxResult.success && mailboxResult.address ? mailboxResult.address : undefined,
+          orgName: env.ORG_NAME,
+          orgShortName: env.ORG_SHORT_NAME,
+          orgUrl: env.ORG_URL,
+          supportEmail: env.SUPPORT_EMAIL || (env.SYSTEM_EMAIL as string),
+          landingUrl: env.LANDING_URL,
+          policyUrl: env.POLICY_URL || `${env.APP_URL || ''}/policy`,
         });
 
         // ✅ Use SYSTEM_EMAIL (desk@maatara.io) or fallback to noreply

@@ -156,6 +156,16 @@ export interface Env {
   APP_URL: string;
   SESSION_SECRET: string;
 
+  // Organisation branding (used in invite emails, landing, footer)
+  ORG_NAME?: string;          // e.g. "Ma'atara Organisation"
+  ORG_SHORT_NAME?: string;    // e.g. "Ma'atara"
+  ORG_URL?: string;           // e.g. "https://maatara.io"
+  SUPPORT_EMAIL?: string;     // e.g. "desk@maatara.io"
+  LANDING_URL?: string;       // e.g. "https://cmail.maatara.io"
+  POLICY_URL?: string;        // e.g. "https://mail.maatara.io/policy"
+  REPO_URL?: string;          // e.g. "https://github.com/Rob142857/cmail"
+  SYSTEM_EMAIL?: string;      // sender used for invites/system mail
+
   // Auth — at least one required
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
