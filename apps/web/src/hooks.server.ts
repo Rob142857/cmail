@@ -33,6 +33,15 @@ export const handle: Handle = async ({ event, resolve }) => {
     event.locals.sessionId = session.id;
   }
 
+  // Probabilistic cleanup: ~1% of requests, delete expired/revoked sessions
+  if (Math.random() < 0.01) {
+    event.platform?.context.waitUntil(
+      env.DB.prepare(
+        'DELETE FROM sessions WHERE revoked = 1 OR expires_at < datetime(\'now\')',
+      ).run().catch(() => {}),
+    );
+  }
+
   const response = await resolve(event);
 
   // ─── Security headers ────────────────────────────────────

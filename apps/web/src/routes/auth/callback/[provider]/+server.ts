@@ -97,6 +97,11 @@ export const GET: RequestHandler = async ({ params, url, platform, cookies, requ
     'UPDATE users SET last_sign_in = datetime(\'now\'), auth_provider = ?, display_name = CASE WHEN display_name = \'\' THEN ? ELSE display_name END, status = CASE WHEN status = \'pending\' THEN \'active\' ELSE status END, updated_at = datetime(\'now\') WHERE id = ?',
   ).bind(provider, userInfo.name || '', user.id).run();
 
+  // Revoke any existing sessions for this user (single-session enforcement)
+  await env.DB.prepare(
+    'UPDATE sessions SET revoked = 1 WHERE user_id = ? AND revoked = 0',
+  ).bind(user.id).run();
+
   // Create session
   const { token, hash, expiresAt } = await createSessionToken(user.id, env.SESSION_SECRET);
   const sessionId = generateId();
