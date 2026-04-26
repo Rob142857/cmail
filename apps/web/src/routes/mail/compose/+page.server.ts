@@ -1,8 +1,20 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import type { Mailbox, Message } from '@cmail/shared/types';
-import { sendEmail } from '$lib/server/outbound';
+import { sendEmail, type OutboundAttachment } from '$lib/server/outbound';
 import { audit, generateId, traceEmail } from '$lib/server/db';
+
+// Same blocked-extension list as inbound worker (defense in depth on outbound).
+const BLOCKED_EXTENSIONS = new Set([
+  '.exe', '.bat', '.cmd', '.scr', '.js', '.vbs', '.ps1', '.msi',
+  '.com', '.pif', '.hta', '.cpl', '.reg', '.inf', '.wsf',
+]);
+const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024; // 20 MB total per message
+
+function getExtension(filename: string): string {
+  const dot = filename.lastIndexOf('.');
+  return dot >= 0 ? filename.slice(dot).toLowerCase() : '';
+}
 
 export const load: PageServerLoad = async ({ locals, platform, url }) => {
   if (!locals.user) throw redirect(302, '/');
@@ -95,6 +107,27 @@ export const actions: Actions = {
       return { error: 'From, To, and Subject are required' };
     }
 
+    // Collect & validate attachments (multipart files)
+    const rawAttachments = formData.getAll('attachments').filter((v): v is File => v instanceof File && v.size > 0);
+    let totalAttachmentBytes = 0;
+    const attachments: Array<{ filename: string; contentType: string; bytes: Uint8Array }> = [];
+    for (const file of rawAttachments) {
+      const ext = getExtension(file.name);
+      if (BLOCKED_EXTENSIONS.has(ext)) {
+        return { error: `Attachment type not allowed: ${ext} (${file.name})` };
+      }
+      totalAttachmentBytes += file.size;
+      if (totalAttachmentBytes > MAX_ATTACHMENT_BYTES) {
+        return { error: `Attachments exceed ${Math.round(MAX_ATTACHMENT_BYTES / 1024 / 1024)} MB total limit` };
+      }
+      const buf = new Uint8Array(await file.arrayBuffer());
+      attachments.push({
+        filename: file.name,
+        contentType: file.type || 'application/octet-stream',
+        bytes: buf,
+      });
+    }
+
     // Verify user can send from this address
     const mailbox = await env.DB.prepare(
       `SELECT m.id FROM mailboxes m
@@ -134,6 +167,11 @@ export const actions: Actions = {
         html: htmlWithSignature,
         text: body.replace(/<[^>]+>/g, ''),
         headers: inReplyTo ? { 'In-Reply-To': inReplyTo } : undefined,
+        attachments: attachments.map<OutboundAttachment>(a => ({
+          filename: a.filename,
+          contentType: a.contentType,
+          content: a.bytes,
+        })),
       }, env as unknown as Record<string, unknown>);
 
       if (!result.success) {
@@ -158,15 +196,29 @@ export const actions: Actions = {
     await env.STORAGE.put(bodyKey, htmlWithSignature);
 
     await env.DB.prepare(
-      `INSERT INTO messages (id, mailbox_id, message_id_header, direction, from_address, to_addresses, cc_addresses, subject, snippet, body_r2_key, folder, is_read, received_at, created_at, in_reply_to)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sent', 1, datetime('now'), datetime('now'), ?)`,
+      `INSERT INTO messages (id, mailbox_id, message_id_header, direction, from_address, to_addresses, cc_addresses, subject, snippet, body_r2_key, has_attachments, size_bytes, folder, is_read, received_at, created_at, in_reply_to)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sent', 1, datetime('now'), datetime('now'), ?)`,
     ).bind(
       messageId, mailbox.id, messageIdHeader,
       isFullyInternal ? 'internal' : 'outbound',
       from, JSON.stringify(toRecipients), JSON.stringify(ccRecipients),
       subject, body.replace(/<[^>]+>/g, '').slice(0, 200),
-      bodyKey, inReplyTo || null,
+      bodyKey,
+      attachments.length ? 1 : 0,
+      totalAttachmentBytes,
+      inReplyTo || null,
     ).run();
+
+    // Persist attachments for the sender's sent copy
+    for (const a of attachments) {
+      const attId = generateId();
+      const attKey = `attachments/${messageId}/${attId}/${a.filename}`;
+      await env.STORAGE.put(attKey, a.bytes);
+      await env.DB.prepare(
+        `INSERT INTO attachments (id, message_id, filename, content_type, size_bytes, r2_key)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).bind(attId, messageId, a.filename, a.contentType, a.bytes.byteLength, attKey).run();
+    }
 
     // For internal recipients, deliver to their mailboxes
     for (const recipient of allRecipients) {
@@ -181,14 +233,27 @@ export const actions: Actions = {
           await env.STORAGE.put(recipientBodyKey, htmlWithSignature);
 
           await env.DB.prepare(
-            `INSERT INTO messages (id, mailbox_id, message_id_header, direction, from_address, to_addresses, cc_addresses, subject, snippet, body_r2_key, folder, is_read, received_at, created_at, in_reply_to)
-             VALUES (?, ?, ?, 'internal', ?, ?, ?, ?, ?, ?, 'inbox', 0, datetime('now'), datetime('now'), ?)`,
+            `INSERT INTO messages (id, mailbox_id, message_id_header, direction, from_address, to_addresses, cc_addresses, subject, snippet, body_r2_key, has_attachments, size_bytes, folder, is_read, received_at, created_at, in_reply_to)
+             VALUES (?, ?, ?, 'internal', ?, ?, ?, ?, ?, ?, ?, ?, 'inbox', 0, datetime('now'), datetime('now'), ?)`,
           ).bind(
             deliveryId, recipientMailbox.id, messageIdHeader,
             from, JSON.stringify(toRecipients), JSON.stringify(ccRecipients),
             subject, body.replace(/<[^>]+>/g, '').slice(0, 200),
-            recipientBodyKey, inReplyTo || null,
+            recipientBodyKey,
+            attachments.length ? 1 : 0,
+            totalAttachmentBytes,
+            inReplyTo || null,
           ).run();
+
+          for (const a of attachments) {
+            const attId = generateId();
+            const attKey = `attachments/${deliveryId}/${attId}/${a.filename}`;
+            await env.STORAGE.put(attKey, a.bytes);
+            await env.DB.prepare(
+              `INSERT INTO attachments (id, message_id, filename, content_type, size_bytes, r2_key)
+               VALUES (?, ?, ?, ?, ?, ?)`,
+            ).bind(attId, deliveryId, a.filename, a.contentType, a.bytes.byteLength, attKey).run();
+          }
         }
       }
     }

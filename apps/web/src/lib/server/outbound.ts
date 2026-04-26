@@ -4,6 +4,13 @@
 // it can only deliver to verified Email Routing destinations, which is not
 // useful for general outbound. Use Resend or Postmark instead.
 
+export interface OutboundAttachment {
+  filename: string;
+  contentType: string;
+  /** Raw bytes of the file. */
+  content: Uint8Array;
+}
+
 export interface OutboundEmail {
   from: string;
   to: string | string[];
@@ -13,6 +20,7 @@ export interface OutboundEmail {
   text?: string;
   replyTo?: string;
   headers?: Record<string, string>;
+  attachments?: OutboundAttachment[];
 }
 
 export interface OutboundResult {
@@ -23,6 +31,16 @@ export interface OutboundResult {
 }
 
 type ProviderName = 'resend' | 'postmark' | 'none';
+
+function toBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  // btoa is available in Workers runtime
+  return btoa(binary);
+}
 
 export function detectProvider(env: Record<string, unknown>): ProviderName {
   if (env.RESEND_API_KEY) return 'resend';
@@ -71,6 +89,11 @@ async function sendViaResend(email: OutboundEmail, apiKey: string): Promise<Outb
         text: email.text,
         reply_to: email.replyTo,
         headers: email.headers,
+        attachments: email.attachments?.map(a => ({
+          filename: a.filename,
+          content: toBase64(a.content),
+          content_type: a.contentType,
+        })),
       }),
     });
 
@@ -105,6 +128,11 @@ async function sendViaPostmark(email: OutboundEmail, apiKey: string): Promise<Ou
         TextBody: email.text,
         ReplyTo: email.replyTo,
         MessageStream: 'outbound',
+        Attachments: email.attachments?.map(a => ({
+          Name: a.filename,
+          Content: toBase64(a.content),
+          ContentType: a.contentType,
+        })),
       }),
     });
 
