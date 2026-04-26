@@ -35,7 +35,7 @@
           <div style="display: flex; gap: 8px; align-items: center;">
             <span class="badge badge-info">{policy.signature_count} signatures</span>
             <span style="font-size: 12px; color: var(--text-muted);">
-              Published {new Date(policy.published_at).toLocaleDateString()}
+              Published {new Date(policy.published_at.includes('T') ? policy.published_at : policy.published_at.replace(' ', 'T') + 'Z').toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'short', year: 'numeric' })}
             </span>
             <span style="font-size: 12px; color: var(--accent);">View ▾</span>
           </div>

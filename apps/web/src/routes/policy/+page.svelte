@@ -8,7 +8,7 @@
 
     {#if data.policy}
       <p class="policy-meta">
-        Version {data.policy.version_label} · Published {new Date(data.policy.published_at).toLocaleDateString()}
+        Version {data.policy.version_label} · Published {new Date(data.policy.published_at.includes('T') ? data.policy.published_at : data.policy.published_at.replace(' ', 'T') + 'Z').toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'short', year: 'numeric' })}
       </p>
 
       <div class="policy-body">

@@ -1,5 +1,7 @@
 <script>
   import { enhance } from '$app/forms';
+  import EmailAutocomplete from '$lib/EmailAutocomplete.svelte';
+  import { formatQuoteDate } from '$lib/dates';
   let { data, form } = $props();
   /** @type {any} */
   const d = $derived(data);
@@ -81,7 +83,7 @@
       } else {
         subject = d.replyTo.subject.startsWith('Re:') ? d.replyTo.subject : `Re: ${d.replyTo.subject}`;
         to = d.replyTo.from_address;
-        body = `<br><br>On ${new Date(d.replyTo.received_at).toLocaleString()}, ${d.replyTo.from_address} wrote:<br><blockquote style="margin-left: 8px; padding-left: 8px; border-left: 2px solid var(--border);">${d.replyBody}</blockquote>`;
+        body = `<br><br>On ${formatQuoteDate(d.replyTo.received_at)}, ${d.replyTo.from_address} wrote:<br><blockquote style="margin-left: 8px; padding-left: 8px; border-left: 2px solid var(--border);">${d.replyBody}</blockquote>`;
       }
     }
   });
@@ -195,12 +197,12 @@
 
     <div class="field">
       <label for="to">To</label>
-      <input type="text" name="to" id="to" bind:value={to} oninput={markDirty} placeholder="recipient@example.com, another@example.com" required />
+      <EmailAutocomplete bind:value={to} name="to" id="to" placeholder="recipient@example.com, another@example.com" required multi oninput={markDirty} />
     </div>
 
     <div class="field">
       <label for="cc">Cc</label>
-      <input type="text" name="cc" id="cc" bind:value={cc} oninput={markDirty} placeholder="optional" />
+      <EmailAutocomplete bind:value={cc} name="cc" id="cc" placeholder="optional" multi oninput={markDirty} />
     </div>
 
     <div class="field">

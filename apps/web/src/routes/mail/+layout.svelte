@@ -121,9 +121,12 @@
     <div style="margin-top: auto; padding: 12px 16px; border-top: 1px solid var(--border); font-size: 13px;">
       <div style="display: flex; align-items: center; justify-content: space-between;">
         <span>{d.user?.display_name || d.user?.email}</span>
-        <form method="POST" action="/auth/logout">
-          <button type="submit" style="padding: 4px 8px; font-size: 12px;">Sign out</button>
-        </form>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <a href="mailto:desk@maatara.io" style="font-size: 12px; color: var(--text-muted);">Support</a>
+          <form method="POST" action="/auth/logout">
+            <button type="submit" style="padding: 4px 8px; font-size: 12px;">Sign out</button>
+          </form>
+        </div>
       </div>
       {#if d.user?.role === 'manager'}
         <a href="/admin" style="font-size: 12px; margin-top: 4px; display: block;">Admin Dashboard</a>

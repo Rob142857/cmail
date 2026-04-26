@@ -61,7 +61,7 @@ export function buildSessionCookie(token: string, domain: string, secure: boolea
     `cmail_session=${token}`,
     'Path=/',
     'HttpOnly',
-    'SameSite=Strict',
+    'SameSite=Lax',
     `Max-Age=${SESSION_DURATION_MS / 1000}`,
   ];
   if (secure) parts.push('Secure');
@@ -69,7 +69,7 @@ export function buildSessionCookie(token: string, domain: string, secure: boolea
 }
 
 export function clearSessionCookie(): string {
-  return 'cmail_session=; Path=/; HttpOnly; SameSite=Strict; Secure; Max-Age=0';
+  return 'cmail_session=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0';
 }
 
 export function getSessionTokenFromCookie(cookieHeader: string | null): string | null {

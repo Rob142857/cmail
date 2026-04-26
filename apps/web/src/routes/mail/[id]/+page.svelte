@@ -1,9 +1,6 @@
 <script>
+  import { formatDateTime } from '$lib/dates';
   let { data } = $props();
-
-  function formatDateTime(dateStr) {
-    return new Date(dateStr).toLocaleString();
-  }
 
   function parseAddresses(json) {
     try { return JSON.parse(json); } catch { return []; }

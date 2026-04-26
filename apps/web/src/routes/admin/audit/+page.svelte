@@ -1,4 +1,5 @@
 <script>
+  import { formatDateTime } from '$lib/dates';
   let { data } = $props();
   /** @type {any} */
   const d = $derived(data);
@@ -42,7 +43,7 @@
       <tbody>
         {#each d.entries as entry}
           <tr style="border-bottom: 1px solid var(--border);">
-            <td style="padding: 8px 16px; white-space: nowrap;">{new Date(entry.timestamp).toLocaleString()}</td>
+            <td style="padding: 8px 16px; white-space: nowrap;">{formatDateTime(entry.timestamp)}</td>
             <td style="padding: 8px;"><span class="badge">{entry.event_type}</span></td>
             <td style="padding: 8px;">{actorLabel(entry)}</td>
             <td style="padding: 8px;">{entry.detail || '—'}</td>

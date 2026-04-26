@@ -1,17 +1,8 @@
 <script>
+  import { formatDate } from '$lib/dates';
   let { data } = $props();
   /** @type {any} */
   const d = $derived(data);
-
-  /** @param {string} dateStr */
-  function formatDate(dateStr) {
-    const dt = new Date(dateStr);
-    const now = new Date();
-    if (dt.toDateString() === now.toDateString()) {
-      return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    return dt.toLocaleDateString([], { month: 'short', day: 'numeric' });
-  }
 
   /** @param {string} address */
   function extractName(address) {

@@ -1,4 +1,5 @@
 <script>
+  import EmailAutocomplete from '$lib/EmailAutocomplete.svelte';
   let { data, form } = $props();
 </script>
 
@@ -52,7 +53,9 @@
         </div>
         <form method="POST" action="?/assign" style="display: flex; gap: 8px; align-items: end; font-size: 13px;">
           <input type="hidden" name="mailbox_id" value={mb.id} />
-          <input type="email" name="user_email" placeholder="user@example.com" style="font-size: 13px;" />
+          <div style="flex: 1; min-width: 180px;">
+            <EmailAutocomplete name="user_email" id="user_email_{mb.id}" placeholder="user@example.com" />
+          </div>
           <select name="permissions" style="font-size: 13px;">
             <option value="read">Read</option>
             <option value="send-as">Send As</option>
