@@ -1,22 +1,12 @@
 // cmail inbound email worker
-// Receives email via Cloudflare Email Routing, parses, stores in D1/R2
+// Receives email via Cloudflare Email Routing, parses, stores in D1/R2.
+// Outbound is handled directly by the web app (Resend or Postmark) —
+// this worker is inbound-only.
 import PostalMime from 'postal-mime';
 
 interface Env {
   DB: D1Database;
   STORAGE: R2Bucket;
-  EMAIL: SendEmail;
-  EMAIL_API_KEY?: string;
-  RESEND_API_KEY?: string;
-}
-
-interface SendEmail {
-  send(message: EmailMessage): Promise<void>;
-}
-
-interface EmailMessage {
-  from: string;
-  to: string;
 }
 
 // Blocked attachment extensions
@@ -51,160 +41,9 @@ function getAuthResults(headers: Headers): { spf: string | null; dkim: string | 
   };
 }
 
-function normalizeLineBreaks(value: string): string {
-  return value.replace(/\r?\n/g, '\r\n');
-}
-
-function escapeHeaderValue(value: string): string {
-  return value.replace(/[\r\n]+/g, ' ').trim();
-}
-
-function buildRawEmail(message: {
-  from: string;
-  to: string;
-  subject: string;
-  html: string;
-  text?: string;
-}): string {
-  const boundary = `cmail_${crypto.randomUUID()}`;
-  const textBody = normalizeLineBreaks(message.text || message.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
-  const htmlBody = normalizeLineBreaks(message.html);
-
-  return [
-    `From: ${escapeHeaderValue(message.from)}`,
-    `To: ${escapeHeaderValue(message.to)}`,
-    `Subject: ${escapeHeaderValue(message.subject)}`,
-    'MIME-Version: 1.0',
-    `Message-ID: <${crypto.randomUUID()}@cmail-worker>`,
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    '',
-    `--${boundary}`,
-    'Content-Type: text/plain; charset=UTF-8',
-    'Content-Transfer-Encoding: 8bit',
-    '',
-    textBody,
-    '',
-    `--${boundary}`,
-    'Content-Type: text/html; charset=UTF-8',
-    'Content-Transfer-Encoding: 8bit',
-    '',
-    htmlBody,
-    '',
-    `--${boundary}--`,
-    '',
-  ].join('\r\n');
-}
-
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
-
-    // POST /send — outbound email relay
-    if (request.method === 'POST' && url.pathname === '/send') {
-      // ✅ Authorization check: API key must match
-      const authHeader = request.headers.get('Authorization');
-      const expectedKey = env.EMAIL_API_KEY || 'not-set';
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      const providedKey = authHeader.slice(7);
-      if (providedKey !== expectedKey) {
-        return new Response(JSON.stringify({ error: 'Invalid API key' }), {
-          status: 403,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      try {
-        const body = await request.json() as {
-          from: string;
-          to: string | string[];
-          subject: string;
-          html: string;
-          text?: string;
-        };
-
-        if (!body.from || !body.to || !body.subject || !body.html) {
-          return new Response(JSON.stringify({ error: 'Missing required fields: from, to, subject, html' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-
-        const recipients = Array.isArray(body.to) ? body.to : [body.to];
-
-        // Prefer Resend if configured; fall back to Cloudflare Email binding
-        const useResend = !!env.RESEND_API_KEY;
-
-        for (const recipient of recipients) {
-          if (useResend) {
-            const resendRes = await fetch('https://api.resend.com/emails', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                from: body.from,
-                to: recipient,
-                subject: body.subject,
-                html: body.html,
-                text: body.text,
-              }),
-            });
-            if (!resendRes.ok) {
-              const errText = await resendRes.text();
-              throw new Error(`Resend API ${resendRes.status}: ${errText}`);
-            }
-          } else {
-            const raw = buildRawEmail({
-              from: body.from,
-              to: recipient,
-              subject: body.subject,
-              html: body.html,
-              text: body.text,
-            });
-            await (env.EMAIL as unknown as {
-              send: (msg: { from: string; to: string; raw?: string }) => Promise<void>;
-            }).send({
-              from: body.from,
-              to: recipient,
-              raw,
-            });
-          }
-        }
-
-        // Log to mail_trace
-        for (const recipient of recipients) {
-          await logTrace(env.DB, {
-            direction: 'outbound',
-            envelope_from: body.from,
-            envelope_to: recipient,
-            header_from: body.from,
-            subject: body.subject.slice(0, 256),
-            size_bytes: new TextEncoder().encode(body.html).byteLength,
-            status: 'sent',
-            status_detail: 'OK',
-          });
-        }
-
-        return new Response(JSON.stringify({ success: true, recipients: recipients.length }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      } catch (e) {
-        const error = e as Error;
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    }
-
-    return new Response('Not Found', { status: 404 });
+  async fetch(_request: Request, _env: Env): Promise<Response> {
+    return new Response('cmail inbound email worker (no HTTP API)', { status: 404 });
   },
 
   async email(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext): Promise<void> {

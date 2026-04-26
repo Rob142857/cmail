@@ -149,7 +149,7 @@ export interface MailTrace {
 export interface Env {
   DB: D1Database;
   STORAGE: R2Bucket;
-  EMAIL: SendEmail; // Cloudflare Email Service binding (optional)
+
 
   MAIL_DOMAIN: string;
   APP_NAME: string;
@@ -179,14 +179,4 @@ export interface Env {
 
   // Bootstrap — first-run admin auto-provision
   BOOTSTRAP_ADMIN_EMAIL?: string;
-}
-
-// Cloudflare send_email binding type
-interface SendEmail {
-  send(message: EmailMessage): Promise<void>;
-}
-
-interface EmailMessage {
-  readonly from: string;
-  readonly to: string;
 }

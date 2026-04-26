@@ -1,5 +1,8 @@
 // Outbound email provider abstraction
-// Auto-detects: Cloudflare Worker > Resend > Postmark > disabled
+// Auto-detects: Resend > Postmark > disabled.
+// Cloudflare's native send_email binding is intentionally NOT supported —
+// it can only deliver to verified Email Routing destinations, which is not
+// useful for general outbound. Use Resend or Postmark instead.
 
 export interface OutboundEmail {
   from: string;
@@ -19,11 +22,9 @@ export interface OutboundResult {
   error?: string;
 }
 
-type ProviderName = 'cloudflare-worker' | 'resend' | 'postmark' | 'none';
+type ProviderName = 'resend' | 'postmark' | 'none';
 
 export function detectProvider(env: Record<string, unknown>): ProviderName {
-  // Cloudflare Worker relay (has EMAIL_WORKER_URL env var)
-  if (env.EMAIL_WORKER_URL && env.EMAIL_API_KEY) return 'cloudflare-worker';
   if (env.RESEND_API_KEY) return 'resend';
   if (env.POSTMARK_API_KEY) return 'postmark';
   return 'none';
@@ -32,7 +33,6 @@ export function detectProvider(env: Record<string, unknown>): ProviderName {
 export function getProviderInfo(env: Record<string, unknown>): { name: ProviderName; label: string } {
   const name = detectProvider(env);
   const labels: Record<ProviderName, string> = {
-    'cloudflare-worker': 'Cloudflare Email Worker',
     resend: 'Resend',
     postmark: 'Postmark',
     none: 'Disabled (internal only)',
@@ -44,8 +44,6 @@ export async function sendEmail(email: OutboundEmail, env: Record<string, unknow
   const provider = detectProvider(env);
 
   switch (provider) {
-    case 'cloudflare-worker':
-      return sendViaCloudflareWorker(email, env);
     case 'resend':
       return sendViaResend(email, env.RESEND_API_KEY as string);
     case 'postmark':
@@ -54,46 +52,6 @@ export async function sendEmail(email: OutboundEmail, env: Record<string, unknow
       return { success: false, provider: 'none', error: 'No outbound provider configured' };
   }
 }
-
-// ─── Cloudflare Worker Relay ────────────────────────────
-async function sendViaCloudflareWorker(email: OutboundEmail, env: Record<string, unknown>): Promise<OutboundResult> {
-  try {
-    const workerUrl = env.EMAIL_WORKER_URL as string;
-    const apiKey = env.EMAIL_API_KEY as string;
-    if (!apiKey) {
-      return { success: false, provider: 'cloudflare-worker', error: 'EMAIL_API_KEY not configured' };
-    }
-    if (!workerUrl) {
-      return { success: false, provider: 'cloudflare-worker', error: 'EMAIL_WORKER_URL not configured' };
-    }
-    const res = await fetch(`${workerUrl}/send`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        from: email.from,
-        to: email.to,
-        subject: email.subject,
-        html: email.html,
-        text: email.text,
-      }),
-    });
-    console.log('[WORKER] Response:', res.status, res.statusText);
-
-    if (!res.ok) {
-      const text = await res.text();
-      return { success: false, provider: 'cloudflare-worker', error: `Worker API error (${res.status}): ${text}` };
-    }
-
-    const data = await res.json() as { success: boolean };
-    return { success: data.success ?? true, provider: 'cloudflare-worker', messageId: crypto.randomUUID() };
-  } catch (e) {
-    return { success: false, provider: 'cloudflare-worker', error: (e as Error).message };
-  }
-}
-
 
 // ─── Resend ──────────────────────────────────────────────
 async function sendViaResend(email: OutboundEmail, apiKey: string): Promise<OutboundResult> {

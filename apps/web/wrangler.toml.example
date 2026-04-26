@@ -18,10 +18,6 @@ database_id = "YOUR_D1_DATABASE_ID"
 binding = "STORAGE"
 bucket_name = "cmail-storage"
 
-# Uncomment to enable Cloudflare Email Service (Workers Paid plan required)
-# [[send_email]]
-# name = "EMAIL"
-
 # Public, non-secret variables. Override per environment as needed.
 # Anything sensitive (OAuth secrets, SESSION_SECRET, RESEND_API_KEY, etc.)
 # MUST go via `wrangler pages secret put <NAME>` — never commit them here.
