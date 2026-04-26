@@ -1,6 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import type { User } from '@cmail/shared/types';
 import { generateId, audit } from '$lib/server/db';
+import { sendEmail } from '$lib/server/outbound';
+import { generateInviteEmail } from '$lib/server/invite-email';
 
 export const load: PageServerLoad = async ({ platform, url }) => {
   const env = platform?.env;
@@ -30,6 +32,7 @@ export const actions: Actions = {
     const email = (data.get('email') as string)?.toLowerCase().trim();
     const displayName = (data.get('display_name') as string)?.trim() || '';
     const role = (data.get('role') as string) || 'standard';
+    const sendInvite = data.get('send_invite') === 'on';
 
     if (!email) return { error: 'Email is required' };
 
@@ -48,7 +51,65 @@ export const actions: Actions = {
       detail: `Created user ${email} with role ${role}`,
     });
 
-    return { success: `User ${email} created` };
+    // Send invite email if requested
+    let inviteResult = { success: true, error: null as string | null };
+    if (sendInvite) {
+      try {
+        const { subject, html, text } = generateInviteEmail({
+          email,
+          displayName,
+          appName: env.APP_NAME || 'cmail',
+          appUrl: env.APP_URL || 'https://mail.example.com',
+          senderName: locals.user?.display_name || locals.user?.email || 'An administrator',
+          systemEmail: env.SYSTEM_EMAIL as string,
+        });
+
+        // ✅ Use SYSTEM_EMAIL (desk@maatara.io) or fallback to noreply
+        const fromEmail = (env.SYSTEM_EMAIL as string) || 'noreply@maatara.io';
+
+        const result = await sendEmail(
+          {
+            from: fromEmail,
+            to: email,
+            subject,
+            html,
+            text,
+          },
+          env as unknown as Record<string, unknown>
+        );
+
+        if (!result.success) {
+          inviteResult = { success: false, error: `Invite email failed: ${result.error}` };
+          await audit(env.DB, {
+            event_type: 'email.failed',
+            actor_id: locals.user!.id,
+            actor_role: locals.user!.role as 'standard' | 'manager',
+            detail: `Failed to send invite email to ${email}: ${result.error}`,
+          });
+        } else {
+          await audit(env.DB, {
+            event_type: 'email.sent',
+            actor_id: locals.user!.id,
+            actor_role: locals.user!.role as 'standard' | 'manager',
+            detail: `Sent invite email to ${email} via ${result.provider}`,
+          });
+        }
+      } catch (e) {
+        inviteResult = { success: false, error: (e as Error).message };
+        await audit(env.DB, {
+          event_type: 'email.error',
+          actor_id: locals.user!.id,
+          actor_role: locals.user!.role as 'standard' | 'manager',
+          detail: `Error sending invite email to ${email}: ${(e as Error).message}`,
+        });
+      }
+    }
+
+    if (!inviteResult.success) {
+      return { success: `User ${email} created`, warning: inviteResult.error };
+    }
+
+    return { success: sendInvite ? `User ${email} created and invite sent` : `User ${email} created` };
   },
   updateStatus: async ({ request, platform, locals }) => {
     const env = platform?.env;

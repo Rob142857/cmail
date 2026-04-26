@@ -5,6 +5,17 @@ import PostalMime from 'postal-mime';
 interface Env {
   DB: D1Database;
   STORAGE: R2Bucket;
+  EMAIL: SendEmail;
+  EMAIL_API_KEY?: string;
+}
+
+interface SendEmail {
+  send(message: EmailMessage): Promise<void>;
+}
+
+interface EmailMessage {
+  from: string;
+  to: string;
 }
 
 // Blocked attachment extensions
@@ -40,6 +51,101 @@ function getAuthResults(headers: Headers): { spf: string | null; dkim: string | 
 }
 
 export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+
+    // POST /send — outbound email relay
+    if (request.method === 'POST' && url.pathname === '/send') {
+      // ✅ Authorization check: API key must match
+      const authHeader = request.headers.get('Authorization');
+      const expectedKey = env.EMAIL_API_KEY || 'not-set';
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      const providedKey = authHeader.slice(7);
+      if (providedKey !== expectedKey) {
+        return new Response(JSON.stringify({ error: 'Invalid API key' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      try {
+        const body = await request.json() as {
+          from: string;
+          to: string | string[];
+          subject: string;
+          html: string;
+          text?: string;
+        };
+
+        if (!body.from || !body.to || !body.subject || !body.html) {
+          return new Response(JSON.stringify({ error: 'Missing required fields: from, to, subject, html' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Build MIME message using mimetext
+        const { createMimeMessage } = await import('mimetext');
+        const recipients = Array.isArray(body.to) ? body.to : [body.to];
+
+        for (const recipient of recipients) {
+          const msg = createMimeMessage();
+          msg.setSender(body.from);
+          msg.setRecipient(recipient);
+          msg.setSubject(body.subject);
+          if (body.text) msg.addMessage({ contentType: 'text/plain', data: body.text });
+          msg.addMessage({ contentType: 'text/html', data: body.html });
+
+          const message: EmailMessage = {
+            from: body.from,
+            to: recipient,
+          };
+
+          // Send via Cloudflare Email Service
+          await (env.EMAIL as unknown as {
+            send: (msg: { from: string; to: string; raw?: string }) => Promise<void>;
+          }).send({
+            from: body.from,
+            to: recipient,
+            raw: msg.asRaw(),
+          });
+        }
+
+        // Log to mail_trace
+        for (const recipient of recipients) {
+          await logTrace(env.DB, {
+            direction: 'outbound',
+            envelope_from: body.from,
+            envelope_to: recipient,
+            header_from: body.from,
+            subject: body.subject.slice(0, 256),
+            size_bytes: new TextEncoder().encode(body.html).byteLength,
+            status: 'sent',
+            status_detail: 'OK',
+          });
+        }
+
+        return new Response(JSON.stringify({ success: true, recipients: recipients.length }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (e) {
+        const error = e as Error;
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    return new Response('Not Found', { status: 404 });
+  },
+
   async email(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext): Promise<void> {
     const recipientAddress = message.to.toLowerCase();
     const senderAddress = message.from.toLowerCase();

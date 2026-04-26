@@ -19,24 +19,40 @@ export const actions: Actions = {
     const env = platform?.env;
     if (!env) return { error: 'Platform not available' };
 
+    // ✅ Permission check: only managers can publish
+    if (!locals.user) return { error: 'Not authenticated' };
+    if (locals.user.role !== 'manager') return { error: 'Only managers can publish policies' };
+
     const data = await request.formData();
     const versionLabel = (data.get('version_label') as string)?.trim();
     const htmlBody = (data.get('html_body') as string)?.trim();
 
+    // ✅ Enhanced validation
     if (!versionLabel || !htmlBody) return { error: 'Version label and body are required' };
+    if (versionLabel.length > 255) return { error: 'Version label is too long (max 255 chars)' };
+    if (htmlBody.length > 100000) return { error: 'Policy body is too large (max 100KB)' };
 
-    const id = generateId();
-    await env.DB.prepare(
-      'INSERT INTO ict_policy_versions (id, version_label, html_body, published_at) VALUES (?, ?, ?, datetime(\'now\'))',
-    ).bind(id, versionLabel, htmlBody).run();
+    try {
+      const id = generateId();
+      await env.DB.prepare(
+        'INSERT INTO ict_policy_versions (id, version_label, html_body, published_at) VALUES (?, ?, ?, datetime(\'now\'))',
+      ).bind(id, versionLabel, htmlBody).run();
 
-    await audit(env.DB, {
-      event_type: 'policy.published',
-      actor_id: locals.user!.id,
-      actor_role: 'manager',
-      detail: `Published policy version ${versionLabel}`,
-    });
+      // ✅ Audit with error handling
+      try {
+        await audit(env.DB, {
+          event_type: 'policy.published',
+          actor_id: locals.user.id,
+          actor_role: locals.user.role as 'manager' | 'standard',
+          detail: `Published policy version: ${versionLabel}`,
+        });
+      } catch (e) {
+        console.error('Failed to log policy.published audit event:', e);
+      }
 
-    return { success: `Policy ${versionLabel} published. All users will be prompted to sign.` };
+      return { success: `Policy ${versionLabel} published. All users will be prompted to sign.` };
+    } catch (e) {
+      return { error: `Failed to publish policy: ${(e as Error).message}` };
+    }
   },
 };

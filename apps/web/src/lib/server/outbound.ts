@@ -1,5 +1,5 @@
 // Outbound email provider abstraction
-// Auto-detects: Cloudflare Email Service > Resend > Postmark > disabled
+// Auto-detects: Cloudflare Worker > Resend > Postmark > disabled
 
 export interface OutboundEmail {
   from: string;
@@ -19,11 +19,11 @@ export interface OutboundResult {
   error?: string;
 }
 
-type ProviderName = 'cloudflare' | 'resend' | 'postmark' | 'none';
+type ProviderName = 'cloudflare-worker' | 'resend' | 'postmark' | 'none';
 
 export function detectProvider(env: Record<string, unknown>): ProviderName {
-  // Cloudflare Email Service native binding takes priority
-  if (env.EMAIL && typeof (env.EMAIL as Record<string, unknown>).send === 'function') return 'cloudflare';
+  // Cloudflare Worker relay (has EMAIL_WORKER_URL env var)
+  if (env.EMAIL_WORKER_URL) return 'cloudflare-worker';
   if (env.RESEND_API_KEY) return 'resend';
   if (env.POSTMARK_API_KEY) return 'postmark';
   return 'none';
@@ -32,7 +32,7 @@ export function detectProvider(env: Record<string, unknown>): ProviderName {
 export function getProviderInfo(env: Record<string, unknown>): { name: ProviderName; label: string } {
   const name = detectProvider(env);
   const labels: Record<ProviderName, string> = {
-    cloudflare: 'Cloudflare Email Service',
+    'cloudflare-worker': 'Cloudflare Email Worker',
     resend: 'Resend',
     postmark: 'Postmark',
     none: 'Disabled (internal only)',
@@ -44,8 +44,8 @@ export async function sendEmail(email: OutboundEmail, env: Record<string, unknow
   const provider = detectProvider(env);
 
   switch (provider) {
-    case 'cloudflare':
-      return sendViaCloudflare(email, env);
+    case 'cloudflare-worker':
+      return sendViaCloudflareWorker(email, env);
     case 'resend':
       return sendViaResend(email, env.RESEND_API_KEY as string);
     case 'postmark':
@@ -55,40 +55,41 @@ export async function sendEmail(email: OutboundEmail, env: Record<string, unknow
   }
 }
 
-// ─── Cloudflare Email Service ────────────────────────────
-async function sendViaCloudflare(email: OutboundEmail, env: Record<string, unknown>): Promise<OutboundResult> {
+// ─── Cloudflare Worker Relay ────────────────────────────
+async function sendViaCloudflareWorker(email: OutboundEmail, env: Record<string, unknown>): Promise<OutboundResult> {
   try {
-    // Dynamic import for mimetext — used to construct raw MIME
-    const { createMimeMessage } = await import('mimetext');
-    const { EmailMessage } = await import('cloudflare:email') as { EmailMessage: new (from: string, to: string, raw: string) => { readonly from: string; readonly to: string } };
+    const workerUrl = env.EMAIL_WORKER_URL as string;
+    const apiKey = env.EMAIL_API_KEY as string;
+    if (!apiKey) {
+      return { success: false, provider: 'cloudflare-worker', error: 'EMAIL_API_KEY not configured' };
+    }
+    const res = await fetch(`${workerUrl}/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        from: email.from,
+        to: email.to,
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+      }),
+    });
 
-    const recipients = Array.isArray(email.to) ? email.to : [email.to];
-    const results: OutboundResult[] = [];
-
-    for (const recipient of recipients) {
-      const msg = createMimeMessage();
-      msg.setSender(email.from);
-      msg.setRecipient(recipient);
-      msg.setSubject(email.subject);
-      if (email.text) msg.addMessage({ contentType: 'text/plain', data: email.text });
-      msg.addMessage({ contentType: 'text/html', data: email.html });
-      if (email.replyTo) msg.setHeader('Reply-To', email.replyTo);
-      if (email.headers) {
-        for (const [k, v] of Object.entries(email.headers)) {
-          msg.setHeader(k, v);
-        }
-      }
-
-      const message = new EmailMessage(email.from, recipient, msg.asRaw());
-      await (env.EMAIL as { send: (m: unknown) => Promise<void> }).send(message);
-      results.push({ success: true, provider: 'cloudflare' });
+    if (!res.ok) {
+      const text = await res.text();
+      return { success: false, provider: 'cloudflare-worker', error: `Worker API error (${res.status}): ${text}` };
     }
 
-    return { success: true, provider: 'cloudflare', messageId: crypto.randomUUID() };
+    const data = await res.json() as { success: boolean };
+    return { success: data.success ?? true, provider: 'cloudflare-worker', messageId: crypto.randomUUID() };
   } catch (e) {
-    return { success: false, provider: 'cloudflare', error: (e as Error).message };
+    return { success: false, provider: 'cloudflare-worker', error: (e as Error).message };
   }
 }
+
 
 // ─── Resend ──────────────────────────────────────────────
 async function sendViaResend(email: OutboundEmail, apiKey: string): Promise<OutboundResult> {

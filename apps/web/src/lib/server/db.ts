@@ -20,19 +20,38 @@ export async function audit(
     session_id?: string | null;
   },
 ): Promise<void> {
-  await db.prepare(
-    `INSERT INTO audit_log (event_id, timestamp, actor_id, actor_role, event_type, target, detail, ip_address, session_id)
-     VALUES (?, datetime('now'), ?, ?, ?, ?, ?, ?, ?)`,
-  ).bind(
-    generateId(),
-    event.actor_id ?? null,
-    event.actor_role ?? 'system',
-    event.event_type,
-    event.target ?? null,
-    event.detail ?? null,
-    event.ip_address ?? null,
-    event.session_id ?? null,
-  ).run();
+  try {
+    // ✅ Validate event_type
+    if (!event.event_type || event.event_type.length > 64) {
+      throw new Error('Invalid event_type');
+    }
+
+    // ✅ Truncate long strings
+    const detail = event.detail ? event.detail.slice(0, 1000) : null;
+    const target = event.target ? event.target.slice(0, 256) : null;
+
+    await db.prepare(
+      `INSERT INTO audit_log (event_id, timestamp, actor_id, actor_role, event_type, target, detail, ip_address, session_id)
+       VALUES (?, datetime('now'), ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(
+      generateId(),
+      event.actor_id ?? null,
+      event.actor_role ?? 'system',
+      event.event_type,
+      target,
+      detail,
+      event.ip_address ?? null,
+      event.session_id ?? null,
+    ).run();
+  } catch (e) {
+    // ✅ Log to console but don't throw (audit failures shouldn't crash requests)
+    console.error('Audit logging failed:', {
+      event: event.event_type,
+      error: (e as Error).message,
+      timestamp: new Date().toISOString(),
+    });
+    // Note: In production, consider sending to external logging service (Datadog, Sentry, etc.)
+  }
 }
 
 export async function traceEmail(
