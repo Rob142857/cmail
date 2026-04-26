@@ -29,17 +29,21 @@
 
   <div style="display: grid; gap: 12px;">
     {#each data.policies as policy}
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+      <details class="card">
+        <summary style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; list-style: none;">
           <strong>{policy.version_label}</strong>
-          <div style="display: flex; gap: 8px;">
+          <div style="display: flex; gap: 8px; align-items: center;">
             <span class="badge badge-info">{policy.signature_count} signatures</span>
             <span style="font-size: 12px; color: var(--text-muted);">
               Published {new Date(policy.published_at).toLocaleDateString()}
             </span>
+            <span style="font-size: 12px; color: var(--accent);">View ▾</span>
           </div>
+        </summary>
+        <div style="max-height: 400px; overflow-y: auto; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); margin-top: 12px; background: var(--bg-hover);">
+          {@html policy.body_text}
         </div>
-      </div>
+      </details>
     {/each}
   </div>
 </div>
