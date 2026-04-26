@@ -20,7 +20,11 @@ export const load: PageServerLoad = async ({ platform, url }) => {
     users = await env.DB.prepare('SELECT * FROM users ORDER BY created_at DESC').all<User>();
   }
 
-  return { users: users.results || [], search: search || '' };
+  return {
+    users: users.results || [],
+    search: search || '',
+    mailDomain: (env.MAIL_DOMAIN as string) || '',
+  };
 };
 
 export const actions: Actions = {
@@ -33,8 +37,19 @@ export const actions: Actions = {
     const displayName = (data.get('display_name') as string)?.trim() || '';
     const role = (data.get('role') as string) || 'standard';
     const sendInvite = data.get('send_invite') === 'on';
+    const mailboxLocal = (data.get('mailbox_local') as string)?.toLowerCase().trim() || '';
+    const mailDomain = (env.MAIL_DOMAIN as string) || '';
 
     if (!email) return { error: 'Email is required' };
+
+    // Validate mailbox local-part early so user isn't created if it's bad
+    if (mailboxLocal) {
+      if (!mailDomain) return { error: 'Cannot create mailbox: MAIL_DOMAIN is not configured on the server' };
+      if (!/^[a-z0-9._-]+$/.test(mailboxLocal)) return { error: 'Invalid mailbox name (use a-z, 0-9, dot, underscore, hyphen)' };
+      const mailboxAddress = `${mailboxLocal}@${mailDomain}`;
+      const existingMailbox = await env.DB.prepare('SELECT id FROM mailboxes WHERE address = ?').bind(mailboxAddress).first();
+      if (existingMailbox) return { error: `Mailbox ${mailboxAddress} already exists` };
+    }
 
     const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
     if (existing) return { error: 'User already exists' };
@@ -50,6 +65,30 @@ export const actions: Actions = {
       actor_role: locals.user!.role as 'standard' | 'manager',
       detail: `Created user ${email} with role ${role}`,
     });
+
+    // Create + assign personal mailbox if requested
+    let mailboxResult = { success: true, error: null as string | null, address: '' };
+    if (mailboxLocal) {
+      const mailboxAddress = `${mailboxLocal}@${mailDomain}`;
+      try {
+        const mailboxId = generateId();
+        await env.DB.prepare(
+          'INSERT INTO mailboxes (id, address, display_name, type, status, created_at) VALUES (?, ?, ?, \'personal\', \'active\', datetime(\'now\'))',
+        ).bind(mailboxId, mailboxAddress, displayName || mailboxLocal).run();
+        await env.DB.prepare(
+          'INSERT INTO mailbox_assignments (mailbox_id, user_id, permissions, assigned_at) VALUES (?, ?, \'full\', datetime(\'now\'))',
+        ).bind(mailboxId, id).run();
+        await audit(env.DB, {
+          event_type: 'mailbox.created',
+          actor_id: locals.user!.id,
+          actor_role: locals.user!.role as 'standard' | 'manager',
+          detail: `Created personal mailbox ${mailboxAddress} for ${email}`,
+        });
+        mailboxResult.address = mailboxAddress;
+      } catch (e) {
+        mailboxResult = { success: false, error: `Mailbox creation failed: ${(e as Error).message}`, address: mailboxAddress };
+      }
+    }
 
     // Send invite email if requested
     let inviteResult = { success: true, error: null as string | null };
@@ -108,11 +147,16 @@ export const actions: Actions = {
       }
     }
 
-    if (!inviteResult.success) {
-      return { success: `User ${email} created`, warning: inviteResult.error };
-    }
+    const warnings: string[] = [];
+    if (!mailboxResult.success && mailboxResult.error) warnings.push(mailboxResult.error);
+    if (!inviteResult.success && inviteResult.error) warnings.push(inviteResult.error);
 
-    return { success: sendInvite ? `User ${email} created and invite sent` : `User ${email} created` };
+    let successMsg = `User ${email} created`;
+    if (mailboxResult.success && mailboxResult.address) successMsg += `, mailbox ${mailboxResult.address} provisioned`;
+    if (sendInvite && inviteResult.success) successMsg += ', invite sent';
+
+    if (warnings.length) return { success: successMsg, warning: warnings.join(' | ') };
+    return { success: successMsg };
   },
   updateStatus: async ({ request, platform, locals }) => {
     const env = platform?.env;

@@ -1,5 +1,9 @@
 <script>
   let { data, form } = $props();
+  /** @type {any} */
+  const f = $derived(form);
+  /** @type {any} */
+  const d = $derived(data);
 </script>
 
 <div>
@@ -11,18 +15,21 @@
     </form>
   </div>
 
-  {#if form?.error}
-    <div class="badge badge-error" style="display: block; padding: 8px; margin-bottom: 12px;">{form.error}</div>
+  {#if f?.error}
+    <div class="badge badge-error" style="display: block; padding: 8px; margin-bottom: 12px;">{f.error}</div>
   {/if}
-  {#if form?.success}
-    <div class="badge badge-info" style="display: block; padding: 8px; margin-bottom: 12px;">{form.success}</div>
+  {#if f?.success}
+    <div class="badge badge-info" style="display: block; padding: 8px; margin-bottom: 12px;">{f.success}</div>
+  {/if}
+  {#if f?.warning}
+    <div class="badge badge-error" style="display: block; padding: 8px; margin-bottom: 12px;">⚠ {f.warning}</div>
   {/if}
 
   <details class="card" style="margin-bottom: 16px;">
     <summary style="cursor: pointer; font-weight: 600;">+ Add User</summary>
     <form method="POST" action="?/create" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: end;">
       <div>
-        <label style="font-size: 12px; display: block;">Email</label>
+        <label style="font-size: 12px; display: block;">Email (sign-in)</label>
         <input type="email" name="email" required placeholder="user@example.com" />
       </div>
       <div>
@@ -30,11 +37,19 @@
         <input type="text" name="display_name" placeholder="Optional" />
       </div>
       <div>
+        <label style="font-size: 12px; display: block;">Mailbox name {d.mailDomain ? `(@${d.mailDomain})` : ''}</label>
+        <input type="text" name="mailbox_local" placeholder={d.mailDomain ? `e.g. firstname` : 'MAIL_DOMAIN not set'} disabled={!d.mailDomain} pattern="[a-zA-Z0-9._-]+" />
+      </div>
+      <div>
         <label style="font-size: 12px; display: block;">Role</label>
         <select name="role">
           <option value="standard">Standard</option>
           <option value="manager">Manager</option>
         </select>
+      </div>
+      <div style="display: flex; align-items: center;">
+        <input type="checkbox" id="send_invite" name="send_invite" style="width: auto; margin: 0; margin-right: 6px;" />
+        <label for="send_invite" style="font-size: 12px; margin: 0; cursor: pointer;">Send invite email</label>
       </div>
       <button type="submit" class="btn btn-primary">Create</button>
     </form>
