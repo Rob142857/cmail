@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 
   const latestPolicy = await env.DB.prepare(
     'SELECT * FROM ict_policy_versions ORDER BY published_at DESC LIMIT 1',
-  ).first<{ id: string; version_label: string; html_body: string; published_at: string }>();
+  ).first<{ id: string; version_label: string; body_text: string; published_at: string }>();
 
   if (!latestPolicy) throw redirect(302, '/mail');
 

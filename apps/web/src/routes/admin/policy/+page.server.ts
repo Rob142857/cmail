@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ platform }) => {
     `SELECT p.*,
             (SELECT COUNT(*) FROM ict_policy_signatures WHERE policy_version_id = p.id) as signature_count
      FROM ict_policy_versions p ORDER BY p.published_at DESC`,
-  ).all<{ id: string; version_label: string; html_body: string; published_at: string; signature_count: number }>();
+  ).all<{ id: string; version_label: string; body_text: string; published_at: string; signature_count: number }>();
 
   return { policies: policies.results || [] };
 };
@@ -35,8 +35,8 @@ export const actions: Actions = {
     try {
       const id = generateId();
       await env.DB.prepare(
-        'INSERT INTO ict_policy_versions (id, version_label, html_body, published_at) VALUES (?, ?, ?, datetime(\'now\'))',
-      ).bind(id, versionLabel, htmlBody).run();
+        'INSERT INTO ict_policy_versions (id, version_label, body_text, published_at, published_by) VALUES (?, ?, ?, datetime(\'now\'), ?)',
+      ).bind(id, versionLabel, htmlBody, locals.user.id).run();
 
       // ✅ Audit with error handling
       try {

@@ -13,7 +13,7 @@
     </p>
 
     <div style="max-height: 400px; overflow-y: auto; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; background: var(--bg-hover);">
-      {@html data.policy.html_body}
+      {@html data.policy.body_text}
     </div>
 
     {#if form?.error}
