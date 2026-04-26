@@ -1,12 +1,25 @@
 <script>
   import { page } from '$app/state';
   import { afterNavigate } from '$app/navigation';
+  import { browser } from '$app/environment';
   let { data, children } = $props();
   /** @type {any} */
   const d = $derived(data);
 
   let menuOpen = $state(false);
   afterNavigate(() => { menuOpen = false; });
+
+  // Lock body scroll when drawer open (mobile). Reactive via $effect.
+  $effect(() => {
+    if (!browser) return;
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  });
+
+  // Close on Escape.
+  function onKey(e) {
+    if (e.key === 'Escape' && menuOpen) menuOpen = false;
+  }
 
   const folders = [
     { name: 'Inbox', slug: '' },
@@ -43,16 +56,31 @@
   const currentFolder = $derived(page.url.searchParams.get('folder') || '');
 </script>
 
+<svelte:window onkeydown={onKey} />
+
 <div class="app-layout">
   <div class="mobile-topbar">
-    <button class="menu-btn" type="button" aria-label="Open navigation" onclick={() => (menuOpen = true)}>
-      <span aria-hidden="true">&#9776;</span>
+    <button class="menu-btn" type="button" aria-label="Open navigation" aria-expanded={menuOpen} onclick={() => (menuOpen = !menuOpen)}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+        {#if menuOpen}
+          <path d="M6 6 L18 18 M18 6 L6 18" />
+        {:else}
+          <path d="M4 7 H20 M4 12 H20 M4 17 H20" />
+        {/if}
+      </svg>
     </button>
-    <strong>{d.appName || 'cmail'}</strong>
-    <a href="/mail/compose" class="btn btn-primary" style="margin-left: auto; padding: 6px 12px;">Compose</a>
+    <strong class="topbar-title">{d.appName || 'cmail'}</strong>
+    <a href="/mail/compose" class="btn btn-primary topbar-compose">Compose</a>
   </div>
 
-  <div class="sidebar-overlay" class:open={menuOpen} onclick={() => (menuOpen = false)} role="presentation"></div>
+  <button
+    type="button"
+    class="sidebar-overlay"
+    class:open={menuOpen}
+    aria-label="Close navigation"
+    tabindex={menuOpen ? 0 : -1}
+    onclick={() => (menuOpen = false)}
+  ></button>
 
   <aside class="sidebar" class:open={menuOpen}>
     <div class="sidebar-header">
@@ -152,5 +180,18 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 140px;
+  }
+  .topbar-title {
+    font-size: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+  .topbar-compose {
+    padding: 8px 14px;
+    font-size: 13px;
+    flex-shrink: 0;
   }
 </style>

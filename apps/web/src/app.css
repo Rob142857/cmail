@@ -283,8 +283,11 @@ select {
 .mobile-topbar {
   display: none;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 10px 14px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  padding-left: max(14px, env(safe-area-inset-left));
+  padding-right: max(14px, env(safe-area-inset-right));
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -295,11 +298,15 @@ select {
 .mobile-topbar .menu-btn {
   background: transparent;
   border: 1px solid var(--border);
-  padding: 8px 10px;
+  padding: 0;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius);
-  font-size: 18px;
-  line-height: 1;
-  min-width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text);
 }
 .sidebar-overlay {
   display: none;
@@ -308,6 +315,9 @@ select {
   background: rgba(0,0,0,0.5);
   backdrop-filter: blur(2px);
   z-index: 40;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -384,7 +394,12 @@ tbody tr:hover { background: var(--bg-hover); }
    ───────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .app-layout { grid-template-columns: 1fr; }
-  .main-content { padding: 14px 14px 28px; }
+  .main-content {
+    padding: 14px 14px 28px;
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+  }
 
   .mobile-topbar { display: flex; }
 
@@ -396,10 +411,13 @@ tbody tr:hover { background: var(--bg-hover); }
     width: 84%;
     max-width: 320px;
     height: 100vh;
+    height: 100dvh;
     transform: translateX(-100%);
     transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
     z-index: 50;
     box-shadow: var(--shadow-lg);
+    padding-top: max(14px, env(safe-area-inset-top));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
   }
   .sidebar.open { transform: translateX(0); }
   .sidebar-overlay.open { display: block; }
@@ -409,33 +427,53 @@ tbody tr:hover { background: var(--bg-hover); }
   button, .btn { min-height: 40px; padding: 10px 14px; }
   .btn-sm { min-height: 32px; padding: 6px 12px; }
 
-  /* Message rows reflow */
-  .message-row,
-  .message-row.with-mb {
+  /* Message rows reflow — handle both 3-col (no mailbox) and 4-col (with mailbox) */
+  .message-row {
     grid-template-columns: 1fr auto !important;
     grid-template-areas:
       "from date"
-      "middle middle"
-      "mb mb";
+      "middle middle";
     row-gap: 4px;
     padding: 12px 14px;
   }
+  .message-row.with-mb {
+    grid-template-areas:
+      "mb date"
+      "from from"
+      "middle middle";
+  }
   .message-row .from { grid-area: from; }
-  .message-row .date { grid-area: date; }
-  .message-row .middle { grid-area: middle; }
+  .message-row .date { grid-area: date; justify-self: end; }
+  .message-row .middle {
+    grid-area: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
   .message-row .mb-tag { grid-area: mb; justify-self: start; }
 
   /* iOS: prevent zoom on focus */
   input, textarea, select { font-size: 16px; }
 
+  /* Tables — wrap container scrolls horizontally instead of breaking layout */
   table { font-size: 13px; }
   th, td { padding: 8px 10px; }
+
+  /* Forms with multiple inputs — stack on mobile */
+  form { flex-wrap: wrap; }
+
+  /* Headings sized down */
+  h1 { font-size: 22px; }
+  h2 { font-size: 18px; }
 }
 
 @media (max-width: 480px) {
-  h1 { font-size: 22px; }
-  h2 { font-size: 18px; }
+  h1 { font-size: 20px; }
+  h2 { font-size: 17px; }
   .card { padding: 14px; border-radius: var(--radius); }
+  .main-content { padding: 12px 12px 28px; }
+  th, td { padding: 6px 8px; font-size: 12px; }
 }
 
 /* Reduced motion */
