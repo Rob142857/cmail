@@ -12,13 +12,13 @@
     "lint": "eslint ."
   },
   "devDependencies": {
-    "@sveltejs/adapter-cloudflare": "^6",
+    "@sveltejs/adapter-cloudflare": "^7",
     "@sveltejs/kit": "^2",
-    "@sveltejs/vite-plugin-svelte": "^5",
+    "@sveltejs/vite-plugin-svelte": "^7",
     "svelte": "^5",
     "svelte-check": "^4",
-    "typescript": "^5.7",
-    "vite": "^6",
+    "typescript": "^6",
+    "vite": "^8",
     "wrangler": "^4"
   },
   "dependencies": {
