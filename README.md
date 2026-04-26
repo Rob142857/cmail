@@ -2,7 +2,7 @@
 
 Open-source email platform on Cloudflare. Google or Microsoft SSO, shared mailboxes, admin dashboard, policy gate — all running on Workers, D1, R2, and Email Routing.
 
-**Cost: $0/month** (free tier) or **$5/month** (full outbound via Cloudflare Email Service).
+**Hosting cost:** Cloudflare Pages + Email Routing + D1 + R2 fit comfortably inside Cloudflare's free tier for small orgs. The Workers Paid plan ($5/month) is only required if you want to use Cloudflare's native `send_email` binding (limited — see [Outbound providers](#outbound-providers)) or exceed the free Workers request quota. Outbound to arbitrary external recipients always requires a third-party relay (Resend or Postmark) — see the [Outbound providers](#outbound-providers) table for free-tier limits and pricing.
 
 ---
 
@@ -213,15 +213,30 @@ Configure one or both. Users see buttons for each enabled provider on the sign-i
 
 ## Outbound providers
 
-cmail auto-detects which outbound provider to use based on which env vars / bindings are configured.
+cmail auto-detects which outbound provider to use based on which env vars / bindings are configured. Priority order: **Cloudflare Email Worker → Resend → Postmark → none**.
 
-| Provider | Env var | Free tier | Setup |
-|----------|---------|-----------|-------|
-| **Resend** | `RESEND_API_KEY` | 3,000/mo | [resend.com](https://resend.com) → add domain → copy API key + DNS records |
-| **Postmark** | `POSTMARK_API_KEY` | 100/mo | [postmarkapp.com](https://postmarkapp.com) → add domain → copy API key + DNS records |
-| **Cloudflare Email Service** | Native binding | 3,000/mo ($5/mo plan) | Upgrade to Workers Paid → enable in wrangler.toml |
+| Provider | Env var / binding | Free tier | Paid pricing | Best for |
+|----------|-------------------|-----------|--------------|----------|
+| **Resend** | `RESEND_API_KEY` | 3,000 emails/month, 100/day, 1 verified domain | Pro $20/mo (50k emails); Scale $90/mo (100k); $1/1k overage | General outbound to any recipient. Recommended default for most orgs. |
+| **Postmark** | `POSTMARK_API_KEY` | 100 emails/month (test mode only — requires approval before sending to unverified recipients) | $15/mo (10k emails); pay-as-you-go from $1.25/1k | Transactional / high-deliverability. Stricter onboarding. |
+| **Cloudflare `send_email` binding** | `EMAIL` binding in `wrangler.toml` | Included with **Workers Paid** ($5/mo, 10M requests + 30M CPU-ms/month) | Same plan covers email sending — no per-message charge | **Internal replies only.** See limitation below. |
 
-If no outbound provider is configured, cmail runs in **inbound + internal only** mode (users can receive external email and message each other, but outbound to external recipients is disabled).
+### ⚠️ Cloudflare `send_email` binding — important limitation
+
+The Cloudflare-native `send_email` binding (used by `apps/email-worker`) can **only send to email addresses that have been verified as destination addresses in Cloudflare Email Routing** for your zone. It is *not* a general-purpose SMTP relay. In practice this means:
+
+- ✅ Auto-replies, internal notifications, system messages to your own verified team addresses
+- ❌ Sending to arbitrary external recipients (gmail.com, outlook.com, customer addresses, etc.)
+
+For any real outbound flow you'll want **Resend** (or Postmark). The Workers Paid plan's $5/month is therefore not a substitute for an outbound relay — it just unlocks the Workers request quota and the binding for verified-destination sending.
+
+### Recommended setup for testing & small orgs
+
+- **Free tier (development / pilot):** Cloudflare free + Resend free (3,000 emails/month) = $0/month, supports up to ~100 outbound emails/day.
+- **Production for small org (≤50 users):** Cloudflare free + Resend Pro ($20/month, 50,000 emails) = $20/month total.
+- **High-volume / strict transactional:** Cloudflare free + Postmark ($15/month for 10k, scales by usage).
+
+If no outbound provider is configured, cmail runs in **inbound + internal only** mode (users can receive external email but outbound is disabled — the compose UI shows a banner).
 
 ---
 
