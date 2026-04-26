@@ -32,7 +32,7 @@ export function generateInviteEmail(options: InviteEmailOptions): { subject: str
   const subject = `Welcome to ${org}`;
 
   const policyCtaHtml = policyUrl
-    ? `<a href="${escapeHtml(policyUrl)}" class="btn btn-secondary" target="_blank" rel="noopener">Review the email usage policy</a>`
+    ? `<a href="${escapeHtml(policyUrl)}" class="btn btn-secondary" style="display:inline-block;padding:11px 22px;background:#ffffff;color:#2563eb!important;text-decoration:none;border-radius:8px;font-weight:500;font-size:14px;margin:4px;border:1px solid #d1d5db;" target="_blank" rel="noopener">Review the email usage policy</a>`
     : '';
   const policyCtaText = policyUrl ? `\nReview the acceptable-use policy: ${policyUrl}\n` : '';
 
@@ -61,8 +61,11 @@ export function generateInviteEmail(options: InviteEmailOptions): { subject: str
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light only">
   <title>${escapeHtml(subject)}</title>
   <style>
+    :root { color-scheme: light only; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #111827; background: #f7f8fa; margin: 0; padding: 0; }
     .container { max-width: 580px; margin: 0 auto; padding: 32px 20px; }
     .card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 32px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
@@ -105,8 +108,8 @@ export function generateInviteEmail(options: InviteEmailOptions): { subject: str
       ${mailboxBlockHtml}
 
       <div class="cta-row">
-        <a href="${escapeHtml(appUrl)}/auth/login/microsoft" class="btn">Sign in with Microsoft</a>
-        <a href="${escapeHtml(appUrl)}/auth/login/google" class="btn">Sign in with Google</a>
+        <a href="${escapeHtml(appUrl)}/auth/login/microsoft" class="btn" style="display:inline-block;padding:11px 22px;background:#2563eb;color:#ffffff!important;text-decoration:none;border-radius:8px;font-weight:500;font-size:14px;margin:4px;">Sign in with Microsoft</a>
+        <a href="${escapeHtml(appUrl)}/auth/login/google" class="btn" style="display:inline-block;padding:11px 22px;background:#2563eb;color:#ffffff!important;text-decoration:none;border-radius:8px;font-weight:500;font-size:14px;margin:4px;">Sign in with Google</a>
       </div>
 
       <p class="muted small" style="text-align:center;margin-top:0;">Use the same address you received this email at: <strong>${escapeHtml(email)}</strong>.<br>Choose Microsoft for Outlook/Office accounts, Google for Gmail/Workspace.</p>
