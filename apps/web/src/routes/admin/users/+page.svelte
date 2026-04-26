@@ -80,18 +80,26 @@
             </td>
             <td style="padding: 8px; font-size: 12px;">{user.last_sign_in || 'Never'}</td>
             <td style="padding: 8px;">
-              <form method="POST" action="?/updateStatus" style="display: inline-flex; gap: 4px;">
-                <input type="hidden" name="user_id" value={user.id} />
-                {#if user.status !== 'active'}
-                  <button type="submit" name="status" value="active" style="font-size: 12px; padding: 2px 8px;">Activate</button>
-                {/if}
-                {#if user.status !== 'paused'}
-                  <button type="submit" name="status" value="paused" style="font-size: 12px; padding: 2px 8px;">Pause</button>
-                {/if}
-                {#if user.status !== 'offboarded'}
-                  <button type="submit" name="status" value="offboarded" style="font-size: 12px; padding: 2px 8px; color: var(--danger);">Offboard</button>
-                {/if}
-              </form>
+              <div style="display: inline-flex; gap: 4px; flex-wrap: wrap;">
+                <form method="POST" action="?/updateStatus" style="display: inline-flex; gap: 4px;">
+                  <input type="hidden" name="user_id" value={user.id} />
+                  {#if user.status !== 'active'}
+                    <button type="submit" name="status" value="active" style="font-size: 12px; padding: 2px 8px;">Activate</button>
+                  {/if}
+                  {#if user.status !== 'paused'}
+                    <button type="submit" name="status" value="paused" style="font-size: 12px; padding: 2px 8px;">Pause</button>
+                  {/if}
+                  {#if user.status !== 'offboarded'}
+                    <button type="submit" name="status" value="offboarded" style="font-size: 12px; padding: 2px 8px; color: var(--danger);">Offboard</button>
+                  {/if}
+                </form>
+                <form method="POST" action="?/resendInvite" style="display: inline;">
+                  <input type="hidden" name="user_id" value={user.id} />
+                  <button type="submit" style="font-size: 12px; padding: 2px 8px;" title="Resend invite email (reactivates paused/offboarded accounts)">
+                    {user.status === 'offboarded' || user.status === 'paused' ? 'Reactivate + resend' : 'Resend invite'}
+                  </button>
+                </form>
+              </div>
             </td>
           </tr>
         {/each}

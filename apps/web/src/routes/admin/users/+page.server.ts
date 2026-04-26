@@ -191,4 +191,100 @@ export const actions: Actions = {
 
     return { success: `User status updated to ${status}` };
   },
+  resendInvite: async ({ request, platform, locals }) => {
+    const env = platform?.env;
+    if (!env) return { error: 'Platform not available' };
+
+    const data = await request.formData();
+    const userId = data.get('user_id') as string;
+    if (!userId) return { error: 'Missing user_id' };
+
+    // Look up user
+    const user = await env.DB.prepare(
+      'SELECT id, email, display_name, status, last_sign_in FROM users WHERE id = ?',
+    ).bind(userId).first<{ id: string; email: string; display_name: string | null; status: string; last_sign_in: string | null }>();
+    if (!user) return { error: 'User not found' };
+
+    // Reactivate if paused/offboarded. Pending stays pending; active stays active.
+    let newStatus = user.status;
+    if (user.status === 'paused' || user.status === 'offboarded') {
+      newStatus = user.last_sign_in ? 'active' : 'pending';
+      await env.DB.prepare(
+        'UPDATE users SET status = ?, updated_at = datetime(\'now\') WHERE id = ?',
+      ).bind(newStatus, userId).run();
+      await audit(env.DB, {
+        event_type: 'user.reactivated',
+        actor_id: locals.user!.id,
+        actor_role: locals.user!.role as 'standard' | 'manager',
+        detail: `Reactivated user ${user.email} (was ${user.status}, now ${newStatus})`,
+      });
+    }
+
+    // Find user's primary personal mailbox via assignments; reactivate if needed.
+    const mailbox = await env.DB.prepare(
+      `SELECT m.id, m.address, m.status
+         FROM mailboxes m
+         INNER JOIN mailbox_assignments a ON a.mailbox_id = m.id
+        WHERE a.user_id = ? AND m.type = 'personal'
+        ORDER BY m.created_at ASC
+        LIMIT 1`,
+    ).bind(userId).first<{ id: string; address: string; status: string }>();
+
+    if (mailbox && mailbox.status !== 'active') {
+      await env.DB.prepare(
+        'UPDATE mailboxes SET status = \'active\' WHERE id = ?',
+      ).bind(mailbox.id).run();
+      await audit(env.DB, {
+        event_type: 'mailbox.reactivated',
+        actor_id: locals.user!.id,
+        actor_role: locals.user!.role as 'standard' | 'manager',
+        detail: `Reactivated mailbox ${mailbox.address} for ${user.email}`,
+      });
+    }
+
+    // Build + send invite email (same template as create).
+    const { subject, html, text } = generateInviteEmail({
+      email: user.email,
+      displayName: user.display_name || '',
+      appName: env.APP_NAME || 'cmail',
+      appUrl: env.APP_URL || 'https://mail.example.com',
+      senderName: locals.user?.display_name || locals.user?.email || 'An administrator',
+      systemEmail: env.SYSTEM_EMAIL as string,
+      mailboxAddress: mailbox?.address,
+      orgName: env.ORG_NAME,
+      orgShortName: env.ORG_SHORT_NAME,
+      orgUrl: env.ORG_URL,
+      supportEmail: env.SUPPORT_EMAIL || (env.SYSTEM_EMAIL as string),
+      landingUrl: env.LANDING_URL,
+      policyUrl: env.POLICY_URL || `${env.APP_URL || ''}/policy`,
+    });
+
+    const fromEmail = (env.SYSTEM_EMAIL as string) || 'noreply@maatara.io';
+    const result = await sendEmail(
+      { from: fromEmail, to: user.email, subject, html, text },
+      env as unknown as Record<string, unknown>,
+    );
+
+    if (!result.success) {
+      await audit(env.DB, {
+        event_type: 'email.failed',
+        actor_id: locals.user!.id,
+        actor_role: locals.user!.role as 'standard' | 'manager',
+        detail: `Failed to resend invite to ${user.email}: ${result.error}`,
+      });
+      return { error: `Invite email failed: ${result.error}` };
+    }
+
+    await audit(env.DB, {
+      event_type: 'email.sent',
+      actor_id: locals.user!.id,
+      actor_role: locals.user!.role as 'standard' | 'manager',
+      detail: `Resent invite to ${user.email} via ${result.provider}`,
+    });
+
+    let msg = `Invite resent to ${user.email}`;
+    if (newStatus !== user.status) msg += ` (status: ${user.status} → ${newStatus})`;
+    if (mailbox && mailbox.status !== 'active') msg += `, mailbox ${mailbox.address} reactivated`;
+    return { success: msg };
+  },
 };
