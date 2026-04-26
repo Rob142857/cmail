@@ -88,8 +88,8 @@ export const actions: Actions = {
       if (!user) return { error: 'User not found' };
 
       const existing = await env.DB.prepare(
-        'SELECT id FROM mailbox_assignments WHERE mailbox_id = ? AND user_id = ?',
-      ).bind(mailboxId, user.id).first();
+        'SELECT user_id FROM mailbox_assignments WHERE mailbox_id = ? AND user_id = ?',
+      ).bind(mailboxId, user.id).first<{ user_id: string }>();
 
       if (existing) {
         await env.DB.prepare(
@@ -111,10 +111,9 @@ export const actions: Actions = {
         return { success: 'Assignment updated' };
       }
 
-      const id = generateId();
       await env.DB.prepare(
-        'INSERT INTO mailbox_assignments (id, mailbox_id, user_id, permissions, assigned_at) VALUES (?, ?, ?, ?, datetime(\'now\'))',
-      ).bind(id, mailboxId, user.id, permissions).run();
+        'INSERT INTO mailbox_assignments (mailbox_id, user_id, permissions, assigned_at) VALUES (?, ?, ?, datetime(\'now\'))',
+      ).bind(mailboxId, user.id, permissions).run();
 
       // ✅ Audit assignment
       try {
