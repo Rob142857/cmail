@@ -29,7 +29,7 @@ export function generateInviteEmail(options: InviteEmailOptions): { subject: str
   const org = orgName || 'our organisation';
   const orgShort = orgShortName || orgName || 'the organisation';
   const greeting = displayName ? displayName.split(/\s+/)[0] : email;
-  const subject = `${senderName} has invited you to ${org}`;
+  const subject = `Welcome to ${org}`;
 
   const policyCtaHtml = policyUrl
     ? `<a href="${escapeHtml(policyUrl)}" class="btn btn-secondary" target="_blank" rel="noopener">Review the email usage policy</a>`
@@ -100,7 +100,7 @@ export function generateInviteEmail(options: InviteEmailOptions): { subject: str
     <div class="card">
       <h1>Welcome, ${escapeHtml(greeting)}</h1>
 
-      <p><strong>${escapeHtml(senderName)}</strong> has invited you to join <strong>${escapeHtml(org)}</strong>. Your organisational email account is ready — sign in below to access it.</p>
+      <p>You've been invited to join <strong>${escapeHtml(org)}</strong>${senderName ? ` by <strong>${escapeHtml(senderName)}</strong>` : ''}. Your organisational email account is ready — sign in below to access it.</p>
 
       ${mailboxBlockHtml}
 
@@ -132,7 +132,7 @@ export function generateInviteEmail(options: InviteEmailOptions): { subject: str
 
 Welcome, ${greeting}.
 
-${senderName} has invited you to join ${org}. Your organisational email account is ready — sign in below to access it.
+You've been invited to join ${org}${senderName ? ` by ${senderName}` : ''}. Your organisational email account is ready — sign in below to access it.
 ${mailboxBlockText}
 Sign in:
   Microsoft: ${appUrl}/auth/login/microsoft

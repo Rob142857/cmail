@@ -173,6 +173,14 @@ INSERT OR IGNORE INTO retention_config (id, entity_type, retention_days) VALUES
   ('ret-trace', 'trace', 90),
   ('ret-audit', 'audit', 730);
 
+-- ─── Org settings (key/value, manager-editable) ─────────
+CREATE TABLE IF NOT EXISTS org_settings (
+  key         TEXT PRIMARY KEY,
+  value       TEXT NOT NULL,
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_by  TEXT REFERENCES users(id)
+);
+
 -- Seed default signature template
 INSERT OR IGNORE INTO signature_templates (id, name, applies_to, html_body, plain_text_body, is_locked) VALUES
   ('sig-default', 'Default', '*',

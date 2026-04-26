@@ -13,6 +13,7 @@
       <a href="/admin/policy" class="btn">Policy</a>
       <a href="/admin/audit" class="btn">Audit Log</a>
       <a href="/admin/trace" class="btn">Mail Trace</a>
+      <a href="/admin/settings" class="btn">Settings</a>
     </nav>
   </div>
   {@render children()}

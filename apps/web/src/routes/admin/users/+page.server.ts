@@ -3,6 +3,7 @@ import type { User } from '@cmail/shared/types';
 import { generateId, audit } from '$lib/server/db';
 import { sendEmail, detectProvider } from '$lib/server/outbound';
 import { generateInviteEmail } from '$lib/server/invite-email';
+import { loadOrgSettings, formatFromHeader } from '$lib/server/org-settings';
 
 export const load: PageServerLoad = async ({ platform, url }) => {
   const env = platform?.env;
@@ -96,29 +97,31 @@ export const actions: Actions = {
     let inviteResult = { success: true, error: null as string | null };
     if (sendInvite) {
       try {
+        const settings = await loadOrgSettings(env as unknown as Record<string, unknown>);
         const { subject, html, text } = generateInviteEmail({
           email,
           displayName,
-          appName: env.APP_NAME || 'cmail',
-          appUrl: env.APP_URL || 'https://mail.example.com',
+          appName: settings.appName,
+          appUrl: settings.appUrl || 'https://mail.example.com',
           senderName: locals.user?.display_name || locals.user?.email || 'An administrator',
-          systemEmail: env.SYSTEM_EMAIL as string,
+          systemEmail: settings.systemEmail,
           mailboxAddress: mailboxResult.success && mailboxResult.address ? mailboxResult.address : undefined,
-          orgName: env.ORG_NAME,
-          orgShortName: env.ORG_SHORT_NAME,
-          orgUrl: env.ORG_URL,
-          supportEmail: env.SUPPORT_EMAIL || (env.SYSTEM_EMAIL as string),
-          landingUrl: env.LANDING_URL,
-          policyUrl: env.POLICY_URL || `${env.APP_URL || ''}/policy`,
+          orgName: settings.orgName,
+          orgShortName: settings.orgShortName,
+          orgUrl: settings.orgUrl,
+          supportEmail: settings.supportEmail,
+          landingUrl: settings.landingUrl,
+          policyUrl: settings.policyUrl,
         });
 
-        // ✅ Use SYSTEM_EMAIL (desk@maatara.io) or fallback to noreply
-        const fromEmail = (env.SYSTEM_EMAIL as string) || 'noreply@maatara.io';
+        // Use the configured system mailbox + display name. Falls back to a noreply@ on the mail domain.
+        const fromAddress = settings.systemEmail || `noreply@${(env.MAIL_DOMAIN as string) || 'localhost'}`;
+        const fromHeader = formatFromHeader(settings.systemFromName, fromAddress);
 
-        console.log('[INVITE] Sending to:', email, 'from:', fromEmail, 'provider:', detectProvider(env as Record<string, unknown>));
+        console.log('[INVITE] Sending to:', email, 'from:', fromHeader, 'provider:', detectProvider(env as Record<string, unknown>));
         const result = await sendEmail(
           {
-            from: fromEmail,
+            from: fromHeader,
             to: email,
             subject,
             html,
@@ -254,25 +257,27 @@ export const actions: Actions = {
     }
 
     // Build + send invite email (same template as create).
+    const settings = await loadOrgSettings(env as unknown as Record<string, unknown>);
     const { subject, html, text } = generateInviteEmail({
       email: user.email,
       displayName: user.display_name || '',
-      appName: env.APP_NAME || 'cmail',
-      appUrl: env.APP_URL || 'https://mail.example.com',
+      appName: settings.appName,
+      appUrl: settings.appUrl || 'https://mail.example.com',
       senderName: locals.user?.display_name || locals.user?.email || 'An administrator',
-      systemEmail: env.SYSTEM_EMAIL as string,
+      systemEmail: settings.systemEmail,
       mailboxAddress: mailbox?.address,
-      orgName: env.ORG_NAME,
-      orgShortName: env.ORG_SHORT_NAME,
-      orgUrl: env.ORG_URL,
-      supportEmail: env.SUPPORT_EMAIL || (env.SYSTEM_EMAIL as string),
-      landingUrl: env.LANDING_URL,
-      policyUrl: env.POLICY_URL || `${env.APP_URL || ''}/policy`,
+      orgName: settings.orgName,
+      orgShortName: settings.orgShortName,
+      orgUrl: settings.orgUrl,
+      supportEmail: settings.supportEmail,
+      landingUrl: settings.landingUrl,
+      policyUrl: settings.policyUrl,
     });
 
-    const fromEmail = (env.SYSTEM_EMAIL as string) || 'noreply@maatara.io';
+    const fromAddress = settings.systemEmail || `noreply@${(env.MAIL_DOMAIN as string) || 'localhost'}`;
+    const fromHeader = formatFromHeader(settings.systemFromName, fromAddress);
     const result = await sendEmail(
-      { from: fromEmail, to: user.email, subject, html, text },
+      { from: fromHeader, to: user.email, subject, html, text },
       env as unknown as Record<string, unknown>,
     );
 
