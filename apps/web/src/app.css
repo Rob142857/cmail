@@ -418,6 +418,19 @@ tbody tr:hover { background: var(--bg-hover); }
     box-sizing: content-box;
   }
   .mobile-topbar .menu-btn svg { pointer-events: none; }
+  .mobile-topbar .menu-btn .menu-icon {
+    font-size: 22px;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+  }
+  .mobile-topbar .menu-btn {
+    position: relative;
+    z-index: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+    touch-action: manipulation;
+  }
 
   .sidebar {
     position: fixed;

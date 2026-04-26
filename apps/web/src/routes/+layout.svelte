@@ -6,11 +6,19 @@
   let { children } = $props();
 
   if (browser && 'serviceWorker' in navigator) {
-    // Register with updateViaCache: 'none' so the SW script itself is never
+    // Defensively unregister any stale SWs from earlier builds, then register
+    // the current one. updateViaCache:'none' so the SW script is never
     // served from HTTP cache — every page load fetches a fresh copy.
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      // Keep only the one matching '/sw.js'; force-update it.
+      regs.forEach((r) => { try { r.update(); } catch {} });
+    });
+
     navigator.serviceWorker
       .register('/sw.js', { updateViaCache: 'none' })
       .then((reg) => {
+        // Force an immediate update check.
+        reg.update().catch(() => {});
         // Periodically poll for an updated SW while the page is open.
         setInterval(() => reg.update().catch(() => {}), 60_000);
 

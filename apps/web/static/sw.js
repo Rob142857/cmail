@@ -2,7 +2,7 @@
 // We do NOT cache responses — the goal is just PWA installability and
 // guaranteeing that a new deployment reaches every installed client immediately.
 
-const VERSION = 'cmail-2026-04-26-3';
+const VERSION = 'cmail-2026-04-26-4';
 
 self.addEventListener('install', (event) => {
   // Take over straight away on first install or version bump.

@@ -9,6 +9,12 @@
   let menuOpen = $state(false);
   afterNavigate(() => { menuOpen = false; });
 
+  function toggleMenu(e) {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    menuOpen = !menuOpen;
+  }
+  function closeMenu() { menuOpen = false; }
+
   // Lock body scroll when drawer open (mobile). Reactive via $effect.
   $effect(() => {
     if (!browser) return;
@@ -60,14 +66,12 @@
 
 <div class="app-layout">
   <div class="mobile-topbar">
-    <button class="menu-btn" type="button" aria-label="Open navigation" aria-expanded={menuOpen} onclick={() => (menuOpen = !menuOpen)}>
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
-        {#if menuOpen}
-          <path d="M6 6 L18 18 M18 6 L6 18" />
-        {:else}
-          <path d="M4 7 H20 M4 12 H20 M4 17 H20" />
-        {/if}
-      </svg>
+    <button class="menu-btn" type="button" aria-label="Toggle navigation" aria-expanded={menuOpen} onclick={toggleMenu} ontouchend={toggleMenu}>
+      {#if menuOpen}
+        <span class="menu-icon" aria-hidden="true">✕</span>
+      {:else}
+        <span class="menu-icon" aria-hidden="true">☰</span>
+      {/if}
     </button>
     <strong class="topbar-title">{d.appName || 'cmail'}</strong>
     <a href="/mail/compose" class="btn btn-primary topbar-compose">Compose</a>
@@ -79,7 +83,7 @@
     class:open={menuOpen}
     aria-label="Close navigation"
     tabindex={menuOpen ? 0 : -1}
-    onclick={() => (menuOpen = false)}
+    onclick={closeMenu}
   ></button>
 
   <aside class="sidebar" class:open={menuOpen}>
