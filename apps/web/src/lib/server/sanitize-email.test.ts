@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sanitizeEmailHtml } from './sanitize-email';
+import { sanitizeBoundedEmailHtml } from '@cmail/shared/sanitize-email';
 
 describe('email HTML sanitization', () => {
   it('removes executable, navigational, form, and embedded content', () => {
@@ -42,5 +43,16 @@ describe('email HTML sanitization', () => {
     expect(result).toContain('src="https://images.example/logo.png"');
     expect(result).toContain('loading="lazy"');
     expect(result).toContain('referrerpolicy="no-referrer"');
+  });
+
+  it('rejects deep trees even when unmatched closing tags try to hide their depth', () => {
+    const deceptive = '</x><div>'.repeat(1_000) + 'content' + '</div>'.repeat(1_000);
+    const result = sanitizeBoundedEmailHtml(deceptive, {
+      maxInputBytes: 100_000,
+      maxOutputBytes: 100_000,
+      maxElements: 2_000,
+      maxDepth: 128,
+    });
+    expect(result).toEqual({ ok: false, reason: 'depth' });
   });
 });

@@ -18,7 +18,7 @@
       <li>Opening or marking a message read changes its shared read state.</li>
       <li>Moving a message changes the folder for everyone with access.</li>
       <li>Messages sent from the shared address appear in that mailbox's Sent folder.</li>
-      <li>Drafts in a shared mailbox can be visible to other delegates.</li>
+      <li>Unfinished drafts remain private to their creator; the Sent copy becomes shared after delivery.</li>
     </ul>
   </section>
 
@@ -54,7 +54,7 @@
     <ul>
       <li>Agree who triages new messages and what read/unread means for your team.</li>
       <li>Use Archive or another agreed folder when work is complete.</li>
-      <li>Do not place private notes in shared drafts.</li>
+      <li>Drafts are private while unfinished, but use a proper case system for durable internal notes.</li>
       <li>Ask a manager to remove access immediately when responsibilities change.</li>
       <li>Use Mail trace for delivery diagnostics; do not expose message content in tickets or logs.</li>
     </ul>

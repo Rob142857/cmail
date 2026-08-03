@@ -40,7 +40,9 @@
       <li>Add a clear subject, write the message, and attach only expected files.</li>
       <li>Review recipients and the From address once more before selecting <strong>Send</strong>.</li>
     </ol>
-    <p>Drafts belong to the selected mailbox. Other delegates with sufficient access may see or change shared-mailbox drafts, so do not use them as private notes.</p>
+    <p>Draft text is saved shortly after you pause. Reply and Forward preserve the formatted original below your editable text, with remote images removed for privacy. <strong>Back to message</strong> waits for the latest save and confirms it after returning. Attachments remain only in the current tab, so cmail warns before leaving with files attached.</p>
+    <p>Drafts are private to their creator, including drafts addressed from a shared mailbox. Other delegates see shared operational mail and the Sent copy after delivery, but not your unfinished draft.</p>
+    <p>When forwarding, original attachments are not added automatically in this release. cmail shows their count so you can return to the message, download the intended files, and reattach them deliberately.</p>
   </section>
 
   <section id="folders">

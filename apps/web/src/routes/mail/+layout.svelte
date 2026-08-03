@@ -1,9 +1,10 @@
 <script>
   import { page } from '$app/state';
-  import { afterNavigate } from '$app/navigation';
+  import { afterNavigate, replaceState } from '$app/navigation';
   import { browser } from '$app/environment';
   import { onMount } from 'svelte';
   import PushNotifications from '$lib/PushNotifications.svelte';
+  import Toast from '$lib/Toast.svelte';
   import WelcomeGuide from '$lib/WelcomeGuide.svelte';
   let { data, children } = $props();
   /** @type {any} */
@@ -11,11 +12,32 @@
 
   let menuOpen = $state(false);
   let isMobile = $state(false);
+  let toastMessage = $state('');
   /** @type {HTMLButtonElement | null} */
   let menuButton = $state(null);
   /** @type {HTMLElement | null} */
   let sidebar = $state(null);
-  afterNavigate(() => { menuOpen = false; });
+  afterNavigate(() => {
+    menuOpen = false;
+    let message = page.state?.cmailToast;
+    if ((!message || typeof message !== 'string') && browser) {
+      try {
+        message = sessionStorage.getItem('cmail:pending-navigation-toast') || '';
+        sessionStorage.removeItem('cmail:pending-navigation-toast');
+      } catch {
+        // Navigation and the server-side save remain successful without a toast.
+      }
+    }
+    if (typeof message === 'string' && message) {
+      const nextState = { ...page.state };
+      delete nextState.cmailToast;
+      replaceState(page.url, nextState);
+      // Reset first so navigating away from two drafts can announce the same
+      // confirmation twice.
+      toastMessage = '';
+      queueMicrotask(() => { toastMessage = message; });
+    }
+  });
 
   onMount(() => {
     const media = window.matchMedia('(max-width: 768px)');
@@ -222,6 +244,7 @@
       isManager={d.user.role === 'manager'}
     />
   {/if}
+  <Toast message={toastMessage} onDismiss={() => { toastMessage = ''; }} />
 </div>
 
 <style>

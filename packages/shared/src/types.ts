@@ -84,6 +84,7 @@ export interface Message {
   size_bytes: number;
   folder: Folder;
   draft_owner_id: string | null;
+  draft_version: number;
   is_read: number;
   is_starred: number;
   in_reply_to: string | null;

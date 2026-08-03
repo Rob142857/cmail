@@ -91,15 +91,29 @@ before sending. It lists only active mailboxes from which you have Send as or
 Full access permission. Recipients see that selected mailbox address, not the
 personal account used to sign in.
 
-The composer supports To, Cc, a subject, formatted message content, and up to
-the limits displayed next to attachments. cmail asks for confirmation when a
-message will leave the organisation. Provider and organisational rate limits
-can still reject a send.
+The composer supports To, Cc, a subject, plain-text authored content, and up to
+the limits displayed next to attachments. Reply and Forward preserve the
+formatted original message in a separate, non-editable preview with remote
+images removed so an old tracking pixel cannot notify its sender when your new
+recipient opens the conversation. cmail asks for confirmation when a message will leave the
+organisation. Provider and organisational rate limits can still reject a send.
 
-Drafts can be saved manually and are also saved periodically while you work.
+Draft text is saved shortly after you pause and can also be saved manually.
+Edits made while a save is in progress are queued for the next save. Selecting
+**Back to message** waits for the latest text save, returns to that message, and
+shows a floating **Draft saved** confirmation. A tab-scoped recovery copy
+protects the brief unsaved window across a reload and is removed after the
+server save succeeds. If another tab has saved a different version, cmail keeps
+the local recovery copy and asks you to restore or discard it before editing or
+sending; it never silently replaces either version.
+
 Attachments remain only in the current browser tab until the message is sent;
-they are not stored with a saved draft. A draft stored in a shared mailbox is
-also shared with delegates who have permission to send from that mailbox.
+they are not stored with a saved draft. cmail warns before leaving a composer
+that still has attachments. Original attachments are not added automatically
+to a Forward; cmail shows their count so you can download and deliberately
+reattach the intended files. Drafts remain private to their creator even when
+the selected From address is a shared mailbox; delegates see the Sent copy
+after delivery, not the unfinished draft.
 
 After sending, cmail stores a Sent copy in the selected From mailbox. If a
 provider accepts a message but the local Sent copy fails, do not send it again;

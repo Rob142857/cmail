@@ -136,6 +136,9 @@ try {
       (SELECT COUNT(*) FROM pragma_table_info('organization_positions')
         WHERE name = 'visibility' AND "notnull" = 1
           AND dflt_value = '''internal''') AS internal_visibility_default_count,
+      (SELECT COUNT(*) FROM pragma_table_info('messages')
+        WHERE name = 'draft_version' AND "notnull" = 1
+          AND dflt_value = '0') AS draft_version_column_count,
       (SELECT COUNT(*) FROM signature_templates
         WHERE id = 'sig-default' AND applies_to = '*') AS default_signature_count,
       (SELECT COUNT(*) FROM pragma_foreign_key_check) AS foreign_key_violation_count;
@@ -161,6 +164,7 @@ try {
   assertEqual(Number(row.retention_default_count), 4, 'Retention default count');
   assertEqual(Number(row.public_directory_enabled), 0, 'Public directory default');
   assertEqual(Number(row.internal_visibility_default_count), 1, 'Position visibility default');
+  assertEqual(Number(row.draft_version_column_count), 1, 'Draft version column');
   assertEqual(Number(row.default_signature_count), 1, 'Default signature seed count');
   assertEqual(Number(row.foreign_key_violation_count), 0, 'Foreign-key violation count');
 

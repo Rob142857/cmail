@@ -141,22 +141,9 @@ function hardenElement(element: Element): void {
   }
 }
 
-function hardenTree(node: Root | RootContent): void {
-  if (node.type === 'element') hardenElement(node);
-  if ('children' in node) {
-    for (const child of node.children) hardenTree(child);
-  }
-}
-
-function hardenEmailHtml() {
-  return (tree: Root): void => hardenTree(tree);
-}
-
-const processor = unified()
-  .use(rehypeParse, { fragment: true })
-  .use(rehypeSanitize, emailSchema)
-  .use(hardenEmailHtml)
-  .use(rehypeStringify);
+const parser = unified().use(rehypeParse, { fragment: true });
+const sanitizer = unified().use(rehypeSanitize, emailSchema);
+const stringifier = unified().use(rehypeStringify);
 
 function positiveLimit(value: number, fallback: number): number {
   return Number.isSafeInteger(value) && value > 0 ? value : fallback;
@@ -176,31 +163,72 @@ function inspectComplexity(value: string, limits: EmailHtmlComplexityLimits): Bo
   if (inputBytes > limits.maxInputBytes) return { ok: false, reason: 'input_bytes' };
 
   let elements = 0;
-  let depth = 0;
+  const openTags: string[] = [];
   TAG_PATTERN.lastIndex = 0;
   for (let match = TAG_PATTERN.exec(value); match; match = TAG_PATTERN.exec(value)) {
     const closing = match[1] === '/';
     const tagName = match[2].toLowerCase();
     const selfClosing = match[3] === '/' || VOID_ELEMENTS.has(tagName);
     if (closing) {
-      depth = Math.max(0, depth - 1);
+      // Ignore unmatched closers. A closer for an open ancestor implicitly
+      // closes everything above it, matching the conservative HTML shape.
+      const openIndex = openTags.lastIndexOf(tagName);
+      if (openIndex >= 0) openTags.length = openIndex;
       continue;
     }
 
     elements += 1;
     if (elements > limits.maxElements) return { ok: false, reason: 'elements' };
     if (!selfClosing) {
-      depth += 1;
-      if (depth > limits.maxDepth) return { ok: false, reason: 'depth' };
+      openTags.push(tagName);
+      if (openTags.length > limits.maxDepth) return { ok: false, reason: 'depth' };
     }
   }
 
   return null;
 }
 
+function sanitizeTree(value: string): Root {
+  const parsed = parser.parse(value) as Root;
+  return sanitizer.runSync(parsed) as Root;
+}
+
+/** Iterative traversal prevents hostile depth from overflowing our own stack. */
+function inspectAndHardenTree(
+  root: Root,
+  limits: EmailHtmlComplexityLimits | null,
+): BoundedEmailHtmlResult | null {
+  let elements = 0;
+  const pending: Array<{ node: Root | RootContent; depth: number }> = [{ node: root, depth: 0 }];
+  while (pending.length) {
+    const current = pending.pop();
+    if (!current) break;
+    const { node } = current;
+    const depth = node.type === 'element' ? current.depth + 1 : current.depth;
+    if (node.type === 'element') {
+      elements += 1;
+      if (limits && elements > limits.maxElements) return { ok: false, reason: 'elements' };
+      if (limits && depth > limits.maxDepth) return { ok: false, reason: 'depth' };
+      hardenElement(node);
+    }
+    if ('children' in node) {
+      for (let index = node.children.length - 1; index >= 0; index -= 1) {
+        pending.push({ node: node.children[index], depth });
+      }
+    }
+  }
+  return null;
+}
+
+function stringifyTree(root: Root): string {
+  return String(stringifier.stringify(root));
+}
+
 /** Reduces untrusted email HTML to a presentation-only subset. */
 export function sanitizeEmailHtml(value: string): string {
-  return String(processor.processSync(value));
+  const tree = sanitizeTree(value);
+  inspectAndHardenTree(tree, null);
+  return stringifyTree(tree);
 }
 
 /** Checks cheap byte/tag/depth ceilings before invoking the HTML parser. */
@@ -215,7 +243,10 @@ export function sanitizeBoundedEmailHtml(
 
   let sanitized: string;
   try {
-    sanitized = sanitizeEmailHtml(html);
+    const tree = sanitizeTree(html);
+    const treeRejected = inspectAndHardenTree(tree, limits);
+    if (treeRejected) return treeRejected;
+    sanitized = stringifyTree(tree);
   } catch {
     return { ok: false, reason: 'invalid' };
   }
