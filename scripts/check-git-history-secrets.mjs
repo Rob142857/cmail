@@ -36,11 +36,11 @@ const tokenPatterns = [
   ['private key', /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/],
   ['GitHub token', /\bgh[pousr]_[A-Za-z0-9_]{30,}\b/],
   ['Google OAuth client secret', /\bGOCSPX-[A-Za-z0-9_-]{20,}\b/],
-  ['Resend API key', /\bre_[A-Za-z0-9]{20,}\b/],
+  ['email-provider API key', /\bre_[A-Za-z0-9]{20,}\b/],
   ['Slack token', /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/],
   ['credential-bearing URL', /\bhttps?:\/\/[^\s/:]+:[^\s/@]+@[^\s]+/],
 ];
-const assignment = /^[ \t]*(SESSION_SECRET|BOOTSTRAP_ADMIN_TOKEN|GOOGLE_CLIENT_SECRET|MICROSOFT_CLIENT_SECRET|RESEND_API_KEY|POSTMARK_API_KEY|CLOUDFLARE_API_TOKEN|VAPID_PRIVATE_KEY|INBOUND_SENDER_HASH_KEY)[ \t]*=[ \t]*(.*?)[ \t]*\r?$/gmi;
+const assignment = /^[ \t]*(SESSION_SECRET|BOOTSTRAP_ADMIN_TOKEN|GOOGLE_CLIENT_SECRET|MICROSOFT_CLIENT_SECRET|POSTMARK_API_KEY|CLOUDFLARE_API_TOKEN|CLOUDFLARE_EMAIL_API_TOKEN|VAPID_PRIVATE_KEY|INBOUND_SENDER_HASH_KEY)[ \t]*=[ \t]*(.*?)[ \t]*\r?$/gmi;
 const placeholder = /^(?:$|<[^>]+>|YOUR[_ -]|REPLACE[_ -]|CHANGE[_ -]|EXAMPLE[_ -]|\$\{|\$\()/i;
 const findings = new Set();
 

@@ -8,7 +8,7 @@ This guide takes a new cmail deployment from an empty Cloudflare account to loca
 - Git
 - A Cloudflare account and a domain using Cloudflare DNS
 - A Google OAuth client, Microsoft Entra application, or both
-- Resend or Postmark only when external outbound delivery is required
+- Cloudflare Email Service (recommended) or Postmark only when external outbound delivery is required
 
 Provider accounts and interfaces change over time. Use this guide for cmail's
 expected values and confirm the account-side steps in each provider's current
@@ -26,6 +26,7 @@ Choose these values before creating resources:
 | R2 bucket | `cmail-storage` | Stores message bodies and attachments |
 | `APP_URL` | `https://mail.example.org` | Public origin and OAuth callback base |
 | `MAIL_DOMAIN` | `example.org` | Domain used for mailbox addresses |
+| `OUTBOUND_PROVIDER` | `cloudflare` | Selects Cloudflare Email Service; `postmark` and `auto` are alternatives |
 
 `APP_URL` and `MAIL_DOMAIN` can refer to different hostnames. OAuth callbacks always use `APP_URL`; email addresses use `MAIL_DOMAIN`.
 
@@ -76,6 +77,14 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
 Do not commit the output.
+
+Outbound delivery is optional during local setup. The committed
+`OUTBOUND_PROVIDER=cloudflare` default is recommended. Set `postmark` for the
+alternative, or `auto` to select the first complete provider configuration in
+Cloudflare then Postmark order. An explicitly selected but incomplete provider
+fails closed. Cloudflare requires non-secret `CLOUDFLARE_ACCOUNT_ID` and secret
+`CLOUDFLARE_EMAIL_API_TOKEN`; put both in the ignored `.dev.vars` locally and
+store only the token as a Pages secret in production.
 
 Sender limiting is enabled by default. The generated Worker key is therefore
 required for local inbound processing; deleting or corrupting it makes the
@@ -152,6 +161,27 @@ email Worker. Store each private-key copy as a secret. See
 Configuration does not grant browser permission. Each user must enable
 notifications through an explicit application gesture and approve the browser
 prompt.
+
+## Optional external outbound delivery
+
+Cloudflare Email Service is the recommended option, but cmail's current Pages
+runtime calls its REST API rather than using the Worker-only email
+binding. Email Sending is currently public beta on the Workers Paid plan. To
+try it, use a domain on Cloudflare DNS, onboard that domain under **Compute →
+Email Service → Email Sending**, and create an API token with **Email Sending:
+Edit**. Keep test messages within 50 combined recipients and 5 MiB including
+attachments.
+
+Review the sending domain's **Email preview** setting before using real content.
+Cloudflare enables preview for new sending domains, and while enabled the
+dashboard may retain rendered content, headers, attachments, and raw source for
+about seven days. Disable it if your development data or privacy policy does not
+permit that retention.
+
+See [Outbound delivery](configuration.md#outbound-delivery) for provider
+selection, production secret placement, REST and Worker-binding differences,
+and official Cloudflare references. Email Routing remains a separate inbound
+configuration and does not change with the outbound choice.
 
 ## Start the applications
 

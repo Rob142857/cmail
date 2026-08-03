@@ -5,7 +5,7 @@ import { audit, generateId } from '$lib/server/db';
 import { detectProvider, sendEmail } from '$lib/server/outbound';
 import { generateInviteEmail } from '$lib/server/invite-email';
 import { getEnabledProviders, getProviderConfig } from '$lib/server/auth';
-import { loadOrgSettings, formatFromHeader } from '$lib/server/org-settings';
+import { loadOrgSettings } from '$lib/server/org-settings';
 import { publicRuntimeConfig } from '$lib/server/config';
 import { issueEnrollmentToken } from '$lib/server/identity';
 import {
@@ -98,7 +98,6 @@ async function deliverInvite(
   const fromAddress = configuredFrom && isAddressAtDomain(configuredFrom, mailDomain)
     ? configuredFrom
     : `noreply@${mailDomain}`;
-  const fromHeader = formatFromHeader(settings.systemFromName, fromAddress);
   const { subject, html, text } = generateInviteEmail({
     email: user.email,
     displayName: user.display_name || '',
@@ -119,7 +118,7 @@ async function deliverInvite(
 
   try {
     const result = await sendEmail(
-      { from: fromHeader, to: user.email, subject, html, text },
+      { from: fromAddress, fromName: settings.systemFromName, to: user.email, subject, html, text },
       envRecord,
     );
     if (!result.success) {

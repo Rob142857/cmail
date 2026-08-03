@@ -30,7 +30,7 @@ Report suspected vulnerabilities through the private process in
 
 ## Deployment-specific assistance
 
-Cloudflare, Google, Microsoft, Resend, Postmark, DNS, privacy, and regulatory
+Cloudflare, Google, Microsoft, Postmark, DNS, privacy, and regulatory
 questions may require the relevant provider or a qualified local professional.
 Project maintainers cannot inspect or administer an operator's accounts and
 cannot certify a deployment for a particular legal or assurance framework.

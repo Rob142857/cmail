@@ -22,7 +22,13 @@ import {
   MAX_PERSISTED_OBJECTS_PER_SEND,
 } from '$lib/server/compose-limits';
 import { audit, generateId, traceEmail } from '$lib/server/db';
-import { sendEmail, type OutboundAttachment } from '$lib/server/outbound';
+import {
+  getProviderInfo,
+  preflightEmail,
+  sendEmail,
+  type OutboundAttachment,
+  type OutboundEmail,
+} from '$lib/server/outbound';
 import { consumeRateLimit } from '$lib/server/rate-limit';
 import { htmlToPlainText, normalizeDomain, normalizeEmail, parseRecipientList, plainTextToHtml } from '$lib/server/validation';
 
@@ -144,6 +150,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
     signature: signature?.html_body || '',
     draft,
     composeToken: crypto.randomUUID(),
+    outboundProvider: getProviderInfo(env as unknown as Record<string, unknown>).name,
   };
 };
 
@@ -163,7 +170,8 @@ export const actions: Actions = {
     const inReplyTo = safeMessageId(stringValue(formData.get('in_reply_to')));
     const draftId = stringValue(formData.get('draft_id')) || null;
     const composeToken = stringValue(formData.get('compose_token'));
-    const recipientLimit = maxRecipientsPerMessage(env as unknown as Record<string, unknown>);
+    const envRecord = env as unknown as Record<string, unknown>;
+    const recipientLimit = maxRecipientsPerMessage(envRecord);
     const toResult = parseRecipientList(formData.get('to'), recipientLimit);
     const ccResult = parseRecipientList(formData.get('cc'), recipientLimit);
 
@@ -224,6 +232,27 @@ export const actions: Actions = {
       return fail(503, { error: 'MAIL_DOMAIN is not configured' });
     }
 
+    const providerTo = externalTo.length ? externalTo : externalCc;
+    const providerCc = externalTo.length ? externalCc : [];
+    const outboundEmail: OutboundEmail | null = externalRecipients.length ? {
+      from,
+      to: providerTo,
+      cc: providerCc,
+      subject,
+      html: htmlWithSignature,
+      text: textWithSignature,
+      headers: inReplyTo ? { 'In-Reply-To': inReplyTo, 'References': inReplyTo } : undefined,
+      attachments: attachments.map<OutboundAttachment>((attachment) => ({
+        filename: attachment.filename,
+        contentType: attachment.contentType,
+        content: attachment.bytes,
+      })),
+    } : null;
+    if (outboundEmail) {
+      const preflight = preflightEmail(outboundEmail, envRecord);
+      if (!preflight.ok) return fail(preflight.status, { error: preflight.error });
+    }
+
     const encoder = new TextEncoder();
     const persistedPayloadBytes = encoder.encode(htmlWithSignature).byteLength + totalAttachmentBytes;
     const providerPayloadBytes = persistedPayloadBytes + encoder.encode(textWithSignature).byteLength;
@@ -275,7 +304,7 @@ export const actions: Actions = {
     }
 
     const messageId = generateId();
-    const messageIdHeader = `<${messageId}@${mailDomain}>`;
+    let messageIdHeader = `<${messageId}@${mailDomain}>`;
     const plannedInternalDeliveries = allRecipients.flatMap((recipient) => {
       const mailboxId = internalMap.get(recipient);
       return mailboxId ? [{ mailboxId, messageId: generateId() }] : [];
@@ -302,44 +331,46 @@ export const actions: Actions = {
     }
     const storageReservations: MailboxStorageReservation[] = storageResult.reservations;
 
-    if (externalRecipients.length) {
-      const providerTo = externalTo.length ? externalTo : externalCc;
-      const providerCc = externalTo.length ? externalCc : [];
+    if (outboundEmail) {
       let result;
       try {
-        result = await sendEmail({
-          from,
-          to: providerTo,
-          cc: providerCc,
-          subject,
-          html: htmlWithSignature,
-          text: textWithSignature,
-          idempotencyKey: `cmail-send/${composeToken}`,
-          headers: inReplyTo ? { 'In-Reply-To': inReplyTo } : undefined,
-          attachments: attachments.map<OutboundAttachment>((attachment) => ({
-            filename: attachment.filename,
-            contentType: attachment.contentType,
-            content: attachment.bytes,
-          })),
-        }, env as unknown as Record<string, unknown>);
+        result = await sendEmail(outboundEmail, envRecord);
       } catch {
         await releaseMailboxStorageReservations(env.DB, storageReservations).catch(() => undefined);
-        await env.DB.prepare('DELETE FROM send_idempotency WHERE id = ?').bind(composeToken).run().catch(() => undefined);
-        return fail(502, { error: 'The outbound provider could not send this message. Please try again later.' });
+        await audit(env.DB, {
+          event_type: 'email.delivery_unknown',
+          actor_id: locals.user.id,
+          actor_role: locals.user.role,
+          target: messageId,
+          detail: 'Outbound provider delivery status is unknown after an unexpected failure',
+        }).catch(() => undefined);
+        return fail(502, {
+          error: 'Delivery status is unknown. Do not resend this message; ask an administrator to check outbound provider activity.',
+        });
       }
 
       if (!result.success) {
         await releaseMailboxStorageReservations(env.DB, storageReservations).catch(() => undefined);
-        await env.DB.prepare('DELETE FROM send_idempotency WHERE id = ?').bind(composeToken).run().catch(() => undefined);
+        if (!result.ambiguous) {
+          await env.DB.prepare('DELETE FROM send_idempotency WHERE id = ?').bind(composeToken).run().catch(() => undefined);
+        }
         await audit(env.DB, {
-          event_type: 'email.failed',
+          event_type: result.ambiguous ? 'email.delivery_unknown' : 'email.failed',
           actor_id: locals.user.id,
           actor_role: locals.user.role,
           target: messageId,
-          detail: `Outbound provider ${result.provider} rejected the request`,
+          detail: result.ambiguous
+            ? `Outbound provider ${result.provider} delivery status is unknown`
+            : `Outbound provider ${result.provider} rejected the request`,
         }).catch(() => undefined);
-        return fail(502, { error: 'The outbound provider could not send this message. Please try again later.' });
+        return fail(502, {
+          error: result.ambiguous
+            ? 'Delivery status is unknown. Do not resend this message; ask an administrator to check outbound provider activity.'
+            : 'The outbound provider could not send this message. Please try again later.',
+        });
       }
+
+      if (result.messageIdHeader) messageIdHeader = result.messageIdHeader;
 
       await traceEmail(env.DB, {
         message_id_header: messageIdHeader,

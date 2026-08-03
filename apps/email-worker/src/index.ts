@@ -1,6 +1,6 @@
 // cmail inbound email worker
 // Receives email via Cloudflare Email Routing, parses, stores in D1/R2.
-// Outbound is handled directly by the web app (Resend or Postmark) —
+// Outbound is handled directly by the web app (Cloudflare Email Service or Postmark) —
 // this worker is inbound-only.
 import PostalMime from 'postal-mime';
 import { sendNewMailNotifications, type PushEnvironment } from '@cmail/shared/push';

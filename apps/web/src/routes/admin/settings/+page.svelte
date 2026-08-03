@@ -24,7 +24,7 @@
         <div class="field">
           <label for="system-email">System mailbox <span>From address</span></label>
           <input id="system-email" type="email" name="system_email" value={settings.systemEmail} maxlength="200" placeholder="noreply@{data.mailDomain || 'example.org'}" autocomplete="email" aria-describedby="system-email-hint" />
-          <small id="system-email-hint">Use a sender verified by the configured Resend or Postmark account.</small>
+          <small id="system-email-hint">Use a sender verified by the configured Cloudflare Email Service or Postmark account.</small>
         </div>
 
         <div class="field">

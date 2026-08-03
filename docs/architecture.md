@@ -10,7 +10,7 @@ flowchart LR
   microsoft["Microsoft identity platform"] --> pages
   pages --> d1["Cloudflare D1"]
   pages --> r2["Cloudflare R2"]
-  pages --> outbound["Resend or Postmark"]
+  pages --> outbound["Cloudflare Email Service REST API or Postmark"]
   outbound --> recipient["External recipient"]
   pages -.-> push["Browser push service"]
   sender["Inbound sender"] --> routing["Cloudflare Email Routing"]
@@ -30,7 +30,7 @@ flowchart LR
 | D1 | Users, immutable provider bindings, hashed enrolment tokens, mailboxes, assignments, message metadata, atomic mailbox reservations, sessions, policy, audit, trace, retention, and organisation records | Store deployment secrets or raw enrolment tokens |
 | R2 | Message bodies and attachment objects | Decide mailbox authorization |
 | Google or Microsoft | Authenticate identities selected by the operator | Automatically authorize or provision ordinary cmail users |
-| Resend or Postmark | Deliver external outbound messages | Store cmail mailbox permissions |
+| Cloudflare Email Service or Postmark | Deliver external outbound messages | Store cmail mailbox permissions |
 | Browser push service | Best-effort delivery of generic, user-enabled new-mail notices | Receive sender, subject, mailbox, body, or attachment data from cmail |
 
 ## Primary flows
@@ -87,8 +87,10 @@ guarded deliveries are rejected before R2 persistence.
 The web application checks the authenticated user's mailbox assignment and
 send permission before accepting a compose request. Internal recipients are
 written directly to cmail storage. External recipients use the configured
-Resend or Postmark account. Per-send ceilings and per-user rate/work limits
-bound recipient, payload, and R2 amplification. Before either a provider call
+Cloudflare Email Service or Postmark account. The current Pages runtime
+uses Cloudflare's authenticated REST API; its native email binding is available
+to Workers, not configured directly on Pages. Per-send ceilings and per-user
+rate/work limits bound recipient, payload, and R2 amplification. Before either a provider call
 or R2 write, one D1 batch reserves the exact persisted bytes for the sender's
 Sent copy and every internal mailbox copy. A denial releases the whole group;
 successful message inserts atomically settle each pending charge. The compose

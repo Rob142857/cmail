@@ -136,12 +136,69 @@ change and have users opt in again.
 
 ## Outbound delivery
 
-| Variable | Purpose |
-|---|---|
-| `RESEND_API_KEY` | Enable Resend delivery |
-| `POSTMARK_API_KEY` | Enable Postmark delivery |
+| Variable | Secret | Purpose |
+|---|---:|---|
+| `OUTBOUND_PROVIDER` | No | `cloudflare` (committed default), `postmark`, or `auto` |
+| `CLOUDFLARE_ACCOUNT_ID` | No | 32-character Cloudflare account ID containing the onboarded Email Sending domain |
+| `CLOUDFLARE_EMAIL_API_TOKEN` | Yes | Cloudflare REST credential with **Email Sending: Edit** permission |
+| `POSTMARK_API_KEY` | Yes | Enable Postmark delivery |
 
-Configure one provider. If both keys are present, the current implementation selects Resend. If neither is present, external outbound attempts fail; internal mailbox delivery remains available.
+In `auto` mode, cmail selects the first complete provider configuration in this
+order: Cloudflare Email Service, then Postmark. Set an explicit provider
+when deterministic selection is important. Explicit selection fails closed if
+that provider's required values are absent or invalid; cmail does not silently
+fall through to a different provider. If no provider is ready, external
+outbound attempts fail while internal mailbox delivery remains available.
+
+### Cloudflare Email Service
+
+Cloudflare Email Service is the recommended external provider. cmail calls the
+[Email Sending REST API](https://developers.cloudflare.com/email-service/api/send-emails/rest-api/)
+from its current Cloudflare Pages runtime. To enable it:
+
+1. Confirm the account is on the Workers Paid plan. Email Sending is currently
+   a public beta.
+2. Use a domain hosted on Cloudflare DNS and onboard it under **Compute → Email
+   Service → Email Sending**. Review the Cloudflare-created bounce MX, SPF,
+   DKIM, and DMARC records against every existing sender for the domain.
+3. Set `CLOUDFLARE_ACCOUNT_ID` as a non-secret Pages variable.
+4. Create the narrowest suitable account-owned API token with **Email Sending:
+   Edit** and store it only as the `CLOUDFLARE_EMAIL_API_TOKEN` Pages secret.
+5. Keep the template's `OUTBOUND_PROVIDER=cloudflare`. Use `auto` only when a
+   complete Postmark configuration should act as a fallback.
+
+Cloudflare limits a general outbound message to 50 total `to`, `cc`, and `bcc`
+recipients and 5 MiB including attachments. cmail applies those provider limits
+before submission, even if an application setting would otherwise allow more.
+New Cloudflare accounts also begin with conservative daily quotas; inspect the
+[current limits](https://developers.cloudflare.com/email-service/platform/limits/)
+and stage real mail flow before switching production traffic.
+
+Cloudflare Email preview deserves a separate privacy decision. When enabled, it
+lets dashboard users inspect rendered HTML, plain text, headers, attachments,
+and raw message source, retained for about seven days. Cloudflare enables it by
+default for new sending domains. Review access and disable it in the sending
+domain's settings unless this extra content retention is required. See
+[Email logs and message preview](https://developers.cloudflare.com/email-service/observability/logs/#message-preview).
+
+Cloudflare also offers a native `send_email` binding for Workers, which avoids
+putting an API token in the application environment. cmail currently deploys
+the web application as Pages Functions and therefore uses the REST API; do not
+add `[[send_email]]` to the Pages Wrangler file. A downstream deployment may
+move submission into a separate private Worker reached through a Pages service
+binding, or migrate the web runtime to Workers. For that architecture, note
+that local `wrangler dev` simulates delivery unless `remote = true`; remote mode
+sends real mail, and binary attachment buffers cannot be serialized by the
+non-remote simulator. Refer to Cloudflare's [Workers
+API](https://developers.cloudflare.com/email-service/api/send-emails/workers-api/)
+and [local sending guide](https://developers.cloudflare.com/email-service/local-development/sending/).
+
+### Postmark alternative
+
+Set `OUTBOUND_PROVIDER=postmark`, store `POSTMARK_API_KEY` as a Pages secret,
+and verify the sender or domain in Postmark. cmail preflights Postmark's
+50-recipient and 10 MB total-message limits before submission; confirm current
+limits in Postmark's [email API documentation](https://postmarkapp.com/developer/user-guide/send-email-with-api).
 
 The sender address used for invitations and system messages must be accepted by the chosen provider. Configure it in **Admin → Settings** after bootstrap or provide a `SYSTEM_EMAIL` default.
 
@@ -371,7 +428,8 @@ before enabling destructive retention.
 | Value type | Local development | Production |
 |---|---|---|
 | D1/R2 bindings and public settings | Local `wrangler.toml` | Cloudflare deployment configuration |
-| OAuth credentials, session key, provider API key, temporary bootstrap pair | `apps/web/.dev.vars` | Cloudflare Pages secrets |
+| OAuth credentials, session key, outbound API tokens, temporary bootstrap pair | `apps/web/.dev.vars` | Cloudflare Pages secrets |
+| Cloudflare account ID and outbound provider selection | `apps/web/.dev.vars` or local `wrangler.toml` | Cloudflare Pages variables |
 | Inbound sender-HMAC key | `apps/email-worker/.dev.vars` | Email Worker secret `INBOUND_SENDER_HASH_KEY` |
 | Organisation settings | Environment defaults or Admin UI | Environment defaults or Admin UI |
 
@@ -386,13 +444,17 @@ outbound-provider credentials into the Worker.
 - Never place secrets in `.env.example`, Wrangler templates, screenshots, issues, or support logs.
 - Treat raw invitation links and bootstrap proofs as credentials; do not log or forward them.
 - Restrict provider dashboards and use multi-factor authentication.
+- Scope the Cloudflare Email Service token to the required account and **Email Sending: Edit** permission; anyone holding it can send from onboarded domains in that account.
+- Review Cloudflare Email preview before sending sensitive mail; its optional dashboard preview retains message content and attachments for about seven days.
 - Rotate a value immediately if it is printed, committed, or shared outside its intended secret store.
 - Remember that deleting a tracked file does not erase prior Git objects.
 
 For platform-specific behavior, refer to Cloudflare's current
 [Pages bindings and secrets](https://developers.cloudflare.com/pages/functions/bindings/),
 [D1 migrations](https://developers.cloudflare.com/d1/reference/migrations/), and
-[Node.js compatibility](https://developers.cloudflare.com/workers/runtime-apis/nodejs/)
+[Node.js compatibility](https://developers.cloudflare.com/workers/runtime-apis/nodejs/),
+[Email Sending setup](https://developers.cloudflare.com/email-service/get-started/send-emails/), and
+[Email Service limits](https://developers.cloudflare.com/email-service/platform/limits/)
 documentation. Identity-provider setup should be checked against the current
 [Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect)
 [Microsoft app registration](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app),

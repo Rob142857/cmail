@@ -313,8 +313,13 @@
             </li>
           {/each}
         </ul>
-        <p class="att-note">Max 25 files / 20 MB total. Files remain in this tab until sent and are not included in saved drafts. Downloads are forced, but files are not malware-scanned.</p>
       {/if}
+      <p class="att-note">
+        Max 25 files / 20 MB in cmail. Files remain in this tab until sent and are not included in saved drafts. Downloads are forced, but files are not malware-scanned.
+        {#if d.outboundProvider === 'cloudflare'} Cloudflare external delivery has a 5 MiB final-message limit including encoded body and attachments.{/if}
+        {#if d.outboundProvider === 'postmark'} Postmark external delivery has a 10 MB final-message limit.{/if}
+        {#if d.outboundProvider === 'none'} External delivery is not configured; attachments can still be sent to internal cmail mailboxes.{/if}
+      </p>
     </div>
 
     {#if d.signature}

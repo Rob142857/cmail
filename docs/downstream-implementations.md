@@ -79,7 +79,7 @@ The normal customisation surface is configuration:
 | Google sign-in | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
 | Microsoft sign-in | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID` |
 | Temporary first-manager bootstrap | `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_TOKEN` |
-| External delivery | one of `RESEND_API_KEY` or `POSTMARK_API_KEY` |
+| External delivery | `OUTBOUND_PROVIDER`; Cloudflare uses `CLOUDFLARE_ACCOUNT_ID` plus `CLOUDFLARE_EMAIL_API_TOKEN`, while Postmark uses `POSTMARK_API_KEY` |
 | Browser notifications | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_ENDPOINT_HOSTS` |
 
 Google and Microsoft controls appear only when that provider's complete
@@ -117,7 +117,7 @@ example:
 pnpm exec wrangler pages secret put SESSION_SECRET --project-name cmail-web-staging
 pnpm exec wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name cmail-web-staging
 pnpm exec wrangler pages secret put MICROSOFT_CLIENT_SECRET --project-name cmail-web-staging
-pnpm exec wrangler pages secret put RESEND_API_KEY --project-name cmail-web-staging
+pnpm exec wrangler pages secret put CLOUDFLARE_EMAIL_API_TOKEN --project-name cmail-web-staging
 pnpm exec wrangler pages secret put BOOTSTRAP_ADMIN_EMAIL --project-name cmail-web-staging
 pnpm exec wrangler pages secret put BOOTSTRAP_ADMIN_TOKEN --project-name cmail-web-staging
 pnpm exec wrangler secret put VAPID_PRIVATE_KEY --config apps/email-worker/wrangler.toml
@@ -132,6 +132,14 @@ clients, outbound credentials, and VAPID pairs so environments cannot admit or
 authenticate one another's identities. Invitations also belong to the issuing
 environment's `APP_URL`; never rewrite or forward a staging invitation into
 production.
+
+Cloudflare Email Service uses the REST API from cmail's Pages runtime. Keep its
+account ID in environment-specific deployment variables and scope its token to
+the intended account with **Email Sending: Edit**. A native `send_email` binding
+requires a separate Worker reached through a Pages service binding or a future
+move of the web runtime to Workers; do not add it directly to the Pages template.
+Review Cloudflare Email preview separately in every environment because new
+sending domains enable about seven days of message-content preview by default.
 
 ## Release gate
 

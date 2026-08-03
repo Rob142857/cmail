@@ -21,7 +21,7 @@ binding = "STORAGE"
 bucket_name = "cmail-storage"
 
 # Public, non-secret variables. Override per environment as needed.
-# Anything sensitive (OAuth secrets, SESSION_SECRET, RESEND_API_KEY, etc.)
+# Anything sensitive (OAuth secrets, SESSION_SECRET, outbound API tokens, etc.)
 # MUST go via `wrangler pages secret put <NAME>` — never commit them here.
 [vars]
 APP_NAME = "cmail"
@@ -49,6 +49,10 @@ BRAND_OG_IMAGE_URL = "/og-image.svg"
 BRAND_PRIMARY_COLOR = "#2563eb"
 LOCALE = "en"
 TIME_ZONE = "UTC"
+OUTBOUND_PROVIDER = "cloudflare"
+# Non-secret account identifier used only when Cloudflare Email Service is
+# selected. Store CLOUDFLARE_EMAIL_API_TOKEN as a Pages secret.
+CLOUDFLARE_ACCOUNT_ID = ""
 MAX_RECIPIENTS_PER_MESSAGE = "50"
 OUTBOUND_RATE_LIMIT_PER_HOUR = "60"
 OUTBOUND_WORK_LIMIT_PER_HOUR = "600"
@@ -73,7 +77,8 @@ VAPID_SUBJECT = ""
 # Comma-separated additions to the built-in browser push-service host list.
 PUSH_ENDPOINT_HOSTS = ""
 
-# SESSION_SECRET is mandatory at runtime. OAuth and outbound-provider secrets
+# SESSION_SECRET is mandatory at runtime. OAuth and outbound-provider secrets,
+# including CLOUDFLARE_EMAIL_API_TOKEN and POSTMARK_API_KEY,
 # are optional groups, so keep all sensitive values in Pages secrets or the
 # ignored local .dev.vars rather than declaring an incomplete required list.
 # First-run bootstrap additionally requires BOOTSTRAP_ADMIN_EMAIL and a strong,

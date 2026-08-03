@@ -1,6 +1,6 @@
 # Deployment and verification
 
-This guide describes a production deployment to Cloudflare. Provider interfaces and commands can change; confirm current Cloudflare, Google, Microsoft, Resend, or Postmark documentation during rollout.
+This guide describes a production deployment to Cloudflare. Provider interfaces and commands can change; confirm current Cloudflare, Google, Microsoft, or Postmark documentation during rollout.
 
 ## 1. Prepare a clean release
 
@@ -136,7 +136,46 @@ runtimes. See [Optional Web Push](configuration.md#optional-web-push).
 
 ## 6. Configure outbound delivery
 
-Choose Resend or Postmark, verify the sending domain, and configure a system sender accepted by that provider. Publish exactly the DNS records issued for your account.
+Cloudflare Email Service is the recommended and committed default; Postmark is
+the alternative. Verify the sending domain and configure a system sender
+accepted by that provider. `OUTBOUND_PROVIDER` accepts `cloudflare`, `postmark`,
+or `auto`. Auto mode uses the first complete configuration in Cloudflare →
+Postmark order. An explicit selection fails closed when its configuration is
+incomplete.
+
+For Cloudflare Email Service:
+
+1. Confirm the account uses the Workers Paid plan and accepts the operational
+   risk of Email Sending's current public beta status.
+2. In **Compute → Email Service → Email Sending**, onboard the sending domain.
+   Cloudflare DNS is required. Review the proposed `cf-bounce` MX, SPF, DKIM,
+   and DMARC records before accepting them.
+3. Put `OUTBOUND_PROVIDER = "cloudflare"` and the non-secret
+   `CLOUDFLARE_ACCOUNT_ID` in `apps/web/wrangler.toml`.
+4. Create a Cloudflare API token limited to the intended account and **Email
+   Sending: Edit**, then store it as a Pages secret:
+
+   ```sh
+   pnpm exec wrangler pages secret put CLOUDFLARE_EMAIL_API_TOKEN --project-name cmail-web
+   ```
+
+5. Check the sending domain's **Email preview** setting. New sending domains
+   have it enabled automatically; while enabled, rendered HTML, text, headers,
+   attachments, and raw source are retained for about seven days. Disable it if
+   that content retention is not required and approved.
+6. Verify the account's daily quota and stage messages within Cloudflare's
+   general limit of 50 combined recipients and 5 MiB including attachments.
+
+cmail's current Pages deployment uses Cloudflare's REST API. Do not add the
+Worker-only `[[send_email]]` binding to the Pages configuration. A separate
+private outbound Worker plus Pages service binding is a possible downstream
+architecture when avoiding an application-held API token is worth the extra
+runtime. In that architecture, local Worker simulation does not support binary
+attachment buffers unless the email binding is remote; remote binding calls
+send real mail.
+
+For Postmark, set `OUTBOUND_PROVIDER=postmark`, store `POSTMARK_API_KEY` as a
+Pages secret, and publish exactly the DNS records issued for your account.
 
 Start with a restrictive DMARC rollout appropriate to your existing mail flow. Changing MX, SPF, DKIM, or DMARC can affect other senders using the domain, so inventory them first.
 
@@ -157,7 +196,7 @@ Verify the resulting Pages origin and Worker name before changing mail routing.
 
 ## 8. Configure inbound routing
 
-Enable Cloudflare Email Routing for the chosen mail domain. Route only intended addresses or an explicitly approved catch-all to the deployed email Worker.
+Enable Cloudflare Email Routing for the chosen mail domain. Route only intended addresses or an explicitly approved catch-all to the deployed email Worker. Email Routing is cmail's inbound path and is configured independently of the selected outbound provider, including when Cloudflare Email Service handles outbound delivery.
 
 The Worker accepts mail only for active mailbox rows in D1 and rejects unknown recipients. Test a known address and an unknown address before broadening rules.
 
@@ -228,6 +267,8 @@ Complete at least these checks:
 - Blocked attachment extensions are rejected.
 - Internal delivery reaches each intended mailbox.
 - External outbound succeeds through the configured provider.
+- Explicit outbound selection fails closed when that provider's required values are incomplete; auto selection follows the documented priority.
+- cmail rejects a staged Cloudflare message above either the 50-recipient or 5-MiB general-send limit before provider submission.
 - Provider failures are visible and do not appear as successful sends.
 - Unknown inbound recipients are rejected.
 
@@ -252,6 +293,7 @@ Complete at least these checks:
 ### DNS and operations
 
 - MX, SPF, DKIM, and DMARC results match the intended providers.
+- Cloudflare Email preview retention and dashboard access are approved or preview is disabled, when Cloudflare handles outbound delivery.
 - D1 and R2 backup/restore procedures have been exercised.
 - Monitoring covers provider errors, authentication anomalies, and mail-routing failures.
 - A rollback target and credential-rotation procedure are recorded.
@@ -264,6 +306,10 @@ Do not use delivery to real recipients as the first production test. Use control
 - [Configure Pages bindings and secrets](https://developers.cloudflare.com/pages/functions/bindings/)
 - [Apply Cloudflare D1 migrations](https://developers.cloudflare.com/d1/reference/migrations/)
 - [Route inbound mail to a Cloudflare Worker](https://developers.cloudflare.com/email-service/configuration/email-routing-addresses/)
+- [Onboard a Cloudflare Email Sending domain](https://developers.cloudflare.com/email-service/get-started/send-emails/)
+- [Use the Cloudflare Email Sending REST API](https://developers.cloudflare.com/email-service/api/send-emails/rest-api/)
+- [Review Cloudflare Email Service limits](https://developers.cloudflare.com/email-service/platform/limits/)
+- [Review Cloudflare Email preview](https://developers.cloudflare.com/email-service/observability/logs/#message-preview)
 - [Configure Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect)
 - [Register a Microsoft Entra application](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app)
 - [Choose Microsoft supported account types](https://learn.microsoft.com/en-us/entra/identity-platform/single-and-multi-tenant-apps)

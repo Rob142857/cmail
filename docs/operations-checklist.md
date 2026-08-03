@@ -28,11 +28,14 @@ Use this checklist for each environment. Adapt it to your organisation's change-
 - [ ] Inbound byte/count/body-complexity limits and shared mailbox storage quota exercised at exact boundaries
 - [ ] Internal delivery tested
 - [ ] External outbound tested, when enabled
+- [ ] Outbound auto/explicit provider selection and incomplete-provider fail-closed behavior tested
+- [ ] Cloudflare general-send 50-recipient and 5-MiB ceilings tested, when Cloudflare Email Service is enabled
 - [ ] Sent/internal copies and draft create/growth/move refuse over-quota writes before provider or R2 side effects
 - [ ] Draft save rate and per-user/mailbox row cap tested
 - [ ] Attachment upload and download tested
 - [ ] Audit and trace entries inspected
 - [ ] Provider dashboards checked for errors
+- [ ] Cloudflare Email preview retention is approved or disabled, and Email Sending logs—not inbound Email Routing summaries—are used for outbound checks
 - [ ] Both bootstrap secrets absent after first-manager creation
 - [ ] No bootstrap token/proof in URLs or logs; invitation tokens are removed before callbacks and absent from referrers/logs
 - [ ] Browser notifications tested with generic payloads only, when enabled
@@ -46,6 +49,7 @@ Use this checklist for each environment. Adapt it to your organisation's change-
 - [ ] Review audit and trace anomalies
 - [ ] Review mailbox reservation denials, D1/R2 growth, and orphan-object reconciliation results
 - [ ] Review bounces, complaints, and provider reputation signals
+- [ ] Review Cloudflare Email Sending quota, activity logs, token access, and preview setting, when enabled
 - [ ] Confirm backups and perform scheduled restore exercises
 - [ ] Rotate secrets according to local policy
 - [ ] Remove expired OAuth credentials and administrator access

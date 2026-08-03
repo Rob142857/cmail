@@ -230,8 +230,10 @@ export interface Env {
   MICROSOFT_CLIENT_SECRET?: string;
   MICROSOFT_TENANT_ID?: string;
 
-  // Outbound — at most one
-  RESEND_API_KEY?: string;
+  // Outbound — optional explicit selection; "auto" uses the first complete configuration
+  OUTBOUND_PROVIDER?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  CLOUDFLARE_EMAIL_API_TOKEN?: string;
   POSTMARK_API_KEY?: string;
 
   // Bootstrap — first-run manager setup (both are temporary secrets/config)

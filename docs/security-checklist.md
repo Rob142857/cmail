@@ -69,6 +69,10 @@ This checklist replaces deployment-specific audit notes. It is a starting point,
 - [ ] `INBOUND_SENDER_HASH_KEY` is a distinct 32-byte Worker secret and sender-HMAC values contain no raw address
 - [ ] Unknown and inactive recipients reject as expected
 - [ ] Outbound From addresses restricted to verified domains
+- [ ] `OUTBOUND_PROVIDER` selection and fallback behavior match the intended provider; an incomplete explicit selection fails closed
+- [ ] Cloudflare Email Service account ID points to the intended account and its API token is stored only as a Pages secret with **Email Sending: Edit**, when enabled
+- [ ] Cloudflare's 50-recipient and 5-MiB general-send ceilings are exercised before provider submission, when enabled
+- [ ] Cloudflare Email preview access and about-seven-day content retention are approved, or preview is disabled on the sending domain
 - [ ] Bounce, complaint, and abuse handling procedures defined
 
 ## Cloudflare and provider controls
@@ -77,6 +81,7 @@ This checklist replaces deployment-specific audit notes. It is a starting point,
 - [ ] Least-privilege roles used for deployers and operators
 - [ ] Production and development resources separated
 - [ ] Pages variables and secrets reviewed after every deployment change
+- [ ] Worker-only `send_email` binding has not been added to the Pages configuration; any separate outbound Worker has a reviewed private service-binding boundary
 - [ ] D1 and R2 resource IDs point to the intended environment
 - [ ] Alerts configured for authentication, routing, delivery, and provider anomalies
 
