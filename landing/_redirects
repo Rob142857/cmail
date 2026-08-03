@@ -1,0 +1,3 @@
+# Add deployment-specific redirects when publishing the optional landing page.
+# Example:
+# /policy https://mail.example.org/policy 302

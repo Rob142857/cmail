@@ -1,0 +1,52 @@
+#:schema node_modules/wrangler/config-schema.json
+# ─── cmail inbound email worker — Cloudflare Workers config ───────────────
+# Copy this file to `wrangler.toml` and fill in YOUR Cloudflare tenant values.
+# `wrangler.toml` is gitignored so your IDs never leak to forks/clones.
+
+name = "cmail-email-worker"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 binding — must match the database_id used by the web app.
+[[d1_databases]]
+binding = "DB"
+database_name = "cmail-db"
+database_id = "YOUR_D1_DATABASE_ID"
+migrations_dir = "../../packages/shared/migrations"
+
+# R2 binding — same bucket as the web app.
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "cmail-storage"
+
+[vars]
+# 10 MiB default; code hard-caps this setting at 25 MiB.
+MAX_INBOUND_BYTES = "10485760"
+MAX_ATTACHMENTS_PER_MESSAGE = "25"
+MAX_INBOUND_DECODED_BODY_BYTES = "524288"
+# Atomic rolling-hour and retained-storage guardrails. Exact zero disables an
+# individual guard; invalid values fall back to the documented safe default.
+INBOUND_MAILBOX_MESSAGES_PER_HOUR = "120"
+INBOUND_MAILBOX_BYTES_PER_HOUR = "104857600"
+INBOUND_SENDER_MESSAGES_PER_HOUR = "30"
+MAILBOX_STORAGE_QUOTA_BYTES = "1073741824"
+# Sender limiting also requires the Worker-only INBOUND_SENDER_HASH_KEY secret.
+# Generate 32 random bytes and store the unpadded base64url value with:
+#   wrangler secret put INBOUND_SENDER_HASH_KEY --config apps/email-worker/wrangler.toml
+# Destructive retention remains off until the operator reviews the D1
+# retention_config rows and explicitly changes this value to "true".
+RETENTION_JOBS_ENABLED = "false"
+
+# Optional PWA new-mail notifications. Match the Pages VAPID configuration.
+# Store VAPID_PRIVATE_KEY with `wrangler secret put`, never in this file.
+VAPID_PUBLIC_KEY = ""
+VAPID_SUBJECT = ""
+APP_NAME = "cmail"
+PUSH_ENDPOINT_HOSTS = ""
+
+[triggers]
+crons = ["17 3 * * *"]
+
+# Email Routing — configure a catch-all in the Cloudflare dashboard
+# pointing all inbound mail at this worker.

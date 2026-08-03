@@ -1,0 +1,82 @@
+name: Bug report
+description: Report a reproducible defect without including private mail or credentials.
+title: '[Bug] '
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Thanks for helping improve cmail. Do not attach message bodies, access tokens,
+        secret values, personal data, or production database exports. Report security
+        issues privately using the instructions in the repository security policy.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the observed and expected behaviour.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Provide the smallest safe set of steps or a redacted sample repository.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.1.0 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - Web application
+        - Inbound email worker
+        - Database migration
+        - Documentation or deployment
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Where was the problem reproduced?
+      options:
+        - Local development
+        - Isolated Cloudflare staging
+        - Cloudflare production
+        - Other or unknown
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Browser or runtime
+      description: For example, Firefox 143, Node.js 24, or the deployed Worker runtime.
+      placeholder: Browser/runtime and operating system, when relevant
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Safe diagnostic details
+      description: Include redacted errors or validation output. Never include credentials, account IDs, production URLs, or message content.
+      render: shell
+  - type: textarea
+    id: regression
+    attributes:
+      label: Regression information
+      description: Did this work in an earlier cmail commit? If so, identify the last known-good commit.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, message content, and personal information.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

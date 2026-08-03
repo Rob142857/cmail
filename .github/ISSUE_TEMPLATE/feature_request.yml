@@ -1,0 +1,36 @@
+name: Feature request
+description: Propose a focused, broadly useful improvement.
+title: '[Feature] '
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or operator problem should cmail solve?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe the result and important privacy, security, or accessibility constraints.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds or different approaches did you consider?
+  - type: textarea
+    id: portability
+    attributes:
+      label: Portability and operational impact
+      description: How should this remain configurable across domains and organisations? Note migration, provider, security, privacy, and accessibility impact.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This proposal does not require embedding organisation-specific data or credentials in the public repository.
+          required: true

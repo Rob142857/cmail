@@ -1,0 +1,23 @@
+{
+  "name": "@cmail/email-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260801.1",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.118.0"
+  },
+  "dependencies": {
+    "@cmail/shared": "workspace:*",
+    "postal-mime": "^2.7.5"
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "name": "cmail",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-source email platform on Cloudflare — Google/Microsoft SSO, D1, R2, Email Routing",
+  "homepage": "https://github.com/Rob142857/cmail#readme",
+  "bugs": {
+    "url": "https://github.com/Rob142857/cmail/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rob142857/cmail.git"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "pnpm --filter @cmail/web dev",
+    "dev:worker": "pnpm --filter @cmail/email-worker dev",
+    "build": "pnpm --filter @cmail/web build",
+    "preview": "pnpm --filter @cmail/web preview",
+    "deploy": "pnpm run deploy:web && pnpm run deploy:email-worker",
+    "deploy:web": "pnpm --filter @cmail/web deploy",
+    "deploy:email-worker": "pnpm --filter @cmail/email-worker deploy",
+    "d1:create": "wrangler d1 create cmail-db",
+    "r2:create": "wrangler r2 bucket create cmail-storage",
+    "push:keys": "pnpm --filter @cmail/shared exec web-push generate-vapid-keys",
+    "db:migrate": "wrangler d1 migrations apply DB --remote --config apps/web/wrangler.toml",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local --config apps/web/wrangler.toml",
+    "db:migrate:verify": "node scripts/verify-migrations.mjs",
+    "secrets:scan": "node scripts/check-secrets.mjs",
+    "secrets:history": "node scripts/check-git-history-secrets.mjs",
+    "lint": "pnpm -r lint",
+    "check": "pnpm -r check",
+    "test": "pnpm -r test",
+    "validate": "pnpm secrets:scan && pnpm lint && pnpm check && pnpm test && pnpm db:migrate:verify && pnpm build && pnpm audit --audit-level=low",
+    "release:check": "pnpm validate && pnpm secrets:history"
+  },
+  "devDependencies": {
+    "wrangler": "^4.118.0"
+  },
+  "keywords": [
+    "email",
+    "self-hosted",
+    "cloudflare",
+    "cloudflare-pages",
+    "cloudflare-workers",
+    "email-routing",
+    "sveltekit",
+    "oauth",
+    "sso",
+    "open-source"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=11"
+  },
+  "packageManager": "pnpm@11.18.0"
+}

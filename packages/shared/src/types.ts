@@ -1,0 +1,240 @@
+// ─── User ─────────────────────────────────────────────────
+export type UserRole = 'standard' | 'manager';
+export type UserStatus = 'pending' | 'active' | 'paused' | 'offboarded';
+export type AuthProvider = 'google' | 'microsoft';
+
+export interface User {
+  id: string;
+  email: string;
+  display_name: string;
+  role: UserRole;
+  status: UserStatus;
+  auth_provider: AuthProvider | '';
+  created_at: string;
+  updated_at: string;
+  last_sign_in: string | null;
+}
+
+/** Immutable OpenID Connect identity bound to one cmail user. */
+export interface UserIdentity {
+  provider: AuthProvider;
+  subject: string;
+  user_id: string;
+  created_at: string;
+}
+
+/** Hashed, single-use first-sign-in invitation. Raw tokens are never stored. */
+export interface EnrollmentToken {
+  id: string;
+  user_id: string;
+  token_hash: string;
+  expires_at: number;
+  consumed_at: string | null;
+  created_at: string;
+  created_by: string | null;
+}
+
+// ─── Session ──────────────────────────────────────────────
+export interface Session {
+  id: string;
+  user_id: string;
+  token_hash: string;
+  issued_at: string;
+  expires_at: string;
+  ip_address: string | null;
+  revoked: number;
+}
+
+// ─── Mailbox ──────────────────────────────────────────────
+export type MailboxType = 'personal' | 'shared';
+
+export interface Mailbox {
+  id: string;
+  address: string;
+  type: MailboxType;
+  display_name: string;
+  status: 'active' | 'disabled';
+  created_at: string;
+}
+
+export interface MailboxAssignment {
+  user_id: string;
+  mailbox_id: string;
+  permissions: 'read' | 'send-as' | 'full';
+  assigned_at: string;
+  assigned_by: string | null;
+}
+
+// ─── Message ──────────────────────────────────────────────
+export type MessageDirection = 'inbound' | 'outbound' | 'internal';
+export type Folder = 'inbox' | 'sent' | 'drafts' | 'archive' | 'spam' | 'trash';
+
+export interface Message {
+  id: string;
+  mailbox_id: string;
+  message_id_header: string | null;
+  direction: MessageDirection;
+  from_address: string;
+  to_addresses: string; // JSON array
+  cc_addresses: string; // JSON array
+  subject: string;
+  snippet: string;
+  body_r2_key: string | null;
+  has_attachments: number;
+  size_bytes: number;
+  folder: Folder;
+  draft_owner_id: string | null;
+  is_read: number;
+  is_starred: number;
+  in_reply_to: string | null;
+  thread_id: string | null;
+  received_at: string;
+  created_at: string;
+}
+
+// ─── Attachment ───────────────────────────────────────────
+export interface Attachment {
+  id: string;
+  message_id: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  r2_key: string;
+}
+
+// ─── Policy ───────────────────────────────────────────────
+export interface PolicyVersion {
+  id: string;
+  version_label: string;
+  body_text: string;
+  published_at: string;
+  published_by: string | null;
+}
+
+export interface PolicySignature {
+  id: string;
+  user_id: string;
+  policy_version_id: string;
+  signed_at: string;
+  ip_address: string | null;
+  session_id: string | null;
+}
+
+// ─── Audit ────────────────────────────────────────────────
+export type AuditEventType =
+  | 'user.onboard' | 'user.offboard' | 'user.pause' | 'user.reactivate' | 'user.role_change'
+  | 'auth.sign_in' | 'auth.sign_in_denied' | 'auth.session_expired'
+  | 'auth.identity_bound' | 'auth.bootstrap_completed' | 'auth.enrollment_issued'
+  | 'policy.publish' | 'policy.sign' | 'policy.reset'
+  | 'mailbox.create' | 'mailbox.delete' | 'mailbox.assign' | 'mailbox.unassign'
+  | 'signature.update' | 'signature.lock'
+  | 'retention.update'
+  | 'export.mailbox'
+  | 'security.rate_limit' | 'security.suspicious_auth';
+
+export interface AuditRecord {
+  event_id: string;
+  timestamp: string;
+  actor_id: string | null;
+  actor_role: 'standard' | 'manager' | 'system';
+  event_type: AuditEventType;
+  target: string | null;
+  detail: string | null;
+  ip_address: string | null;
+  session_id: string | null;
+}
+
+// ─── Mail Trace ───────────────────────────────────────────
+export interface MailTrace {
+  trace_id: string;
+  message_id_header: string | null;
+  direction: 'inbound' | 'outbound';
+  timestamp: string;
+  envelope_from: string | null;
+  envelope_to: string | null;
+  header_from: string | null;
+  subject: string | null;
+  size_bytes: number | null;
+  status: 'delivered' | 'bounced' | 'rejected' | 'quarantined' | 'deferred' | 'sent';
+  status_detail: string | null;
+  spf_result: string | null;
+  dkim_result: string | null;
+  dmarc_result: string | null;
+  spam_score: number | null;
+  tls_version: string | null;
+  relay_response: string | null;
+  source_ip: string | null;
+}
+
+// ─── Env bindings (Cloudflare) ────────────────────────────
+export interface Env {
+  DB: D1Database;
+  STORAGE: R2Bucket;
+
+
+  MAIL_DOMAIN: string;
+  APP_NAME: string;
+  APP_URL: string;
+  SESSION_SECRET: string;
+
+  // Organisation branding (used in invite emails, landing, footer)
+  ORG_NAME?: string;          // e.g. "Example Organisation"
+  ORG_SHORT_NAME?: string;    // e.g. "Example Org"
+  ORG_URL?: string;           // e.g. "https://example.com"
+  SUPPORT_EMAIL?: string;     // e.g. "support@example.com"
+  LANDING_URL?: string;       // e.g. "https://mail.example.com"
+  POLICY_URL?: string;        // e.g. "https://mail.example.com/policy"
+  REPO_URL?: string;          // e.g. "https://github.com/Rob142857/cmail"
+  SYSTEM_EMAIL?: string;      // sender used for invites/system mail
+  SYSTEM_FROM_NAME?: string;
+  BRAND_LOGO_URL?: string;
+  BRAND_ICON_URL?: string;
+  BRAND_ICON_192_URL?: string;
+  BRAND_ICON_512_URL?: string;
+  BRAND_OG_IMAGE_URL?: string;
+  BRAND_PRIMARY_COLOR?: string;
+  LOCALE?: string;
+  TIME_ZONE?: string;
+
+  // Guardrails
+  MAX_RECIPIENTS_PER_MESSAGE?: string;
+  OUTBOUND_RATE_LIMIT_PER_HOUR?: string;
+  OUTBOUND_WORK_LIMIT_PER_HOUR?: string;
+  DRAFT_SAVE_RATE_PER_HOUR?: string;
+  MAX_DRAFTS_PER_MAILBOX_USER?: string;
+  SESSION_TTL_HOURS?: string;
+  MAX_SESSIONS_PER_USER?: string;
+  MAX_INBOUND_BYTES?: string;
+  MAX_ATTACHMENTS_PER_MESSAGE?: string;
+  INBOUND_MAILBOX_MESSAGES_PER_HOUR?: string;
+  INBOUND_MAILBOX_BYTES_PER_HOUR?: string;
+  INBOUND_SENDER_MESSAGES_PER_HOUR?: string;
+  MAILBOX_STORAGE_QUOTA_BYTES?: string;
+  /** @deprecated Use MAILBOX_STORAGE_QUOTA_BYTES. */
+  INBOUND_MAILBOX_STORAGE_BYTES?: string;
+  INBOUND_SENDER_HASH_KEY?: string;
+  MAX_INBOUND_DECODED_BODY_BYTES?: string;
+  RETENTION_JOBS_ENABLED?: string;
+
+  // Optional Web Push. The same VAPID key pair is configured on Pages and the
+  // inbound Worker; only the public key is ever sent to browsers.
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
+  PUSH_ENDPOINT_HOSTS?: string;
+
+  // Auth — at least one required
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  MICROSOFT_CLIENT_ID?: string;
+  MICROSOFT_CLIENT_SECRET?: string;
+  MICROSOFT_TENANT_ID?: string;
+
+  // Outbound — at most one
+  RESEND_API_KEY?: string;
+  POSTMARK_API_KEY?: string;
+
+  // Bootstrap — first-run manager setup (both are temporary secrets/config)
+  BOOTSTRAP_ADMIN_EMAIL?: string;
+  BOOTSTRAP_ADMIN_TOKEN?: string;
+}

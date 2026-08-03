@@ -1,0 +1,61 @@
+name: Deployment help
+description: Ask a redacted, non-sensitive setup or operations question.
+title: "[Help] "
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Community help is best-effort. Read SUPPORT.md and the documentation first.
+        Never post credentials, Cloudflare IDs, tenant IDs, private mail, personal data,
+        production URLs, database exports, or unredacted logs. Use the private security
+        process if the behavior may expose data or bypass a control.
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Deployment stage
+      options:
+        - Planning or configuration
+        - Local development
+        - Isolated staging
+        - Production rollout
+        - Upgrade or recovery
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What are you trying to achieve?
+    validations:
+      required: true
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What you tried
+      description: Link the cmail documentation sections followed and describe the safe, redacted steps already taken.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Result
+      description: Describe the observed result and include only redacted diagnostic output.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: cmail commit
+      placeholder: Commit SHA
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, identifiers, private mail, personal data, and production URLs.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

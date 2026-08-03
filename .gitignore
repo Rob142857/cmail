@@ -1,0 +1,68 @@
+# Dependencies and generated output
+node_modules/
+.pnpm-store/
+dist/
+.svelte-kit/
+build/
+coverage/
+test-results/
+playwright-report/
+.tmp/
+tmp/
+*.tsbuildinfo
+*.log
+*.tgz
+
+# Cloudflare local state
+.wrangler/
+.mf/
+
+# Local databases and deliberately named database exports. Do not ignore every
+# .sql file because versioned migrations are part of the product source.
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.dump
+*.d1-export.sql
+*.sql.gz
+*.sql.zst
+
+# Mail, browser, and support exports can contain message content, addresses,
+# cookies, tokens, or other personal data. Keep fixtures synthetic and unignore
+# them only inside a dedicated test-fixture directory.
+*.eml
+*.mbox
+*.pst
+*.ost
+*.har
+
+# Local configuration and secrets. Keep only committed templates.
+.env
+.env.*
+!.env.example
+.envrc
+.direnv/
+**/.env
+**/.env.*
+!**/.env.example
+**/.dev.vars
+**/.dev.vars.*
+!**/.dev.vars.example
+**/wrangler.toml
+!**/wrangler.toml.example
+
+# Local keys and certificates
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.code-workspace
+.DS_Store
+Thumbs.db

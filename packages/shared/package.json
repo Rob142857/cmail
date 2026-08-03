@@ -1,0 +1,29 @@
+{
+  "name": "@cmail/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./types": "./src/types.ts",
+    "./push": "./src/push.ts",
+    "./sanitize-email": "./src/sanitize-email.ts",
+    "./mailbox-storage": "./src/mailbox-storage.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit --target ES2022 --module ES2022 --moduleResolution Bundler --types @cloudflare/workers-types --strict --skipLibCheck src/types.ts src/push.ts src/sanitize-email.ts src/mailbox-storage.ts",
+    "lint": "pnpm check",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260801.1",
+    "@types/hast": "3.0.4",
+    "typescript": "^6.0.2",
+    "web-push": "3.6.7"
+  },
+  "dependencies": {
+    "rehype-parse": "9.0.1",
+    "rehype-sanitize": "6.0.0",
+    "rehype-stringify": "10.0.1",
+    "unified": "11.0.5"
+  }
+}

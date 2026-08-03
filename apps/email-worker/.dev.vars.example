@@ -1,0 +1,9 @@
+# Local-only secrets for the inbound email Worker.
+# `pnpm setup` copies this template to the ignored `.dev.vars` file.
+
+# Required while INBOUND_SENDER_MESSAGES_PER_HOUR is greater than zero.
+# Generate 32 random bytes and encode them as unpadded base64url.
+INBOUND_SENDER_HASH_KEY=
+
+# Optional; required only when Web Push is configured for the Worker.
+VAPID_PRIVATE_KEY=

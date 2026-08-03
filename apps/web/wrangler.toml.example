@@ -1,0 +1,81 @@
+#:schema node_modules/wrangler/config-schema.json
+# ─── cmail web app — Cloudflare Pages config ──────────────────────────────
+# Copy this file to `wrangler.toml` and fill in YOUR Cloudflare tenant values.
+# `wrangler.toml` is gitignored so your IDs never leak to forks/clones.
+
+name = "cmail-web"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".svelte-kit/cloudflare"
+
+# D1 binding — run `pnpm d1:create` then paste the returned database_id here.
+[[d1_databases]]
+binding = "DB"
+database_name = "cmail-db"
+database_id = "YOUR_D1_DATABASE_ID"
+migrations_dir = "../../packages/shared/migrations"
+
+# R2 binding — run `pnpm r2:create` first.
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "cmail-storage"
+
+# Public, non-secret variables. Override per environment as needed.
+# Anything sensitive (OAuth secrets, SESSION_SECRET, RESEND_API_KEY, etc.)
+# MUST go via `wrangler pages secret put <NAME>` — never commit them here.
+[vars]
+APP_NAME = "cmail"
+MAIL_DOMAIN = "example.com"
+APP_URL = "https://mail.example.com"
+# Use "common" for Microsoft 365 plus personal Microsoft accounts, or replace
+# with a tenant GUID for a single-tenant Entra deployment.
+MICROSOFT_TENANT_ID = "common"
+
+# Organisation branding
+ORG_NAME = "Your Organisation"
+ORG_SHORT_NAME = "Your Org"
+ORG_URL = "https://example.com"
+SUPPORT_EMAIL = "desk@example.com"
+LANDING_URL = "https://cmail.example.com"
+POLICY_URL = "https://mail.example.com/policy"
+REPO_URL = "https://github.com/Rob142857/cmail"
+SYSTEM_EMAIL = "noreply@example.com"
+SYSTEM_FROM_NAME = "Your Org Mail"
+BRAND_LOGO_URL = "/logo.svg"
+BRAND_ICON_URL = "/icon.svg"
+BRAND_ICON_192_URL = "/icon-192.png"
+BRAND_ICON_512_URL = "/icon-512.png"
+BRAND_OG_IMAGE_URL = "/og-image.svg"
+BRAND_PRIMARY_COLOR = "#2563eb"
+LOCALE = "en"
+TIME_ZONE = "UTC"
+MAX_RECIPIENTS_PER_MESSAGE = "50"
+OUTBOUND_RATE_LIMIT_PER_HOUR = "60"
+OUTBOUND_WORK_LIMIT_PER_HOUR = "600"
+DRAFT_SAVE_RATE_PER_HOUR = "300"
+MAX_DRAFTS_PER_MAILBOX_USER = "100"
+SESSION_TTL_HOURS = "8"
+MAX_SESSIONS_PER_USER = "5"
+
+# Inbound-only limits are mirrored here for one visible deployment manifest;
+# enforcement and INBOUND_SENDER_HASH_KEY belong only to the email Worker.
+INBOUND_MAILBOX_MESSAGES_PER_HOUR = "120"
+INBOUND_MAILBOX_BYTES_PER_HOUR = "104857600"
+INBOUND_SENDER_MESSAGES_PER_HOUR = "30"
+# Shared retained-message quota used by inbound, Sent/internal copies, and drafts.
+MAILBOX_STORAGE_QUOTA_BYTES = "1073741824"
+
+# Optional PWA new-mail notifications. Generate one VAPID key pair and use the
+# same public key, private secret, and subject on Pages and the email Worker.
+# Store VAPID_PRIVATE_KEY with `wrangler pages secret put`, never in this file.
+VAPID_PUBLIC_KEY = ""
+VAPID_SUBJECT = ""
+# Comma-separated additions to the built-in browser push-service host list.
+PUSH_ENDPOINT_HOSTS = ""
+
+# SESSION_SECRET is mandatory at runtime. OAuth and outbound-provider secrets
+# are optional groups, so keep all sensitive values in Pages secrets or the
+# ignored local .dev.vars rather than declaring an incomplete required list.
+# First-run bootstrap additionally requires BOOTSTRAP_ADMIN_EMAIL and a strong,
+# distinct BOOTSTRAP_ADMIN_TOKEN. Set both as Pages secrets, complete /bootstrap,
+# then delete both secrets immediately.

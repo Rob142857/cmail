@@ -1,0 +1,150 @@
+// Outbound email provider abstraction
+// Auto-detects: Resend > Postmark > disabled.
+// Cloudflare's native send_email binding is intentionally NOT supported —
+// it can only deliver to verified Email Routing destinations, which is not
+// useful for general outbound. Use Resend or Postmark instead.
+
+export interface OutboundAttachment {
+  filename: string;
+  contentType: string;
+  /** Raw bytes of the file. */
+  content: Uint8Array;
+}
+
+export interface OutboundEmail {
+  from: string;
+  to: string | string[];
+  cc?: string[];
+  subject: string;
+  html: string;
+  text?: string;
+  replyTo?: string;
+  headers?: Record<string, string>;
+  /** Provider request idempotency key. Resend retains keys for 24 hours. */
+  idempotencyKey?: string;
+  attachments?: OutboundAttachment[];
+}
+
+export interface OutboundResult {
+  success: boolean;
+  provider: string;
+  messageId?: string;
+  error?: string;
+}
+
+type ProviderName = 'resend' | 'postmark' | 'none';
+
+function toBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  // btoa is available in Workers runtime
+  return btoa(binary);
+}
+
+export function detectProvider(env: Record<string, unknown>): ProviderName {
+  if (env.RESEND_API_KEY) return 'resend';
+  if (env.POSTMARK_API_KEY) return 'postmark';
+  return 'none';
+}
+
+export function getProviderInfo(env: Record<string, unknown>): { name: ProviderName; label: string } {
+  const name = detectProvider(env);
+  const labels: Record<ProviderName, string> = {
+    resend: 'Resend',
+    postmark: 'Postmark',
+    none: 'Disabled (internal only)',
+  };
+  return { name, label: labels[name] };
+}
+
+export async function sendEmail(email: OutboundEmail, env: Record<string, unknown>): Promise<OutboundResult> {
+  const provider = detectProvider(env);
+
+  switch (provider) {
+    case 'resend':
+      return sendViaResend(email, env.RESEND_API_KEY as string);
+    case 'postmark':
+      return sendViaPostmark(email, env.POSTMARK_API_KEY as string);
+    case 'none':
+      return { success: false, provider: 'none', error: 'No outbound provider configured' };
+  }
+}
+
+// ─── Resend ──────────────────────────────────────────────
+async function sendViaResend(email: OutboundEmail, apiKey: string): Promise<OutboundResult> {
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        ...(email.idempotencyKey ? { 'Idempotency-Key': email.idempotencyKey.slice(0, 256) } : {}),
+      },
+      body: JSON.stringify({
+        from: email.from,
+        to: Array.isArray(email.to) ? email.to : [email.to],
+        cc: email.cc,
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+        reply_to: email.replyTo,
+        headers: email.headers,
+        attachments: email.attachments?.map(a => ({
+          filename: a.filename,
+          content: toBase64(a.content),
+          content_type: a.contentType,
+        })),
+      }),
+    });
+
+    if (!res.ok) {
+      return { success: false, provider: 'resend', error: `Resend rejected the request (${res.status})` };
+    }
+
+    const data = await res.json() as { id: string };
+    return { success: true, provider: 'resend', messageId: data.id };
+  } catch {
+    return { success: false, provider: 'resend', error: 'Resend could not be reached' };
+  }
+}
+
+// ─── Postmark ────────────────────────────────────────────
+async function sendViaPostmark(email: OutboundEmail, apiKey: string): Promise<OutboundResult> {
+  try {
+    const res = await fetch('https://api.postmarkapp.com/email', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-Postmark-Server-Token': apiKey,
+      },
+      body: JSON.stringify({
+        From: email.from,
+        To: Array.isArray(email.to) ? email.to.join(',') : email.to,
+        Cc: email.cc?.join(','),
+        Subject: email.subject,
+        HtmlBody: email.html,
+        TextBody: email.text,
+        ReplyTo: email.replyTo,
+        MessageStream: 'outbound',
+        Attachments: email.attachments?.map(a => ({
+          Name: a.filename,
+          Content: toBase64(a.content),
+          ContentType: a.contentType,
+        })),
+      }),
+    });
+
+    if (!res.ok) {
+      return { success: false, provider: 'postmark', error: `Postmark rejected the request (${res.status})` };
+    }
+
+    const data = await res.json() as { MessageID: string };
+    return { success: true, provider: 'postmark', messageId: data.MessageID };
+  } catch {
+    return { success: false, provider: 'postmark', error: 'Postmark could not be reached' };
+  }
+}

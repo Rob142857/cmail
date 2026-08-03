@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/Rob142857/cmail/security/policy
+    about: Read the private reporting instructions; do not disclose vulnerabilities in a public issue.
+  - name: Support and deployment questions
+    url: https://github.com/Rob142857/cmail/blob/main/SUPPORT.md
+    about: Check the support guide before sharing a redacted, non-sensitive question.
