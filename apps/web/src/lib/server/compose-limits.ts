@@ -37,19 +37,37 @@ export function calculateComposeWorkload(
   persistedPayloadBytes: number,
   providerPayloadBytes: number,
   recipientCount: number,
-  internalRecipientCount: number,
+  providerRecipientCount: number,
+  directInternalRecipientCount: number,
+  expectedInternalRecipientCount: number,
   attachmentCount: number,
 ): ComposeWorkload {
-  for (const value of [persistedPayloadBytes, providerPayloadBytes, recipientCount, internalRecipientCount, attachmentCount]) {
+  for (const value of [
+    persistedPayloadBytes,
+    providerPayloadBytes,
+    recipientCount,
+    providerRecipientCount,
+    directInternalRecipientCount,
+    expectedInternalRecipientCount,
+    attachmentCount,
+  ]) {
     if (!Number.isSafeInteger(value) || value < 0) throw new RangeError('Compose workload inputs must be non-negative integers');
   }
-  if (recipientCount < 1 || internalRecipientCount > recipientCount) {
+  if (
+    recipientCount < 1
+    || providerRecipientCount > recipientCount
+    || directInternalRecipientCount > expectedInternalRecipientCount
+    || expectedInternalRecipientCount > recipientCount
+  ) {
     throw new RangeError('Compose workload recipient counts are inconsistent');
   }
 
-  const persistedCopies = internalRecipientCount + 1;
-  const externalRecipientCount = recipientCount - internalRecipientCount;
-  const deliveryBytes = (persistedPayloadBytes * internalRecipientCount) + (providerPayloadBytes * externalRecipientCount);
+  // Mixed local/external mail goes through one provider path for every
+  // recipient so its visible To/Cc headers remain identical. Count eventual
+  // inbound local copies as persisted work even though they arrive later.
+  const persistedCopies = expectedInternalRecipientCount + 1;
+  const deliveryBytes = (persistedPayloadBytes * directInternalRecipientCount)
+    + (providerPayloadBytes * providerRecipientCount);
   const persistedBytes = persistedPayloadBytes * persistedCopies;
   const persistedObjects = (attachmentCount + 1) * persistedCopies;
   if (![deliveryBytes, persistedBytes, persistedObjects].every(Number.isSafeInteger)) {

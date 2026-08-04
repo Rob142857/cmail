@@ -7,6 +7,8 @@
     returnHref,
     editDraftHref,
     replyHref,
+    replyAllHref,
+    canReplyAll = false,
     forwardHref,
     composeReturnHref,
     isDraft = false,
@@ -38,6 +40,9 @@
     </form>
   {:else}
     <a href={replyHref} class="btn btn-primary" onclick={(event) => openCompose(event, replyHref)}>Reply</a>
+    {#if canReplyAll}
+      <a href={replyAllHref} class="btn" onclick={(event) => openCompose(event, replyAllHref)}>Reply all</a>
+    {/if}
     <a href={forwardHref} class="btn" onclick={(event) => openCompose(event, forwardHref)}>Forward</a>
     {#if canMarkUnread}
       <button class="btn" type="button" disabled={!!busy} onclick={() => onMutate('unread')}>Mark unread</button>

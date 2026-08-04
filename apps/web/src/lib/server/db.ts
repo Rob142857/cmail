@@ -58,6 +58,9 @@ export async function traceEmail(
   db: D1Database,
   trace: {
     message_id_header?: string | null;
+    /** Provider tracking identifiers; not assumed to be RFC Message-IDs. */
+    provider_message_ids?: string[];
+    failed_recipients?: string[];
     direction: 'inbound' | 'outbound';
     envelope_from?: string | null;
     envelope_to?: string | null;
@@ -74,11 +77,13 @@ export async function traceEmail(
   },
 ): Promise<void> {
   await db.prepare(
-    `INSERT INTO mail_trace (trace_id, message_id_header, direction, timestamp, envelope_from, envelope_to, header_from, subject, size_bytes, status, status_detail, spf_result, dkim_result, dmarc_result, spam_score, source_ip)
-     VALUES (?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO mail_trace (trace_id, message_id_header, provider_message_ids, failed_recipients, direction, timestamp, envelope_from, envelope_to, header_from, subject, size_bytes, status, status_detail, spf_result, dkim_result, dmarc_result, spam_score, source_ip)
+     VALUES (?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).bind(
     generateId(),
     trace.message_id_header ?? null,
+    JSON.stringify(trace.provider_message_ids || []),
+    JSON.stringify(trace.failed_recipients || []),
     trace.direction,
     trace.envelope_from ?? null,
     trace.envelope_to ?? null,

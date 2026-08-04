@@ -6,6 +6,43 @@ Notable changes to cmail are recorded here. The project follows
 
 ## [Unreleased]
 
+### Added
+
+- Standards-aligned High, Normal, and Low message importance across inbound
+  parsing, drafts, external providers, Sent copies, and mail views.
+- Reply all recipient handling, RFC-style References ancestry, inline MIME image
+  rendering, and an RFC 9989-era SPF, DKIM, DMARC, MTA-STS, TLS-RPT, and
+  receiver-policy operations guide.
+- The official orange Deploy to Cloudflare button with an explicit guided-import
+  boundary for the current Pages-plus-Worker monorepo.
+
+### Changed
+
+- Cloudflare production delivery now uses a private Pages service binding to the
+  email Worker's native Email Sending binding; the API-token REST path remains
+  an optional fallback. Opaque native delivery IDs are stored separately from
+  RFC `Message-ID`; a validated REST `result.message_id` is used when present.
+- Mixed local/external mail now preserves one canonical visible To/Cc set. The
+  Cloudflare REST path uses raw MIME with a separate external SMTP envelope;
+  native Cloudflare and Postmark route the complete recipient set through the
+  provider so local recipients return through Email Routing exactly once.
+- Reply and Forward preserve safely sanitised HTML quotes, Forward omits reply
+  headers, expose original parts for deliberate forwarding, and keep Back
+  navigation draft-safe. Reply from Sent targets the original recipients, and
+  partial REST delivery is surfaced instead of appearing fully successful.
+
+### Security
+
+- Bounded and validated the private outbound Worker request, kept that Worker
+  off public HTTP routes, verified production/preview Wrangler isolation, and
+  restricted inline images to authenticated, same-origin safe raster
+  attachments.
+- Added an immutable D1/R2 outbound journal: provider dispatch is claimed once,
+  accepted sends materialize locally with deterministic IDs, ambiguous outcomes
+  fail closed, active quota reservations cannot expire underneath recovery,
+  confirmed failures release quota atomically, and edited draft generations
+  rotate without weakening accepted-send tombstones.
+
 ## [0.1.0] - 2026-08-04
 
 ### Added

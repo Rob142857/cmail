@@ -138,9 +138,10 @@ change and have users opt in again.
 
 | Variable | Secret | Purpose |
 |---|---:|---|
-| `OUTBOUND_PROVIDER` | No | `cloudflare` (committed default), `postmark`, or `auto` |
-| `CLOUDFLARE_ACCOUNT_ID` | No | 32-character Cloudflare account ID containing the onboarded Email Sending domain |
-| `CLOUDFLARE_EMAIL_API_TOKEN` | Yes | Cloudflare REST credential with **Email Sending: Edit** permission |
+| `OUTBOUND_PROVIDER` | No | `cloudflare` (committed default), `postmark`, `auto`, or `none` to disable external delivery |
+| `EMAIL_SERVICE` | Binding | Private Pages service binding to the email Worker; recommended Cloudflare production path |
+| `CLOUDFLARE_ACCOUNT_ID` | No | Optional REST fallback: 32-character Cloudflare account ID containing the onboarded Email Sending domain |
+| `CLOUDFLARE_EMAIL_API_TOKEN` | Yes | Optional REST fallback credential with **Email Sending: Edit** permission |
 | `POSTMARK_API_KEY` | Yes | Enable Postmark delivery |
 
 In `auto` mode, cmail selects the first complete provider configuration in this
@@ -152,20 +153,29 @@ outbound attempts fail while internal mailbox delivery remains available.
 
 ### Cloudflare Email Service
 
-Cloudflare Email Service is the recommended external provider. cmail calls the
-[Email Sending REST API](https://developers.cloudflare.com/email-service/api/send-emails/rest-api/)
-from its current Cloudflare Pages runtime. To enable it:
+Cloudflare Email Service is the recommended external provider. In production,
+the Pages application calls the cmail email Worker over the private
+`EMAIL_SERVICE` service binding. That Worker owns Cloudflare's native
+`send_email` binding, so the web application holds no outbound Cloudflare API
+token. Its result contains an opaque Cloudflare tracking ID used for activity
+and lifecycle reconciliation, not the wire RFC `Message-ID`. To enable it:
 
 1. Confirm the account is on the Workers Paid plan. Email Sending is currently
    a public beta.
 2. Use a domain hosted on Cloudflare DNS and onboard it under **Compute → Email
    Service → Email Sending**. Review the Cloudflare-created bounce MX, SPF,
    DKIM, and DMARC records against every existing sender for the domain.
-3. Set `CLOUDFLARE_ACCOUNT_ID` as a non-secret Pages variable.
-4. Create the narrowest suitable account-owned API token with **Email Sending:
-   Edit** and store it only as the `CLOUDFLARE_EMAIL_API_TOKEN` Pages secret.
+3. Keep `[[send_email]]` with `name = "EMAIL"` in the email Worker's Wrangler
+   file, and keep that Worker off `workers.dev` and public HTTP routes.
+4. Keep the Pages `[[services]]` binding named `EMAIL_SERVICE` pointed at that
+   environment's email Worker. Deploy the Worker before Pages.
 5. Keep the template's `OUTBOUND_PROVIDER=cloudflare`. Use `auto` only when a
    complete Postmark configuration should act as a fallback.
+
+Follow [Email authentication and sender requirements](email-authentication.md)
+for the current RFC 9989 DMARC rollout, record verification, major receiver
+policies, and the boundary that prevents treating cmail as a bulk-marketing
+system. Provider onboarding does not replace that review.
 
 Cloudflare limits a general outbound message to 50 total `to`, `cc`, and `bcc`
 recipients and 5 MiB including attachments. cmail applies those provider limits
@@ -181,17 +191,62 @@ default for new sending domains. Review access and disable it in the sending
 domain's settings unless this extra content retention is required. See
 [Email logs and message preview](https://developers.cloudflare.com/email-service/observability/logs/#message-preview).
 
-Cloudflare also offers a native `send_email` binding for Workers, which avoids
-putting an API token in the application environment. cmail currently deploys
-the web application as Pages Functions and therefore uses the REST API; do not
-add `[[send_email]]` to the Pages Wrangler file. A downstream deployment may
-move submission into a separate private Worker reached through a Pages service
-binding, or migrate the web runtime to Workers. For that architecture, note
-that local `wrangler dev` simulates delivery unless `remote = true`; remote mode
-sends real mail, and binary attachment buffers cannot be serialized by the
-non-remote simulator. Refer to Cloudflare's [Workers
-API](https://developers.cloudflare.com/email-service/api/send-emails/workers-api/)
-and [local sending guide](https://developers.cloudflare.com/email-service/local-development/sending/).
+The committed topology implements exactly that private Worker path. Pages must
+not receive a `[[send_email]]` block directly; it receives only the
+`EMAIL_SERVICE` service binding. The Worker accepts the bounded internal send
+request, uses its `EMAIL` binding, and has no public fetch route. See Cloudflare's
+[Workers API](https://developers.cloudflare.com/email-service/api/send-emails/workers-api/),
+[send bindings](https://developers.cloudflare.com/email-service/configuration/send-bindings/),
+and [Pages service bindings](https://developers.cloudflare.com/pages/functions/bindings/#service-bindings).
+
+#### Cloudflare message identifiers
+
+Keep the two identifier classes separate:
+
+- Native Workers `send()` returns an opaque Cloudflare tracking ID. cmail stores
+  it in the provider-ID array used by trace and lifecycle investigations.
+- Cloudflare controls the wire `Message-ID` header. The native binding does not
+  expose it, so cmail never treats the opaque tracking ID as an RFC header.
+- The REST API reference declares an RFC-style `result.message_id`; cmail
+  validates and stores it as the authoritative wire header when present. Code
+  still tolerates an omitted field because some narrative response examples do
+  not show it, and it never invents a replacement.
+
+Consequently, `In-Reply-To` and `References` preserve existing ancestry, but the
+first external reply to a brand-new native-binding conversation may not join
+the local Sent thread automatically. A production acceptance test must inspect
+an actually received copy and its subsequent reply; a successful API response
+alone is not proof of thread correlation.
+
+#### Mixed local and external recipients
+
+Every recipient must see the same visible To/Cc roles. cmail therefore chooses
+one of two safe plans:
+
+- If a valid Cloudflare account ID and Email Sending API token are configured,
+  one REST `send_raw` call carries only external SMTP-envelope recipients while
+  its MIME headers retain the complete To/Cc lists. Local copies are persisted
+  synchronously.
+- On the token-free native path, or with Postmark, one structured provider call
+  carries the complete To/Cc set. Active local recipients return asynchronously
+  through Cloudflare Email Routing. This avoids duplicate delivery and Cc-to-To
+  promotion, but it depends on working inbound routing, quotas, and storage.
+
+The REST raw-MIME path is automatically preferred for mixed messages when its
+credential pair is ready, even if `EMAIL_SERVICE` is also bound. External-only
+mail continues to prefer the token-free native binding. Test internal-only,
+external-only, and mixed To/Cc cases before launch.
+
+For local development or a platform without service bindings, configure both
+`CLOUDFLARE_ACCOUNT_ID` and a narrowly scoped
+`CLOUDFLARE_EMAIL_API_TOKEN`; cmail then uses Cloudflare's
+[REST API](https://developers.cloudflare.com/email-service/api/send-emails/rest-api/).
+The REST success response reports delivered, queued, and permanently bounced
+recipients, while the generated API reference includes `result.message_id`.
+cmail validates that value when returned. The same credentials enable the
+single-call raw-MIME plan for mixed recipients described above. Local email bindings
+simulate delivery unless intentionally configured for remote use; remote mode
+sends real mail. See the [local sending guide](https://developers.cloudflare.com/email-service/local-development/sending/).
 
 ### Postmark alternative
 
@@ -396,17 +451,28 @@ an external provider or writing any Sent, internal-recipient, or draft R2
 object. Every copy reserves the exact UTF-8 escaped/sanitized HTML plus
 attachment bytes that its message row records. A multi-mailbox send proceeds
 only after every mailbox reservation succeeds; a denied group is released
-without provider or R2 side effects. Provider idempotency remains keyed by the
-compose token, so a provider-accepted message is never automatically resent if
-later local persistence fails.
+without provider side effects. The immutable outbound journal then stages the
+canonical body and attachments under private, deterministic R2 keys, records
+every target and reservation in D1, and atomically claims `dispatching` before
+the provider call. Provider results are snapshotted before reconciliation.
+`accepted` and `materialized` per-compose or per-draft-generation keys are
+permanent idempotency tombstones: recovery creates any missing Sent/internal
+copies with stable IDs and keys, but never calls the provider again. A newer
+saved draft generation receives a new key without weakening recovery of the
+older accepted send. `dispatching` or `ambiguous` records require operator
+reconciliation and must not be blindly retried.
 
 An inserted message atomically converts its temporary storage reservation into
 the durable `messages.size_bytes` charge. Terminal failures release the pending
-storage charge but keep the one-hour abuse charge. Interrupted pending charges
-expire after 15 minutes, and the short-lived ledger prunes old rows
-opportunistically. D1 and R2 do not provide a cross-service transaction, so
-caught failures are cleaned up but an abrupt runtime termination at the exact
-R2/D1 boundary can still require orphan-object reconciliation.
+storage charge but keep the one-hour abuse charge. Confirmed non-acceptance and
+its reservation release share one D1 state transition. Ordinary interrupted
+pending charges expire after 15 minutes; journal-linked reservations remain held until
+the send is materialized or explicitly cancelled. The short-lived ledger
+prunes other old rows opportunistically. D1 and R2 do not provide a
+cross-service transaction, so caught failures are cleaned up and deterministic
+recovery is used at the boundary; the irreducible case is a runtime termination
+after a provider accepts mail but before cmail records the result. That case is
+marked for operator reconciliation instead of risking a duplicate send.
 
 Guardrail denials use the same generic `451 Message temporarily unavailable`
 response for quota and dependency failures. They add no sender, recipient,
@@ -428,15 +494,17 @@ before enabling destructive retention.
 | Value type | Local development | Production |
 |---|---|---|
 | D1/R2 bindings and public settings | Local `wrangler.toml` | Cloudflare deployment configuration |
-| OAuth credentials, session key, outbound API tokens, temporary bootstrap pair | `apps/web/.dev.vars` | Cloudflare Pages secrets |
-| Cloudflare account ID and outbound provider selection | `apps/web/.dev.vars` or local `wrangler.toml` | Cloudflare Pages variables |
+| OAuth credentials, session key, optional outbound fallback/API tokens, temporary bootstrap pair | `apps/web/.dev.vars` | Cloudflare Pages secrets |
+| Outbound provider selection and optional REST-fallback account ID | `apps/web/.dev.vars` or local `wrangler.toml` | Cloudflare Pages variables |
+| Native Cloudflare outbound bindings | Local Wrangler configuration | Email Worker `EMAIL` send binding plus Pages `EMAIL_SERVICE` service binding |
 | Inbound sender-HMAC key | `apps/email-worker/.dev.vars` | Email Worker secret `INBOUND_SENDER_HASH_KEY` |
 | Organisation settings | Environment defaults or Admin UI | Environment defaults or Admin UI |
 
-The inbound email Worker always needs the shared D1 and R2 bindings. When Web
-Push is enabled, it also needs the same public VAPID configuration and an
-independently stored copy of `VAPID_PRIVATE_KEY`. Do not copy OAuth, session, or
-outbound-provider credentials into the Worker.
+The email Worker always needs the shared D1 and R2 bindings and owns the native
+Cloudflare outbound `EMAIL` binding. When Web Push is enabled, it also needs the
+same public VAPID configuration and an independently stored copy of
+`VAPID_PRIVATE_KEY`. Do not copy OAuth, session, or outbound-provider API
+credentials into the Worker.
 
 ## Secret handling
 
@@ -444,7 +512,7 @@ outbound-provider credentials into the Worker.
 - Never place secrets in `.env.example`, Wrangler templates, screenshots, issues, or support logs.
 - Treat raw invitation links and bootstrap proofs as credentials; do not log or forward them.
 - Restrict provider dashboards and use multi-factor authentication.
-- Scope the Cloudflare Email Service token to the required account and **Email Sending: Edit** permission; anyone holding it can send from onboarded domains in that account.
+- If the optional Cloudflare REST fallback is enabled, scope its token to the required account and **Email Sending: Edit** permission; anyone holding it can send from onboarded domains in that account.
 - Review Cloudflare Email preview before sending sensitive mail; its optional dashboard preview retains message content and attachments for about seven days.
 - Rotate a value immediately if it is printed, committed, or shared outside its intended secret store.
 - Remember that deleting a tracked file does not erase prior Git objects.

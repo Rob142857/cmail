@@ -37,12 +37,13 @@
     <ol>
       <li>Select <strong>Compose</strong>.</li>
       <li>Confirm <strong>From</strong>, then add To and optional Cc recipients.</li>
-      <li>Add a clear subject, write the message, and attach only expected files.</li>
+      <li>Add a clear subject, write the message, and attach only expected files. Leave <strong>Importance</strong> at Normal unless the recipient genuinely needs a High or Low signal.</li>
       <li>Review recipients and the From address once more before selecting <strong>Send</strong>.</li>
     </ol>
-    <p>Draft text is saved shortly after you pause. Reply and Forward preserve the formatted original below your editable text, with remote images removed for privacy. <strong>Back to message</strong> waits for the latest save and confirms it after returning. Attachments remain only in the current tab, so cmail warns before leaving with files attached.</p>
+    <p>Draft text is saved shortly after you pause. Reply, Reply all, and Forward preserve the formatted original below your editable text, with remote images removed for privacy. Reply all removes active mailbox addresses assigned to you; review To and Cc before sending, especially from a shared mailbox. <strong>Back to message</strong> waits for the latest save and confirms it after returning. Attachments remain only in the current tab, so cmail warns before leaving with files attached.</p>
+    <p>Importance is saved with the draft and shown by compatible email clients, but it does not accelerate delivery, bypass spam checks, or guarantee attention. New replies and forwards start at Normal.</p>
     <p>Drafts are private to their creator, including drafts addressed from a shared mailbox. Other delegates see shared operational mail and the Sent copy after delivery, but not your unfinished draft.</p>
-    <p>When forwarding, original attachments are not added automatically in this release. cmail shows their count so you can return to the message, download the intended files, and reattach them deliberately.</p>
+    <p>When forwarding, original files and embedded MIME image parts are not added automatically in this release. cmail counts both because forwarding removes embedded image references; return to the message and reattach only the intended files.</p>
   </section>
 
   <section id="folders">
@@ -50,7 +51,7 @@
     <p>Inbox, Sent, Drafts, Archive, Spam, and Trash are mailbox folders. In shared mailboxes, read state, stars, and folder moves are shared operational state: another delegate may see your changes.</p>
     <div class="term-grid">
       <div><strong>Read / unread</strong><span>Available with every access level.</span></div>
-      <div><strong>Reply / forward</strong><span>Available when you can send from that mailbox.</span></div>
+      <div><strong>Reply / Reply all / Forward</strong><span>Available when you have an active Send as or Full access identity.</span></div>
       <div><strong>Star / move / archive</strong><span>Require Full access.</span></div>
       <div><strong>Trash / restore</strong><span>Require Full access; restore returns mail to its appropriate folder.</span></div>
     </div>

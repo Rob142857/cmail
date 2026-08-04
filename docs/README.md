@@ -22,12 +22,14 @@ real mail to it.
 2. Use the [Configuration reference](configuration.md) to set the deployment
    origin, mail domain, OAuth providers, safety limits, and organisation
    defaults.
-3. Review [Architecture and trust boundaries](architecture.md) before changing
+3. Read [Email authentication and sender requirements](email-authentication.md)
+   before changing mail DNS or enabling external delivery.
+4. Review [Architecture and trust boundaries](architecture.md) before changing
    authentication, authorization, mail flow, public data, or storage.
-4. Follow [Deployment and verification](deployment.md) for the production
+5. Follow [Deployment and verification](deployment.md) for the production
    sequence, including identity providers, DNS, bootstrap, and controlled mail
    tests.
-5. Complete the [Security checklist](security-checklist.md) and
+6. Complete the [Security checklist](security-checklist.md) and
    [Operations checklist](operations-checklist.md) for every environment.
 
 ## Customisation and governance
@@ -52,6 +54,9 @@ Run commands from the repository root:
 | `pnpm setup` | Create ignored local configuration from committed templates |
 | `pnpm dev` | Start the SvelteKit development server |
 | `pnpm db:migrate:local` | Apply migrations to isolated local D1 state |
+| `pnpm db:migrate:preview` | Apply migrations to the explicitly isolated preview D1 database |
+| `pnpm config:check` | Verify committed and active Wrangler bindings remain isolated and fail closed |
+| `pnpm deploy:email-worker:preview` | Deploy the isolated, non-sending preview email Worker |
 | `pnpm push:keys` | Generate a VAPID pair for optional browser notifications |
 | `pnpm validate` | Run source, lint, type, test, migration, build, and dependency checks |
 | `pnpm release:check` | Run validation plus the reachable Git-history secret gate |

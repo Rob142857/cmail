@@ -1,7 +1,9 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { Message, Attachment } from '@cmail/shared/types';
-import { sanitizeEmailHtml } from '$lib/server/sanitize-email';
+import { sanitizeEmailHtmlWithLinkGuard, type RiskyLink } from '$lib/server/sanitize-email';
+import { resolveInlineImages } from '$lib/server/inline-images';
+import { replyAllAddsRecipients } from '$lib/server/reply-recipients';
 
 export const load: PageServerLoad = async ({ locals, platform, params, url }) => {
   if (!locals.user) throw redirect(302, '/');
@@ -28,11 +30,19 @@ export const load: PageServerLoad = async ({ locals, platform, params, url }) =>
   // Fetch body from R2
   let body = '';
   let bodyUnavailable = false;
+  // Link risk is assessed at render time rather than at delivery, so sharpening
+  // the heuristics immediately covers mail already sitting in the mailbox.
+  let riskyLinks: RiskyLink[] = [];
   if (message.body_r2_key) {
     try {
       const object = await env.STORAGE.get(message.body_r2_key);
       if (object) {
-        body = sanitizeEmailHtml(await object.text());
+        const guarded = sanitizeEmailHtmlWithLinkGuard(
+          await object.text(),
+          new URL('/link', url.origin).toString(),
+        );
+        body = guarded.html;
+        riskyLinks = guarded.riskyLinks;
       } else {
         bodyUnavailable = true;
       }
@@ -43,16 +53,38 @@ export const load: PageServerLoad = async ({ locals, platform, params, url }) =>
     }
   }
 
-  // Fetch attachments
+  // Fetch attachments before resolving MIME cid: image references.
   const attachments = await env.DB.prepare(
     'SELECT * FROM attachments WHERE message_id = ?',
   ).bind(message.id).all<Attachment>();
+  const allAttachments = attachments.results || [];
+  const inlineImages = resolveInlineImages(body, allAttachments, url.origin);
+  body = inlineImages.html;
+  const resolvedInlineIds = new Set(inlineImages.resolvedAttachmentIds);
+  const assignments = await env.DB.prepare(
+    `SELECT mb.address FROM mailbox_assignments ma
+     INNER JOIN mailboxes mb ON mb.id = ma.mailbox_id
+     WHERE ma.user_id = ? AND mb.status = 'active'`,
+  ).bind(locals.user.id).all<{ address: string }>();
+  const assignedAddresses = (assignments.results || []).map((row) => row.address);
+  const canReplyAll = replyAllAddsRecipients(message, assignedAddresses);
 
   return {
     message,
     body,
     bodyUnavailable,
-    attachments: attachments.results || [],
+    // Distinct hosts, so ten disguised links to one destination read as one
+    // finding rather than ten. Only risk and host cross to the client; the
+    // hrefs are already in the body and do not need a second copy.
+    riskyLinks: [...new Map(riskyLinks.map((link) => [`${link.risk}:${link.host}`, link])).values()]
+      .slice(0, 20)
+      .map((link) => ({ risk: link.risk, host: link.host })),
+    // Embedded images resolved in the body stay out of the download list.
+    // Orphaned, unsafe, or ambiguous inline MIME parts remain downloadable so
+    // message content never silently disappears.
+    attachments: allAttachments.filter((attachment) => attachment.disposition !== 'inline' || !resolvedInlineIds.has(attachment.id)),
+    inlineImageOrigin: inlineImages.imageOrigin,
+    canReplyAll,
     returnFolder: ['inbox', 'sent', 'drafts', 'archive', 'spam', 'trash'].includes(url.searchParams.get('folder') || '')
       ? url.searchParams.get('folder') || ''
       : message.folder === 'inbox' ? '' : message.folder,

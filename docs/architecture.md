@@ -10,11 +10,14 @@ flowchart LR
   microsoft["Microsoft identity platform"] --> pages
   pages --> d1["Cloudflare D1"]
   pages --> r2["Cloudflare R2"]
-  pages --> outbound["Cloudflare Email Service REST API or Postmark"]
-  outbound --> recipient["External recipient"]
+  pages -->|"private EMAIL_SERVICE binding"| worker["Email Worker"]
+  worker --> cloudflare["Cloudflare Email Service"]
+  pages --> postmark["Postmark alternative"]
+  cloudflare --> recipient["External recipient"]
+  postmark --> recipient
   pages -.-> push["Browser push service"]
   sender["Inbound sender"] --> routing["Cloudflare Email Routing"]
-  routing --> worker["Inbound email Worker"]
+  routing --> worker
   worker --> d1
   worker --> r2
   worker -.-> push
@@ -26,7 +29,7 @@ flowchart LR
 | Component | Responsibility | Does not do |
 |---|---|---|
 | Web application | OAuth callbacks, sessions, mailbox UI, administration, internal delivery, and outbound-provider submission | Receive Email Routing events |
-| Inbound email Worker | Validate routed recipients, parse inbound messages, store content, and run bounded retention work | Authenticate users or submit external outbound mail |
+| Email Worker | Validate routed recipients, parse inbound messages, store content, run bounded retention work, and submit Cloudflare outbound mail over a private service binding | Authenticate users or decide mailbox send permission |
 | D1 | Users, immutable provider bindings, hashed enrolment tokens, mailboxes, assignments, message metadata, atomic mailbox reservations, sessions, policy, audit, trace, retention, and organisation records | Store deployment secrets or raw enrolment tokens |
 | R2 | Message bodies and attachment objects | Decide mailbox authorization |
 | Google or Microsoft | Authenticate identities selected by the operator | Automatically authorize or provision ordinary cmail users |
@@ -85,16 +88,52 @@ guarded deliveries are rejected before R2 persistence.
 ### Outbound mail
 
 The web application checks the authenticated user's mailbox assignment and
-send permission before accepting a compose request. Internal recipients are
-written directly to cmail storage. External recipients use the configured
-Cloudflare Email Service or Postmark account. The current Pages runtime
-uses Cloudflare's authenticated REST API; its native email binding is available
-to Workers, not configured directly on Pages. Per-send ceilings and per-user
-rate/work limits bound recipient, payload, and R2 amplification. Before either a provider call
-or R2 write, one D1 batch reserves the exact persisted bytes for the sender's
-Sent copy and every internal mailbox copy. A denial releases the whole group;
-successful message inserts atomically settle each pending charge. The compose
-token remains the external provider idempotency key.
+send permission before accepting a compose request. Purely internal recipients
+are written directly to cmail storage. External recipients use the configured
+Cloudflare Email Service or Postmark account. For Cloudflare, Pages normally
+submits a bounded request over its private `EMAIL_SERVICE` service binding to
+the email Worker. The native `send_email` result is an opaque provider tracking
+ID, not the wire RFC `Message-ID`; cmail stores those values separately. The
+Worker has `workers_dev=false`, `preview_urls=false`, explicit empty routes, and
+a private-hostname guard on its fetch handler.
+
+When Cloudflare REST credentials are also available, mixed local/external mail
+uses the single-recipient-set `send_raw` endpoint: the MIME copy retains the
+complete visible To/Cc lists, the SMTP envelope contains only external
+recipients, and local copies remain synchronous. Otherwise native Cloudflare or
+Postmark receives one structured all-recipient submission so every recipient
+still sees identical headers; local copies then return asynchronously through
+Email Routing. This fallback depends on working inbound routing and inbound
+quota. The REST API's RFC-style `result.message_id` is validated when present;
+native opaque tracking IDs never substitute for it.
+
+Per-send ceilings and per-user rate/work limits bound recipient, payload, and
+R2 amplification. Before a provider call or R2 write, D1 reserves bytes for
+every copy this request will persist directly. Provider-looped local copies use
+the inbound path's independent quota reservation when they arrive; the compose
+workload cap still budgets their expected storage. A denial releases the direct
+reservation group.
+
+Before provider dispatch, cmail stages immutable HTML, plain text, and
+attachment bytes under a private R2 outbound-journal prefix and commits a D1
+manifest, fixed Sent/local message IDs, fixed attachment IDs, and durable quota
+reservations. Immutable D1 SHA-256 digests are checked against the staged bytes
+before both provider dispatch and local materialisation. It then atomically
+moves the journal from `pending` to
+`dispatching` before contacting the provider.
+
+Provider success moves the journal to `accepted`; fixed targets are materialised
+idempotently and only then does the journal become `materialized` and the source
+draft disappear. An accepted send can therefore recover its Sent/internal copies
+without another provider call. A timeout, lost response, or stale `dispatching`
+record is treated as an unknown outcome and is never retried automatically.
+Only a provider response that proves non-acceptance can release the attempt for
+a new send. Cloudflare and Postmark are not assumed to honour cmail's local
+idempotency key.
+
+The manager Mail trace blade surfaces unresolved journals. Their staged content
+and quota reservation remain until the state is safely resolved; age-based
+session, rate-limit, and legacy-send cleanup does not remove them.
 
 Draft autosaves have a separate per-user/mailbox rate. New drafts and mailbox
 moves reserve an atomic owned-draft slot, while growth reserves only its stored

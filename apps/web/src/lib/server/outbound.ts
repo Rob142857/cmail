@@ -2,6 +2,12 @@
 // Auto-detects: Cloudflare Email Service > Postmark > disabled.
 
 import { normalizeEmail } from './validation';
+import {
+  messageImportanceHeaders,
+  normalizeMessageImportance,
+} from '@cmail/shared/message-importance';
+import type { MessageImportance } from '@cmail/shared/types';
+import { createMimeMessage, Mailbox } from 'mimetext/browser';
 
 export interface OutboundAttachment {
   filename: string;
@@ -16,11 +22,17 @@ export interface OutboundEmail {
   fromName?: string;
   to: string | string[];
   cc?: string[];
+  /** SMTP envelope recipients when they differ from visible To/Cc headers. */
+  envelopeRecipients?: string[];
   subject: string;
   html: string;
   text?: string;
   replyTo?: string;
   headers?: Record<string, string>;
+  /** Sender-authored human importance; it does not alter transport priority. */
+  importance?: MessageImportance;
+  /** Stable RFC Message-ID requested from transports that support overriding it. */
+  messageIdHeader?: string;
   attachments?: OutboundAttachment[];
 }
 
@@ -28,8 +40,18 @@ export interface OutboundResult {
   success: boolean;
   provider: string;
   messageId?: string;
+  /** Every opaque provider tracking identifier returned for this send. */
+  providerMessageIds?: string[];
   /** Validated RFC Message-ID emitted by the provider, when available. */
   messageIdHeader?: string;
+  /** The transport succeeded but its API does not expose the generated header. */
+  messageIdUnavailable?: true;
+  /** At least one recipient was reported as a permanent bounce. */
+  partial?: true;
+  /** Every recipient was permanently rejected; editing recipients may make the draft sendable. */
+  permanentFailure?: true;
+  /** Exact normalized permanent-bounce recipients reported by the provider. */
+  permanentBounces?: string[];
   /** The provider may have accepted the message before the response was lost. */
   ambiguous?: true;
   error?: string;
@@ -60,10 +82,19 @@ interface CloudflareEmailPayload {
   }>;
 }
 
+interface CloudflareRawEmailPayload {
+  from: string;
+  recipients: string[];
+  mime_message: string;
+}
+
 interface CloudflareEmailResponse {
   success?: boolean;
   result?: {
-    message_id?: string;
+    message_id?: unknown;
+    delivered?: unknown;
+    queued?: unknown;
+    permanent_bounces?: unknown;
   } | null;
 }
 
@@ -98,11 +129,20 @@ function validSecret(value: string): boolean {
   return value.length >= 16 && value.length <= 512 && !/[\s\u0000-\u001f\u007f]/.test(value);
 }
 
+function cloudflareServiceFetcher(env: Record<string, unknown>): Fetcher | null {
+  const value = env.EMAIL_SERVICE;
+  return value && typeof value === 'object' && typeof (value as { fetch?: unknown }).fetch === 'function'
+    ? value as Fetcher
+    : null;
+}
+
 function providerAvailable(provider: SelectableProvider, env: Record<string, unknown>): boolean {
   switch (provider) {
     case 'cloudflare':
-      return CLOUDFLARE_ACCOUNT_ID_RX.test(envString(env, 'CLOUDFLARE_ACCOUNT_ID'))
-        && validSecret(envString(env, 'CLOUDFLARE_EMAIL_API_TOKEN'));
+      return Boolean(cloudflareServiceFetcher(env)) || (
+        CLOUDFLARE_ACCOUNT_ID_RX.test(envString(env, 'CLOUDFLARE_ACCOUNT_ID'))
+        && validSecret(envString(env, 'CLOUDFLARE_EMAIL_API_TOKEN'))
+      );
     case 'postmark':
       return validSecret(envString(env, 'POSTMARK_API_KEY'));
   }
@@ -138,16 +178,31 @@ export function getProviderInfo(env: Record<string, unknown>): { name: ProviderN
   return { name, label: labels[name] };
 }
 
+/** True when one Cloudflare REST raw-MIME call can keep envelope and headers distinct. */
+export function supportsSeparatedEnvelope(env: Record<string, unknown>): boolean {
+  return detectProvider(env) === 'cloudflare'
+    && CLOUDFLARE_ACCOUNT_ID_RX.test(envString(env, 'CLOUDFLARE_ACCOUNT_ID'))
+    && validSecret(envString(env, 'CLOUDFLARE_EMAIL_API_TOKEN'));
+}
+
 export async function sendEmail(email: OutboundEmail, env: Record<string, unknown>): Promise<OutboundResult> {
   const provider = detectProvider(env);
 
   switch (provider) {
     case 'cloudflare':
-      return sendViaCloudflare(
-        email,
-        envString(env, 'CLOUDFLARE_ACCOUNT_ID'),
-        envString(env, 'CLOUDFLARE_EMAIL_API_TOKEN'),
-      );
+      return requiresSeparatedEnvelope(email) && supportsSeparatedEnvelope(env)
+        ? sendViaCloudflare(
+          email,
+          envString(env, 'CLOUDFLARE_ACCOUNT_ID'),
+          envString(env, 'CLOUDFLARE_EMAIL_API_TOKEN'),
+        )
+        : cloudflareServiceFetcher(env)
+        ? sendViaCloudflareService(email, cloudflareServiceFetcher(env) as Fetcher)
+        : sendViaCloudflare(
+          email,
+          envString(env, 'CLOUDFLARE_ACCOUNT_ID'),
+          envString(env, 'CLOUDFLARE_EMAIL_API_TOKEN'),
+        );
     case 'postmark':
       return sendViaPostmark(email, envString(env, 'POSTMARK_API_KEY'));
     case 'none':
@@ -178,11 +233,154 @@ function safeThreadHeaders(headers: Record<string, string> | undefined): Record<
         ? 'References'
         : '';
     const value = typeof rawValue === 'string' ? rawValue.trim() : '';
-    if (canonical && value && value.length <= 998 && !/[\r\n\u0000]/.test(value)) {
-      result[canonical] = value;
+    const tokens = value.match(/<[^<>\s@]+@[^<>\s@]+>/g) || [];
+    const normalized = canonical === 'In-Reply-To'
+      ? tokens.slice(0, 1).join(' ')
+      : tokens.join(' ');
+    const maxValueLength = canonical ? 998 - canonical.length - 2 : 0;
+    if (canonical && normalized && normalized.length <= maxValueLength) {
+      result[canonical] = normalized;
     }
   }
   return Object.keys(result).length ? result : undefined;
+}
+
+function wrapBase64(value: string): string {
+  return value.match(/.{1,76}/g)?.join('\r\n') || '';
+}
+
+function encodedSubjectHeader(value: string): string {
+  const chunks: string[] = [];
+  let current = '';
+  for (const character of value) {
+    if (current && ENCODER.encode(current + character).byteLength > 45) {
+      chunks.push(current);
+      current = character;
+    } else {
+      current += character;
+    }
+  }
+  if (current || !chunks.length) chunks.push(current);
+  const words = chunks.map((chunk) => `=?UTF-8?B?${toBase64(ENCODER.encode(chunk))}?=`);
+  return `Subject: ${words.join('\r\n ')}`;
+}
+
+function safeMimeFilename(value: string): string {
+  const ascii = value.normalize('NFKD')
+    .replace(/[^\x20-\x7e]/g, '_')
+    .replace(/["\\;=]/g, '_')
+    .trim()
+    .slice(0, 180);
+  return ascii || 'attachment';
+}
+
+function safeMimeContentType(value: string): string {
+  const base = value.split(';', 1)[0]?.trim().toLowerCase() || '';
+  return /^[a-z0-9][a-z0-9!#$&^_.+-]{0,126}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,126}$/.test(base)
+    ? base
+    : 'application/octet-stream';
+}
+
+function safeOutboundHeaders(email: OutboundEmail): Record<string, string> | undefined {
+  const headers = {
+    ...(safeThreadHeaders(email.headers) || {}),
+    ...(messageImportanceHeaders(normalizeMessageImportance(email.importance)) || {}),
+  };
+  return Object.keys(headers).length ? headers : undefined;
+}
+
+function normalizedVisibleRecipients(email: OutboundEmail): string[] | null {
+  const values = [
+    ...(Array.isArray(email.to) ? email.to : [email.to]),
+    ...(email.cc || []),
+  ].map((address) => normalizeEmail(address));
+  if (values.some((address) => !address)) return null;
+  const recipients = values as string[];
+  return new Set(recipients).size === recipients.length ? recipients : null;
+}
+
+function normalizedEnvelopeRecipients(email: OutboundEmail): string[] | null {
+  const source = email.envelopeRecipients || normalizedVisibleRecipients(email);
+  if (!source) return null;
+  const values = source.map((address) => normalizeEmail(address));
+  if (!values.length || values.some((address) => !address)) return null;
+  const recipients = values as string[];
+  return new Set(recipients).size === recipients.length ? recipients : null;
+}
+
+function requiresSeparatedEnvelope(email: OutboundEmail): boolean {
+  const visible = normalizedVisibleRecipients(email);
+  const envelope = normalizedEnvelopeRecipients(email);
+  if (!visible || !envelope) return false;
+  const visibleSet = new Set(visible);
+  return envelope.length !== visible.length || envelope.some((address) => !visibleSet.has(address));
+}
+
+/** Build the full RFC 5322/MIME copy used when SMTP envelope and headers differ. */
+export function buildRawMimeMessage(email: OutboundEmail): string | null {
+  const from = normalizeEmail(email.from);
+  const to = (Array.isArray(email.to) ? email.to : [email.to]).map((address) => normalizeEmail(address));
+  const cc = (email.cc || []).map((address) => normalizeEmail(address));
+  const replyTo = email.replyTo ? normalizeEmail(email.replyTo) : undefined;
+  if (!from || !to.length || to.some((address) => !address) || cc.some((address) => !address)) return null;
+
+  try {
+    const message = createMimeMessage();
+    const fromName = cleanDisplayName(email.fromName);
+    message.setSender(fromName ? { addr: from, name: fromName } : from);
+    message.setTo(to as string[]);
+    if (cc.length) message.setCc(cc as string[]);
+    message.setSubject(email.subject);
+    if (replyTo) message.setHeader('Reply-To', new Mailbox(replyTo));
+    for (const [name, value] of Object.entries(safeOutboundHeaders(email) || {})) {
+      message.setHeader(name, value);
+    }
+    if (email.text !== undefined) {
+      message.addMessage({
+        contentType: 'text/plain',
+        data: wrapBase64(message.toBase64(email.text)),
+        encoding: 'base64',
+      });
+    }
+    message.addMessage({
+      contentType: 'text/html',
+      data: wrapBase64(message.toBase64(email.html)),
+      encoding: 'base64',
+    });
+    for (const attachment of email.attachments || []) {
+      message.addAttachment({
+        filename: safeMimeFilename(attachment.filename),
+        contentType: safeMimeContentType(attachment.contentType),
+        data: wrapBase64(toBase64(attachment.content)),
+        encoding: 'base64',
+      });
+    }
+    // Cloudflare controls Date and Message-ID. Omit MIMEText's generated values
+    // so the provider can create the authoritative wire headers.
+    const raw = message.asRaw()
+      .replace(/^Subject:[^\r\n]*/im, encodedSubjectHeader(email.subject))
+      .replace(/^(?:Date|Message-ID):[^\r\n]*\r\n/gim, '');
+    const withoutCrlf = raw.replace(/\r\n/g, '');
+    const lines = raw.split('\r\n');
+    if (
+      /\r|\n/.test(withoutCrlf)
+      || /\r\nBcc:/i.test(raw)
+      || /\u0000/.test(raw)
+      || lines.some((line) => ENCODER.encode(line).byteLength > 998)
+    ) return null;
+    return raw;
+  } catch {
+    return null;
+  }
+}
+
+function cloudflareRawPayload(email: OutboundEmail): CloudflareRawEmailPayload | null {
+  const from = normalizeEmail(email.from);
+  const recipients = normalizedEnvelopeRecipients(email);
+  const mimeMessage = buildRawMimeMessage(email);
+  return from && recipients && mimeMessage
+    ? { from, recipients, mime_message: mimeMessage }
+    : null;
 }
 
 function base64WireBytes(byteLength: number): number {
@@ -210,6 +408,9 @@ function estimatedMimeBytes(email: OutboundEmail): number {
     ...(email.cc || []),
     email.subject,
     email.replyTo || '',
+    ...(email.envelopeRecipients || []),
+    email.importance || '',
+    email.messageIdHeader || '',
     ...Object.entries(email.headers || {}).flat(),
     ...(email.attachments || []).flatMap((attachment) => [attachment.filename, attachment.contentType]),
   ].join('\u0000')).byteLength;
@@ -224,7 +425,12 @@ function estimatedMimeBytes(email: OutboundEmail): number {
 function cloudflarePreflight(email: OutboundEmail): OutboundPreflightResult {
   const to = Array.isArray(email.to) ? email.to : [email.to];
   const cc = email.cc || [];
-  if (to.length + cc.length > CLOUDFLARE_MAX_RECIPIENTS) {
+  const visibleRecipients = normalizedVisibleRecipients(email);
+  const envelopeRecipients = normalizedEnvelopeRecipients(email);
+  if (
+    to.length + cc.length > CLOUDFLARE_MAX_RECIPIENTS
+    || (envelopeRecipients?.length || 0) > CLOUDFLARE_MAX_RECIPIENTS
+  ) {
     return {
       ok: false,
       provider: 'cloudflare',
@@ -243,8 +449,8 @@ function cloudflarePreflight(email: OutboundEmail): OutboundPreflightResult {
   if (
     !normalizeEmail(email.from)
     || !to.length
-    || to.some((address) => !normalizeEmail(address))
-    || cc.some((address) => !normalizeEmail(address))
+    || !visibleRecipients
+    || !envelopeRecipients
     || (email.replyTo !== undefined && !normalizeEmail(email.replyTo))
   ) {
     return { ok: false, provider: 'cloudflare', status: 400, error: 'The message contains an invalid email address' };
@@ -257,12 +463,33 @@ function cloudflarePreflight(email: OutboundEmail): OutboundPreflightResult {
       error: 'Cloudflare Email Service has a 5 MiB message limit. Reduce the message or attachments.',
     };
   }
+  if (requiresSeparatedEnvelope(email)) {
+    const raw = buildRawMimeMessage(email);
+    if (!raw || ENCODER.encode(raw).byteLength > CLOUDFLARE_MAX_MESSAGE_BYTES - MIME_HEADROOM_BYTES) {
+      return {
+        ok: false,
+        provider: 'cloudflare',
+        status: raw ? 413 : 400,
+        error: raw
+          ? 'Cloudflare Email Service has a 5 MiB raw-message limit. Reduce the message or attachments.'
+          : 'The message could not be encoded as standards-compliant MIME.',
+      };
+    }
+  }
   return { ok: true, provider: 'cloudflare' };
 }
 
 function postmarkPreflight(email: OutboundEmail): OutboundPreflightResult {
   const to = Array.isArray(email.to) ? email.to : [email.to];
   const cc = email.cc || [];
+  if (requiresSeparatedEnvelope(email)) {
+    return {
+      ok: false,
+      provider: 'postmark',
+      status: 400,
+      error: 'Postmark cannot separate mixed local/external envelope recipients from visible To/Cc headers. Use Cloudflare Email Service for this message.',
+    };
+  }
   if (to.length + cc.length > POSTMARK_MAX_RECIPIENTS) {
     return {
       ok: false,
@@ -316,7 +543,7 @@ function cloudflarePayload(email: OutboundEmail): CloudflareEmailPayload | null 
   if (!from || to.some((address) => !address) || cc.some((address) => !address)) return null;
 
   const name = cleanDisplayName(email.fromName);
-  const headers = safeThreadHeaders(email.headers);
+  const headers = safeOutboundHeaders(email);
   return {
     from: name ? { address: from, name } : from,
     to: to as string[],
@@ -343,6 +570,71 @@ function safeProviderMessageIdHeader(value: unknown): string | undefined {
   return header.length <= 998 && /^<[^<>\s]+@[^<>\s]+>$/.test(header) ? header : undefined;
 }
 
+function safeProviderTrackingId(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const id = value.trim();
+  return id && id.length <= 998 && !/[\r\n\u0000]/.test(id) ? id : undefined;
+}
+
+function safeProviderTrackingIds(value: unknown): string[] | undefined {
+  if (!Array.isArray(value) || !value.length || value.length > CLOUDFLARE_MAX_RECIPIENTS) return undefined;
+  const ids = value.map(safeProviderTrackingId);
+  if (ids.some((id) => !id)) return undefined;
+  return ids as string[];
+}
+
+async function sendViaCloudflareService(email: OutboundEmail, service: Fetcher): Promise<OutboundResult> {
+  try {
+    const preflight = cloudflarePreflight(email);
+    if (!preflight.ok) return { success: false, provider: 'cloudflare', error: preflight.error };
+    if (requiresSeparatedEnvelope(email)) {
+      return {
+        success: false,
+        provider: 'cloudflare',
+        error: 'Separated SMTP-envelope delivery requires the Cloudflare REST raw-MIME transport',
+      };
+    }
+    const payload = cloudflarePayload(email);
+    if (!payload) return { success: false, provider: 'cloudflare', error: 'Message is not valid for Cloudflare Email Service' };
+    const body = JSON.stringify(payload);
+    if (ENCODER.encode(body).byteLength > CLOUDFLARE_MAX_MESSAGE_BYTES - MIME_HEADROOM_BYTES) {
+      return { success: false, provider: 'cloudflare', error: 'Message exceeds the Cloudflare Email Service 5 MiB limit' };
+    }
+    const response = await service.fetch('https://cmail-email-worker.internal/internal/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    });
+    if (!response.ok) {
+      return {
+        success: false,
+        provider: 'cloudflare',
+        ...(response.status >= 500 ? { ambiguous: true as const } : {}),
+        error: `Cloudflare Email Service rejected the request (${response.status})`,
+      };
+    }
+    const data = await response.json() as { success?: unknown; messageId?: unknown; messageIds?: unknown };
+    const messageIds = data.success === true
+      ? safeProviderTrackingIds(data.messageIds) || (safeProviderTrackingId(data.messageId) ? [safeProviderTrackingId(data.messageId) as string] : undefined)
+      : undefined;
+    if (!messageIds) {
+      return { success: false, provider: 'cloudflare', ambiguous: true, error: 'Cloudflare Email Service returned an invalid response' };
+    }
+    return {
+      success: true,
+      provider: 'cloudflare',
+      messageId: messageIds[0],
+      providerMessageIds: messageIds,
+      // The native binding returns Cloudflare delivery-tracking identifiers, not
+      // the Message-ID Cloudflare writes to the wire. Shape alone cannot prove
+      // that an opaque provider value is the authoritative RFC header.
+      messageIdUnavailable: true,
+    };
+  } catch {
+    return { success: false, provider: 'cloudflare', ambiguous: true, error: 'Cloudflare Email Service could not be reached' };
+  }
+}
+
 // ─── Cloudflare Email Service (REST API) ────────────────
 async function sendViaCloudflare(
   email: OutboundEmail,
@@ -354,7 +646,8 @@ async function sendViaCloudflare(
     const preflight = cloudflarePreflight(email);
     if (!preflight.ok) return { success: false, provider: 'cloudflare', error: preflight.error };
 
-    const payload = cloudflarePayload(email);
+    const separatedEnvelope = requiresSeparatedEnvelope(email);
+    const payload = separatedEnvelope ? cloudflareRawPayload(email) : cloudflarePayload(email);
     if (!payload) {
       return { success: false, provider: 'cloudflare', error: 'Message is not valid for Cloudflare Email Service' };
     }
@@ -363,7 +656,8 @@ async function sendViaCloudflare(
       return { success: false, provider: 'cloudflare', error: 'Message exceeds the Cloudflare Email Service 5 MiB limit' };
     }
 
-    const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/email/sending/send`, {
+    const endpoint = separatedEnvelope ? 'send_raw' : 'send';
+    const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/email/sending/${endpoint}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiToken}`,
@@ -382,10 +676,13 @@ async function sendViaCloudflare(
     }
 
     const data = await res.json() as CloudflareEmailResponse;
-    const messageIdHeader = data.success === true
-      ? safeProviderMessageIdHeader(data.result?.message_id)
-      : undefined;
-    if (!messageIdHeader) {
+    const delivered = Array.isArray(data.result?.delivered) && data.result.delivered.every((value) => typeof value === 'string')
+      ? data.result.delivered as string[] : null;
+    const queued = Array.isArray(data.result?.queued) && data.result.queued.every((value) => typeof value === 'string')
+      ? data.result.queued as string[] : null;
+    const permanentBounces = Array.isArray(data.result?.permanent_bounces) && data.result.permanent_bounces.every((value) => typeof value === 'string')
+      ? data.result.permanent_bounces as string[] : null;
+    if (data.success !== true || !delivered || !queued || !permanentBounces || delivered.length + queued.length + permanentBounces.length === 0) {
       return {
         success: false,
         provider: 'cloudflare',
@@ -393,7 +690,53 @@ async function sendViaCloudflare(
         error: 'Cloudflare Email Service returned an invalid response',
       };
     }
-    return { success: true, provider: 'cloudflare', messageId: messageIdHeader, messageIdHeader };
+    const expectedRecipients = new Set(separatedEnvelope
+      ? (payload as CloudflareRawEmailPayload).recipients
+      : [...(payload as CloudflareEmailPayload).to, ...((payload as CloudflareEmailPayload).cc || [])]);
+    const reportedRecipients = [...delivered, ...queued, ...permanentBounces]
+      .map((address) => normalizeEmail(address));
+    const uniqueReportedRecipients = new Set(reportedRecipients.filter((address): address is string => Boolean(address)));
+    if (
+      reportedRecipients.some((address) => !address)
+      || uniqueReportedRecipients.size !== reportedRecipients.length
+      || uniqueReportedRecipients.size !== expectedRecipients.size
+      || [...expectedRecipients].some((address) => !uniqueReportedRecipients.has(address))
+    ) {
+      return {
+        success: false,
+        provider: 'cloudflare',
+        ambiguous: true,
+        error: 'Cloudflare Email Service returned incomplete recipient status',
+      };
+    }
+    const providerMessageId = safeProviderTrackingId(data.result?.message_id);
+    const messageIdHeader = safeProviderMessageIdHeader(providerMessageId);
+    const normalizedPermanentBounces = permanentBounces
+      .map((address) => normalizeEmail(address))
+      .filter((address): address is string => Boolean(address));
+    if (delivered.length + queued.length === 0) {
+      return {
+        success: false,
+        provider: 'cloudflare',
+        ...(providerMessageId ? { messageId: providerMessageId } : {}),
+        ...(providerMessageId ? { providerMessageIds: [providerMessageId] } : {}),
+        ...(messageIdHeader ? { messageIdHeader } : { messageIdUnavailable: true as const }),
+        permanentFailure: true,
+        permanentBounces: normalizedPermanentBounces,
+        error: 'Cloudflare Email Service permanently rejected every recipient',
+      };
+    }
+    return {
+      success: true,
+      provider: 'cloudflare',
+      ...(providerMessageId ? { messageId: providerMessageId } : {}),
+      ...(providerMessageId ? { providerMessageIds: [providerMessageId] } : {}),
+      ...(messageIdHeader ? { messageIdHeader } : { messageIdUnavailable: true as const }),
+      ...(normalizedPermanentBounces.length ? {
+        partial: true as const,
+        permanentBounces: normalizedPermanentBounces,
+      } : {}),
+    };
   } catch {
     return {
       success: false,
@@ -409,7 +752,12 @@ async function sendViaPostmark(email: OutboundEmail, apiKey: string): Promise<Ou
   try {
     const preflight = postmarkPreflight(email);
     if (!preflight.ok) return { success: false, provider: 'postmark', error: preflight.error };
-    const threadHeaders = safeThreadHeaders(email.headers);
+    const outboundHeaders = safeOutboundHeaders(email);
+    const requestedMessageIdHeader = safeProviderMessageIdHeader(email.messageIdHeader);
+    const postmarkHeaders = {
+      ...(outboundHeaders || {}),
+      ...(requestedMessageIdHeader ? { 'Message-ID': requestedMessageIdHeader } : {}),
+    };
     const res = await fetch('https://api.postmarkapp.com/email', {
       method: 'POST',
       headers: {
@@ -425,8 +773,8 @@ async function sendViaPostmark(email: OutboundEmail, apiKey: string): Promise<Ou
         HtmlBody: email.html,
         TextBody: email.text,
         ReplyTo: email.replyTo,
-        ...(threadHeaders ? {
-          Headers: Object.entries(threadHeaders).map(([Name, Value]) => ({ Name, Value })),
+        ...(Object.keys(postmarkHeaders).length ? {
+          Headers: Object.entries(postmarkHeaders).map(([Name, Value]) => ({ Name, Value })),
         } : {}),
         MessageStream: 'outbound',
         Attachments: email.attachments?.map(a => ({
@@ -451,7 +799,13 @@ async function sendViaPostmark(email: OutboundEmail, apiKey: string): Promise<Ou
     if (!messageId || messageId.length > 998 || /[\r\n]/.test(messageId)) {
       return { success: false, provider: 'postmark', ambiguous: true, error: 'Postmark returned an invalid response' };
     }
-    return { success: true, provider: 'postmark', messageId };
+    return {
+      success: true,
+      provider: 'postmark',
+      messageId,
+      providerMessageIds: [messageId],
+      ...(requestedMessageIdHeader ? { messageIdHeader: requestedMessageIdHeader } : {}),
+    };
   } catch {
     return { success: false, provider: 'postmark', ambiguous: true, error: 'Postmark could not be reached' };
   }

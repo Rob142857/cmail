@@ -79,7 +79,7 @@ The normal customisation surface is configuration:
 | Google sign-in | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
 | Microsoft sign-in | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID` |
 | Temporary first-manager bootstrap | `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_TOKEN` |
-| External delivery | `OUTBOUND_PROVIDER`; Cloudflare uses `CLOUDFLARE_ACCOUNT_ID` plus `CLOUDFLARE_EMAIL_API_TOKEN`, while Postmark uses `POSTMARK_API_KEY` |
+| External delivery | `OUTBOUND_PROVIDER`; Cloudflare production uses the Worker's `EMAIL` send binding plus Pages `EMAIL_SERVICE` service binding, the optional REST fallback uses `CLOUDFLARE_ACCOUNT_ID` plus `CLOUDFLARE_EMAIL_API_TOKEN`, and Postmark uses `POSTMARK_API_KEY` |
 | Browser notifications | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_ENDPOINT_HOSTS` |
 
 Google and Microsoft controls appear only when that provider's complete
@@ -117,7 +117,6 @@ example:
 pnpm exec wrangler pages secret put SESSION_SECRET --project-name cmail-web-staging
 pnpm exec wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name cmail-web-staging
 pnpm exec wrangler pages secret put MICROSOFT_CLIENT_SECRET --project-name cmail-web-staging
-pnpm exec wrangler pages secret put CLOUDFLARE_EMAIL_API_TOKEN --project-name cmail-web-staging
 pnpm exec wrangler pages secret put BOOTSTRAP_ADMIN_EMAIL --project-name cmail-web-staging
 pnpm exec wrangler pages secret put BOOTSTRAP_ADMIN_TOKEN --project-name cmail-web-staging
 pnpm exec wrangler secret put VAPID_PRIVATE_KEY --config apps/email-worker/wrangler.toml
@@ -133,13 +132,23 @@ authenticate one another's identities. Invitations also belong to the issuing
 environment's `APP_URL`; never rewrite or forward a staging invitation into
 production.
 
-Cloudflare Email Service uses the REST API from cmail's Pages runtime. Keep its
-account ID in environment-specific deployment variables and scope its token to
-the intended account with **Email Sending: Edit**. A native `send_email` binding
-requires a separate Worker reached through a Pages service binding or a future
-move of the web runtime to Workers; do not add it directly to the Pages template.
+Cloudflare Email Service uses the environment's email Worker `EMAIL` binding,
+reached through the Pages application's private `EMAIL_SERVICE` service binding.
+Use matching environment-specific Worker names and deploy the Worker before
+Pages. Keep `workers_dev=false`, `preview_urls=false`, and explicit empty routes.
+No
+outbound API token is required. Only a local or non-service-binding REST fallback
+needs `CLOUDFLARE_ACCOUNT_ID` and a narrowly scoped
+`CLOUDFLARE_EMAIL_API_TOKEN` with **Email Sending: Edit**; do not add
+`[[send_email]]` directly to the Pages template. The native binding returns an
+opaque tracking ID, not the wire `Message-ID`. The REST API reference includes
+RFC-style `result.message_id`; cmail validates it when present and also uses one
+REST `send_raw` call to preserve mixed-recipient envelope/header separation.
+Keep provider IDs and RFC headers distinct in downstream schema and integrations.
 Review Cloudflare Email preview separately in every environment because new
 sending domains enable about seven days of message-content preview by default.
+Retain the template's isolated, non-sending `env.preview` resources; never point
+a downstream preview at production D1, R2, Email Routing, Worker, or secrets.
 
 ## Release gate
 

@@ -2,7 +2,7 @@
   import { invalidateAll } from '$app/navigation';
   import EmailHtmlFrame from '$lib/mail/EmailHtmlFrame.svelte';
 
-  let { body = '', bodyUnavailable = false, messageId = '', allowRemoteImages = false } = $props();
+  let { body = '', bodyUnavailable = false, messageId = '', allowRemoteImages = false, inlineImageOrigin = '' } = $props();
   let remoteImages = $state(false);
   let previousMessageId = $state('');
 
@@ -43,6 +43,7 @@
       describedBy="message-link-safety"
       {allowRemoteImages}
       {remoteImages}
+      imageOrigin={inlineImageOrigin}
       allowLinks
     />
   </div>

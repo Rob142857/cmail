@@ -5,6 +5,12 @@
 import PostalMime from 'postal-mime';
 import { sendNewMailNotifications, type PushEnvironment } from '@cmail/shared/push';
 import { sanitizeBoundedEmailHtml } from '@cmail/shared/sanitize-email';
+import { parseMessageImportance } from '@cmail/shared/message-importance';
+import {
+  readSpamScore,
+  shouldQuarantine,
+  spamQuarantineThreshold,
+} from '@cmail/shared/inbound-risk';
 import { parseAuthenticationResults } from './authentication-results';
 import {
   releaseInboundReservation,
@@ -21,6 +27,8 @@ export {
 } from './inbound-guard';
 
 interface Env extends RetentionEnv, PushEnvironment, InboundGuardEnv {
+  /** Native Cloudflare Email Service binding used by the private service endpoint. */
+  EMAIL?: SendEmail;
   /** Optional byte limit. Values above HARD_MAX_INBOUND_BYTES are clamped. */
   MAX_INBOUND_BYTES?: string | number;
   /** Optional attachment-count limit. Values above HARD_MAX_ATTACHMENTS are clamped. */
@@ -36,6 +44,13 @@ interface Env extends RetentionEnv, PushEnvironment, InboundGuardEnv {
    * (RFC 8601 §5). Leave unset to record nothing.
    */
   INBOUND_AUTHSERV_ID?: string;
+  /**
+   * Spam score at or above which inbound mail is filed into Junk instead of
+   * Inbox. Unset means never quarantine, only record — Cloudflare does not
+   * document the scale of the score it reports, so acting on it has to be a
+   * deliberate choice made after watching real scores in the trace.
+   */
+  SPAM_QUARANTINE_SCORE?: string | number;
 }
 
 type TraceStatus = 'delivered' | 'bounced' | 'rejected' | 'quarantined' | 'deferred' | 'sent';
@@ -71,6 +86,7 @@ const MAX_SUBJECT_CHARS = 998;
 const MAX_MESSAGE_ID_CHARS = 998;
 const MAX_FILENAME_CHARS = 255;
 const MAX_CONTENT_TYPE_CHARS = 255;
+const MAX_OUTBOUND_PROXY_BYTES = 6 * 1024 * 1024;
 const ENCODER = new TextEncoder();
 const OPAQUE_STORAGE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -152,6 +168,47 @@ function cleanHeaderValue(value: unknown, maxChars: number): string {
   return capText(value, maxChars).replace(/[\r\n]+/g, ' ').trim();
 }
 
+const MESSAGE_ID_TOKEN_RX = /<[^<>\s@]+@[^<>\s@]+>/g;
+
+/** Keep only a syntactically bounded msg-id token; comments and folding are discarded. */
+export function normalizeMessageIdHeader(value: unknown): string | null {
+  const clean = cleanHeaderValue(value, MAX_MESSAGE_ID_CHARS);
+  return clean.match(MESSAGE_ID_TOKEN_RX)?.[0] || null;
+}
+
+/** Preserve the most recent bounded RFC References ancestry. */
+export function normalizeReferencesHeader(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  // Preserve both ends before matching: the first token is the thread root and
+  // the tail contains the newest ancestry. Never regex an unbounded header.
+  const unfolded = value.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
+  const bounded = unfolded.length <= 8 * MAX_MESSAGE_ID_CHARS
+    ? unfolded
+    : `${unfolded.slice(0, MAX_MESSAGE_ID_CHARS)} ${unfolded.slice(-7 * MAX_MESSAGE_ID_CHARS)}`;
+  const tokens = bounded.match(MESSAGE_ID_TOKEN_RX) || [];
+  const root = tokens[0];
+  if (!root) return null;
+  const kept: string[] = [root];
+  let length = root.length;
+  const tail: string[] = [];
+  for (let index = tokens.length - 1; index > 0 && kept.length + tail.length < 50; index -= 1) {
+    const token = tokens[index];
+    if (!token) continue;
+    const nextLength = length + token.length + 1;
+    if (nextLength > MAX_MESSAGE_ID_CHARS) break;
+    tail.unshift(token);
+    length = nextLength;
+  }
+  kept.push(...tail);
+  return kept.length ? kept.join(' ') : null;
+}
+
+function normalizeContentId(value: unknown): string | null {
+  const clean = cleanHeaderValue(value, 257).replace(/^cid:/i, '').trim();
+  const unwrapped = clean.startsWith('<') && clean.endsWith('>') ? clean.slice(1, -1) : clean;
+  return /^[^<>\s]{1,255}$/.test(unwrapped) ? unwrapped : null;
+}
+
 export function normalizeEnvelopeAddress(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -169,6 +226,14 @@ export function isValidEnvelopeAddress(value: string): boolean {
 
 function normalizeStoredAddress(value: unknown): string {
   return cleanHeaderValue(value, MAX_ADDRESS_CHARS).toLowerCase();
+}
+
+function flattenParsedAddresses(
+  values: ReadonlyArray<{ address?: string; group?: ReadonlyArray<{ address: string }> }> | undefined,
+): string[] {
+  return (values || []).flatMap((entry) => entry.group?.length
+    ? entry.group.map((mailbox) => normalizeStoredAddress(mailbox.address)).filter(Boolean)
+    : [normalizeStoredAddress(entry.address)].filter(Boolean));
 }
 
 function sanitizeFilename(value: unknown): string {
@@ -190,9 +255,26 @@ function extractExtension(filename: string): string {
   return dot >= 0 ? filename.slice(dot).trim().toLowerCase() : '';
 }
 
-function extractSnippet(text: string | undefined, maxLen = 200): string {
-  if (!text) return '';
-  return text.replace(/\s+/g, ' ').trim().slice(0, maxLen);
+function decodeSnippetEntities(value: string): string {
+  return value.replace(/&(?:#(\d+)|#x([0-9a-f]+)|amp|lt|gt|quot|#39|nbsp);/gi, (entity, decimal, hex) => {
+    if (decimal || hex) {
+      const codePoint = Number.parseInt(decimal || hex, decimal ? 10 : 16);
+      return Number.isSafeInteger(codePoint) && codePoint > 0 && codePoint <= 0x10ffff
+        ? String.fromCodePoint(codePoint)
+        : ' ';
+    }
+    return ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&nbsp;': ' ' } as Record<string, string>)[entity.toLowerCase()] || ' ';
+  });
+}
+
+export function extractInboundSnippet(text: string | undefined, sanitizedHtml = '', maxLen = 200): string {
+  const source = text || decodeSnippetEntities(
+    sanitizedHtml
+      .replace(/<(?:br|hr)\b[^>]*>/gi, ' ')
+      .replace(/<\/(?:p|div|li|tr|h[1-6]|blockquote)>/gi, ' ')
+      .replace(/<[^>]*>/g, ' '),
+  );
+  return source.replace(/\s+/g, ' ').trim().slice(0, maxLen);
 }
 
 function escapeHtml(text: string): string {
@@ -263,6 +345,44 @@ export async function stableInboundId(mailboxId: string, messageIdHeader: string
   return `inbound-${hex}`;
 }
 
+/**
+ * True when this mailbox has no prior correspondence with the sender in either
+ * direction. Outbound counts deliberately: someone you have written to is not
+ * a stranger, and badging their reply as first contact would train the reader
+ * to ignore the badge.
+ *
+ * A lookup failure resolves to false. An unwarranted warning on a known
+ * correspondent erodes trust in every later warning, so the quiet answer is
+ * the safe one when we cannot tell.
+ */
+async function isFirstContact(
+  db: D1Database,
+  mailboxId: string,
+  senderAddress: string,
+): Promise<boolean> {
+  if (!mailboxId || !senderAddress) return false;
+  try {
+    const prior = await db.prepare(
+      `SELECT 1 AS seen FROM messages
+       WHERE mailbox_id = ?
+         AND (
+           (direction = 'inbound' AND from_address = ?)
+           OR (
+             direction IN ('outbound', 'internal')
+             AND EXISTS (
+               SELECT 1 FROM json_each(messages.to_addresses)
+               WHERE json_each.value = ?
+             )
+           )
+         )
+       LIMIT 1`,
+    ).bind(mailboxId, senderAddress, senderAddress).first<{ seen: number }>();
+    return !prior;
+  } catch {
+    return false;
+  }
+}
+
 async function findExistingDelivery(
   db: D1Database,
   id: string,
@@ -292,27 +412,170 @@ async function deleteR2Objects(storage: R2Bucket, keys: string[]): Promise<void>
   }));
 }
 
-async function cleanupFailedDelivery(env: Env, messageId: string, r2Keys: string[]): Promise<void> {
-  try {
-    // D1 batches execute transactionally, so a cleanup cannot leave only half
-    // of the relational rows behind.
-    await env.DB.batch([
-      env.DB.prepare('DELETE FROM attachments WHERE message_id = ?').bind(messageId),
-      env.DB.prepare('DELETE FROM messages WHERE id = ?').bind(messageId),
-    ]);
-  } catch (error) {
-    // Keep the R2 objects if relational cleanup failed: deleting them would
-    // leave live database rows pointing at missing content.
-    console.error('Failed to roll back an inbound database delivery:', error instanceof Error ? error.message : 'unknown error');
-    return;
+interface OutboundProxyPayload {
+  from: string | { address: string; name: string };
+  to: string[];
+  cc?: string[];
+  subject: string;
+  html: string;
+  text?: string;
+  reply_to?: string;
+  headers?: Record<string, string>;
+  attachments?: Array<{
+    content: string;
+    filename: string;
+    type: string;
+    disposition: 'attachment';
+  }>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function proxyAddress(value: unknown): string | EmailAddress | null {
+  if (typeof value === 'string') {
+    const address = normalizeEnvelopeAddress(value);
+    return isValidEnvelopeAddress(address) ? address : null;
+  }
+  if (!isRecord(value) || typeof value.address !== 'string' || typeof value.name !== 'string') return null;
+  const address = normalizeEnvelopeAddress(value.address);
+  const name = cleanHeaderValue(value.name, 120);
+  return isValidEnvelopeAddress(address) && name ? { email: address, name } : null;
+}
+
+function parseOutboundProxyPayload(value: unknown): EmailMessageBuilder | null {
+  if (!isRecord(value)) return null;
+  const candidate = value as unknown as OutboundProxyPayload;
+  const from = proxyAddress(candidate.from);
+  const to = Array.isArray(candidate.to) ? candidate.to.map(proxyAddress) : [];
+  const cc = Array.isArray(candidate.cc) ? candidate.cc.map(proxyAddress) : [];
+  if (!from || !to.length || to.length + cc.length > 50 || [...to, ...cc].some((address) => !address)) return null;
+  if (typeof candidate.subject !== 'string' || candidate.subject.length > MAX_SUBJECT_CHARS || /[\r\n]/.test(candidate.subject)) return null;
+  if (typeof candidate.html !== 'string' || ENCODER.encode(candidate.html).byteLength > 5 * 1024 * 1024) return null;
+  if (candidate.text !== undefined && (typeof candidate.text !== 'string' || ENCODER.encode(candidate.text).byteLength > 5 * 1024 * 1024)) return null;
+  const replyTo = candidate.reply_to === undefined ? undefined : proxyAddress(candidate.reply_to);
+  if (replyTo === null) return null;
+
+  let headers: Record<string, string> | undefined;
+  if (candidate.headers !== undefined) {
+    if (!isRecord(candidate.headers)) return null;
+    headers = {};
+    for (const [name, value] of Object.entries(candidate.headers)) {
+      const allowedName = /^(?:In-Reply-To|References|Importance)$/i.test(name) || /^X-[A-Za-z0-9_-]{1,98}$/.test(name);
+      if (!allowedName || typeof value !== 'string' || !value || ENCODER.encode(value).byteLength > 2048 || /[\r\n\u0000]/.test(value)) return null;
+      headers[name] = value;
+    }
   }
 
-  await deleteR2Objects(env.STORAGE, r2Keys);
+  let attachments: EmailAttachment[] | undefined;
+  if (candidate.attachments !== undefined) {
+    if (!Array.isArray(candidate.attachments) || candidate.attachments.length > 32) return null;
+    attachments = [];
+    for (const attachment of candidate.attachments) {
+      if (
+        !isRecord(attachment)
+        || typeof attachment.content !== 'string'
+        || attachment.content.length > 8 * 1024 * 1024
+        || !/^[A-Za-z0-9+/]*={0,2}$/.test(attachment.content)
+        || typeof attachment.filename !== 'string'
+        || !attachment.filename
+        || attachment.filename.length > MAX_FILENAME_CHARS
+        || typeof attachment.type !== 'string'
+        || attachment.type.length > MAX_CONTENT_TYPE_CHARS
+        || attachment.disposition !== 'attachment'
+      ) return null;
+      attachments.push({
+        content: attachment.content,
+        filename: sanitizeFilename(attachment.filename),
+        type: sanitizeContentType(attachment.type),
+        disposition: 'attachment',
+      });
+    }
+  }
+
+  return {
+    from,
+    to: to as Array<string | EmailAddress>,
+    ...(cc.length ? { cc: cc as Array<string | EmailAddress> } : {}),
+    subject: candidate.subject,
+    html: candidate.html,
+    ...(candidate.text !== undefined ? { text: candidate.text } : {}),
+    ...(replyTo ? { replyTo } : {}),
+    ...(headers && Object.keys(headers).length ? { headers } : {}),
+    ...(attachments?.length ? { attachments } : {}),
+  };
+}
+
+function emailServiceFailureStatus(error: unknown): number {
+  const code = isRecord(error) && typeof error.code === 'string' ? error.code : '';
+  const definiteClientCodes = new Set([
+    'E_VALIDATION_ERROR', 'E_FIELD_MISSING', 'E_TOO_MANY_RECIPIENTS',
+    'E_TOO_MANY_ATTACHMENTS', 'E_SENDER_NOT_VERIFIED', 'E_RECIPIENT_NOT_ALLOWED',
+    'E_RECIPIENT_SUPPRESSED', 'E_SENDER_DOMAIN_NOT_AVAILABLE', 'E_CONTENT_TOO_LARGE',
+    'E_HEADER_NOT_ALLOWED', 'E_HEADER_USE_API_FIELD',
+    'E_HEADER_VALUE_INVALID', 'E_HEADER_VALUE_TOO_LONG', 'E_HEADER_NAME_INVALID',
+    'E_HEADERS_TOO_LARGE', 'E_HEADERS_TOO_MANY',
+  ]);
+  return code === 'E_RATE_LIMIT_EXCEEDED' || code === 'E_DAILY_LIMIT_EXCEEDED'
+    ? 429
+    : definiteClientCodes.has(code) ? 422 : 503;
+}
+
+async function handleOutboundServiceRequest(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  // Service-binding callers preserve the URL supplied by Pages. Refuse every
+  // public hostname as a second fail-closed layer in case a stale dashboard
+  // route is ever attached to this Worker.
+  if (
+    url.hostname !== 'cmail-email-worker.internal'
+    || url.pathname !== '/internal/send'
+    || request.method !== 'POST'
+  ) {
+    return new Response('Not found', { status: 404 });
+  }
+  // 424 means no provider call was attempted; callers may safely release their
+  // idempotency claim after the operator repairs the missing binding.
+  if (!env.EMAIL) return Response.json({ success: false, error: 'Email binding unavailable' }, { status: 424 });
+  const declaredLength = Number(request.headers.get('content-length'));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_OUTBOUND_PROXY_BYTES) {
+    return Response.json({ success: false, error: 'Payload too large' }, { status: 413 });
+  }
+
+  let raw: ArrayBuffer;
+  try {
+    raw = await request.arrayBuffer();
+  } catch {
+    return Response.json({ success: false, error: 'Invalid request body' }, { status: 400 });
+  }
+  if (raw.byteLength > MAX_OUTBOUND_PROXY_BYTES) {
+    return Response.json({ success: false, error: 'Payload too large' }, { status: 413 });
+  }
+
+  let payload: EmailMessageBuilder | null = null;
+  try {
+    payload = parseOutboundProxyPayload(JSON.parse(new TextDecoder().decode(raw)));
+  } catch {
+    // The caller receives a stable error without parser or provider detail.
+  }
+  if (!payload) return Response.json({ success: false, error: 'Invalid email payload' }, { status: 400 });
+
+  try {
+    const result = await env.EMAIL.send(payload);
+    const messageId = typeof result?.messageId === 'string' ? result.messageId.trim() : '';
+    if (!messageId || messageId.length > MAX_MESSAGE_ID_CHARS || /[\r\n\u0000]/.test(messageId)) {
+      return Response.json({ success: false, error: 'Invalid provider response' }, { status: 502 });
+    }
+    return Response.json({ success: true, messageId });
+  } catch (error) {
+    const status = emailServiceFailureStatus(error);
+    return Response.json({ success: false, error: 'Cloudflare Email Service rejected the request' }, { status });
+  }
 }
 
 export default {
-  async fetch(_request: Request, _env: Env): Promise<Response> {
-    return new Response('cmail inbound email worker (no HTTP API)', { status: 404 });
+  async fetch(request: Request, env: Env): Promise<Response> {
+    return handleOutboundServiceRequest(request, env);
   },
 
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -361,7 +624,7 @@ export default {
       return;
     }
 
-    const messageIdHeader = cleanHeaderValue(rawMessageIdHeader, MAX_MESSAGE_ID_CHARS) || null;
+    const messageIdHeader = normalizeMessageIdHeader(rawMessageIdHeader);
     const messageId = messageIdHeader
       ? await stableInboundId(mailbox.id, messageIdHeader)
       : generateId();
@@ -466,6 +729,8 @@ export default {
         id: generateId(),
         filename: sanitizeFilename(attachment.filename),
         contentType: sanitizeContentType(attachment.mimeType),
+        contentId: normalizeContentId(attachment.contentId),
+        disposition: attachment.disposition === 'inline' || attachment.related ? 'inline' as const : 'attachment' as const,
         content: attachment.content,
         size,
       };
@@ -515,9 +780,10 @@ export default {
       return;
     }
 
-    const parsedTo = parsed.to || [];
-    const parsedCc = parsed.cc || [];
-    if (parsedTo.length + parsedCc.length > MAX_ADDRESSES) {
+    const toAddresses = flattenParsedAddresses(parsed.to);
+    const ccAddresses = flattenParsedAddresses(parsed.cc);
+    const replyToAddresses = flattenParsedAddresses(parsed.replyTo);
+    if (toAddresses.length + ccAddresses.length + replyToAddresses.length > MAX_ADDRESSES) {
       message.setReject('552 Message exceeds the recipient metadata limit');
       await logTrace(env.DB, {
         direction: 'inbound',
@@ -531,51 +797,87 @@ export default {
       return;
     }
 
-    const toAddresses = parsedTo.map((address) => normalizeStoredAddress(address.address)).filter(Boolean);
     if (toAddresses.length === 0) toAddresses.push(recipientAddress);
-    const ccAddresses = parsedCc.map((address) => normalizeStoredAddress(address.address)).filter(Boolean);
     const headerFrom = normalizeStoredAddress(parsed.from?.address) || senderAddress;
     const subject = cleanHeaderValue(parsed.subject, MAX_SUBJECT_CHARS) || '(no subject)';
     const rawInReplyTo = parsed.headers?.find((header) => header.key.toLowerCase() === 'in-reply-to')?.value;
-    const inReplyTo = cleanHeaderValue(rawInReplyTo, MAX_MESSAGE_ID_CHARS) || null;
+    const rawReferences = parsed.headers?.find((header) => header.key.toLowerCase() === 'references')?.value;
+    const inReplyTo = normalizeMessageIdHeader(rawInReplyTo);
+    const referencesHeader = normalizeReferencesHeader(rawReferences);
+    const importance = parseMessageImportance(parsed.headers);
+    const threadId = referencesHeader?.split(' ')[0] || inReplyTo || messageIdHeader;
+
+    // Risk signals are resolved against the header From, because that is the
+    // identity the reader is shown and the one a warning has to be about.
+    const spamScore = readSpamScore(message.headers);
+    const quarantined = shouldQuarantine(spamScore, spamQuarantineThreshold(env.SPAM_QUARANTINE_SCORE));
+    const firstContact = await isFirstContact(env.DB, mailbox.id, headerFrom);
 
     const storageNamespace = generateId();
     const bodyKey = messageBodyR2Key(storageNamespace, generateId());
     const bodyContent = preparedBody.html;
     const newR2Keys: string[] = [];
 
-    newR2Keys.push(bodyKey);
+    const storedAttachments = preparedAttachments.map((attachment) => ({
+      ...attachment,
+      storageKey: attachmentR2Key(storageNamespace, attachment.id),
+    }));
+    newR2Keys.push(bodyKey, ...storedAttachments.map((attachment) => attachment.storageKey));
     try {
       await env.STORAGE.put(bodyKey, bodyContent);
+      for (const attachment of storedAttachments) {
+        await env.STORAGE.put(attachment.storageKey, attachment.content);
+      }
     } catch (storageError) {
-      // Deleting an absent key is harmless and also handles an ambiguous R2
-      // response where the write succeeded before the request failed.
+      // Deleting absent keys is harmless and also handles an ambiguous R2
+      // response where one write succeeded before the request failed.
       await deleteR2Objects(env.STORAGE, newR2Keys);
       throw storageError;
     }
 
-    let messageRowInserted = false;
+    const messageInsert = env.DB.prepare(
+      `INSERT INTO messages (id, mailbox_id, message_id_header, direction, from_address, to_addresses, cc_addresses, reply_to_addresses, subject, snippet, body_r2_key, has_attachments, size_bytes, folder, is_read, is_starred, importance, in_reply_to, references_header, thread_id, spam_score, sender_first_contact, received_at, created_at)
+       VALUES (?, ?, ?, 'inbound', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+    ).bind(
+      messageId,
+      mailbox.id,
+      messageIdHeader,
+      headerFrom,
+      JSON.stringify(toAddresses),
+      JSON.stringify(ccAddresses),
+      JSON.stringify(replyToAddresses),
+      subject,
+      extractInboundSnippet(parsed.text, preparedBody.html),
+      bodyKey,
+      preparedAttachments.some((attachment) => attachment.disposition === 'attachment') ? 1 : 0,
+      messageSize,
+      quarantined ? 'spam' : 'inbox',
+      importance,
+      inReplyTo,
+      referencesHeader,
+      threadId,
+      spamScore,
+      firstContact ? 1 : 0,
+    );
+    const attachmentInserts = storedAttachments.map((attachment) => env.DB.prepare(
+      `INSERT INTO attachments (id, message_id, filename, content_type, size_bytes, r2_key, content_id, disposition)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(
+      attachment.id,
+      messageId,
+      attachment.filename,
+      attachment.contentType,
+      attachment.size,
+      attachment.storageKey,
+      attachment.contentId,
+      attachment.disposition,
+    ));
+
     try {
-      await env.DB.prepare(
-        `INSERT INTO messages (id, mailbox_id, message_id_header, direction, from_address, to_addresses, cc_addresses, subject, snippet, body_r2_key, has_attachments, size_bytes, folder, is_read, is_starred, in_reply_to, thread_id, received_at, created_at)
-         VALUES (?, ?, ?, 'inbound', ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, datetime('now'), datetime('now'))`,
-      ).bind(
-        messageId,
-        mailbox.id,
-        messageIdHeader,
-        headerFrom,
-        JSON.stringify(toAddresses),
-        JSON.stringify(ccAddresses),
-        subject,
-        extractSnippet(parsed.text),
-        bodyKey,
-        preparedAttachments.length ? 1 : 0,
-        messageSize,
-        'inbox',
-        inReplyTo,
-        inReplyTo || messageIdHeader,
-      ).run();
-      messageRowInserted = true;
+      // D1 batches are transactional: message metadata and every attachment
+      // row become visible together or not at all. This prevents a retry from
+      // deduplicating against a partially persisted message.
+      await env.DB.batch([messageInsert, ...attachmentInserts]);
       // The D1 message-insert trigger atomically replaces the pending quota
       // charge with this messages.size_bytes row.
       reservationSettled = true;
@@ -593,7 +895,6 @@ export default {
       }
 
       if (concurrentDelivery?.body_r2_key === bodyKey) {
-        messageRowInserted = true;
         reservationSettled = true;
       } else if (concurrentDelivery && messageIdHeader) {
         await deleteR2Objects(env.STORAGE, newR2Keys);
@@ -604,33 +905,6 @@ export default {
       }
     }
 
-    try {
-      for (const attachment of preparedAttachments) {
-        // R2 keys contain only generated opaque IDs, never untrusted filenames.
-        const attachmentKey = attachmentR2Key(storageNamespace, attachment.id);
-        newR2Keys.push(attachmentKey);
-        await env.STORAGE.put(attachmentKey, attachment.content);
-        await env.DB.prepare(
-          `INSERT INTO attachments (id, message_id, filename, content_type, size_bytes, r2_key)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-        ).bind(
-          attachment.id,
-          messageId,
-          attachment.filename,
-          attachment.contentType,
-          attachment.size,
-          attachmentKey,
-        ).run();
-      }
-    } catch (storageError) {
-      if (messageRowInserted) {
-        await cleanupFailedDelivery(env, messageId, newR2Keys);
-      } else {
-        await deleteR2Objects(env.STORAGE, newR2Keys);
-      }
-      throw storageError;
-    }
-
     await logTrace(env.DB, {
       message_id_header: messageIdHeader,
       direction: 'inbound',
@@ -639,11 +913,14 @@ export default {
       header_from: headerFrom,
       subject,
       size_bytes: messageSize,
-      status: 'delivered',
-      status_detail: 'OK',
+      // 'quarantined' still means stored and readable — the message is in Junk,
+      // not discarded. Nothing here ever drops mail.
+      status: quarantined ? 'quarantined' : 'delivered',
+      status_detail: quarantined ? 'Filed to Junk by spam score' : 'OK',
       spf_result: auth.spf,
       dkim_result: auth.dkim,
       dmarc_result: auth.dmarc,
+      spam_score: spamScore,
       source_ip: sourceIp,
     });
     ctx.waitUntil(sendNewMailNotifications(env, mailbox.id, messageId));

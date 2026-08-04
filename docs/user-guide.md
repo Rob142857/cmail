@@ -86,10 +86,17 @@ the message body and attachments permanently; that action cannot be undone.
 
 ## Compose, reply, and forward
 
-Select **Compose**, **Reply**, or **Forward**, then check the **From** field
-before sending. It lists only active mailboxes from which you have Send as or
+Select **Compose**, **Reply**, **Reply all**, or **Forward**, then check the
+**From** field before sending. It lists only active mailboxes from which you have Send as or
 Full access permission. Recipients see that selected mailbox address, not the
 personal account used to sign in.
+
+**Reply** uses the message's validated Reply-To addresses when present,
+otherwise the sender. **Reply all** also includes the original To and Cc
+recipients while removing active mailbox addresses assigned to you. From a
+Sent item, Reply targets the original recipients rather than sending a copy back
+to your own From address. Always review the resulting recipient fields before
+sending, particularly from a shared mailbox.
 
 The composer supports To, Cc, a subject, plain-text authored content, and up to
 the limits displayed next to attachments. Reply and Forward preserve the
@@ -97,6 +104,13 @@ formatted original message in a separate, non-editable preview with remote
 images removed so an old tracking pixel cannot notify its sender when your new
 recipient opens the conversation. cmail asks for confirmation when a message will leave the
 organisation. Provider and organisational rate limits can still reject a send.
+
+Use **Importance** only when the recipient genuinely needs the High or Low
+signal. High importance appears as a red exclamation mark in compatible cmail,
+Outlook, and other mail views; Low appears as a downward marker. Importance is
+saved with the draft and sent to compatible providers, but it does not change
+delivery speed, bypass spam controls, or guarantee attention. A new reply or
+forward starts at Normal rather than inheriting the original sender's choice.
 
 Draft text is saved shortly after you pause and can also be saved manually.
 Edits made while a save is in progress are queued for the next save. Selecting
@@ -109,9 +123,11 @@ sending; it never silently replaces either version.
 
 Attachments remain only in the current browser tab until the message is sent;
 they are not stored with a saved draft. cmail warns before leaving a composer
-that still has attachments. Original attachments are not added automatically
-to a Forward; cmail shows their count so you can download and deliberately
-reattach the intended files. Drafts remain private to their creator even when
+that still has attachments. Original files and embedded MIME image parts are
+not added automatically to a Forward; cmail counts both because forwarding
+removes `cid:` image references. The Forward screen provides authenticated
+download links for every original part so you can deliberately reattach only
+the intended files. Drafts remain private to their creator even when
 the selected From address is a shared mailbox; delegates see the Sent copy
 after delivery, not the unfinished draft.
 

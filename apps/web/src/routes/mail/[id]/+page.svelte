@@ -4,6 +4,7 @@
   import MessageAttachments from '$lib/mail/MessageAttachments.svelte';
   import MessageBody from '$lib/mail/MessageBody.svelte';
   import MessageMetadata from '$lib/mail/MessageMetadata.svelte';
+  import MessageSafety from '$lib/mail/MessageSafety.svelte';
   import MessageToolbar from '$lib/mail/MessageToolbar.svelte';
 
   let { data } = $props();
@@ -53,6 +54,11 @@
     const params = new URLSearchParams({ reply: data.message.id, returnTo: messageViewHref });
     return `/mail/compose?${params}`;
   });
+  const replyAllHref = $derived.by(() => {
+    const params = new URLSearchParams({ replyAll: data.message.id, returnTo: messageViewHref });
+    return `/mail/compose?${params}`;
+  });
+  const canReplyAll = $derived(Boolean(data.canReplyAll));
   const forwardHref = $derived.by(() => {
     const params = new URLSearchParams({ forward: data.message.id, returnTo: messageViewHref });
     return `/mail/compose?${params}`;
@@ -108,6 +114,8 @@
     {returnHref}
     {editDraftHref}
     {replyHref}
+    {replyAllHref}
+    {canReplyAll}
     {forwardHref}
     composeReturnHref={messageViewHref}
     {isDraft}
@@ -125,8 +133,9 @@
   <article class="card">
     <h1>{data.message.subject || '(no subject)'}</h1>
     <MessageMetadata message={data.message} locale={data.locale} timeZone={data.timeZone} {mailboxHref} />
+    <MessageSafety message={data.message} riskyLinks={data.riskyLinks} />
     <MessageAttachments attachments={data.attachments} />
-    <MessageBody messageId={data.message.id} body={data.body} bodyUnavailable={data.bodyUnavailable} allowRemoteImages={!isDraft} />
+    <MessageBody messageId={data.message.id} body={data.body} bodyUnavailable={data.bodyUnavailable} allowRemoteImages={!isDraft} inlineImageOrigin={data.inlineImageOrigin} />
   </article>
 </div>
 

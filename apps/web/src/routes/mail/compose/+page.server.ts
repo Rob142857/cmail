@@ -1,7 +1,9 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import type { Mailbox, Message } from '@cmail/shared/types';
+import type { Attachment, Mailbox, Message, MessageImportance } from '@cmail/shared/types';
 import { sendNewMailNotifications } from '@cmail/shared/push';
+import { normalizeMessageImportance } from '@cmail/shared/message-importance';
+import { buildReplyRecipients } from '$lib/server/reply-recipients';
 import {
   releaseMailboxStorageReservations,
   reserveMailboxStorage,
@@ -24,13 +26,41 @@ import {
 } from '$lib/server/compose-limits';
 import { audit, generateId, traceEmail } from '$lib/server/db';
 import {
+  acceptInternalJournal,
+  applyProviderResult,
+  cancelRetryableJournal,
+  claimOutboundDispatch,
+  cleanupJournalStaging,
+  findActiveOutboundJournal,
+  findDraftOutboundJournal,
+  fingerprintJournalPayload,
+  getOutboundJournal,
+  getOutboundJournalParts,
+  insertOutboundJournal,
+  journalStateResponse,
+  loadJournalOutboundEmail,
+  loadProviderResultSnapshot,
+  materializeOutboundJournal,
+  persistProviderResultSnapshot,
+  releaseJournalReservations,
+  stageJournalPayload,
+  type OutboundJournalRow,
+} from '$lib/server/outbound-journal';
+import {
   getProviderInfo,
   preflightEmail,
   sendEmail,
+  supportsSeparatedEnvelope,
   type OutboundAttachment,
   type OutboundEmail,
 } from '$lib/server/outbound';
 import { consumeRateLimit } from '$lib/server/rate-limit';
+import { planRecipientDelivery } from '$lib/server/recipient-delivery';
+import {
+  deriveReplyThreading,
+  safeMessageId,
+  safeReferences,
+} from '$lib/server/message-threading';
 import { sendIdempotencyKey } from '$lib/server/send-idempotency';
 import { normalizeDomain, normalizeEmail, parseRecipientList } from '$lib/server/validation';
 import {
@@ -63,9 +93,22 @@ function stringValue(value: FormDataEntryValue | null): string {
   return typeof value === 'string' ? value : '';
 }
 
-function safeMessageId(value: string): string | null {
-  const trimmed = value.trim();
-  return trimmed && trimmed.length <= 998 && !/[\r\n]/.test(trimmed) ? trimmed : null;
+async function replyThreadingForSource(
+  db: D1Database,
+  userId: string,
+  sourceId: string,
+): Promise<{ inReplyTo: string | null; referencesHeader: string | null } | null> {
+  if (!/^[A-Za-z0-9-]{1,128}$/.test(sourceId)) return null;
+  const source = await db.prepare(
+    `SELECT m.message_id_header, m.in_reply_to, m.references_header
+     FROM messages m
+     INNER JOIN mailbox_assignments ma ON m.mailbox_id = ma.mailbox_id
+     INNER JOIN mailboxes mb ON mb.id = m.mailbox_id
+     WHERE m.id = ? AND ma.user_id = ? AND mb.status = 'active'
+       AND (m.draft_owner_id IS NULL OR m.draft_owner_id = ?)`,
+  ).bind(sourceId, userId, userId).first<Pick<Message, 'message_id_header' | 'in_reply_to' | 'references_header'>>();
+  if (!source) return null;
+  return deriveReplyThreading(source);
 }
 
 function safeDraftVersion(value: FormDataEntryValue | null): number | null {
@@ -108,6 +151,43 @@ function displayAddresses(value: string): string {
   }
 }
 
+function validTraceRecipients(value: string): string {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string').slice(0, 50).join(', ')
+      : '';
+  } catch {
+    return '';
+  }
+}
+
+async function restoreJournalDraftClaim(db: D1Database, journal: OutboundJournalRow): Promise<void> {
+  if (!journal.draft_id || journal.claimed_draft_version === null || journal.claimed_draft_version < 1) return;
+  await db.prepare(
+    `UPDATE messages SET draft_version = ?
+     WHERE id = ? AND folder = 'drafts' AND draft_owner_id = ? AND draft_version = ?`,
+  ).bind(
+    journal.claimed_draft_version - 1,
+    journal.draft_id,
+    journal.user_id,
+    journal.claimed_draft_version,
+  ).run().catch(() => undefined);
+}
+
+async function cleanupTerminalJournal(
+  db: D1Database,
+  storage: R2Bucket,
+  journal: OutboundJournalRow,
+): Promise<void> {
+  await releaseJournalReservations(db, journal.id).catch(() => undefined);
+  await restoreJournalDraftClaim(db, journal);
+  const parts = await getOutboundJournalParts(db, journal.id).catch(() => null);
+  if (parts) {
+    await cleanupJournalStaging(storage, journal, parts.attachments, journal.dispatch_token);
+  }
+}
+
 function composeBodyFailure(reason: ComposeBodyFailureReason): { status: 400 | 413; error: string } {
   if (reason === 'combined_bytes') {
     return { status: 413, error: 'The message body and quoted email exceed the 1 MB draft limit.' };
@@ -134,6 +214,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
   ).bind(locals.user.id).all<Mailbox>();
 
   const replyId = url.searchParams.get('reply');
+  const replyAllId = url.searchParams.get('replyAll');
   const forwardId = url.searchParams.get('forward');
   const draftId = url.searchParams.get('draft');
   const requestedRecoveryId = url.searchParams.get('compose');
@@ -144,6 +225,8 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
   let replyQuoteHtml = '';
   let quoteWarning = '';
   let forwardedAttachmentCount = 0;
+  let forwardedAttachments: Array<Pick<Attachment, 'id' | 'filename' | 'content_type' | 'size_bytes' | 'disposition'>> = [];
+  let omittedReplyInlineImageCount = 0;
   let draft: {
     id: string;
     from_address: string;
@@ -153,6 +236,8 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
     body: string;
     quoted_html: string;
     in_reply_to: string | null;
+    references_header: string | null;
+    importance: MessageImportance;
     saved_at: string;
     draft_version: number;
   } | null = null;
@@ -181,13 +266,15 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
         body: storedBody.authoredText,
         quoted_html: storedBody.quotedHtml,
         in_reply_to: existing.in_reply_to,
+        references_header: existing.references_header,
+        importance: existing.importance,
         saved_at: existing.received_at,
         draft_version: existing.draft_version,
       };
     }
   }
 
-  const sourceId = replyId || forwardId;
+  const sourceId = replyId || replyAllId || forwardId;
   if (sourceId) {
     replyTo = await env.DB.prepare(
       `SELECT m.* FROM messages m
@@ -197,13 +284,26 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
           AND (m.draft_owner_id IS NULL OR m.draft_owner_id = ?)`,
     ).bind(sourceId, locals.user.id, locals.user.id).first<Message>();
     if (replyTo) {
+      // Quoted HTML deliberately strips cid: sources. Surface that content loss
+      // on replies. For forwards, expose every MIME part through the existing
+      // authenticated forced-download endpoint for deliberate reattachment.
       if (forwardId) {
-        const attachmentCount = await env.DB.prepare(
-          'SELECT COUNT(*) AS count FROM attachments WHERE message_id = ?',
-        ).bind(replyTo.id).first<{ count: number }>();
-        forwardedAttachmentCount = Number(attachmentCount?.count || 0);
+        const sourceAttachments = await env.DB.prepare(
+          `SELECT id, filename, content_type, size_bytes, disposition
+           FROM attachments WHERE message_id = ?
+           ORDER BY filename COLLATE NOCASE, id`,
+        ).bind(replyTo.id).all<Pick<Attachment, 'id' | 'filename' | 'content_type' | 'size_bytes' | 'disposition'>>();
+        forwardedAttachments = sourceAttachments.results || [];
+        forwardedAttachmentCount = forwardedAttachments.length;
+      } else {
+        const attachmentCounts = await env.DB.prepare(
+          `SELECT SUM(CASE WHEN disposition = 'inline' OR content_id IS NOT NULL THEN 1 ELSE 0 END) AS inline_count
+           FROM attachments WHERE message_id = ?`,
+        ).bind(replyTo.id).first<{ inline_count: number | null }>();
+        omittedReplyInlineImageCount = Number(attachmentCounts?.inline_count || 0);
       }
       const runtime = publicRuntimeConfig(env as unknown as Record<string, unknown>);
+      const draftKind = forwardId ? 'forward' : 'reply';
       try {
         const builtQuote = buildQuotedMessageHtml(
           await loadBody(env.STORAGE, replyTo.body_r2_key),
@@ -217,9 +317,9 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
           },
         );
         if (builtQuote.ok) replyQuoteHtml = builtQuote.html;
-        else quoteWarning = 'The original message is too large or complex to quote safely. Your reply can still be saved and sent.';
+        else quoteWarning = `The original message is too large or complex to quote safely. Your ${draftKind} can still be saved and sent.`;
       } catch {
-        quoteWarning = 'The original message is temporarily unavailable and was not included. Your reply can still be saved and sent.';
+        quoteWarning = `The original message is temporarily unavailable and was not included. Your ${draftKind} can still be saved and sent.`;
       }
     }
   }
@@ -229,6 +329,20 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
   ).first<{ html_body: string; plain_text_body: string }>();
 
   const mailboxes = sendableMailboxes.results || [];
+  const assignedMailboxRows = sourceId && !forwardId
+    ? await env.DB.prepare(
+      `SELECT m.address FROM mailboxes m
+       INNER JOIN mailbox_assignments ma ON m.id = ma.mailbox_id
+       WHERE ma.user_id = ? AND m.status = 'active'`,
+    ).bind(locals.user.id).all<{ address: string }>()
+    : { results: [] as Array<{ address: string }> };
+  const replyRecipients = replyTo && !forwardId
+    ? buildReplyRecipients(
+      replyTo,
+      (assignedMailboxRows.results || []).map((mailbox) => mailbox.address),
+      Boolean(replyAllId),
+    )
+    : { to: [], cc: [] };
   const preferredFrom = draft?.from_address
     || (replyTo ? mailboxes.find((mailbox) => mailbox.id === replyTo.mailbox_id)?.address : '')
     || mailboxes[0]?.address
@@ -243,15 +357,20 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
     mailboxes,
     preferredFrom,
     replyTo,
+    replyRecipients,
     replyQuoteHtml,
     quoteWarning,
     forwardedAttachmentCount,
+    forwardedAttachments,
+    omittedReplyInlineImageCount,
     isForward: !!forwardId,
+    isReplyAll: Boolean(replyAllId),
+    replySourceId: replyTo && !forwardId ? replyTo.id : '',
     signature: signature?.html_body || '',
     draft,
     returnHref: safeComposeReturnHref(url.searchParams.get('returnTo'), fallbackReturn),
     recoveryId,
-    recoveryKey: `cmail:compose:${locals.user.id}:${draftId ? `draft:${draftId}` : sourceId ? `${forwardId ? 'forward' : 'reply'}:${sourceId}:${recoveryId}` : `new:${recoveryId}`}`,
+    recoveryKey: `cmail:compose:${locals.user.id}:${draftId ? `draft:${draftId}` : sourceId ? `${forwardId ? 'forward' : replyAllId ? 'reply-all' : 'reply'}:${sourceId}:${recoveryId}` : `new:${recoveryId}`}`,
     recoveryPrefix: `cmail:compose:${locals.user.id}:`,
     composeToken: crypto.randomUUID(),
     outboundProvider: getProviderInfo(env as unknown as Record<string, unknown>).name,
@@ -261,8 +380,29 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 export const actions: Actions = {
   send: async ({ request, locals, platform }) => {
     if (!locals.user) throw redirect(303, '/');
+    const user = locals.user;
     const env = platform?.env;
     if (!env) return fail(503, { error: 'Platform not available' });
+    const completeAcceptedJournal = async (journal: OutboundJournalRow): Promise<boolean> => {
+      const completed = await materializeOutboundJournal(env.DB, env.STORAGE, journal.id);
+      if (completed.newInternalDeliveries.length) {
+        platform?.context.waitUntil(Promise.all(
+          completed.newInternalDeliveries.map((delivery) =>
+            sendNewMailNotifications(env, delivery.mailboxId, delivery.messageId)),
+        ).then(() => undefined));
+      }
+      if (journal.state === 'accepted') {
+        await audit(env.DB, {
+          event_type: 'email.sent',
+          actor_id: user.id,
+          actor_role: user.role,
+          target: journal.id,
+          detail: `Durable outbound send materialized; provider ${journal.provider}`,
+          session_id: locals.sessionId,
+        }).catch(() => undefined);
+      }
+      return completed.journal.partial_delivery === 1;
+    };
     if (requestExceedsComposeLimit(request)) return fail(413, { error: 'Compose request exceeds the 24 MB limit' });
 
     const formData = await request.formData();
@@ -272,7 +412,8 @@ export const actions: Actions = {
     const subject = subjectInput || '(no subject)';
     const body = stringValue(formData.get('body'));
     const quotedHtml = stringValue(formData.get('quoted_html'));
-    const inReplyTo = safeMessageId(stringValue(formData.get('in_reply_to')));
+    const replySourceId = stringValue(formData.get('reply_source_id'));
+    const importance = normalizeMessageImportance(stringValue(formData.get('importance')));
     const draftId = stringValue(formData.get('draft_id')) || null;
     const expectedDraftVersion = safeDraftVersion(formData.get('draft_version'));
     const composeToken = stringValue(formData.get('compose_token'));
@@ -298,6 +439,73 @@ export const actions: Actions = {
       return fail(failure.status, { error: failure.error });
     }
     if (!/^[0-9a-f-]{36}$/i.test(composeToken)) return fail(400, { error: 'This compose form expired. Reload it and try again.' });
+    if (draftId && expectedDraftVersion === null) {
+      return fail(400, { error: 'The draft version is missing. Reload before sending.' });
+    }
+    const observedDraftVersion = expectedDraftVersion ?? 0;
+    let sendClaimId = draftId
+      ? sendIdempotencyKey(draftId, composeToken, observedDraftVersion + 1)
+      : sendIdempotencyKey(null, composeToken);
+    let existingJournal: OutboundJournalRow | null;
+    try {
+      existingJournal = draftId
+        ? await findDraftOutboundJournal(
+          env.DB,
+          locals.user.id,
+          draftId,
+          observedDraftVersion,
+        )
+        : await findActiveOutboundJournal(env.DB, locals.user.id, sendClaimId);
+    } catch {
+      return fail(503, { error: 'The durable send journal is temporarily unavailable. No provider call was made; retry shortly.' });
+    }
+    if (existingJournal) sendClaimId = existingJournal.idempotency_key;
+    if (existingJournal?.state === 'dispatching' && existingJournal.dispatch_token) {
+      const recoveredResult = await loadProviderResultSnapshot(
+        env.STORAGE,
+        existingJournal.id,
+        existingJournal.dispatch_token,
+      ).catch(() => null);
+      if (recoveredResult) {
+        await applyProviderResult(
+          env.DB,
+          existingJournal.id,
+          existingJournal.dispatch_token,
+          recoveredResult,
+        ).catch(() => undefined);
+        existingJournal = await getOutboundJournal(env.DB, existingJournal.id);
+      }
+    }
+    if (existingJournal && ['accepted', 'materialized'].includes(existingJournal.state)) {
+      try {
+        const partial = await completeAcceptedJournal(existingJournal);
+        throw redirect(303, `/mail?folder=sent${partial ? '&delivery=partial' : ''}`);
+      } catch (caught) {
+        if (caught && typeof caught === 'object' && 'status' in caught && 'location' in caught) throw caught;
+        return fail(503, {
+          error: 'The provider accepted this message, but its Sent copy is still being recovered. Retry this draft; cmail will not send it again.',
+        });
+      }
+    }
+    if (existingJournal?.state === 'permanent_failure') {
+      await cleanupTerminalJournal(env.DB, env.STORAGE, existingJournal);
+      return fail(502, {
+        error: existingJournal.last_error || 'The provider rejected this message. It was not delivered; review the draft before trying again.',
+      });
+    }
+    if (existingJournal?.state === 'retryable_failure') {
+      const cancelled = await cancelRetryableJournal(env.DB, existingJournal.id).catch(() => false);
+      if (!cancelled) {
+        return fail(503, { error: 'The previous rejected attempt could not be released safely. Retry after D1 recovers.' });
+      }
+      await cleanupTerminalJournal(env.DB, env.STORAGE, { ...existingJournal, state: 'cancelled' });
+      existingJournal = null;
+    }
+    if (existingJournal && ['dispatching', 'ambiguous'].includes(existingJournal.state)) {
+      return fail(502, {
+        error: 'Delivery status is unknown. Do not resend this message; ask an administrator to check the outbound journal.',
+      });
+    }
 
     const mailbox = await env.DB.prepare(
       `SELECT m.id, m.address FROM mailboxes m
@@ -306,23 +514,48 @@ export const actions: Actions = {
     ).bind(from, locals.user.id).first<{ id: string; address: string }>();
     if (!mailbox) return fail(403, { error: 'You do not have permission to send from this address' });
 
-    let sourceDraft: { body_r2_key: string | null; draft_version: number } | null = null;
+    let sourceDraft: {
+      body_r2_key: string | null;
+      draft_version: number;
+      in_reply_to: string | null;
+      references_header: string | null;
+    } | null = null;
     if (draftId) {
-      if (expectedDraftVersion === null) return fail(400, { error: 'The draft version is missing. Reload before sending.' });
       sourceDraft = await env.DB.prepare(
-        `SELECT m.body_r2_key, m.draft_version FROM messages m
+        `SELECT m.body_r2_key, m.draft_version, m.in_reply_to, m.references_header FROM messages m
          INNER JOIN mailbox_assignments ma ON m.mailbox_id = ma.mailbox_id
          INNER JOIN mailboxes mb ON mb.id = m.mailbox_id
          WHERE m.id = ? AND ma.user_id = ? AND ma.permissions IN ('send-as', 'full')
            AND m.folder = 'drafts' AND m.draft_owner_id = ? AND mb.status = 'active'`,
-      ).bind(draftId, locals.user.id, locals.user.id).first<{ body_r2_key: string | null; draft_version: number }>();
+      ).bind(draftId, locals.user.id, locals.user.id).first<{
+        body_r2_key: string | null;
+        draft_version: number;
+        in_reply_to: string | null;
+        references_header: string | null;
+      }>();
       if (!sourceDraft) return fail(404, { error: 'Draft not found' });
-      if (sourceDraft.draft_version !== expectedDraftVersion) {
+      const journalOwnsDraftClaim = existingJournal
+        && existingJournal.draft_id === draftId
+        && existingJournal.claimed_draft_version === sourceDraft.draft_version
+        && (
+          existingJournal.claimed_draft_version === observedDraftVersion
+          || existingJournal.claimed_draft_version === observedDraftVersion + 1
+        );
+      if (sourceDraft.draft_version !== expectedDraftVersion && !journalOwnsDraftClaim) {
         return fail(409, {
           error: 'This draft changed in another tab. Your local copy is safe; reload to compare versions.',
           draftConflict: true,
         });
       }
+    }
+
+    let inReplyTo = safeMessageId(sourceDraft?.in_reply_to || '');
+    let referencesHeader = safeReferences(sourceDraft?.references_header || '');
+    if (!sourceDraft && replySourceId) {
+      const threading = await replyThreadingForSource(env.DB, locals.user.id, replySourceId);
+      if (!threading) return fail(404, { error: 'The original message is no longer available for this reply. Reload the message and try again.' });
+      inReplyTo = threading.inReplyTo;
+      referencesHeader = threading.referencesHeader;
     }
 
     const rawAttachments = formData.getAll('attachments').filter((value): value is File => value instanceof File && value.size > 0);
@@ -346,9 +579,21 @@ export const actions: Actions = {
       `SELECT address, id FROM mailboxes WHERE status = 'active' AND address IN (${allRecipients.map(() => '?').join(',')})`,
     ).bind(...allRecipients).all<{ address: string; id: string }>();
     const internalMap = new Map((internalRows.results || []).map((row) => [row.address.toLowerCase(), row.id]));
-    const externalTo = toResult.recipients.filter((address) => !internalMap.has(address));
-    const externalCc = ccRecipients.filter((address) => !internalMap.has(address));
-    const externalRecipients = [...externalTo, ...externalCc];
+    const {
+      providerTo,
+      providerCc,
+      providerRecipients,
+      localRecipients,
+    } = planRecipientDelivery(
+      toResult.recipients,
+      ccRecipients,
+      new Set(internalMap.keys()),
+      supportsSeparatedEnvelope(envRecord),
+    );
+    const hasExternalRecipients = providerRecipients.length > 0;
+    // Mixed messages retain the complete visible To/Cc list while Cloudflare's
+    // raw transport sends only to the external SMTP envelope. This avoids both
+    // header distortion and duplicate/loopback delivery to local recipients.
 
     const signature = await env.DB.prepare(
       `SELECT html_body, plain_text_body FROM signature_templates
@@ -367,17 +612,23 @@ export const actions: Actions = {
     if (!mailDomain) {
       return fail(503, { error: 'MAIL_DOMAIN is not configured' });
     }
+    const messageId = generateId();
+    const localMessageIdHeader = `<${messageId}@${mailDomain}>`;
 
-    const providerTo = externalTo.length ? externalTo : externalCc;
-    const providerCc = externalTo.length ? externalCc : [];
-    const outboundEmail: OutboundEmail | null = externalRecipients.length ? {
+    const outboundEmail: OutboundEmail | null = hasExternalRecipients ? {
       from,
       to: providerTo,
       cc: providerCc,
+      envelopeRecipients: providerRecipients,
       subject,
       html: htmlWithSignature,
       text: textWithSignature,
-      headers: inReplyTo ? { 'In-Reply-To': inReplyTo, 'References': inReplyTo } : undefined,
+      headers: inReplyTo ? {
+        'In-Reply-To': inReplyTo,
+        ...(referencesHeader ? { 'References': referencesHeader } : {}),
+      } : undefined,
+      importance,
+      messageIdHeader: localMessageIdHeader,
       attachments: attachments.map<OutboundAttachment>((attachment) => ({
         filename: attachment.filename,
         contentType: attachment.contentType,
@@ -396,6 +647,8 @@ export const actions: Actions = {
       persistedPayloadBytes,
       providerPayloadBytes,
       allRecipients.length,
+      providerRecipients.length,
+      localRecipients.length,
       internalMap.size,
       attachments.length,
     );
@@ -409,292 +662,379 @@ export const actions: Actions = {
       return fail(413, { error: 'This send would create too many internal attachment copies. Reduce internal recipients or attachment count.' });
     }
 
-    // A draft is the durable idempotency boundary. Page-scoped compose tokens are
-    // only used for the no-JavaScript path where no draft has been created yet.
-    // This prevents another tab or a reload from submitting the same draft with a
-    // fresh page token while the first delivery is in flight or remains ambiguous.
-    const sendClaimId = sendIdempotencyKey(draftId, composeToken);
-    let claimedDraftVersion: number | null = null;
-    const draftOwnerId = locals.user.id;
+    const plannedInternalDeliveries = localRecipients.flatMap((recipient) => {
+      const mailboxId = internalMap.get(recipient);
+      return mailboxId ? [{ mailboxId, messageId: generateId() }] : [];
+    });
+    const plannedTargets = [
+      {
+        id: generateId(),
+        messageId,
+        mailboxId: mailbox.id,
+        direction: 'outbound' as const,
+        folder: 'sent' as const,
+        attachmentIds: attachments.map(() => generateId()),
+      },
+      ...plannedInternalDeliveries.map((delivery) => ({
+        id: generateId(),
+        messageId: delivery.messageId,
+        mailboxId: delivery.mailboxId,
+        direction: 'internal' as const,
+        folder: 'inbox' as const,
+        attachmentIds: attachments.map(() => generateId()),
+      })),
+    ];
+    const journalProvider = outboundEmail ? getProviderInfo(envRecord).name : 'none';
+    const threadId = referencesHeader?.split(' ')[0] || inReplyTo || localMessageIdHeader;
+    const fingerprint = await fingerprintJournalPayload({
+      provider: journalProvider,
+      from,
+      to: toResult.recipients,
+      cc: ccRecipients,
+      envelopeRecipients: providerRecipients,
+      subject,
+      html: htmlWithSignature,
+      text: textWithSignature,
+      snippet: preparedBody.snippet,
+      importance,
+      inReplyTo,
+      referencesHeader,
+      threadId,
+      deliveryTargets: plannedTargets.map((target) => ({
+        mailboxId: target.mailboxId,
+        direction: target.direction,
+        folder: target.folder,
+      })),
+      attachments,
+    });
+
+    if (existingJournal && existingJournal.payload_hash !== fingerprint.payloadHash) {
+      const cancelled = await cancelRetryableJournal(env.DB, existingJournal.id).catch(() => false);
+      if (!cancelled) {
+        return fail(409, {
+          error: 'This message already crossed the delivery boundary. Do not resend it; check Sent or ask an administrator to inspect the outbound journal.',
+        });
+      }
+      await cleanupTerminalJournal(env.DB, env.STORAGE, {
+        ...existingJournal,
+        state: 'cancelled',
+      });
+      existingJournal = null;
+      if (sourceDraft && expectedDraftVersion !== null) sourceDraft.draft_version = expectedDraftVersion;
+    }
+
+    let claimedDraftVersion: number | null = existingJournal?.claimed_draft_version ?? null;
     const releaseDraftClaim = async (): Promise<void> => {
       if (!draftId || claimedDraftVersion === null || expectedDraftVersion === null) return;
       await env.DB.prepare(
         `UPDATE messages SET draft_version = ?
          WHERE id = ? AND folder = 'drafts' AND draft_owner_id = ? AND draft_version = ?`,
-      ).bind(expectedDraftVersion, draftId, draftOwnerId, claimedDraftVersion).run().catch(() => undefined);
+      ).bind(expectedDraftVersion, draftId, user.id, claimedDraftVersion).run().catch(() => undefined);
       claimedDraftVersion = null;
     };
-    if (draftId && expectedDraftVersion !== null) {
-      let claim: D1Result;
+
+    let journal = existingJournal;
+    if (!journal) {
+      if (draftId && expectedDraftVersion !== null) {
+        let claim: D1Result;
+        try {
+          claim = await env.DB.prepare(
+            `UPDATE messages SET draft_version = draft_version + 1
+             WHERE id = ? AND folder = 'drafts' AND draft_owner_id = ? AND draft_version = ?`,
+          ).bind(draftId, locals.user.id, expectedDraftVersion).run();
+        } catch {
+          return fail(503, {
+            error: 'The draft could not be reserved for sending. Your local text is safe; reload to compare the latest draft before retrying.',
+            draftConflict: true,
+          });
+        }
+        if (!claim.meta.changes) {
+          return fail(409, {
+            error: 'This draft changed in another tab. Your local copy is safe; reload to compare versions.',
+            draftConflict: true,
+          });
+        }
+        claimedDraftVersion = expectedDraftVersion + 1;
+      }
+
+      let sendRate: Awaited<ReturnType<typeof consumeRateLimit>>;
       try {
-        claim = await env.DB.prepare(
-          `UPDATE messages SET draft_version = draft_version + 1
-           WHERE id = ? AND folder = 'drafts' AND draft_owner_id = ? AND draft_version = ?`,
-        ).bind(draftId, locals.user.id, expectedDraftVersion).run();
+        sendRate = await consumeRateLimit(
+          env.DB,
+          'outbound',
+          locals.user.id,
+          outboundRateLimitPerHour(envRecord),
+          60 * 60,
+        );
       } catch {
-        // The UPDATE outcome is ambiguous. Never rewind v+1: another tab may
-        // have legitimately produced that revision after this request failed.
-        return fail(503, {
-          error: 'The draft could not be reserved for sending. Your local text is safe; reload to compare the latest draft before retrying.',
-          draftConflict: true,
-        });
+        await releaseDraftClaim();
+        return fail(503, { error: 'Sending limits are temporarily unavailable. Your draft is safe; try again shortly.' });
       }
-      if (!claim.meta.changes) {
-        return fail(409, {
-          error: 'This draft changed in another tab. Your local copy is safe; reload to compare versions.',
-          draftConflict: true,
-        });
+      if (!sendRate.allowed) {
+        await releaseDraftClaim();
+        return fail(429, { error: `Hourly send limit reached. Try again in about ${Math.ceil(sendRate.retryAfter / 60)} minutes.` });
       }
-      claimedDraftVersion = expectedDraftVersion + 1;
-    }
 
-    const releaseRetryableClaims = async (): Promise<void> => {
-      await Promise.allSettled([
-        env.DB.prepare('DELETE FROM send_idempotency WHERE id = ?').bind(sendClaimId).run(),
-        releaseDraftClaim(),
-      ]);
-    };
-    let claimed: D1Result;
-    try {
-      claimed = await env.DB.prepare(
-        `INSERT OR IGNORE INTO send_idempotency (id, user_id, created_at) VALUES (?, ?, datetime('now'))`,
-      ).bind(sendClaimId, locals.user.id).run();
-    } catch {
-      // No provider call has occurred, so an ambiguously committed insert is safe
-      // to release. Keep the two cleanups independent in case D1 is recovering.
-      await releaseRetryableClaims();
-      return fail(503, { error: 'The send could not be reserved. Your draft is safe; try again shortly.' });
-    }
-    if (!claimed.meta.changes) {
-      await releaseDraftClaim();
-      return fail(409, { error: 'This message was already submitted. Check Sent before trying again.' });
-    }
+      let workRate: Awaited<ReturnType<typeof consumeRateLimit>>;
+      try {
+        workRate = await consumeRateLimit(
+          env.DB,
+          'outbound-work',
+          locals.user.id,
+          outboundWorkLimitPerHour(envRecord),
+          60 * 60,
+          workload.workUnits,
+        );
+      } catch {
+        await releaseDraftClaim();
+        return fail(503, { error: 'Sending limits are temporarily unavailable. Your draft is safe; try again shortly.' });
+      }
+      if (!workRate.allowed) {
+        await releaseDraftClaim();
+        return fail(429, { error: `Hourly recipient and attachment workload limit reached. Try again in about ${Math.ceil(workRate.retryAfter / 60)} minutes.` });
+      }
 
-    let sendRate: Awaited<ReturnType<typeof consumeRateLimit>>;
-    try {
-      sendRate = await consumeRateLimit(
+      const storageResult = await reserveMailboxStorage(
         env.DB,
-        'outbound',
-        locals.user.id,
-        outboundRateLimitPerHour(env as unknown as Record<string, unknown>),
-        60 * 60,
-      );
-    } catch {
-      await releaseRetryableClaims();
-      return fail(503, { error: 'Sending limits are temporarily unavailable. Your draft is safe; try again shortly.' });
-    }
-    if (!sendRate.allowed) {
-      await releaseRetryableClaims();
-      return fail(429, { error: `Hourly send limit reached. Try again in about ${Math.ceil(sendRate.retryAfter / 60)} minutes.` });
-    }
-
-    let workRate: Awaited<ReturnType<typeof consumeRateLimit>>;
-    try {
-      workRate = await consumeRateLimit(
-        env.DB,
-        'outbound-work',
-        locals.user.id,
-        outboundWorkLimitPerHour(env as unknown as Record<string, unknown>),
-        60 * 60,
-        workload.workUnits,
-      );
-    } catch {
-      await releaseRetryableClaims();
-      return fail(503, { error: 'Sending limits are temporarily unavailable. Your draft is safe; try again shortly.' });
-    }
-    if (!workRate.allowed) {
-      await releaseRetryableClaims();
-      return fail(429, { error: `Hourly recipient and attachment workload limit reached. Try again in about ${Math.ceil(workRate.retryAfter / 60)} minutes.` });
-    }
-
-    const messageId = generateId();
-    let messageIdHeader = `<${messageId}@${mailDomain}>`;
-    const plannedInternalDeliveries = allRecipients.flatMap((recipient) => {
-      const mailboxId = internalMap.get(recipient);
-      return mailboxId ? [{ mailboxId, messageId: generateId() }] : [];
-    });
-    const storageResult = await reserveMailboxStorage(
-      env.DB,
-      env,
-      [
-        { mailboxId: mailbox.id, deliveryKey: messageId, bytes: persistedPayloadBytes },
-        ...plannedInternalDeliveries.map((delivery) => ({
-          mailboxId: delivery.mailboxId,
-          deliveryKey: delivery.messageId,
+        env,
+        plannedTargets.map((target) => ({
+          mailboxId: target.mailboxId,
+          deliveryKey: target.messageId,
           bytes: persistedPayloadBytes,
         })),
-      ],
-    );
-    if (storageResult.status !== 'accepted') {
-      await releaseRetryableClaims();
-      return fail(storageResult.status === 'rejected' ? 507 : 503, {
-        error: storageResult.status === 'rejected'
-          ? 'Mailbox storage limit reached. Free some space or ask an administrator to raise the configured quota.'
-          : 'Mailbox storage is temporarily unavailable. Please try again later.',
-      });
-    }
-    const storageReservations: MailboxStorageReservation[] = storageResult.reservations;
-
-    if (outboundEmail) {
-      let result;
+      );
+      if (storageResult.status !== 'accepted') {
+        await releaseDraftClaim();
+        return fail(storageResult.status === 'rejected' ? 507 : 503, {
+          error: storageResult.status === 'rejected'
+            ? 'Mailbox storage limit reached. Free some space or ask an administrator to raise the configured quota.'
+            : 'Mailbox storage is temporarily unavailable. Please try again later.',
+        });
+      }
+      const storageReservations: MailboxStorageReservation[] = storageResult.reservations;
+      let staged;
       try {
-        result = await sendEmail(outboundEmail, envRecord);
+        staged = await stageJournalPayload(
+          env.STORAGE,
+          messageId,
+          htmlWithSignature,
+          textWithSignature,
+          attachments,
+          fingerprint,
+        );
       } catch {
         await releaseMailboxStorageReservations(env.DB, storageReservations).catch(() => undefined);
         await releaseDraftClaim();
-        await audit(env.DB, {
-          event_type: 'email.delivery_unknown',
-          actor_id: locals.user.id,
-          actor_role: locals.user.role,
-          target: messageId,
-          detail: 'Outbound provider delivery status is unknown after an unexpected failure',
-        }).catch(() => undefined);
-        return fail(502, {
-          error: 'Delivery status is unknown. Do not resend this message; ask an administrator to check outbound provider activity.',
-        });
+        return fail(503, { error: 'The message could not be staged safely. Your draft is unchanged; try again shortly.' });
       }
 
-      if (!result.success) {
-        await releaseMailboxStorageReservations(env.DB, storageReservations).catch(() => undefined);
-        if (result.ambiguous) await releaseDraftClaim();
-        else await releaseRetryableClaims();
-        await audit(env.DB, {
-          event_type: result.ambiguous ? 'email.delivery_unknown' : 'email.failed',
-          actor_id: locals.user.id,
-          actor_role: locals.user.role,
-          target: messageId,
-          detail: result.ambiguous
-            ? `Outbound provider ${result.provider} delivery status is unknown`
-            : `Outbound provider ${result.provider} rejected the request`,
-        }).catch(() => undefined);
-        return fail(502, {
-          error: result.ambiguous
-            ? 'Delivery status is unknown. Do not resend this message; ask an administrator to check outbound provider activity.'
-            : 'The outbound provider could not send this message. Please try again later.',
-        });
-      }
-
-      if (result.messageIdHeader) messageIdHeader = result.messageIdHeader;
-
-      await traceEmail(env.DB, {
-        message_id_header: messageIdHeader,
-        direction: 'outbound',
-        envelope_from: from,
-        envelope_to: externalRecipients.join(', '),
-        header_from: from,
-        subject: subject.slice(0, 256),
-        status: 'sent',
-        status_detail: `via ${result.provider}`,
-      }).catch(() => undefined);
-    }
-
-    const createdMessageIds: string[] = [];
-    const createdKeys: string[] = [];
-    try {
-      const bodyKey = `messages/${mailbox.id}/${messageId}/body.html`;
-      createdKeys.push(bodyKey);
-      await env.STORAGE.put(bodyKey, htmlWithSignature);
-      createdMessageIds.push(messageId);
-      await env.DB.prepare(
-        `INSERT INTO messages
-         (id, mailbox_id, message_id_header, direction, from_address, to_addresses, cc_addresses, subject, snippet, body_r2_key, has_attachments, size_bytes, folder, is_read, received_at, created_at, in_reply_to)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sent', 1, datetime('now'), datetime('now'), ?)`,
-      ).bind(
-        messageId, mailbox.id, messageIdHeader, externalRecipients.length ? 'outbound' : 'internal',
-        from, JSON.stringify(toResult.recipients), JSON.stringify(ccRecipients), subject,
-        preparedBody.snippet, bodyKey,
-        attachments.length ? 1 : 0, persistedPayloadBytes,
-        inReplyTo,
-      ).run();
-      for (const attachment of attachments) {
-        const attachmentId = generateId();
-        const key = `attachments/${messageId}/${attachmentId}`;
-        createdKeys.push(key);
-        await env.STORAGE.put(key, attachment.bytes);
-        await env.DB.prepare(
-          `INSERT INTO attachments (id, message_id, filename, content_type, size_bytes, r2_key)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-        ).bind(attachmentId, messageId, attachment.filename, attachment.contentType, attachment.bytes.byteLength, key).run();
-      }
-
-      for (const { mailboxId: recipientMailboxId, messageId: deliveryId } of plannedInternalDeliveries) {
-        const recipientBodyKey = `messages/${recipientMailboxId}/${deliveryId}/body.html`;
-        createdKeys.push(recipientBodyKey);
-        await env.STORAGE.put(recipientBodyKey, htmlWithSignature);
-        createdMessageIds.push(deliveryId);
-        await env.DB.prepare(
-          `INSERT INTO messages
-           (id, mailbox_id, message_id_header, direction, from_address, to_addresses, cc_addresses, subject, snippet, body_r2_key, has_attachments, size_bytes, folder, is_read, received_at, created_at, in_reply_to)
-           VALUES (?, ?, ?, 'internal', ?, ?, ?, ?, ?, ?, ?, ?, 'inbox', 0, datetime('now'), datetime('now'), ?)`,
-        ).bind(
-          deliveryId, recipientMailboxId, messageIdHeader, from,
-          JSON.stringify(toResult.recipients), JSON.stringify(ccRecipients), subject,
-          preparedBody.snippet, recipientBodyKey,
-          attachments.length ? 1 : 0, persistedPayloadBytes,
+      try {
+        await insertOutboundJournal(env.DB, {
+          id: messageId,
+          userId: locals.user.id,
+          mailboxId: mailbox.id,
+          idempotencyKey: sendClaimId,
+          fingerprint,
+          staged,
+          provider: journalProvider,
+          from,
+          to: toResult.recipients,
+          cc: ccRecipients,
+          envelopeRecipients: providerRecipients,
+          subject,
+          snippet: preparedBody.snippet,
+          importance,
           inReplyTo,
-        ).run();
-        for (const attachment of attachments) {
-          const attachmentId = generateId();
-          const key = `attachments/${deliveryId}/${attachmentId}`;
-          createdKeys.push(key);
-          await env.STORAGE.put(key, attachment.bytes);
-          await env.DB.prepare(
-            `INSERT INTO attachments (id, message_id, filename, content_type, size_bytes, r2_key)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-          ).bind(attachmentId, deliveryId, attachment.filename, attachment.contentType, attachment.bytes.byteLength, key).run();
+          referencesHeader,
+          threadId,
+          proposedMessageIdHeader: localMessageIdHeader,
+          persistedBytes: persistedPayloadBytes,
+          providerPayloadBytes,
+          draftId,
+          claimedDraftVersion,
+          draftBodyR2Key: sourceDraft?.body_r2_key || null,
+          targets: plannedTargets,
+          attachments,
+          reservations: storageReservations,
+        });
+        journal = await getOutboundJournal(env.DB, messageId);
+      } catch {
+        let recoveryReadSucceeded = false;
+        let recovered: OutboundJournalRow | null = null;
+        try {
+          recovered = await findActiveOutboundJournal(env.DB, locals.user.id, sendClaimId);
+          recoveryReadSucceeded = true;
+        } catch {
+          // A failed D1 batch response can follow a committed transaction. Keep
+          // every staged object and reservation unless D1 proves it did not.
+        }
+        if (!recoveryReadSucceeded) {
+          return fail(503, {
+            error: 'The durable send reservation could not be confirmed. No provider call was made; retry after D1 recovers so cmail can reconcile it safely.',
+          });
+        }
+        if (!recovered || recovered.payload_hash !== fingerprint.payloadHash) {
+          await Promise.all(staged.stagedKeys.map((key) => env.STORAGE.delete(key).catch(() => undefined)));
+          await releaseMailboxStorageReservations(env.DB, storageReservations).catch(() => undefined);
+          await releaseDraftClaim();
+          return fail(recovered ? 409 : 503, {
+            error: recovered
+              ? 'A different version of this message was already reserved. Reload the draft before continuing.'
+              : 'The durable send record could not be confirmed. Your draft is safe; try again shortly.',
+            ...(recovered ? { draftConflict: true } : {}),
+          });
+        }
+        journal = recovered;
+        if (recovered.id !== messageId) {
+          await Promise.all(staged.stagedKeys.map((key) => env.STORAGE.delete(key).catch(() => undefined)));
+          await releaseMailboxStorageReservations(env.DB, storageReservations).catch(() => undefined);
         }
       }
-    } catch (error) {
-      let databaseCleanupConfirmed = true;
-      if (createdMessageIds.length) {
-        const cleanupResults = await Promise.allSettled(
-          createdMessageIds.map((id) => env.DB.prepare('DELETE FROM messages WHERE id = ?').bind(id).run()),
-        );
-        databaseCleanupConfirmed = cleanupResults.every((result) => result.status === 'fulfilled');
-      }
-      // If a DELETE outcome is ambiguous, retain the objects. An orphan can be
-      // swept later; deleting a body still referenced by D1 would corrupt mail.
-      if (databaseCleanupConfirmed && createdKeys.length) {
-        await Promise.all(createdKeys.map((key) => env.STORAGE.delete(key).catch(() => undefined)));
-      }
-      await releaseMailboxStorageReservations(env.DB, storageReservations).catch(() => undefined);
-      const deliveryStatusUnknown = externalRecipients.length > 0 || !databaseCleanupConfirmed;
-      if (deliveryStatusUnknown) await releaseDraftClaim();
-      else await releaseRetryableClaims();
-      console.error('Sent-copy persistence failed', error instanceof Error ? error.message : String(error));
-      return fail(500, {
-        error: deliveryStatusUnknown
-          ? 'Delivery or storage status is unknown. Do not resend; ask an administrator to check the mail trace.'
-          : 'The message could not be stored. Please try again.',
-      });
     }
 
-    if (plannedInternalDeliveries.length) {
-      platform?.context.waitUntil(Promise.all(
-        plannedInternalDeliveries.map((delivery) =>
-          sendNewMailNotifications(env, delivery.mailboxId, delivery.messageId)),
-      ).then(() => undefined));
+    if (!journal) {
+      await releaseDraftClaim();
+      return fail(503, { error: 'The durable send record is unavailable. Your draft is safe; try again shortly.' });
     }
 
-    if (draftId && sourceDraft && claimedDraftVersion !== null) {
-      const deleted = await env.DB.prepare(
-        `DELETE FROM messages
-         WHERE id = ? AND folder = 'drafts' AND draft_owner_id = ? AND draft_version = ?`,
-      ).bind(draftId, locals.user.id, claimedDraftVersion).run().catch(() => null);
-      if (deleted?.meta.changes && sourceDraft.body_r2_key) {
-        await env.STORAGE.delete(sourceDraft.body_r2_key).catch(() => undefined);
+    if (journal.state === 'pending' || journal.state === 'retryable_failure') {
+      if (journal.provider === 'none') {
+        try {
+          await acceptInternalJournal(env.DB, journal.id);
+        } catch {
+          return fail(503, { error: 'Internal delivery is safely staged but could not be completed. Retry this draft.' });
+        }
+      } else {
+        const parts = await getOutboundJournalParts(env.DB, journal.id).catch(() => null);
+        if (!parts) return fail(503, { error: 'The staged send manifest is temporarily unavailable. Retry shortly.' });
+        let stagedEmail: OutboundEmail;
+        try {
+          stagedEmail = await loadJournalOutboundEmail(env.STORAGE, journal, parts.attachments);
+        } catch {
+          return fail(503, { error: 'The staged message is incomplete. Do not resend; ask an administrator to inspect the outbound journal.' });
+        }
+        const pinnedEnv = { ...envRecord, OUTBOUND_PROVIDER: journal.provider };
+        const preflight = preflightEmail(stagedEmail, pinnedEnv);
+        if (!preflight.ok) return fail(preflight.status, { error: preflight.error });
+
+        const dispatchToken = crypto.randomUUID();
+        let claimed: boolean;
+        try {
+          claimed = await claimOutboundDispatch(env.DB, journal.id, dispatchToken);
+        } catch {
+          return fail(503, { error: 'The provider dispatch boundary could not be confirmed. No provider call was made; retry shortly.' });
+        }
+        if (!claimed) {
+          journal = await getOutboundJournal(env.DB, journal.id);
+          if (!journal || ['dispatching', 'ambiguous'].includes(journal.state)) {
+            return fail(502, { error: 'Delivery is already in progress or its status is unknown. Do not resend; ask an administrator to check the outbound journal.' });
+          }
+        } else {
+          let result: Awaited<ReturnType<typeof sendEmail>>;
+          try {
+            result = await sendEmail(stagedEmail, pinnedEnv);
+          } catch {
+            result = {
+              success: false,
+              provider: journal.provider,
+              ambiguous: true,
+              error: 'The outbound provider result is unknown',
+            };
+          }
+          await persistProviderResultSnapshot(
+            env.STORAGE,
+            journal.id,
+            dispatchToken,
+            result,
+          ).catch(() => undefined);
+          let resultState;
+          try {
+            resultState = await applyProviderResult(env.DB, journal.id, dispatchToken, result);
+          } catch {
+            await audit(env.DB, {
+              event_type: 'email.delivery_unknown',
+              actor_id: locals.user.id,
+              actor_role: locals.user.role,
+              target: journal.id,
+              detail: `Provider ${journal.provider} returned, but durable reconciliation could not be confirmed`,
+            }).catch(() => undefined);
+            return fail(502, { error: 'Delivery status could not be reconciled. Do not resend; ask an administrator to inspect the outbound journal.' });
+          }
+
+          await traceEmail(env.DB, {
+            message_id_header: result.messageIdHeader || null,
+            provider_message_ids: result.providerMessageIds || (result.messageId ? [result.messageId] : []),
+            failed_recipients: result.permanentBounces || [],
+            direction: 'outbound',
+            envelope_from: journal.from_address,
+            envelope_to: validTraceRecipients(journal.envelope_recipients),
+            header_from: journal.from_address,
+            subject: journal.subject.slice(0, 256),
+            size_bytes: journal.provider_payload_bytes,
+            status: result.success ? 'sent' : result.permanentFailure ? 'bounced' : result.ambiguous ? 'deferred' : 'rejected',
+            status_detail: result.success
+              ? result.partial
+                ? `via ${result.provider}; permanent bounce: ${(result.permanentBounces || []).join(', ')}`
+                : `via ${result.provider}`
+              : result.error || `via ${result.provider}`,
+          }).catch(() => undefined);
+          journal = await getOutboundJournal(env.DB, journal.id);
+          if (!journal) return fail(503, { error: 'The provider result was recorded, but the outbound journal is temporarily unavailable.' });
+
+          if (resultState === 'ambiguous') {
+            await audit(env.DB, {
+              event_type: 'email.delivery_unknown',
+              actor_id: locals.user.id,
+              actor_role: locals.user.role,
+              target: journal.id,
+              detail: `Outbound provider ${journal.provider} delivery status is unknown`,
+            }).catch(() => undefined);
+            return fail(502, { error: 'Delivery status is unknown. Do not resend this message; ask an administrator to check the outbound journal.' });
+          }
+          if (resultState === 'permanent_failure') {
+            await cleanupTerminalJournal(env.DB, env.STORAGE, journal);
+            return fail(result.permanentBounces?.length ? 422 : 502, {
+              error: result.permanentBounces?.length
+                ? `The provider permanently rejected: ${result.permanentBounces.join(', ')}. Edit the recipients before sending again.`
+                : 'The outbound provider rejected this message. It was not delivered; review it and try again.',
+            });
+          }
+          if (resultState === 'retryable_failure') {
+            const cancelled = await cancelRetryableJournal(env.DB, journal.id).catch(() => false);
+            if (cancelled) {
+              await cleanupTerminalJournal(env.DB, env.STORAGE, { ...journal, state: 'cancelled' });
+            }
+            return fail(502, {
+              error: cancelled
+                ? 'The provider did not accept this message. Your draft was kept; review it and try again.'
+                : 'The provider did not accept this message, but cleanup is pending. Retry after D1 recovers.',
+            });
+          }
+        }
+      }
+      journal = await getOutboundJournal(env.DB, journal.id);
+    }
+
+    const journalAction = journal ? journalStateResponse(journal.state) : 'unknown';
+    if (journal && journalAction === 'materialize') {
+      try {
+        const partial = await completeAcceptedJournal(journal);
+        throw redirect(303, `/mail?folder=sent${partial ? '&delivery=partial' : ''}`);
+      } catch (caught) {
+        if (caught && typeof caught === 'object' && 'status' in caught && 'location' in caught) throw caught;
+        console.error('Accepted-send materialization failed', caught instanceof Error ? caught.message : String(caught));
+        return fail(503, {
+          error: 'The provider accepted this message, but its Sent copy is still being recovered. Retry this draft; cmail will not send it again.',
+        });
       }
     }
-
-    await audit(env.DB, {
-      event_type: 'email.sent',
-      actor_id: locals.user.id,
-      actor_role: locals.user.role,
-      target: messageId,
-      detail: `Sent to ${allRecipients.length} recipient(s); ${externalRecipients.length} external`,
-      session_id: locals.sessionId,
-    });
-    throw redirect(303, '/mail?folder=sent');
+    if (journalAction === 'unknown') {
+      return fail(502, { error: 'Delivery status is unknown. Do not resend this message; ask an administrator to check the outbound journal.' });
+    }
+    if (journalAction === 'retryable') {
+      return fail(502, { error: 'The provider did not accept this message. Retry the same staged copy or edit it to start a new attempt.' });
+    }
+    return fail(503, { error: 'The outbound send could not be completed. Your durable draft and send record are intact.' });
   },
 
   save: async ({ request, locals, platform }) => {
@@ -710,7 +1050,10 @@ export const actions: Actions = {
     const subject = stringValue(formData.get('subject')).slice(0, MAX_SUBJECT_LENGTH) || '(no subject)';
     const body = stringValue(formData.get('body'));
     const quotedHtml = stringValue(formData.get('quoted_html'));
-    const inReplyTo = safeMessageId(stringValue(formData.get('in_reply_to')));
+    const replySourceId = stringValue(formData.get('reply_source_id'));
+    let inReplyTo: string | null = null;
+    let referencesHeader: string | null = null;
+    const importance = normalizeMessageImportance(stringValue(formData.get('importance')));
     const existingDraftId = stringValue(formData.get('draft_id')) || null;
     const expectedDraftVersion = safeDraftVersion(formData.get('draft_version'));
     const draftCreateToken = stringValue(formData.get('draft_create_token'));
@@ -755,6 +1098,13 @@ export const actions: Actions = {
       }
     }
 
+    if (!existingDraftId && replySourceId) {
+      const threading = await replyThreadingForSource(env.DB, locals.user.id, replySourceId);
+      if (!threading) return fail(404, { error: 'The original message is no longer available for this reply. Reload the message and try again.' });
+      inReplyTo = threading.inReplyTo;
+      referencesHeader = threading.referencesHeader;
+    }
+
     const toRecipients = to.split(/[;,]/).map((address) => address.trim()).filter(Boolean).slice(0, 200);
     const ccRecipients = cc.split(/[;,]/).map((address) => address.trim()).filter(Boolean).slice(0, 200);
     const snippet = preparedBody.snippet;
@@ -774,7 +1124,7 @@ export const actions: Actions = {
 
     if (existingDraftId) {
       const existing = await env.DB.prepare(
-        `SELECT m.body_r2_key, m.mailbox_id, m.size_bytes, m.draft_version FROM messages m
+        `SELECT m.body_r2_key, m.mailbox_id, m.size_bytes, m.draft_version, m.in_reply_to, m.references_header FROM messages m
          INNER JOIN mailbox_assignments ma ON m.mailbox_id = ma.mailbox_id
          INNER JOIN mailboxes mb ON mb.id = m.mailbox_id
          WHERE m.id = ? AND ma.user_id = ? AND ma.permissions IN ('send-as', 'full')
@@ -782,9 +1132,11 @@ export const actions: Actions = {
       ).bind(existingDraftId, locals.user.id, locals.user.id).first<{
         body_r2_key: string | null;
         mailbox_id: string;
-        size_bytes: number;
-        draft_version: number;
-      }>();
+         size_bytes: number;
+         draft_version: number;
+         in_reply_to: string | null;
+         references_header: string | null;
+       }>();
       if (!existing) return fail(404, { error: 'Draft not found' });
       if (expectedDraftVersion === null) return fail(400, { error: 'The draft version is missing. Reload before saving.' });
       if (existing.draft_version !== expectedDraftVersion) {
@@ -793,6 +1145,9 @@ export const actions: Actions = {
           draftConflict: true,
         });
       }
+      // Threading metadata is immutable client-side once the draft exists.
+      inReplyTo = safeMessageId(existing.in_reply_to || '');
+      referencesHeader = safeReferences(existing.references_header || '');
       const reservationBytes = draftStorageReservationBytes(
         existing.mailbox_id,
         existing.size_bytes,
@@ -823,7 +1178,7 @@ export const actions: Actions = {
         databaseWriteAttempted = true;
         const updated = await env.DB.prepare(
           `UPDATE messages SET mailbox_id = ?, from_address = ?, to_addresses = ?, cc_addresses = ?,
-           subject = ?, snippet = ?, body_r2_key = ?, size_bytes = ?, in_reply_to = ?, received_at = ?,
+           subject = ?, snippet = ?, body_r2_key = ?, size_bytes = ?, importance = ?, in_reply_to = ?, references_header = ?, received_at = ?,
            draft_version = draft_version + 1
            WHERE id = ? AND folder = 'drafts' AND draft_owner_id = ? AND draft_version = ?`,
         ).bind(
@@ -833,9 +1188,11 @@ export const actions: Actions = {
           JSON.stringify(ccRecipients),
           subject,
           snippet,
-          key,
+           key,
            htmlBodyBytes,
+           importance,
            inReplyTo,
+           referencesHeader,
            savedAtDb,
            existingDraftId,
            locals.user.id,
@@ -939,11 +1296,11 @@ export const actions: Actions = {
       databaseWriteAttempted = true;
       await env.DB.prepare(
         `INSERT INTO messages
-         (id, mailbox_id, message_id_header, direction, from_address, to_addresses, cc_addresses, subject, snippet, body_r2_key, size_bytes, folder, draft_owner_id, draft_version, is_read, received_at, created_at, in_reply_to)
-         VALUES (?, ?, ?, 'outbound', ?, ?, ?, ?, ?, ?, ?, 'drafts', ?, 1, 1, ?, datetime('now'), ?)`,
+         (id, mailbox_id, message_id_header, direction, from_address, to_addresses, cc_addresses, subject, snippet, body_r2_key, size_bytes, folder, draft_owner_id, draft_version, is_read, importance, received_at, created_at, in_reply_to, references_header)
+         VALUES (?, ?, ?, 'outbound', ?, ?, ?, ?, ?, ?, ?, 'drafts', ?, 1, 1, ?, ?, datetime('now'), ?, ?)`,
       ).bind(
         draftId, mailbox.id, `<${draftId}@${domain}>`, from, JSON.stringify(toRecipients),
-        JSON.stringify(ccRecipients), subject, snippet, key, htmlBodyBytes, locals.user.id, savedAtDb, inReplyTo,
+        JSON.stringify(ccRecipients), subject, snippet, key, htmlBodyBytes, locals.user.id, importance, savedAtDb, inReplyTo, referencesHeader,
       ).run();
     } catch {
       if (!databaseWriteAttempted) {

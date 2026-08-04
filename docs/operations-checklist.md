@@ -1,6 +1,10 @@
 # Operations checklist
 
-Use this checklist for each environment. Adapt it to your organisation's change-management, privacy, retention, and incident-response requirements.
+Use this checklist for each environment. Adapt it to your organisation's
+change-management, privacy, retention, and incident-response requirements.
+Follow [Email authentication and sender requirements](email-authentication.md)
+for DNS validation, current receiver policies, and the explicit bulk-marketing
+boundary.
 
 ## Before a release
 
@@ -28,6 +32,17 @@ Use this checklist for each environment. Adapt it to your organisation's change-
 - [ ] Inbound byte/count/body-complexity limits and shared mailbox storage quota exercised at exact boundaries
 - [ ] Internal delivery tested
 - [ ] External outbound tested, when enabled
+- [ ] Outbound journal tested with a controlled failure before provider dispatch,
+      after provider acceptance, and during Sent/internal materialization; accepted
+      mail recovers without a second provider call
+- [ ] Email Worker deployed before Pages; private `EMAIL_SERVICE` binding reaches the intended environment, while its opaque tracking ID remains separate from the wire RFC `Message-ID`
+- [ ] Mixed local/external test delivers exactly once to each recipient and shows identical complete `To`/`Cc` roles internally and externally
+- [ ] Production, preview, and local D1/R2/Worker resources are distinct; preview has `OUTBOUND_PROVIDER=none`, no `send_email` binding, no public Worker URL or route, and no production secrets
+- [ ] Controlled received headers show `spf=pass`, `dkim=pass`, and aligned
+      `dmarc=pass` at each material receiver
+- [ ] MTA-STS policy fetch and TLS-RPT reporting verified, when enabled
+- [ ] Current Google, Yahoo, Microsoft, and other material receiver policies
+      and sender-volume classifications reviewed
 - [ ] Outbound auto/explicit provider selection and incomplete-provider fail-closed behavior tested
 - [ ] Cloudflare general-send 50-recipient and 5-MiB ceilings tested, when Cloudflare Email Service is enabled
 - [ ] Sent/internal copies and draft create/growth/move refuse over-quota writes before provider or R2 side effects
@@ -47,9 +62,18 @@ Use this checklist for each environment. Adapt it to your organisation's change-
 - [ ] Review pending/unbound users and resend only after confirming the intended identity
 - [ ] Review shared mailbox assignments and send-as/full permissions
 - [ ] Review audit and trace anomalies
+- [ ] Review **Admin → Mail trace → Delivery recovery**; reconcile every
+      `dispatching` or `ambiguous` send with the provider before taking action,
+      and allow `accepted` records to finish idempotent local materialization
 - [ ] Review mailbox reservation denials, D1/R2 growth, and orphan-object reconciliation results
 - [ ] Review bounces, complaints, and provider reputation signals
-- [ ] Review Cloudflare Email Sending quota, activity logs, token access, and preview setting, when enabled
+- [ ] Review DMARC aggregate reports, authentication drift, and unauthorised
+      senders; investigate every sustained failure
+- [ ] Review MTA-STS and TLS-RPT failures, certificate changes, and MX drift,
+      when enabled
+- [ ] Confirm message purpose and volume remain within cmail's non-bulk scope;
+      stop marketing or campaign use until the documented missing controls exist
+- [ ] Review Cloudflare Email Sending quota, activity logs, native/service bindings, optional REST-token access, and preview setting, when enabled
 - [ ] Confirm backups and perform scheduled restore exercises
 - [ ] Rotate secrets according to local policy
 - [ ] Remove expired OAuth credentials and administrator access
@@ -68,6 +92,14 @@ Use this checklist for each environment. Adapt it to your organisation's change-
 5. Notify the appropriate internal, provider, legal, and regulatory contacts.
 6. Restore service from a known-good state.
 7. Document root cause, impact, and corrective actions.
+
+For an unresolved outbound journal entry, preserve the journal row, targets,
+provider-result snapshot, audit records, and provider evidence. Never delete the
+row or release its reservations merely to make a retry possible. If the
+provider confirms acceptance, reconcile it as accepted and materialize the
+local copies; if it confirms non-acceptance, follow the documented terminal
+cancel path. If the outcome cannot be proven, retain the ambiguous tombstone
+and communicate with recipients rather than sending automatically again.
 
 Do not paste private messages, access tokens, OAuth secrets, or raw production exports into public issues.
 

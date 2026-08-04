@@ -3,6 +3,7 @@ import rehypeParse from 'rehype-parse';
 import rehypeSanitize from 'rehype-sanitize';
 import rehypeStringify from 'rehype-stringify';
 import { unified } from 'unified';
+import { assessLinkRisk, type LinkRisk } from './link-risk';
 
 const SAFE_STYLE_VALUE = /^(?!.*(?:url\s*\(|expression\s*\(|@import|-moz-binding|behavior\s*:))[^\u0000-\u001f\u007f<>{}\\]*$/i;
 const SAFE_STYLE_PROPERTIES = new Set([
@@ -118,7 +119,69 @@ function safeImage(value: unknown): string {
   }
 }
 
-function hardenElement(element: Element): void {
+/** Anchor text beyond this is prose, and prose makes no claim about a host. */
+const MAX_ANCHOR_TEXT = 256;
+
+export interface RiskyLink {
+  /** The true destination, unchanged. */
+  href: string;
+  host: string;
+  risk: LinkRisk;
+}
+
+interface LinkGuard {
+  /**
+   * Absolute URL of the warning page. When set, a flagged link is redirected
+   * through it so the reader sees the real destination before leaving. Links
+   * that are not flagged keep their original href, so ordinary mail behaves
+   * exactly as it did and "copy link address" stays honest.
+   */
+  interstitialUrl: string;
+  found: RiskyLink[];
+}
+
+/** Caps the query we build, so a hostile href cannot produce an absurd URL. */
+const MAX_INTERSTITIAL_HREF = 2048;
+
+function annotateLink(element: Element, href: string, guard: LinkGuard | null): void {
+  const assessment = assessLinkRisk(href, anchorText(element));
+  if (!assessment.risk) return;
+
+  element.properties.dataCmailLinkRisk = assessment.risk;
+  element.properties.dataCmailLinkHost = assessment.host;
+  if (!guard) return;
+
+  guard.found.push({ href, host: assessment.host, risk: assessment.risk });
+  if (href.length > MAX_INTERSTITIAL_HREF) return;
+  try {
+    const warning = new URL(guard.interstitialUrl);
+    warning.searchParams.set('u', href);
+    warning.searchParams.set('r', assessment.risk);
+    element.properties.href = warning.toString();
+  } catch {
+    // An unusable interstitial base leaves the original href in place. The
+    // annotation still marks the link, so the reader is not left unwarned.
+  }
+}
+
+/**
+ * Visible text of an anchor, bounded. Only text nodes count — `alt` text is
+ * deliberately excluded, because an image's alt attribute is not what the
+ * reader sees and cannot mislead them about a destination.
+ */
+function anchorText(element: Element): string {
+  let text = '';
+  const pending: RootContent[] = [...element.children];
+  while (pending.length && text.length <= MAX_ANCHOR_TEXT) {
+    const node = pending.shift();
+    if (!node) break;
+    if (node.type === 'text') text += node.value;
+    else if (node.type === 'element') pending.unshift(...node.children);
+  }
+  return text.slice(0, MAX_ANCHOR_TEXT);
+}
+
+function hardenElement(element: Element, guard: LinkGuard | null): void {
   const properties = element.properties;
   const style = sanitizeStyle(properties.style);
   if (style) properties.style = style;
@@ -130,6 +193,11 @@ function hardenElement(element: Element): void {
     else delete properties.href;
     properties.target = '_blank';
     properties.rel = ['noopener', 'noreferrer', 'nofollow'];
+    // Stale annotations from an earlier pass are never trusted; the schema
+    // strips them on re-sanitize, and this removes any that survive parsing.
+    delete properties.dataCmailLinkRisk;
+    delete properties.dataCmailLinkHost;
+    if (href) annotateLink(element, href, guard);
   }
 
   if (element.tagName === 'img') {
@@ -197,6 +265,7 @@ function sanitizeTree(value: string): Root {
 function inspectAndHardenTree(
   root: Root,
   limits: EmailHtmlComplexityLimits | null,
+  guard: LinkGuard | null = null,
 ): BoundedEmailHtmlResult | null {
   let elements = 0;
   const pending: Array<{ node: Root | RootContent; depth: number }> = [{ node: root, depth: 0 }];
@@ -209,7 +278,7 @@ function inspectAndHardenTree(
       elements += 1;
       if (limits && elements > limits.maxElements) return { ok: false, reason: 'elements' };
       if (limits && depth > limits.maxDepth) return { ok: false, reason: 'depth' };
-      hardenElement(node);
+      hardenElement(node, guard);
     }
     if ('children' in node) {
       for (let index = node.children.length - 1; index >= 0; index -= 1) {
@@ -229,6 +298,23 @@ export function sanitizeEmailHtml(value: string): string {
   const tree = sanitizeTree(value);
   inspectAndHardenTree(tree, null);
   return stringifyTree(tree);
+}
+
+/**
+ * Sanitizes, and additionally routes links that look like phishing through a
+ * warning page. Returns the findings so a caller can summarise them above the
+ * message — a reader who is told the message contains a disguised link before
+ * they start reading is in a much better position than one who is warned only
+ * after clicking.
+ */
+export function sanitizeEmailHtmlWithLinkGuard(
+  value: string,
+  interstitialUrl: string,
+): { html: string; riskyLinks: RiskyLink[] } {
+  const guard: LinkGuard = { interstitialUrl, found: [] };
+  const tree = sanitizeTree(value);
+  inspectAndHardenTree(tree, null, guard);
+  return { html: stringifyTree(tree), riskyLinks: guard.found };
 }
 
 /** Checks cheap byte/tag/depth ceilings before invoking the HTML parser. */

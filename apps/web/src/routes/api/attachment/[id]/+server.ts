@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { canRenderAttachmentInline } from '$lib/server/inline-images';
 
 const SAFE_CONTENT_TYPE_RX = /^[\w.+/-]+(?:;\s*[\w.+/-]+=[\w.+/"-]+)*$/;
 
@@ -8,7 +9,7 @@ function safeContentType(t: string | null | undefined): string {
   return SAFE_CONTENT_TYPE_RX.test(t) ? t : 'application/octet-stream';
 }
 
-function buildContentDisposition(filename: string): string {
+function buildContentDisposition(filename: string, disposition: 'attachment' | 'inline' = 'attachment'): string {
   // Strip control chars + path separators that could enable header injection or
   // path traversal hints in clients.
   const sanitized = filename.replace(/[\x00-\x1f\x7f"\\/]/g, '_').slice(0, 255) || 'download';
@@ -17,10 +18,10 @@ function buildContentDisposition(filename: string): string {
   const encoded = encodeURIComponent(sanitized).replace(/[!'()*]/g, (character) =>
     `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
   );
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+  return `${disposition}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
-export const GET: RequestHandler = async ({ locals, platform, params }) => {
+export const GET: RequestHandler = async ({ locals, platform, params, url }) => {
   if (!locals.user) throw error(401);
   const env = platform?.env;
   if (!env) throw error(500);
@@ -35,20 +36,26 @@ export const GET: RequestHandler = async ({ locals, platform, params }) => {
        AND (m.draft_owner_id IS NULL OR m.draft_owner_id = ?)`,
   ).bind(params.id, locals.user.id, locals.user.id).first<{
     id: string; filename: string; content_type: string; r2_key: string; size_bytes: number;
+    content_id: string | null; disposition: 'attachment' | 'inline';
   }>();
 
   if (!att) throw error(404, 'Attachment not found');
 
   const object = await env.STORAGE.get(att.r2_key);
   if (!object) throw error(404, 'File not found');
+  const inline = url.searchParams.get('inline') === '1';
+  if (inline && (!att.content_id || att.disposition !== 'inline' || !canRenderAttachmentInline(att.content_type))) {
+    throw error(404, 'Inline image not found');
+  }
 
   return new Response(object.body as ReadableStream, {
     headers: {
       'Content-Type': safeContentType(att.content_type),
-      'Content-Disposition': buildContentDisposition(att.filename),
+      'Content-Disposition': buildContentDisposition(att.filename, inline ? 'inline' : 'attachment'),
       'Content-Length': object.size.toString(),
       'Cache-Control': 'private, no-store',
       'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'; sandbox",
     },
   });
 };

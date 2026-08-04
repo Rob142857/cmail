@@ -20,6 +20,12 @@ migrations_dir = "../../packages/shared/migrations"
 binding = "STORAGE"
 bucket_name = "cmail-storage"
 
+# Private outbound path. Deploy cmail-email-worker first; it owns the native
+# Email Service send binding and is not exposed on workers.dev.
+[[services]]
+binding = "EMAIL_SERVICE"
+service = "cmail-email-worker"
+
 # Public, non-secret variables. Override per environment as needed.
 # Anything sensitive (OAuth secrets, SESSION_SECRET, outbound API tokens, etc.)
 # MUST go via `wrangler pages secret put <NAME>` — never commit them here.
@@ -50,8 +56,8 @@ BRAND_PRIMARY_COLOR = "#0078d4"
 LOCALE = "en"
 TIME_ZONE = "UTC"
 OUTBOUND_PROVIDER = "cloudflare"
-# Non-secret account identifier used only when Cloudflare Email Service is
-# selected. Store CLOUDFLARE_EMAIL_API_TOKEN as a Pages secret.
+# Optional REST fallback for local/non-service-binding environments. Production
+# Cloudflare deployments should use EMAIL_SERVICE above and leave these blank.
 CLOUDFLARE_ACCOUNT_ID = ""
 MAX_RECIPIENTS_PER_MESSAGE = "50"
 OUTBOUND_RATE_LIMIT_PER_HOUR = "60"
@@ -77,10 +83,67 @@ VAPID_SUBJECT = ""
 # Comma-separated additions to the built-in browser push-service host list.
 PUSH_ENDPOINT_HOSTS = ""
 
-# SESSION_SECRET is mandatory at runtime. OAuth and outbound-provider secrets,
-# including CLOUDFLARE_EMAIL_API_TOKEN and POSTMARK_API_KEY,
-# are optional groups, so keep all sensitive values in Pages secrets or the
+# SESSION_SECRET is mandatory at runtime. OAuth and optional outbound-provider
+# secrets, including the REST-fallback CLOUDFLARE_EMAIL_API_TOKEN and
+# POSTMARK_API_KEY, are optional groups, so keep sensitive values in Pages secrets or the
 # ignored local .dev.vars rather than declaring an incomplete required list.
 # First-run bootstrap additionally requires BOOTSTRAP_ADMIN_EMAIL and a strong,
 # distinct BOOTSTRAP_ADMIN_TOKEN. Set both as Pages secrets, complete /bootstrap,
 # then delete both secrets immediately.
+
+# Preview deployments must never inherit production mail, storage, or sending.
+# Create isolated preview resources, deploy the email Worker's preview
+# environment, and set preview OAuth/session/bootstrap secrets separately in
+# the Pages dashboard. OUTBOUND_PROVIDER remains disabled here by design.
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "cmail-db-preview"
+database_id = "YOUR_PREVIEW_D1_DATABASE_ID"
+migrations_dir = "../../packages/shared/migrations"
+
+[[env.preview.r2_buckets]]
+binding = "STORAGE"
+bucket_name = "cmail-storage-preview"
+
+[[env.preview.services]]
+binding = "EMAIL_SERVICE"
+service = "cmail-email-worker-preview"
+
+[env.preview.vars]
+APP_NAME = "cmail preview"
+MAIL_DOMAIN = "preview.example.com"
+APP_URL = "https://preview.example.pages.dev"
+MICROSOFT_TENANT_ID = "common"
+ORG_NAME = "Your Organisation (preview)"
+ORG_SHORT_NAME = "Your Org Preview"
+ORG_URL = "https://example.com"
+SUPPORT_EMAIL = "desk@example.com"
+LANDING_URL = "https://preview.example.pages.dev"
+POLICY_URL = "https://preview.example.pages.dev/policy"
+REPO_URL = "https://github.com/Rob142857/cmail"
+SYSTEM_EMAIL = "noreply@preview.example.com"
+SYSTEM_FROM_NAME = "Your Org Mail Preview"
+BRAND_LOGO_URL = "/logo.svg"
+BRAND_ICON_URL = "/icon.svg"
+BRAND_ICON_192_URL = "/icon-192.png"
+BRAND_ICON_512_URL = "/icon-512.png"
+BRAND_OG_IMAGE_URL = "/og-image.svg"
+BRAND_PRIMARY_COLOR = "#2563eb"
+LOCALE = "en"
+TIME_ZONE = "UTC"
+OUTBOUND_PROVIDER = "none"
+CLOUDFLARE_ACCOUNT_ID = ""
+MAX_RECIPIENTS_PER_MESSAGE = "50"
+OUTBOUND_RATE_LIMIT_PER_HOUR = "60"
+OUTBOUND_WORK_LIMIT_PER_HOUR = "600"
+DRAFT_SAVE_RATE_PER_HOUR = "300"
+MAX_DRAFTS_PER_MAILBOX_USER = "100"
+SESSION_TTL_HOURS = "8"
+MAX_SESSIONS_PER_USER = "5"
+INBOUND_MAILBOX_MESSAGES_PER_HOUR = "120"
+INBOUND_MAILBOX_BYTES_PER_HOUR = "104857600"
+INBOUND_SENDER_MESSAGES_PER_HOUR = "30"
+MAILBOX_STORAGE_QUOTA_BYTES = "1073741824"
+VAPID_PUBLIC_KEY = ""
+VAPID_SUBJECT = ""
+PUSH_ENDPOINT_HOSTS = ""

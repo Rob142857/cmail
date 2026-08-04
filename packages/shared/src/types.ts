@@ -68,6 +68,7 @@ export interface MailboxAssignment {
 // ─── Message ──────────────────────────────────────────────
 export type MessageDirection = 'inbound' | 'outbound' | 'internal';
 export type Folder = 'inbox' | 'sent' | 'drafts' | 'archive' | 'spam' | 'trash';
+export type MessageImportance = 'low' | 'normal' | 'high';
 
 export interface Message {
   id: string;
@@ -87,8 +88,18 @@ export interface Message {
   draft_version: number;
   is_read: number;
   is_starred: number;
+  importance: MessageImportance;
   in_reply_to: string | null;
+  references_header: string | null;
+  reply_to_addresses: string;
+  /** JSON array of provider tracking identifiers; they are not RFC Message-IDs. */
+  provider_message_ids: string;
+  failed_recipients: string;
   thread_id: string | null;
+  /** Spam score reported by the receiving boundary; null when none was given. */
+  spam_score: number | null;
+  /** 1 when the mailbox had no prior correspondence with the sender. */
+  sender_first_contact: number;
   received_at: string;
   created_at: string;
 }
@@ -101,6 +112,8 @@ export interface Attachment {
   content_type: string;
   size_bytes: number;
   r2_key: string;
+  content_id: string | null;
+  disposition: 'attachment' | 'inline';
 }
 
 // ─── Policy ───────────────────────────────────────────────
@@ -149,6 +162,8 @@ export interface AuditRecord {
 export interface MailTrace {
   trace_id: string;
   message_id_header: string | null;
+  provider_message_ids: string;
+  failed_recipients: string;
   direction: 'inbound' | 'outbound';
   timestamp: string;
   envelope_from: string | null;
@@ -233,6 +248,8 @@ export interface Env {
 
   // Outbound — optional explicit selection; "auto" uses the first complete configuration
   OUTBOUND_PROVIDER?: string;
+  /** Recommended Cloudflare path: private Pages-to-Worker service binding. */
+  EMAIL_SERVICE?: Fetcher;
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_EMAIL_API_TOKEN?: string;
   POSTMARK_API_KEY?: string;

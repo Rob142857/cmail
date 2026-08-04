@@ -46,6 +46,23 @@
     if (s === 'quarantined') return 'var(--warning)';
     return 'var(--text-muted)';
   }
+
+  function storedList(value) {
+    try {
+      const parsed = JSON.parse(value || '[]');
+      return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function journalStateLabel(state) {
+    if (state === 'accepted') return 'Accepted · storing copies';
+    if (state === 'dispatching') return 'Dispatch outcome pending';
+    if (state === 'ambiguous') return 'Delivery unknown · do not retry';
+    if (state === 'retryable_failure') return 'Not accepted · safe to retry';
+    return 'Staged · provider not contacted';
+  }
 </script>
 
 <section aria-labelledby="trace-heading">
@@ -53,6 +70,37 @@
     <div><p class="eyebrow">Mail</p><h1 id="trace-heading">Mail trace</h1></div>
     <span class="total-badge">{data.total} event{data.total !== 1 ? 's' : ''}</span>
   </div>
+
+  {#if data.outboundJournalTotal > 0}
+    <section class="journal-alert" aria-labelledby="journal-alert-heading">
+      <div class="journal-alert-head">
+        <div>
+          <p class="eyebrow">Delivery recovery</p>
+          <h2 id="journal-alert-heading">{data.outboundJournalTotal} unresolved outbound {data.outboundJournalTotal === 1 ? 'send' : 'sends'}</h2>
+        </div>
+        <span>Provider calls are never repeated when the outcome is unknown.</span>
+      </div>
+      <div class="journal-list">
+        {#each data.outboundJournals as journal}
+          <article>
+            <div class="journal-main">
+              <strong>{journal.subject || '(no subject)'}</strong>
+              <span>{journal.from_address} → {storedList(journal.envelope_recipients).join(', ') || 'internal recipients'}</span>
+            </div>
+            <div class="journal-state" class:journal-danger={journal.state === 'ambiguous' || journal.state === 'dispatching'}>
+              <strong>{journalStateLabel(journal.state)}</strong>
+              <span>{journal.provider} · updated {formatDateTime(journal.updated_at)}</span>
+              {#if journal.last_error}<span>{journal.last_error}</span>{/if}
+              <code>{journal.id}</code>
+            </div>
+          </article>
+        {/each}
+      </div>
+      {#if data.outboundJournalTotal > data.outboundJournals.length}
+        <p class="journal-more">Showing the 20 most recently updated records. Query D1 for the complete recovery queue.</p>
+      {/if}
+    </section>
+  {/if}
 
   <!-- Filters -->
   <form method="GET" class="filters">
@@ -190,6 +238,16 @@
             <dd class="mono break">{selected.message_id_header}</dd>
           {/if}
 
+          {#if storedList(selected.provider_message_ids).length}
+            <dt>Provider IDs</dt>
+            <dd class="mono break">{storedList(selected.provider_message_ids).join(', ')}</dd>
+          {/if}
+
+          {#if storedList(selected.failed_recipients).length}
+            <dt>Failed recipients</dt>
+            <dd>{storedList(selected.failed_recipients).join(', ')}</dd>
+          {/if}
+
           {#if selected.size_bytes}
             <dt>Size</dt>
             <dd>{(selected.size_bytes / 1024).toFixed(1)} KB</dd>
@@ -241,6 +299,18 @@
   .filters {
     display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: end;
   }
+  .journal-alert { margin-bottom:16px; padding:14px; border:1px solid color-mix(in srgb, var(--warning) 38%, var(--border)); border-radius:var(--radius); background:var(--warning-soft); }
+  .journal-alert-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+  .journal-alert-head h2 { margin:2px 0 0; font-size:17px; }
+  .journal-alert-head > span { max-width:52ch; color:var(--text-muted); font-size:12px; line-height:1.5; text-align:right; }
+  .journal-list { display:grid; gap:7px; margin-top:12px; }
+  .journal-list article { display:grid; grid-template-columns:minmax(0, 1fr) minmax(230px, .75fr); gap:18px; padding:10px 12px; border:1px solid color-mix(in srgb, var(--warning) 25%, var(--border)); border-radius:var(--radius-sm); background:var(--bg-surface); }
+  .journal-main, .journal-state { display:flex; min-width:0; flex-direction:column; gap:3px; }
+  .journal-main span, .journal-state span, .journal-more { color:var(--text-muted); font-size:11px; overflow-wrap:anywhere; }
+  .journal-state strong { color:var(--warning); font-size:12px; }
+  .journal-state.journal-danger strong { color:var(--danger); }
+  .journal-state code { color:var(--text-muted); font-size:10px; overflow-wrap:anywhere; }
+  .journal-more { margin:9px 2px 0; }
   .filters label { display: grid; gap: 4px; color: var(--text-muted); font-size: 11px; font-weight: 650; }
   .search-field { flex: 1; min-width: 220px; }
   .search-input { width: 100%; }
@@ -313,5 +383,11 @@
   .auth-tag {
     display: inline-block; font-size: 12px; padding: 1px 8px; margin: 2px 4px 2px 0;
     border-radius: 10px; background: var(--bg-hover); font-family: monospace;
+  }
+
+  @media (max-width: 720px) {
+    .journal-alert-head { flex-direction:column; }
+    .journal-alert-head > span { text-align:left; }
+    .journal-list article { grid-template-columns:1fr; gap:8px; }
   }
 </style>

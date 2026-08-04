@@ -21,12 +21,12 @@ Choose these values before creating resources:
 | Setting | Example | Purpose |
 |---|---|---|
 | Pages project | `cmail-web` | Hosts the SvelteKit application |
-| Worker name | `cmail-email-worker` | Receives Cloudflare Email Routing events |
+| Worker name | `cmail-email-worker` | Receives Email Routing events and privately submits native Cloudflare outbound mail |
 | D1 database | `cmail-db` | Stores users, mailbox metadata, messages, audit, and trace data |
 | R2 bucket | `cmail-storage` | Stores message bodies and attachments |
 | `APP_URL` | `https://mail.example.org` | Public origin and OAuth callback base |
 | `MAIL_DOMAIN` | `example.org` | Domain used for mailbox addresses |
-| `OUTBOUND_PROVIDER` | `cloudflare` | Selects Cloudflare Email Service; `postmark` and `auto` are alternatives |
+| `OUTBOUND_PROVIDER` | `cloudflare` | Selects Cloudflare Email Service; `postmark`, `auto`, and non-sending `none` are alternatives |
 
 `APP_URL` and `MAIL_DOMAIN` can refer to different hostnames. OAuth callbacks always use `APP_URL`; email addresses use `MAIL_DOMAIN`.
 
@@ -54,10 +54,10 @@ pnpm d1:create
 pnpm r2:create
 ```
 
-Paste the returned D1 ID into both generated Wrangler files. The web
-application and inbound Worker must share the same D1 database and R2 bucket.
-The binding names must remain `DB` and `STORAGE` unless the application code is
-updated with them.
+Paste the returned D1 ID into both generated Wrangler files. Both applications
+share `DB` and `STORAGE`. Pages additionally uses the `EMAIL_SERVICE` service
+binding and the Worker owns the native `EMAIL` send binding; preserve all four
+binding names unless the application code is updated with them.
 
 ## Create local secret configuration
 
@@ -79,12 +79,15 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 Do not commit the output.
 
 Outbound delivery is optional during local setup. The committed
-`OUTBOUND_PROVIDER=cloudflare` default is recommended. Set `postmark` for the
+`OUTBOUND_PROVIDER=cloudflare` default is recommended. Use `none` for a
+deliberately non-sending local or preview environment. Set `postmark` for the
 alternative, or `auto` to select the first complete provider configuration in
 Cloudflare then Postmark order. An explicitly selected but incomplete provider
-fails closed. Cloudflare requires non-secret `CLOUDFLARE_ACCOUNT_ID` and secret
-`CLOUDFLARE_EMAIL_API_TOKEN`; put both in the ignored `.dev.vars` locally and
-store only the token as a Pages secret in production.
+fails closed. Production Cloudflare deployment uses the committed Worker's
+native `EMAIL` binding plus the Pages application's private `EMAIL_SERVICE`
+service binding and needs no outbound API token. To exercise the REST fallback
+locally, put `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_EMAIL_API_TOKEN` only in the
+ignored `.dev.vars`.
 
 Sender limiting is enabled by default. The generated Worker key is therefore
 required for local inbound processing; deleting or corrupting it makes the
@@ -164,13 +167,12 @@ prompt.
 
 ## Optional external outbound delivery
 
-Cloudflare Email Service is the recommended option, but cmail's current Pages
-runtime calls its REST API rather than using the Worker-only email
-binding. Email Sending is currently public beta on the Workers Paid plan. To
-try it, use a domain on Cloudflare DNS, onboard that domain under **Compute →
-Email Service → Email Sending**, and create an API token with **Email Sending:
-Edit**. Keep test messages within 50 combined recipients and 5 MiB including
-attachments.
+Cloudflare Email Service is the recommended option. Email Sending is currently
+public beta on the Workers Paid plan. Use a domain on Cloudflare DNS, onboard it
+under **Compute → Email Service → Email Sending**, deploy the email Worker with
+its native `EMAIL` binding, then deploy Pages with the private `EMAIL_SERVICE`
+service binding. No outbound API token is required for this path. Keep test
+messages within 50 combined recipients and 5 MiB including attachments.
 
 Review the sending domain's **Email preview** setting before using real content.
 Cloudflare enables preview for new sending domains, and while enabled the
@@ -179,9 +181,15 @@ about seven days. Disable it if your development data or privacy policy does not
 permit that retention.
 
 See [Outbound delivery](configuration.md#outbound-delivery) for provider
-selection, production secret placement, REST and Worker-binding differences,
-and official Cloudflare references. Email Routing remains a separate inbound
-configuration and does not change with the outbound choice.
+selection, binding setup, provider-versus-wire identifier handling,
+mixed-recipient delivery, and official Cloudflare references. Email Routing
+remains a separate inbound configuration and does not change with the outbound
+choice.
+
+Before enabling branch previews, create the isolated preview D1, R2, and Worker
+resources described in [Deployment and verification](deployment.md#isolate-preview-deployments).
+The committed preview shape is non-sending by default and must never inherit
+production mail data, routing, or secrets.
 
 ## Start the applications
 
@@ -189,7 +197,7 @@ configuration and does not change with the outbound choice.
 pnpm dev
 ```
 
-To work on the inbound Worker separately:
+To work on the email Worker's inbound and native-outbound paths separately:
 
 ```sh
 pnpm dev:worker

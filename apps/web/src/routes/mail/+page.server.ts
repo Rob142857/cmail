@@ -71,6 +71,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
     search,
     page,
     hasMore,
+    partialDelivery: folder === 'sent' && url.searchParams.get('delivery') === 'partial',
     mailboxId: currentMailbox ? mailboxId : null,
     currentMailbox,
   };

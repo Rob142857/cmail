@@ -5,6 +5,9 @@
 
 name = "cmail-email-worker"
 main = "src/index.ts"
+workers_dev = false
+preview_urls = false
+routes = []
 compatibility_date = "2026-08-01"
 compatibility_flags = ["nodejs_compat"]
 
@@ -19,6 +22,11 @@ migrations_dir = "../../packages/shared/migrations"
 [[r2_buckets]]
 binding = "STORAGE"
 bucket_name = "cmail-storage"
+
+# Native Cloudflare Email Service sending. Pages reaches this Worker through
+# the private EMAIL_SERVICE service binding; no outbound API token is required.
+[[send_email]]
+name = "EMAIL"
 
 [vars]
 # authserv-id of the trusted boundary MTA that stamps Authentication-Results on
@@ -43,6 +51,14 @@ MAILBOX_STORAGE_QUOTA_BYTES = "1073741824"
 # retention_config rows and explicitly changes this value to "true".
 RETENTION_JOBS_ENABLED = "false"
 
+# Spam score at or above which inbound mail is filed into Junk instead of the
+# inbox. Cloudflare Email Routing reports a score on X-CF-SpamH-Score but does
+# not document its scale, so leave this blank at first: every score is recorded
+# in mail_trace regardless. Watch real traffic in Management → Mail trace, then
+# set a threshold you have actually seen separate junk from legitimate mail.
+# Blank, or any value that is not a number, means never quarantine.
+SPAM_QUARANTINE_SCORE = ""
+
 # Optional PWA new-mail notifications. Match the Pages VAPID configuration.
 # Store VAPID_PRIVATE_KEY with `wrangler secret put`, never in this file.
 VAPID_PUBLIC_KEY = ""
@@ -55,3 +71,37 @@ crons = ["17 3 * * *"]
 
 # Email Routing — configure a catch-all in the Cloudflare dashboard
 # pointing all inbound mail at this worker.
+
+# Isolated, non-sending target for Pages preview deployments. It deliberately
+# has no native send_email binding. Configure preview Email Routing only when
+# using a separate test domain; never route production mail here.
+[env.preview]
+name = "cmail-email-worker-preview"
+workers_dev = false
+preview_urls = false
+routes = []
+send_email = []
+
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "cmail-db-preview"
+database_id = "YOUR_PREVIEW_D1_DATABASE_ID"
+migrations_dir = "../../packages/shared/migrations"
+
+[[env.preview.r2_buckets]]
+binding = "STORAGE"
+bucket_name = "cmail-storage-preview"
+
+[env.preview.vars]
+MAX_INBOUND_BYTES = "10485760"
+MAX_INBOUND_DECODED_BODY_BYTES = "524288"
+MAX_ATTACHMENTS_PER_MESSAGE = "25"
+INBOUND_MAILBOX_MESSAGES_PER_HOUR = "120"
+INBOUND_MAILBOX_BYTES_PER_HOUR = "104857600"
+INBOUND_SENDER_MESSAGES_PER_HOUR = "30"
+MAILBOX_STORAGE_QUOTA_BYTES = "1073741824"
+VAPID_PUBLIC_KEY = ""
+VAPID_SUBJECT = ""
+APP_NAME = "cmail preview"
+PUSH_ENDPOINT_HOSTS = ""
+RETENTION_JOBS_ENABLED = "false"

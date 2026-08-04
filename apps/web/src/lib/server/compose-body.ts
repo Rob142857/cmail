@@ -63,7 +63,9 @@ function sanitizeQuote(value: string): { ok: true; html: string } | { ok: false;
   if (!result.ok) return { ok: false, reason: result.reason };
   // Quoted tracking pixels must not phone home when the new recipient opens a
   // reply/forward. The shared sanitizer emits canonical double-quoted attrs.
-  const withoutRemoteImages = result.html.replace(/\s+src="https:[^"]*"/gi, '');
+  // cid: sources belong to attachments on the original message and cannot be
+  // forwarded safely without rebuilding a multipart/related MIME tree.
+  const withoutRemoteImages = result.html.replace(/\s+src="(?:https:|cid:)[^"]*"/gi, '');
   return { ok: true, html: withoutRemoteImages };
 }
 

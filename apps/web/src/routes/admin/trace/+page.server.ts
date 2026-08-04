@@ -5,7 +5,7 @@ const VALID_PAGE_SIZES = [20, 50, 100];
 
 export const load: PageServerLoad = async ({ platform, url }) => {
   const env = platform?.env;
-  if (!env) return { traces: [], total: 0, search: '', direction: '', status: '', page: 1, pageSize: 20 };
+  if (!env) return { traces: [], total: 0, outboundJournals: [], outboundJournalTotal: 0, search: '', direction: '', status: '', page: 1, pageSize: 20 };
 
   const search = url.searchParams.get('q') || '';
   const direction = url.searchParams.get('direction') || '';
@@ -24,9 +24,9 @@ export const load: PageServerLoad = async ({ platform, url }) => {
     if (search) {
       const term = `%${search}%`;
       conditions.push(
-        '(envelope_from LIKE ? OR envelope_to LIKE ? OR header_from LIKE ? OR subject LIKE ? OR message_id_header LIKE ? OR status_detail LIKE ? OR source_ip LIKE ?)',
+        '(envelope_from LIKE ? OR envelope_to LIKE ? OR header_from LIKE ? OR subject LIKE ? OR message_id_header LIKE ? OR provider_message_ids LIKE ? OR failed_recipients LIKE ? OR status_detail LIKE ? OR source_ip LIKE ?)',
       );
-      binds.push(term, term, term, term, term, term, term);
+      binds.push(term, term, term, term, term, term, term, term, term);
     }
 
     if (direction && ['inbound', 'outbound'].includes(direction)) {
@@ -50,10 +50,34 @@ export const load: PageServerLoad = async ({ platform, url }) => {
     const traces = await env.DB.prepare(
       `SELECT * FROM mail_trace ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
     ).bind(...binds, pageSize, offset).all<MailTrace>();
+    const outboundJournalCount = await env.DB.prepare(
+      `SELECT COUNT(*) AS total FROM outbound_send_journal
+       WHERE state IN ('pending', 'dispatching', 'accepted', 'ambiguous', 'retryable_failure')`,
+    ).first<{ total: number }>();
+    const outboundJournals = await env.DB.prepare(
+      `SELECT id, state, provider, from_address, envelope_recipients, subject,
+              attempt_count, last_error, created_at, updated_at
+       FROM outbound_send_journal
+       WHERE state IN ('pending', 'dispatching', 'accepted', 'ambiguous', 'retryable_failure')
+       ORDER BY updated_at DESC LIMIT 20`,
+    ).all<{
+      id: string;
+      state: string;
+      provider: string;
+      from_address: string;
+      envelope_recipients: string;
+      subject: string;
+      attempt_count: number;
+      last_error: string | null;
+      created_at: string;
+      updated_at: string;
+    }>();
 
     return {
       traces: traces.results || [],
       total,
+      outboundJournals: outboundJournals.results || [],
+      outboundJournalTotal: outboundJournalCount?.total || 0,
       search,
       direction,
       status,
@@ -62,6 +86,6 @@ export const load: PageServerLoad = async ({ platform, url }) => {
     };
   } catch (e) {
     console.error('Failed to load mail traces:', e);
-    return { traces: [], total: 0, search, direction, status, page, pageSize, error: `Failed to load traces: ${(e as Error).message}` };
+    return { traces: [], total: 0, outboundJournals: [], outboundJournalTotal: 0, search, direction, status, page, pageSize, error: `Failed to load traces: ${(e as Error).message}` };
   }
 };

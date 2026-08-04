@@ -2,6 +2,29 @@
 
 This guide describes a production deployment to Cloudflare. Provider interfaces and commands can change; confirm current Cloudflare, Google, Microsoft, or Postmark documentation during rollout.
 
+## Guided repository import
+
+The official **Deploy to Cloudflare** button in the project README opens
+Cloudflare's repository-import flow. It is a guided starting point, not a
+one-click production deployment for the current architecture.
+
+cmail currently contains a SvelteKit Pages application and a separate email
+Worker that share workspace code, D1, and R2. The Worker receives routed mail
+and provides the private native outbound path. Cloudflare's
+[deployment-button documentation](https://developers.cloudflare.com/workers/platform/deploy-buttons/)
+states that buttons support Workers applications only, do not support Pages,
+do not fully support shared-dependency monorepos, and cannot deploy multiple
+Worker applications together. The button also does not configure OAuth app
+registrations, production secrets, Email Sending domain onboarding, Email
+Routing rules, a custom domain, or cmail's one-time bootstrap.
+
+Use the button only to begin importing the public repository. Complete every
+manual step in this guide before describing the environment as deployed. A
+future migration of the web application to
+[SvelteKit on Workers](https://developers.cloudflare.com/workers/framework-guides/web-apps/sveltekit/)
+could make more of the flow automatic, but the separate email Worker and
+provider setup would still need explicit handling.
+
 ## 1. Prepare a clean release
 
 - Work from a reviewed commit.
@@ -42,13 +65,50 @@ pnpm exec wrangler pages project create cmail-web --production-branch main
 
 If you choose another project name, use it consistently in deployment and secret commands.
 
+### Isolate preview deployments
+
+Pages preview builds must not inherit production mail data, storage, service
+bindings, or outbound capability. The committed Wrangler examples repeat every
+non-inheritable preview binding and variable deliberately; do not collapse those
+blocks into production defaults.
+
+1. Create a separate `cmail-db-preview` D1 database and
+   `cmail-storage-preview` R2 bucket. Put the preview database ID only in
+   `env.preview` in both ignored Wrangler files.
+2. Keep Pages preview bound to `cmail-email-worker-preview`. The Worker preview
+   environment has `workers_dev=false`, `preview_urls=false`, empty routes, and
+   no `send_email` binding. Its Pages variables keep
+   `OUTBOUND_PROVIDER="none"`.
+3. Apply and deploy the isolated preview resources:
+
+   ```sh
+   pnpm db:migrate:preview
+   pnpm deploy:email-worker:preview
+   ```
+
+4. In the Pages dashboard, create separate Preview values/secrets for session,
+   OAuth, bootstrap, and notification configuration. Use preview-only OAuth
+   clients and callback URLs; never copy production client secrets or bootstrap
+   capabilities into Preview.
+5. Do not point production Email Routing at the preview Worker. If inbound
+   preview testing is necessary, use a separate test domain and separate Worker
+   secrets. Protect preview URLs with Cloudflare Access or equivalent controls
+   and restrict which branches create previews.
+
+Before each deploy, inspect the resolved environment and confirm Preview names,
+IDs, and bindings cannot reach `cmail-db`, `cmail-storage`, the production email
+Worker, or an outbound provider.
+
 ## 3. Establish the final application origin
 
 Set `APP_NAME`, `MAIL_DOMAIN`, and an initial `APP_URL` in
 `apps/web/wrangler.toml`. The project origin is normally
-`https://<pages-project>.pages.dev`. Make a provider-free baseline deployment:
+`https://<pages-project>.pages.dev`. Because the Pages configuration references
+the private `EMAIL_SERVICE` binding, deploy the email Worker first, then make a
+provider-free baseline web deployment:
 
 ```sh
+pnpm deploy:email-worker
 pnpm deploy:web
 ```
 
@@ -87,8 +147,9 @@ pnpm exec wrangler pages secret put MICROSOFT_CLIENT_SECRET --project-name cmail
 ```
 
 A provider button is shown only when its own credentials, the shared
-`APP_URL`, and `SESSION_SECRET` are all ready. Add one outbound API key as a
-Pages secret only if external sending is required.
+`APP_URL`, and `SESSION_SECRET` are all ready. The default Cloudflare outbound
+path requires no Pages API token. Add an outbound secret only for Postmark or
+the optional Cloudflare REST fallback.
 
 cmail binds an account to the provider plus the immutable `sub` returned by
 UserInfo. Returning sign-in never selects a user by email, UPN, or ID-token
@@ -139,7 +200,7 @@ runtimes. See [Optional Web Push](configuration.md#optional-web-push).
 Cloudflare Email Service is the recommended and committed default; Postmark is
 the alternative. Verify the sending domain and configure a system sender
 accepted by that provider. `OUTBOUND_PROVIDER` accepts `cloudflare`, `postmark`,
-or `auto`. Auto mode uses the first complete configuration in Cloudflare →
+`auto`, or `none`. Auto mode uses the first complete configuration in Cloudflare →
 Postmark order. An explicit selection fails closed when its configuration is
 incomplete.
 
@@ -150,40 +211,52 @@ For Cloudflare Email Service:
 2. In **Compute → Email Service → Email Sending**, onboard the sending domain.
    Cloudflare DNS is required. Review the proposed `cf-bounce` MX, SPF, DKIM,
    and DMARC records before accepting them.
-3. Put `OUTBOUND_PROVIDER = "cloudflare"` and the non-secret
-   `CLOUDFLARE_ACCOUNT_ID` in `apps/web/wrangler.toml`.
-4. Create a Cloudflare API token limited to the intended account and **Email
-   Sending: Edit**, then store it as a Pages secret:
-
-   ```sh
-   pnpm exec wrangler pages secret put CLOUDFLARE_EMAIL_API_TOKEN --project-name cmail-web
-   ```
-
-5. Check the sending domain's **Email preview** setting. New sending domains
+3. Keep `OUTBOUND_PROVIDER = "cloudflare"`. In the email Worker configuration,
+   keep `[[send_email]]` named `EMAIL`, `workers_dev = false`,
+   `preview_urls = false`, and `routes = []`. In Pages, keep the private
+   `EMAIL_SERVICE` service binding pointed
+   at the same environment's email Worker.
+4. Check the sending domain's **Email preview** setting. New sending domains
    have it enabled automatically; while enabled, rendered HTML, text, headers,
    attachments, and raw source are retained for about seven days. Disable it if
    that content retention is not required and approved.
-6. Verify the account's daily quota and stage messages within Cloudflare's
+5. Verify the account's daily quota and stage messages within Cloudflare's
    general limit of 50 combined recipients and 5 MiB including attachments.
 
-cmail's current Pages deployment uses Cloudflare's REST API. Do not add the
-Worker-only `[[send_email]]` binding to the Pages configuration. A separate
-private outbound Worker plus Pages service binding is a possible downstream
-architecture when avoiding an application-held API token is worth the extra
-runtime. In that architecture, local Worker simulation does not support binary
-attachment buffers unless the email binding is remote; remote binding calls
-send real mail.
+Deploy the email Worker before Pages. Pages sends only a bounded request over
+the private service binding; the Worker calls its native Email Sending binding
+and returns an opaque Cloudflare tracking ID. That value is not the wire RFC
+`Message-ID`. Do not add `[[send_email]]` directly to the Pages configuration.
+
+For local or non-service-binding environments only, set the non-secret
+`CLOUDFLARE_ACCOUNT_ID` and store a narrowly scoped
+`CLOUDFLARE_EMAIL_API_TOKEN` with **Email Sending: Edit** as a Pages secret.
+That enables the REST fallback. Cloudflare's REST success response does not
+consistently show every optional field in narrative examples, but the generated
+API reference includes RFC-style `result.message_id`; cmail validates it when
+present. REST credentials also enable a single `send_raw` call for mixed
+local/external messages, keeping external envelope recipients separate from the
+complete visible To/Cc headers. Without those credentials, native Cloudflare or
+Postmark submits the complete recipient set once and local recipients return
+through Email Routing. Local Worker email bindings
+are simulated unless remote sending is explicitly enabled; remote calls send
+real mail.
 
 For Postmark, set `OUTBOUND_PROVIDER=postmark`, store `POSTMARK_API_KEY` as a
 Pages secret, and publish exactly the DNS records issued for your account.
 
-Start with a restrictive DMARC rollout appropriate to your existing mail flow. Changing MX, SPF, DKIM, or DMARC can affect other senders using the domain, so inventory them first.
+Begin DMARC at `p=none`, collect authorised aggregate reports, and verify
+alignment for every legitimate sender before deliberately advancing to
+`p=quarantine` and then `p=reject`. Do not use the historic `pct` tag for staged
+enforcement. Changing MX, SPF, DKIM, or DMARC can affect other senders using the
+domain, so inventory them first and follow [Email authentication and sender
+requirements](email-authentication.md).
 
 ## 7. Deploy applications
 
 ```sh
-pnpm deploy:web
 pnpm deploy:email-worker
+pnpm deploy:web
 ```
 
 The combined command is:
@@ -267,6 +340,9 @@ Complete at least these checks:
 - Blocked attachment extensions are rejected.
 - Internal delivery reaches each intended mailbox.
 - External outbound succeeds through the configured provider.
+- Native Cloudflare sends persist opaque provider tracking IDs separately from RFC `Message-ID` headers.
+- A REST test validates and persists `result.message_id` when present, and records it as unavailable rather than fabricating one when absent.
+- A mixed-recipient test preserves identical visible To/Cc roles externally and internally, sends each recipient exactly once, and exercises both the raw-REST and provider-loopback plans that the deployment will use.
 - Explicit outbound selection fails closed when that provider's required values are incomplete; auto selection follows the documented priority.
 - cmail rejects a staged Cloudflare message above either the 50-recipient or 5-MiB general-send limit before provider submission.
 - Provider failures are visible and do not appear as successful sends.
@@ -293,6 +369,13 @@ Complete at least these checks:
 ### DNS and operations
 
 - MX, SPF, DKIM, and DMARC results match the intended providers.
+- Controlled messages at every material receiver show `spf=pass`, `dkim=pass`,
+  and aligned `dmarc=pass` in received authentication results.
+- The deployment's current Google, Yahoo, Microsoft, and other material
+  receiver classifications and sender policies have been reviewed.
+- The accountable owner has confirmed cmail will not be used as a bulk-marketing
+  system without the missing consent, unsubscribe, suppression, reputation, and
+  compliance controls described in the authentication guide.
 - Cloudflare Email preview retention and dashboard access are approved or preview is disabled, when Cloudflare handles outbound delivery.
 - D1 and R2 backup/restore procedures have been exercised.
 - Monitoring covers provider errors, authentication anomalies, and mail-routing failures.
@@ -302,13 +385,19 @@ Do not use delivery to real recipients as the first production test. Use control
 
 ## Official platform references
 
+- [Use Deploy to Cloudflare buttons](https://developers.cloudflare.com/workers/platform/deploy-buttons/)
 - [Deploy SvelteKit to Cloudflare Pages](https://developers.cloudflare.com/pages/framework-guides/deploy-a-svelte-kit-site/)
 - [Configure Pages bindings and secrets](https://developers.cloudflare.com/pages/functions/bindings/)
 - [Apply Cloudflare D1 migrations](https://developers.cloudflare.com/d1/reference/migrations/)
 - [Route inbound mail to a Cloudflare Worker](https://developers.cloudflare.com/email-service/configuration/email-routing-addresses/)
 - [Onboard a Cloudflare Email Sending domain](https://developers.cloudflare.com/email-service/get-started/send-emails/)
-- [Use the Cloudflare Email Sending REST API](https://developers.cloudflare.com/email-service/api/send-emails/rest-api/)
+- [Configure a Cloudflare Email Sending binding](https://developers.cloudflare.com/email-service/configuration/send-bindings/)
+- [Use a Pages service binding](https://developers.cloudflare.com/pages/functions/bindings/#service-bindings)
+- [Use the Cloudflare Email Sending Workers API](https://developers.cloudflare.com/email-service/api/send-emails/workers-api/)
+- [Use the optional Cloudflare Email Sending REST fallback](https://developers.cloudflare.com/email-service/api/send-emails/rest-api/)
 - [Review Cloudflare Email Service limits](https://developers.cloudflare.com/email-service/platform/limits/)
+- [Review Cloudflare Email authentication](https://developers.cloudflare.com/email-service/concepts/email-authentication/)
+- [Configure and test Cloudflare MTA-STS](https://developers.cloudflare.com/email-service/configuration/mta-sts/)
 - [Review Cloudflare Email preview](https://developers.cloudflare.com/email-service/observability/logs/#message-preview)
 - [Configure Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect)
 - [Register a Microsoft Entra application](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app)

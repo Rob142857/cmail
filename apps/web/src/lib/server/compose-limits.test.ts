@@ -11,7 +11,7 @@ const MIB = 1024 * 1024;
 
 describe('compose workload guardrails', () => {
   it('charges at least one unit for every recipient', () => {
-    expect(calculateComposeWorkload(1024, 2048, 50, 0, 0)).toEqual({
+    expect(calculateComposeWorkload(1024, 2048, 50, 50, 0, 0, 0)).toEqual({
       deliveryBytes: 50 * 2048,
       persistedBytes: 1024,
       persistedObjects: 1,
@@ -20,11 +20,11 @@ describe('compose workload guardrails', () => {
   });
 
   it('weights larger payloads across all recipients', () => {
-    const workload = calculateComposeWorkload(5 * MIB, 6 * MIB, 10, 3, 2);
-    expect(workload.deliveryBytes).toBe(57 * MIB);
+    const workload = calculateComposeWorkload(5 * MIB, 6 * MIB, 10, 10, 0, 3, 2);
+    expect(workload.deliveryBytes).toBe(60 * MIB);
     expect(workload.persistedBytes).toBe(20 * MIB);
     expect(workload.persistedObjects).toBe(12);
-    expect(workload.workUnits).toBe(62);
+    expect(workload.workUnits).toBe(65);
   });
 
   it('exposes finite per-send caps for bytes and R2 writes', () => {
@@ -34,13 +34,23 @@ describe('compose workload guardrails', () => {
   });
 
   it('charges object-heavy internal fan-out even when files are tiny', () => {
-    expect(calculateComposeWorkload(100, 100, 5, 4, 24).workUnits).toBe(125);
+    expect(calculateComposeWorkload(100, 100, 5, 0, 4, 4, 24).workUnits).toBe(125);
+  });
+
+  it('charges mixed mail for provider fan-out and eventual local persistence', () => {
+    expect(calculateComposeWorkload(2 * MIB, 3 * MIB, 4, 4, 0, 2, 1)).toEqual({
+      deliveryBytes: 12 * MIB,
+      persistedBytes: 6 * MIB,
+      persistedObjects: 6,
+      workUnits: 14,
+    });
   });
 
   it('rejects inconsistent or unsafe inputs', () => {
-    expect(() => calculateComposeWorkload(1, 1, 0, 0, 0)).toThrow(RangeError);
-    expect(() => calculateComposeWorkload(1, 1, 1, 2, 0)).toThrow(RangeError);
-    expect(() => calculateComposeWorkload(Number.MAX_SAFE_INTEGER, 1, 2, 1, 0)).toThrow(RangeError);
+    expect(() => calculateComposeWorkload(1, 1, 0, 0, 0, 0, 0)).toThrow(RangeError);
+    expect(() => calculateComposeWorkload(1, 1, 1, 2, 0, 0, 0)).toThrow(RangeError);
+    expect(() => calculateComposeWorkload(1, 1, 1, 0, 1, 0, 0)).toThrow(RangeError);
+    expect(() => calculateComposeWorkload(Number.MAX_SAFE_INTEGER, 1, 2, 0, 1, 1, 0)).toThrow(RangeError);
   });
 
   it('reserves only a same-mailbox draft growth delta and the full size on a move', () => {

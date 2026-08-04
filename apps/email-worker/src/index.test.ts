@@ -9,12 +9,16 @@ import worker, {
   isInboundSizeAllowed,
   isValidEnvelopeAddress,
   messageBodyR2Key,
+  extractInboundSnippet,
+  normalizeMessageIdHeader,
+  normalizeReferencesHeader,
   normalizeEnvelopeAddress,
   prepareInboundBody,
   retentionDays,
   retentionEnabled,
   stableInboundId,
 } from './index';
+import { parseMessageImportance } from '@cmail/shared/message-importance';
 
 function routedMessage(overrides: Partial<{
   from: string;
@@ -69,6 +73,70 @@ async function invokeEmail(message: unknown, env: Record<string, unknown>): Prom
   };
   await handler.email(message, env, { waitUntil: vi.fn() });
 }
+
+async function invokeFetch(request: Request, env: Record<string, unknown>): Promise<Response> {
+  const handler = worker as unknown as {
+    fetch(value: Request, environment: Record<string, unknown>): Promise<Response>;
+  };
+  return handler.fetch(request, env);
+}
+
+describe('private outbound service binding', () => {
+  it('maps the bounded internal payload to the native Email Service binding', async () => {
+    const send = vi.fn().mockResolvedValue({ messageId: '<cloudflare-message@example.test>' });
+    const response = await invokeFetch(new Request('https://cmail-email-worker.internal/internal/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: { address: 'desk@example.test', name: 'Example Desk' },
+        to: ['recipient@example.net'],
+        subject: 'Hello',
+        html: '<p>Hello</p>',
+        text: 'Hello',
+        headers: { Importance: 'high', 'X-Priority': '1 (Highest)' },
+      }),
+    }), { EMAIL: { send } });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ success: true, messageId: '<cloudflare-message@example.test>' });
+    expect(send).toHaveBeenCalledWith({
+      from: { email: 'desk@example.test', name: 'Example Desk' },
+      to: ['recipient@example.net'],
+      subject: 'Hello',
+      html: '<p>Hello</p>',
+      text: 'Hello',
+      headers: { Importance: 'high', 'X-Priority': '1 (Highest)' },
+    });
+  });
+
+  it('fails closed for public-looking routes, invalid payloads, and absent bindings', async () => {
+    expect((await invokeFetch(new Request('https://worker.invalid/'), {})).status).toBe(404);
+    expect((await invokeFetch(new Request('https://worker.invalid/internal/send', { method: 'POST', body: '{}' }), { EMAIL: { send: vi.fn() } })).status).toBe(404);
+    expect((await invokeFetch(new Request('https://cmail-email-worker.internal/internal/send', { method: 'POST', body: '{}' }), {})).status).toBe(424);
+    const invalid = await invokeFetch(
+      new Request('https://cmail-email-worker.internal/internal/send', { method: 'POST', body: JSON.stringify({ to: ['bad'] }) }),
+      { EMAIL: { send: vi.fn() } },
+    );
+    expect(invalid.status).toBe(400);
+  });
+
+  it('treats delivery-stage failures as ambiguous after the provider may have accepted recipients', async () => {
+    const send = vi.fn().mockRejectedValue({ code: 'E_DELIVERY_FAILED' });
+    const response = await invokeFetch(new Request('https://cmail-email-worker.internal/internal/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: 'desk@example.test',
+        to: ['recipient@example.net'],
+        subject: 'Hello',
+        html: '<p>Hello</p>',
+      }),
+    }), { EMAIL: { send } });
+
+    expect(response.status).toBe(503);
+  });
+
+});
 
 describe('inbound size limits', () => {
   it('uses a safe default for absent or invalid configuration', () => {
@@ -141,6 +209,31 @@ describe('decoded body safety', () => {
 
     // Escaping must also fit the persisted-output ceiling.
     expect(prepareInboundBody(undefined, '&'.repeat(1_000), 1_100)).toEqual({ ok: false, reason: 'output_bytes' });
+  });
+
+  it('derives readable previews for HTML-only messages', () => {
+    expect(extractInboundSnippet(undefined, '<p>Hello &amp; welcome</p><div>Second line</div>'))
+      .toBe('Hello & welcome Second line');
+  });
+});
+
+describe('message interoperability headers', () => {
+  it('normalizes importance with deterministic precedence', () => {
+    expect(parseMessageImportance([{ key: 'Importance', value: 'High' }])).toBe('high');
+    expect(parseMessageImportance([{ key: 'X-Priority', value: '5 (Lowest)' }])).toBe('low');
+    expect(parseMessageImportance([{ key: 'Priority', value: 'urgent' }])).toBe('high');
+    expect(parseMessageImportance([
+      { key: 'Importance', value: 'normal' },
+      { key: 'X-MSMail-Priority', value: 'High' },
+    ])).toBe('normal');
+    expect(parseMessageImportance([{ key: 'Importance', value: 'high\r\nX-Evil: yes' }])).toBe('normal');
+  });
+
+  it('stores only bounded RFC-style Message-ID tokens and ancestry', () => {
+    expect(normalizeMessageIdHeader('comment <parent@example.test> ignored')).toBe('<parent@example.test>');
+    expect(normalizeMessageIdHeader('not-a-message-id')).toBeNull();
+    expect(normalizeReferencesHeader('<root@example.test> bad <parent@example.test>'))
+      .toBe('<root@example.test> <parent@example.test>');
   });
 });
 

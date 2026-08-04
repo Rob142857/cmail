@@ -269,6 +269,12 @@
     </div>
   </header>
 
+  {#if d.partialDelivery}
+    <p class="bulk-feedback error" role="alert">
+      The provider delivered or queued this message for some recipients, but permanently bounced at least one. Do not resend to the whole list; review provider activity and contact failed recipients separately.
+    </p>
+  {/if}
+
   {#if refreshStatus}
     <p class="refresh-feedback" class:error={refreshFailed} role={refreshFailed ? 'alert' : 'status'}>{refreshStatus}</p>
   {/if}
@@ -364,6 +370,11 @@
               </span>
               <span class="message-date">
                 <span class="indicators">
+                  {#if message.importance === 'high'}
+                    <span class="indicator importance-high" aria-label="High importance" title="High importance">!</span>
+                  {:else if message.importance === 'low'}
+                    <span class="indicator importance-low" aria-label="Low importance" title="Low importance">↓</span>
+                  {/if}
                   {#if message.is_starred}
                     <span class="indicator starred" aria-label="Starred">
                       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.8 2.8 5.7 6.3.9-4.6 4.4 1.1 6.2-5.6-2.9L6.4 20l1.1-6.2-4.6-4.4 6.3-.9L12 2.8Z" /></svg>
@@ -565,6 +576,10 @@
   }
   .indicators { display: inline-flex; align-items: center; gap: 4px; }
   .indicator { display: inline-flex; color: var(--text-muted); }
+  .indicator.importance-high,
+  .indicator.importance-low { align-items:center; justify-content:center; width:15px; height:15px; font-size:15px; font-weight:800; line-height:1; }
+  .indicator.importance-high { color:var(--danger); }
+  .indicator.importance-low { color:var(--primary); }
   .indicator.starred { color: var(--warning); }
   .indicator svg {
     width: 15px;

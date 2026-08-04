@@ -21,11 +21,24 @@
   <a href="SECURITY.md">Security</a>
 </p>
 
+<p align="center">
+  <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/Rob142857/cmail"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare"></a>
+</p>
+
+> [!IMPORTANT]
+> **Guided repository import, not one-click production deployment.** The
+> current cmail topology is a Cloudflare Pages application plus a separate
+> email Worker in a shared pnpm monorepo. Cloudflare's button supports Workers
+> applications, not Pages or multiple applications in one deployment. Use it
+> to begin the public-repository import, then complete the documented resource,
+> secret, DNS, routing, and bootstrap steps in [Deployment and
+> verification](docs/deployment.md#guided-repository-import).
+
 cmail is an open-source email application for organisations that want personal
 and shared mailboxes on a domain they control. It combines a SvelteKit web
 application with Cloudflare Email Routing, Workers, D1, and R2. External
-outbound delivery uses Cloudflare Email Service by default, with Postmark as an
-alternative.
+outbound delivery uses Cloudflare Email Service through a private Worker binding
+by default, with Postmark as an alternative.
 
 > [!IMPORTANT]
 > cmail is pre-1.0 software. Review the code and threat model for your environment, test recovery procedures, and complete the [security checklist](docs/security-checklist.md) before handling sensitive or production mail.
@@ -53,7 +66,10 @@ alternative.
 - Inbound delivery through Cloudflare Email Routing
 - External outbound delivery through Cloudflare Email Service or Postmark
 - Internal delivery between cmail mailboxes
-- Drafts, attachments, reply/forward, search, bulk actions, and mailbox folders
+- Draft autosave, attachments, Reply, Reply all, Forward, message importance,
+  standards-compatible threading, search, bulk actions, and mailbox folders
+- Durable outbound journaling that prevents an accepted message from being
+  resent while safely recovering missing Sent or internal-recipient copies
 - Manager tools for users, mailboxes, organisation settings, policy versions, audit records, and mail trace
 - Optional organisation directory with configurable layers, units, roles, and positions
 - Privacy-first public directory projection: only an explicitly public position's name, title, and work email can be exposed
@@ -62,6 +78,12 @@ alternative.
 - Responsive web UI with installable PWA metadata
 
 cmail is an application, not a hosted service. Operators remain responsible for their Cloudflare account, identity-provider configuration, outbound provider, DNS, backups, monitoring, privacy obligations, and provider charges. Check each provider's current documentation and terms before deploying.
+
+cmail is not currently a bulk-marketing or campaign platform. It does not
+provide the consent, list, RFC 8058 one-click unsubscribe, complaint, or
+deliverability controls required for that use. See [Email authentication and
+sender requirements](docs/email-authentication.md) before enabling external
+mail flow.
 
 ## Use and manage cmail
 
@@ -73,6 +95,8 @@ cmail is an application, not a hosted service. Operators remain responsible for 
   permission bundles, and shared message state.
 - [Manager handbook](docs/manager-handbook.md) — account lifecycle, mailboxes,
   organisation structure, directory privacy, policy, trace, audit, and settings.
+- [Email authentication and sender requirements](docs/email-authentication.md)
+  — current SPF, DKIM, DMARC, Cloudflare, and major-provider requirements.
 
 ## Architecture
 
@@ -85,22 +109,30 @@ Cloudflare Email Routing
     v
 Email Worker ---------> D1 (mail metadata, users, audit and trace)
     |                   R2 (message bodies and attachments)
-    |
-    +------------------------------+
-                                   |
+    |                         ^
+    |                         |
 User browser -> Cloudflare Pages -> SvelteKit application
-                                   |
-                                   +-> Cloudflare Email Service
-                                       or Postmark -> external recipient
+                    |              |
+                    |              +-> Postmark alternative -> external recipient
+                    v
+          private EMAIL_SERVICE
+                    |
+                    +-> Email Worker -> native EMAIL/send_email
+                                         -> Cloudflare Email Service
+                                         -> external recipient
 ```
 
-The email Worker is inbound-only. The web application handles authenticated mailbox access and outbound submission. Both applications bind to the same D1 database and R2 bucket.
+The web application authorises each send, then calls the email Worker over the
+private `EMAIL_SERVICE` service binding. The Worker handles both Email Routing
+and native Cloudflare outbound submission through its `EMAIL` (`send_email`)
+binding. It remains unavailable on `workers.dev` and has no public HTTP route.
+Both applications bind to the same D1 database and R2 bucket.
 
 ## Repository layout
 
 ```text
 apps/web/                    SvelteKit web application
-apps/email-worker/           Cloudflare Email Routing Worker
+apps/email-worker/           Cloudflare Email Routing and private native-outbound Worker
 packages/shared/             Shared types, push utilities, and D1 migrations
 scripts/setup.mjs            Creates local Wrangler files from templates
 scripts/verify-migrations.mjs  Verifies the schema in a fresh temporary D1
@@ -194,13 +226,15 @@ pnpm exec wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name cmail-we
 Microsoft OAuth uses `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, and `MICROSOFT_TENANT_ID`. Set the tenant to `common` and configure the app registration for organisational plus personal Microsoft accounts to support Microsoft 365, Outlook, Hotmail, and Live; use a tenant GUID for a single-tenant Entra deployment.
 
 For external outbound mail, the committed template selects
-`OUTBOUND_PROVIDER=cloudflare`. Cloudflare Email Service uses the
-non-secret `CLOUDFLARE_ACCOUNT_ID` and a secret
-`CLOUDFLARE_EMAIL_API_TOKEN`. Postmark is the portable alternative and uses
-`OUTBOUND_PROVIDER=postmark` plus `POSTMARK_API_KEY`. `auto` remains available
-for deployments that want configuration detection; it selects Cloudflare then
-Postmark. An explicitly selected provider fails closed when its configuration
-is incomplete.
+`OUTBOUND_PROVIDER=cloudflare`. In production, Pages calls the email Worker over
+the private `EMAIL_SERVICE` service binding; that Worker owns Cloudflare's
+native `send_email` binding, so no outbound API token is required. The
+`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_EMAIL_API_TOKEN` pair remains an
+optional REST fallback for local or non-service-binding environments. Postmark
+is the portable alternative and uses `OUTBOUND_PROVIDER=postmark` plus
+`POSTMARK_API_KEY`. `auto` remains available for deployments that want
+configuration detection; it selects Cloudflare then Postmark. An explicitly
+selected provider fails closed when its configuration is incomplete.
 
 #### Fast OAuth setup
 
@@ -296,15 +330,24 @@ the web app uses that same storage quota for Sent/internal copies and drafts.
 
 In Cloudflare Email Routing, create routing rules for the mail domain and direct inbound messages to the cmail email Worker. The Worker rejects recipients that do not correspond to active mailboxes in D1. Email Routing remains the inbound path regardless of which outbound provider you select.
 
-For external outbound delivery, verify the sending domain and sender required by your chosen provider. Publish the provider's current SPF and DKIM records and define a DMARC policy appropriate for your rollout. Do not copy DNS records from an unrelated deployment.
+For external outbound delivery, verify the sending domain and sender required
+by your chosen provider. Follow [Email authentication and sender
+requirements](docs/email-authentication.md) to publish and verify current SPF,
+DKIM, and DMARC records, stage enforcement, and check receiver policy. Do not
+copy DNS records from an unrelated deployment.
 
 The quickest supported Cloudflare setup is: use a Workers Paid account, onboard
-the sending domain under **Compute →
-Email Service → Email Sending**, create an account-scoped API token with only
-the required **Email Sending: Edit** permission, put the account ID in
-`apps/web/wrangler.toml`, and store the token as a Pages secret. Email Sending
-is currently public beta on the Workers Paid plan and limits general sends to
-50 combined recipients and 5 MiB including attachments. Review Cloudflare's
+the sending domain under **Compute → Email Service → Email Sending**, keep the
+committed email Worker's `[[send_email]]` binding and the Pages application's
+private `EMAIL_SERVICE` service binding, then deploy the email Worker before the
+web application. This default path needs no outbound API token and retains the
+opaque Cloudflare tracking ID for trace and lifecycle reconciliation. Cloudflare
+separately controls the wire `Message-ID`; the native binding does not expose
+that header. Existing reply ancestry remains standards-compatible, but the first
+external reply to a brand-new native-binding conversation may not join its local
+Sent thread automatically.
+Email Sending is currently public beta on the Workers Paid plan and limits
+general sends to 50 combined recipients and 5 MiB including attachments. Review Cloudflare's
 [sending setup](https://developers.cloudflare.com/email-service/get-started/send-emails/),
 [limits](https://developers.cloudflare.com/email-service/platform/limits/), and
 [Email preview](https://developers.cloudflare.com/email-service/observability/logs/#message-preview)
@@ -313,16 +356,23 @@ attachments, and raw message source for about seven days and is enabled by
 default for new sending domains; disable it when that content retention is not
 appropriate for your organisation.
 
-```sh
-pnpm exec wrangler pages secret put CLOUDFLARE_EMAIL_API_TOKEN --project-name cmail-web
-pnpm deploy:web
-```
+For local development without a service binding, the REST fallback can be
+enabled with `CLOUDFLARE_ACCOUNT_ID` and a narrowly scoped
+`CLOUDFLARE_EMAIL_API_TOKEN`. Cloudflare's REST API reference includes the
+authoritative RFC-style `result.message_id`; cmail validates and uses it when
+present and never fabricates one. When those REST credentials are available,
+mixed local/external messages use one raw-MIME call so the external SMTP
+envelope can differ from the complete visible To/Cc headers while local delivery
+remains synchronous. Without REST credentials, native Cloudflare and Postmark
+use one all-recipient provider submission; local recipients return through the
+normal Email Routing path. See [Outbound delivery](docs/configuration.md#outbound-delivery)
+for the trade-offs and verification steps.
 
 ### 5. Deploy
 
 ```sh
-pnpm deploy:web
 pnpm deploy:email-worker
+pnpm deploy:web
 ```
 
 Or deploy both:
@@ -373,7 +423,7 @@ enabled as standing configuration.
 | Command | Purpose |
 |---|---|
 | `pnpm dev` | Start the web development server |
-| `pnpm dev:worker` | Start the inbound Worker development process |
+| `pnpm dev:worker` | Start the email Worker development process |
 | `pnpm lint` | Run workspace lint checks |
 | `pnpm check` | Run Svelte and TypeScript checks |
 | `pnpm test` | Run workspace tests |

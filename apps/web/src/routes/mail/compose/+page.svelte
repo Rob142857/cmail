@@ -23,12 +23,13 @@
           ? `Fwd: ${source.subject}`
           : /^re:/i.test(source.subject) ? source.subject : `Re: ${source.subject}`
         : ''),
-      to: d.draft ? parseList(d.draft.to_addresses) : isNewReply && !d.isForward ? source.from_address : '',
-      cc: d.draft ? parseList(d.draft.cc_addresses) : '',
+      to: d.draft ? parseList(d.draft.to_addresses) : isNewReply && !d.isForward ? d.replyRecipients.to.join(', ') : '',
+      cc: d.draft ? parseList(d.draft.cc_addresses) : isNewReply && !d.isForward ? d.replyRecipients.cc.join(', ') : '',
       from: d.draft?.from_address || d.preferredFrom || d.mailboxes[0]?.address || '',
       body: d.draft?.body || '',
       quotedHtml: d.draft?.quoted_html || d.replyQuoteHtml || '',
-      inReplyTo: d.draft?.in_reply_to || source?.message_id_header || '',
+      replySourceId: d.replySourceId || '',
+      importance: d.draft?.importance || 'normal',
       draftId: d.draft?.id || '',
       draftVersion: d.draft?.draft_version ?? 0,
       recoveryKey: d.recoveryKey,
@@ -45,11 +46,12 @@
   let from = $state(initial.from);
   let body = $state(initial.body);
   let quotedHtml = $state(initial.quotedHtml);
+  let importance = $state(initial.importance);
   let draftId = $state(initial.draftId);
   let draftVersion = $state(initial.draftVersion);
   let recoveryKey = $state(initial.recoveryKey);
   let recoveryReady = $state(false);
-  /** @type {{ subject: string, to: string, cc: string, from: string, body: string } | null} */
+  /** @type {{ subject: string, to: string, cc: string, from: string, body: string, importance: 'low' | 'normal' | 'high' } | null} */
   let recoveryConflict = $state(null);
 
   /** D1 timestamps are UTC but omit the ISO separator and zone. */
@@ -154,7 +156,7 @@
   });
 
   function hasDraftContent() {
-    return Boolean(draftId || body || subject || to || cc || quotedHtml);
+    return Boolean(draftId || body || subject || to || cc || quotedHtml || importance !== 'normal');
   }
 
   function clearRecovery() {
@@ -172,24 +174,27 @@
     const saved = /** @type {Record<string, unknown>} */ (value);
     const hasSavedContent = ['subject', 'to', 'cc', 'from', 'body']
       .some((key) => typeof saved[key] === 'string' && saved[key].length > 0);
-    if (!hasSavedContent) return null;
+    const savedImportance = saved.importance === 'high' || saved.importance === 'low' ? saved.importance : 'normal';
+    if (!hasSavedContent && savedImportance === 'normal') return null;
     const copy = {
       subject: typeof saved.subject === 'string' ? saved.subject.slice(0, 500) : '',
       to: typeof saved.to === 'string' ? saved.to.slice(0, 20_000) : '',
       cc: typeof saved.cc === 'string' ? saved.cc.slice(0, 20_000) : '',
       from: typeof saved.from === 'string' && d.mailboxes.some((mailbox) => mailbox.address === saved.from) ? saved.from : from,
       body: typeof saved.body === 'string' ? saved.body.slice(0, 1_000_000) : '',
+      importance: savedImportance,
     };
     return copy;
   }
 
-  /** @param {{ subject: string, to: string, cc: string, from: string, body: string }} copy */
+  /** @param {{ subject: string, to: string, cc: string, from: string, body: string, importance: 'low' | 'normal' | 'high' }} copy */
   function applyRecovery(copy) {
     subject = copy.subject;
     to = copy.to;
     cc = copy.cc;
     from = copy.from;
     body = copy.body;
+    importance = copy.importance;
     recoveryConflict = null;
     markDirty();
   }
@@ -208,6 +213,7 @@
         cc,
         from,
         body,
+        importance,
         updatedAt: Date.now(),
         baseDraftVersion: knownDraftVersion,
       }));
@@ -255,7 +261,7 @@
   });
 
   $effect(() => {
-    void subject; void to; void cc; void from; void body; void dirty; void recoveryKey; void recoveryReady; void recoveryConflict; void saveConflict;
+    void subject; void to; void cc; void from; void body; void importance; void dirty; void recoveryKey; void recoveryReady; void recoveryConflict; void saveConflict;
     if (!browser || !recoveryReady || !recoveryKey) return;
     // A conflict copy remains byte-for-byte untouched until the user makes an
     // explicit choice in the recovery banner.
@@ -405,7 +411,7 @@
     saving = true;
     saveError = '';
     const savingVersion = editVersion;
-    const snapshot = { from, to, cc, subject, body, quotedHtml };
+    const snapshot = { from, to, cc, subject, body, quotedHtml, importance };
     try {
       const fd = new FormData();
       fd.set('from', snapshot.from);
@@ -414,12 +420,13 @@
       fd.set('subject', snapshot.subject || '(no subject)');
       fd.set('body', snapshot.body);
       fd.set('quoted_html', snapshot.quotedHtml);
+      fd.set('importance', snapshot.importance);
+      if (initial.replySourceId) fd.set('reply_source_id', initial.replySourceId);
       fd.set('draft_create_token', initial.recoveryId);
       if (draftId) {
         fd.set('draft_id', draftId);
         fd.set('draft_version', String(draftVersion));
       }
-      if (initial.inReplyTo) fd.set('in_reply_to', initial.inReplyTo);
       const res = await fetch('?/save', {
         method: 'POST',
         body: fd,
@@ -542,10 +549,11 @@
     formData.set('cc', cc);
     formData.set('subject', subject);
     formData.set('body', body);
+    formData.set('importance', importance);
     formData.set('draft_id', draftId);
     if (draftId) formData.set('draft_version', String(draftVersion));
     formData.set('quoted_html', quotedHtml);
-    if (initial.inReplyTo) formData.set('in_reply_to', initial.inReplyTo);
+    if (initial.replySourceId) formData.set('reply_source_id', initial.replySourceId);
     formData.delete('attachments');
     for (const file of attachedFiles) formData.append('attachments', file, file.name);
 
@@ -568,7 +576,7 @@
   // Autosave shortly after the user pauses. A second pause is scheduled when
   // an edit lands during an in-flight request; navigation explicitly flushes it.
   $effect(() => {
-    void body; void subject; void to; void cc; void from; void quotedHtml; void dirty; void sending;
+    void body; void subject; void to; void cc; void from; void importance; void quotedHtml; void dirty; void sending;
     scheduleAutosave();
     return cancelAutosaveTimer;
   });
@@ -578,7 +586,7 @@
 
 <div class="compose-page">
   <header class="compose-header">
-    <h1>{d.draft ? 'Draft' : d.replyTo ? (d.isForward ? 'Forward' : 'Reply') : 'New message'}</h1>
+    <h1>{d.draft ? 'Draft' : d.replyTo ? (d.isForward ? 'Forward' : d.isReplyAll ? 'Reply all' : 'Reply') : 'New message'}</h1>
     <div class="status" role="status" aria-live="polite">
       {#if saving}
         Saving…
@@ -610,7 +618,20 @@
   {#if d.quoteWarning}<div class="form-warning" role="status">{d.quoteWarning}</div>{/if}
   {#if d.isForward && d.forwardedAttachmentCount > 0}
     <div class="form-warning" role="alert">
-      The original message has {d.forwardedAttachmentCount} {d.forwardedAttachmentCount === 1 ? 'attachment' : 'attachments'}. Original files are not forwarded automatically yet; download them from the message and reattach only the files you intend to send.
+      <p>The original message has {d.forwardedAttachmentCount} {d.forwardedAttachmentCount === 1 ? 'file or embedded image part' : 'file or embedded image parts'}. They are not forwarded automatically. Download only the parts you intend to resend, then add them below.</p>
+      <ul class="forward-source-list">
+        {#each d.forwardedAttachments as attachment}
+          <li>
+            <a href={`/api/attachment/${encodeURIComponent(attachment.id)}`}>Download {attachment.filename}</a>
+            <span>{attachment.disposition === 'inline' ? 'Embedded image' : attachment.content_type || 'File'} · {fmtSize(attachment.size_bytes)}</span>
+          </li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
+  {#if !d.isForward && d.omittedReplyInlineImageCount > 0}
+    <div class="form-warning" role="status">
+      {d.omittedReplyInlineImageCount === 1 ? 'One embedded image from the original message is' : `${d.omittedReplyInlineImageCount} embedded images from the original message are`} not included in the quoted reply. The original remains available in the message view.
     </div>
   {/if}
   {#if recoveryConflict}
@@ -640,9 +661,9 @@
     <input type="hidden" name="draft_create_token" value={initial.recoveryId} />
     <input type="hidden" name="compose_token" value={d.composeToken} />
     <input type="hidden" name="quoted_html" value={quotedHtml} />
-    {#if initial.inReplyTo}
-      <input type="hidden" name="in_reply_to" value={initial.inReplyTo} />
-    {/if}
+      {#if initial.replySourceId}
+        <input type="hidden" name="reply_source_id" value={initial.replySourceId} />
+      {/if}
 
     <fieldset class="compose-fields" disabled={sending || discarding || navigationInProgress || !!recoveryConflict || saveConflict || d.mailboxes.length === 0}>
     <div class="field">
@@ -675,6 +696,16 @@
     <div class="field">
       <label for="subject">Subject</label>
       <input type="text" name="subject" id="subject" bind:value={subject} oninput={markDirty} maxlength="500" placeholder="Subject (optional)" />
+    </div>
+
+    <div class="field importance-field">
+      <label for="importance">Importance</label>
+      <select name="importance" id="importance" bind:value={importance} oninput={markDirty}>
+        <option value="normal">Normal</option>
+        <option value="high">High — important</option>
+        <option value="low">Low</option>
+      </select>
+      <small>Signals attention to compatible email clients; it does not speed up delivery.</small>
     </div>
 
     <div class="field">
@@ -775,6 +806,11 @@
     color: var(--warning);
     font-size: 13px;
   }
+  .form-warning p { margin:0; }
+  .forward-source-list { display:flex; flex-direction:column; gap:5px; margin:8px 0 0; padding:0; list-style:none; }
+  .forward-source-list li { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+  .forward-source-list a { color:inherit; font-weight:650; overflow-wrap:anywhere; }
+  .forward-source-list span { flex:0 0 auto; color:color-mix(in srgb, var(--warning) 78%, var(--text)); font-size:11px; }
   .recovery-warning { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:11px 14px; border:1px solid color-mix(in srgb, var(--warning) 35%, var(--border)); border-radius:var(--radius); background:var(--warning-soft); color:var(--warning); }
   .recovery-warning > div:first-child { display:flex; flex-direction:column; gap:2px; font-size:13px; }
   .recovery-warning span { color:color-mix(in srgb, var(--warning) 78%, var(--text)); }
@@ -785,6 +821,8 @@
   .compose-form .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
   .compose-form label { font-size: 12px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
   .compose-form textarea { font-family: inherit; resize: vertical; min-height: 240px; }
+  .importance-field { max-width:260px; }
+  .importance-field small { color:var(--text-muted); font-size:11px; line-height:1.35; }
   .quoted-message { margin: 0 0 14px; }
   .quoted-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:6px; font-size:12px; }
   .quoted-heading strong { color:var(--text); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }

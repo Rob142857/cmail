@@ -54,7 +54,7 @@ describe('compose body handling', () => {
 
   it('removes executable constructs and safely escapes quote metadata', () => {
     const quote = buildQuotedMessageHtml(
-      '<script>alert(1)</script><form action="https://bad.example"><input></form><img src="https://tracker.example/pixel" onerror="x"><p>Keep me</p>',
+      '<script>alert(1)</script><form action="https://bad.example"><input></form><img src="https://tracker.example/pixel" onerror="x"><img src="cid:logo@example.test"><p>Keep me</p>',
       { kind: 'reply', from: '<attacker@example.com>', date: 'today' },
     );
     expect(quote.ok).toBe(true);
@@ -62,6 +62,7 @@ describe('compose body handling', () => {
     expect(quote.html).not.toMatch(/<script|<form|<input|onerror/i);
     expect(quote.html).toMatch(/(?:&lt;|&#x3C;)attacker@example\.com(?:&gt;|>)/);
     expect(quote.html).not.toContain('https://tracker.example/pixel');
+    expect(quote.html).not.toContain('cid:logo@example.test');
     expect(quote.html).toContain('<img');
   });
 
