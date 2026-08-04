@@ -24,6 +24,15 @@
   const folderLabel = $derived(folderLabels[d.folder] || d.folder);
   const showMailboxColumn = $derived(!d.mailboxId);
 
+  /** Drop the query but keep the mailbox and folder currently in scope. */
+  const clearSearchHref = $derived.by(() => {
+    const params = new URLSearchParams();
+    if (d.folder && d.folder !== 'inbox') params.set('folder', d.folder);
+    if (d.mailboxId) params.set('mailbox', d.mailboxId);
+    const qs = params.toString();
+    return qs ? `/mail?${qs}` : '/mail';
+  });
+
   let selectedIds = $state<string[]>([]);
   let busyAction = $state('');
   let bulkError = $state('');
@@ -249,20 +258,11 @@
     </div>
 
     <div class="page-actions">
-      <form method="GET" class="search-form" role="search">
-        {#if d.mailboxId}<input type="hidden" name="mailbox" value={d.mailboxId} />{/if}
-        {#if d.folder && d.folder !== 'inbox'}<input type="hidden" name="folder" value={d.folder} />{/if}
-        <label class="sr-only" for="message-search">Search messages in {folderLabel.toLowerCase()}</label>
-        <input
-          id="message-search"
-          type="search"
-          name="q"
-          maxlength="200"
-          placeholder="Search this folder"
-          value={d.search}
-        />
-        <button type="submit">Search</button>
-      </form>
+      <!-- Search lives in the suite header, scoped to the same mailbox and
+           folder, so there is exactly one place to search from. -->
+      {#if d.search}
+        <a class="btn" href={clearSearchHref}>Clear search</a>
+      {/if}
       <button class="btn refresh-button" type="button" disabled={refreshing || Boolean(busyAction)} onclick={() => refreshMessages()}>
         {refreshing ? 'Refreshing…' : 'Refresh'}
       </button>
@@ -412,8 +412,6 @@
   }
   .heading-group p span { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
   .page-actions { display:flex; align-items:center; gap:8px; width:min(100%, 480px); }
-  .search-form { display: flex; gap: 8px; width: min(100%, 380px); }
-  .search-form input[type='search'] { min-width: 0; }
   .refresh-button { flex:0 0 auto; }
   .refresh-feedback {
     padding:7px 10px;
@@ -606,7 +604,6 @@
   @media (max-width: 860px) {
     .page-header { align-items: stretch; flex-direction: column; gap: 12px; }
     .page-actions { width:100%; }
-    .search-form { width: 100%; }
     .bulk-bar { align-items: stretch; flex-wrap: wrap; }
     .select-all { flex: 1; }
     .selection-summary { display: flex; align-items: center; justify-content: flex-end; }
@@ -640,7 +637,6 @@
 
   @media (max-width: 520px) {
     .heading-group h1 { font-size: 20px; }
-    .search-form button { padding-inline: 12px; }
     .page-actions { align-items:stretch; flex-direction:column; }
     .refresh-button { align-self:flex-start; }
     .mail-row { grid-template-columns: 40px minmax(0, 1fr); }

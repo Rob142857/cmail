@@ -42,7 +42,12 @@
       <h1 id="users-heading">People</h1>
       <p>Provision accounts, roles, invitations, and account lifecycle.</p>
     </div>
-    <form method="GET" class="search-form" role="search">
+  </header>
+
+  <!-- Filters are their own row. Beside the heading they had no width of
+       their own, so each control stretched and the column collided with the
+       title. -->
+  <form method="GET" class="search-form" role="search">
       <label class="sr-only" for="user-search">Search people</label>
       <input
         id="user-search"
@@ -74,11 +79,10 @@
         <option value="none">Identity not enrolled</option>
       </select>
       <button type="submit">Search</button>
-      {#if hasFilters}
-        <a class="btn btn-ghost" href="/admin/users">Clear</a>
-      {/if}
-    </form>
-  </header>
+    {#if hasFilters}
+      <a class="btn btn-ghost" href="/admin/users">Clear</a>
+    {/if}
+  </form>
 
   {#if data.configurationUnavailable}
     <div class="notice notice-error" role="alert">
@@ -331,7 +335,17 @@
 <style>
   .admin-page { display: grid; gap: 16px; }
   .page-header { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
-  .page-header h1 { margin: 0; font-size: clamp(24px, 3vw, 32px); }
+  .page-header h1 { margin: 0; font-size: var(--fs-title-2); }
+  .search-form {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 14px 0 18px;
+  }
+  /* Capped so the search box cannot grow and push Search onto its own line. */
+  .search-form input[type='search'] { flex: 1 1 240px; min-width: 180px; max-width: 320px; width: auto; }
+  .search-form select { flex: 0 1 auto; width: auto; min-width: 150px; }
   .page-header p, .form-intro, .empty-state p { margin: 4px 0 0; color: var(--text-muted); }
   .search-form { display: flex; flex-wrap: wrap; gap: 8px; width: min(100%, 720px); justify-content: flex-end; }
   .search-form input { min-width: 180px; }

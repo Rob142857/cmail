@@ -291,7 +291,7 @@ position, and test the endpoint before linking it from another site.
 | `BRAND_ICON_192_URL` | `/icon-192.png` | Relative path or HTTPS URL for the 192×192 PWA and Apple touch icon |
 | `BRAND_ICON_512_URL` | `/icon-512.png` | Relative path or HTTPS URL for the 512×512 installed-app icon |
 | `BRAND_OG_IMAGE_URL` | `/og-image.svg` | Relative path or HTTPS URL for the social sharing image |
-| `BRAND_PRIMARY_COLOR` | `#2563eb` | Six-digit hexadecimal accent colour |
+| `BRAND_PRIMARY_COLOR` | `#0078d4` | Six-digit hexadecimal accent colour |
 | `LOCALE` | `en` | Unicode locale identifier used by configurable formatting |
 | `TIME_ZONE` | `UTC` | IANA time-zone name used by configurable formatting |
 

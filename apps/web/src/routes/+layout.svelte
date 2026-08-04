@@ -50,7 +50,7 @@
 
 <svelte:head>
   <title>{page.data?.appName || 'cmail'}</title>
-  <meta name="theme-color" content={page.data?.brandPrimaryColor || '#2563eb'} />
+  <meta name="theme-color" content={page.data?.brandPrimaryColor || '#0078d4'} />
   <meta name="description" content={`Secure, open-source email for ${page.data?.orgName || 'your organisation'}.`} />
   <link rel="icon" href={page.data?.brandIconUrl || '/favicon.svg'} />
   <link rel="apple-touch-icon" sizes="192x192" href={page.data?.brandIcon192Url || '/icon-192.png'} />
@@ -61,7 +61,7 @@
 
 <div
   class="app-root"
-  style={`--primary: ${page.data?.brandPrimaryColor || '#2563eb'}; --primary-hover: color-mix(in srgb, ${page.data?.brandPrimaryColor || '#2563eb'} 82%, black); --on-primary: ${page.data?.brandOnPrimary || '#ffffff'};`}
+  style={`--primary: ${page.data?.brandPrimaryColor || '#0078d4'}; --primary-hover: color-mix(in srgb, ${page.data?.brandPrimaryColor || '#0078d4'} 82%, black); --on-primary: ${page.data?.brandOnPrimary || '#ffffff'};`}
 >
   <a class="skip-link" href="#main-content">Skip to main content</a>
   {@render children()}

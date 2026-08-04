@@ -1,7 +1,7 @@
 import { boundedInteger, normalizeDomain } from './validation';
 import { publicPushKey } from '@cmail/shared/push';
 
-const DEFAULT_PRIMARY = '#2563eb';
+const DEFAULT_PRIMARY = '#0078d4';
 
 function envString(env: Record<string, unknown>, key: string): string {
   const value = env[key];

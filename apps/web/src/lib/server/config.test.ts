@@ -57,7 +57,7 @@ describe('runtime configuration', () => {
     const config = publicRuntimeConfig(env);
     expect(config.locale).toBe('en');
     expect(config.timeZone).toBe('UTC');
-    expect(config.brandPrimaryColor).toBe('#2563eb');
+    expect(config.brandPrimaryColor).toBe('#0078d4');
     expect(config.brandOnPrimary).toBe('#ffffff');
     expect(sessionTtlMs(env)).toBe(168 * 60 * 60 * 1000);
     expect(maxSessionsPerUser(env)).toBe(1);

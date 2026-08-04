@@ -18,7 +18,7 @@ export const load: LayoutServerLoad = async ({ locals, platform }) => {
       brandIcon192Url: '/icon-192.png',
       brandIcon512Url: '/icon-512.png',
       brandOgImageUrl: '/og-image.svg',
-      brandPrimaryColor: '#2563eb',
+      brandPrimaryColor: '#0078d4',
       brandOnPrimary: '#ffffff',
       pushPublicKey: '',
       locale: 'en',
