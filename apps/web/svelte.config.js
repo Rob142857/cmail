@@ -30,7 +30,17 @@ const config = {
         'frame-src': ['self'],
         'frame-ancestors': ['none'],
         'base-uri': ['self'],
-        'form-action': ['self'],
+        // The invitation page POSTs to /enroll/<provider>, which 303s to
+        // /auth/login/<provider> and from there to the identity provider's
+        // authorisation endpoint. Chrome enforces form-action across the whole
+        // redirect chain, so the final hop has to be named here or the
+        // enrolment POST is blocked. Only the two configured IdP origins are
+        // allowed — nothing else may receive a form submission.
+        'form-action': [
+          'self',
+          'https://accounts.google.com',
+          'https://login.microsoftonline.com',
+        ],
         'object-src': ['none'],
         'upgrade-insecure-requests': true,
       },

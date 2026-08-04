@@ -17,7 +17,9 @@ async function managerExists(db: D1Database): Promise<boolean> {
 export const load: PageServerLoad = async ({ locals, platform, setHeaders }) => {
   setHeaders({
     'Cache-Control': 'no-store',
-    'Referrer-Policy': 'no-referrer',
+    // Origin-only referrer keeps this path out of outbound Referer headers
+    // while still letting the browser send a real Origin on the form POST.
+    'Referrer-Policy': 'strict-origin',
   });
   if (locals.user) throw redirect(303, '/mail');
   const env = platform?.env;

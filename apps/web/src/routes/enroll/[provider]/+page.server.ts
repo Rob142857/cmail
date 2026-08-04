@@ -19,7 +19,9 @@ function providerReady(provider: string, env: App.Platform['env'] | undefined): 
 export const load: PageServerLoad = async ({ params, platform, setHeaders }) => {
   setHeaders({
     'Cache-Control': 'no-store',
-    'Referrer-Policy': 'no-referrer',
+    // Origin-only referrer keeps the invitation token out of outbound Referer
+    // headers while still letting the browser send a real Origin on the POST.
+    'Referrer-Policy': 'strict-origin',
   });
   if (!providerReady(params.provider, platform?.env)) {
     throw redirect(303, '/?error=provider_not_configured');

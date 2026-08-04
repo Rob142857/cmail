@@ -4,7 +4,7 @@
 
 <svelte:head>
   <title>Initial manager setup · {data.appName || 'cmail'}</title>
-  <meta name="referrer" content="no-referrer" />
+  <meta name="referrer" content="strict-origin" />
 </svelte:head>
 
 <main id="main-content" class="bootstrap-page" tabindex="-1">

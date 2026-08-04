@@ -133,7 +133,12 @@ export const handle: Handle = async ({ event, resolve }) => {
   }), !!event.locals.user, isHttps);
   if (event.url.pathname === '/bootstrap' || event.url.pathname.startsWith('/enroll/')) {
     response.headers.set('Cache-Control', 'no-store');
-    response.headers.set('Referrer-Policy', 'no-referrer');
+    // 'strict-origin', not 'no-referrer'. Both keep the token-bearing path out
+    // of the Referer header, but 'no-referrer' also forces the browser to send
+    // `Origin: null` on the page's own POST (Fetch, "append a request Origin
+    // header"), which SvelteKit's CSRF guard then rejects as cross-site. These
+    // two routes are exactly the ones that POST a single-use secret.
+    response.headers.set('Referrer-Policy', 'strict-origin');
     appendVary(response.headers, 'Cookie');
   }
   if (clearInvalidCookie) response.headers.append('Set-Cookie', clearSessionCookie(isHttps));

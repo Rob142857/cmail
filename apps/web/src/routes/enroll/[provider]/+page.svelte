@@ -24,7 +24,7 @@
 
 <svelte:head>
   <title>Prepare secure sign-in · {data.appName || 'cmail'}</title>
-  <meta name="referrer" content="no-referrer" />
+  <meta name="referrer" content="strict-origin" />
 </svelte:head>
 
 <main id="main-content" class="enrollment-page" tabindex="-1">
