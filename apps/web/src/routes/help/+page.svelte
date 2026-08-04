@@ -6,6 +6,7 @@
     { href: '/help/shared-mailboxes', eyebrow: 'Delegates', title: 'Work from a shared address', description: 'Understand shared state, From identity, Read, Send as, and Full access before handling team mail.' },
     { href: '/help/mobile', eyebrow: 'Devices', title: 'Install on iPhone, iPad or Android', description: 'Add the web app to your Home Screen and enable optional new-mail notifications on each device.' },
     { href: '/help/managers', eyebrow: 'Managers', title: 'Operate the organisation', description: 'Follow safe workflows for people, mailboxes, delegation, mail trace, policy, audit, and directory privacy.' },
+    { href: '/help/standards', eyebrow: 'Assurance', title: 'Standards and compliance', description: 'The message, authentication, transport, and retention standards this deployment implements — and a gap register for what it does not.' },
   ];
 </script>
 

@@ -39,8 +39,8 @@
   </main>
 
   <footer class="help-footer">
-    <span>Powered by cmail · open-source organisational email under the MIT License</span>
-    <span>Familiar Exchange-style shared-mailbox workflows · independent and not affiliated with Microsoft</span>
+    <span>Enterprise-grade email management, simplified for small organisations and for geographically and managerially dispersed groups.</span>
+    <span><a href="/help/standards">Compliant email</a> · open source under the MIT License</span>
   </footer>
 </div>
 

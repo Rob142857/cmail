@@ -127,8 +127,11 @@
         <a href="/help/shared-mailboxes">Shared mailbox guide</a>
       </nav>
       <span class="product-credit">
-        cmail · Exchange-style shared mailbox administration · MIT open source.
-        Independent software; not affiliated with Microsoft.
+        Enterprise-grade email management, simplified for small organisations and for
+        geographically and managerially dispersed groups.
+      </span>
+      <span class="product-meta">
+        <a href="/help/standards">Compliant email</a> · MIT open source
       </span>
     </div>
   {/snippet}

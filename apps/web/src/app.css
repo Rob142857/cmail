@@ -797,7 +797,9 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
 
 .nav-footer-links { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 8px; }
 .nav-footer-links a { color: var(--text-muted); font-size: 11px; }
-.product-credit { display: block; margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--border); color: var(--text-faint); font-size: 9px; letter-spacing: .02em; line-height: 1.4; }
+.product-credit { display: block; margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--border); color: var(--text-faint); font-size: 9.5px; letter-spacing: .02em; line-height: 1.45; }
+.product-meta { display: block; margin-top: 4px; color: var(--text-faint); font-size: 9.5px; letter-spacing: .02em; }
+.product-meta a { color: var(--text-muted); }
 
 /* ─── 15. Content region ────────────────────────────────────────────── */
 .content { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg); }
