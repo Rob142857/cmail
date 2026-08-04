@@ -1,4 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 429 96" role="img" aria-label="cmail" fill="none">
+<!--
+  The viewBox must end where the artwork ends. Content spans x 8 → 272.75
+  (mark at 8; the "l" stem terminal at 104 + 168.75), so the box is 272.75 + 8
+  for an even 8-unit margin either side. A wider box leaves dead space on the
+  right, which makes a centred <img> look off-centre.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 281 96" role="img" aria-label="cmail" fill="none">
   <title>cmail</title>
   <desc>The cmail horizontal lockup: an open-envelope app mark with a cyan status dot, beside a constructed monoline wordmark whose "i" carries the same dot as its tittle.</desc>
   <defs>

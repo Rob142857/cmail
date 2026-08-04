@@ -9,7 +9,7 @@
 
 <main id="main-content" class="bootstrap-page" tabindex="-1">
   <section class="card bootstrap-card" aria-labelledby="bootstrap-heading">
-    <img src={data.brandLogoUrl || '/logo.svg'} alt="" class="brand-logo" width="220" height="56" />
+    <img src={data.brandLogoUrl || '/logo.svg'} alt="" class="brand-logo" width="220" height="75" />
     <p class="eyebrow">One-time setup</p>
     <h1 id="bootstrap-heading">Authorise the first manager</h1>
     <p class="intro">Enter the strong token configured as <code>BOOTSTRAP_ADMIN_TOKEN</code>. A short-lived proof will let the configured administrator complete sign-in with Google or Microsoft.</p>

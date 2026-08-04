@@ -29,7 +29,7 @@
 
 <main id="main-content" class="enrollment-page" tabindex="-1">
   <section class="card enrollment-card" aria-labelledby="enrollment-heading">
-    <img src={data.brandLogoUrl || '/logo.svg'} alt="" class="brand-logo" width="220" height="56" />
+    <img src={data.brandLogoUrl || '/logo.svg'} alt="" class="brand-logo" width="220" height="75" />
     <div class="security-mark" aria-hidden="true">✓</div>
     <h1 id="enrollment-heading">Preparing secure sign-in</h1>
     <p>We are securely connecting this invitation to your {providerLabel} sign-in. The invitation itself is never placed in a request URL.</p>

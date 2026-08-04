@@ -36,7 +36,7 @@
 
 <main id="main-content" class="login-page" tabindex="-1">
     <div class="login-card card">
-      <img src={data.brandLogoUrl || '/logo.svg'} alt="" class="brand-logo" width="240" height="60" />
+      <img src={data.brandLogoUrl || '/logo.svg'} alt="" class="brand-logo" width="240" height="82" />
       <h1>Sign in to {data.appName || 'cmail'}</h1>
       <p class="subtitle">Organisational email{data.orgName ? ` for ${data.orgName}` : ' for your organisation'}</p>
 
