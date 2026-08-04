@@ -3,42 +3,85 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="cmail is open-source organisational email on Cloudflare, with personal mailboxes and familiar Exchange-style shared mailbox administration.">
-  <meta name="theme-color" content="#2563eb">
-  <meta property="og:title" content="cmail — organisational email you operate">
-  <meta property="og:description" content="Personal mailboxes, Exchange-style shared mailbox delegation, OAuth sign-in, policy workflows, and mail operations on Cloudflare.">
-  <title>cmail — organisational email you operate</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232563eb'%3E%3Cpath d='M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z'/%3E%3C/svg%3E">
+  <meta name="description" content="cmail is open-source organisational email on Cloudflare: personal and shared mailboxes, Exchange-style delegation, standards-compliant mail handling, and a unified mail trace — running entirely in your own account.">
+  <meta name="theme-color" content="#0078d4">
+  <meta name="color-scheme" content="light dark">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="cmail — enterprise-grade email management, simplified">
+  <meta property="og:description" content="Personal and shared mailboxes, Exchange-style delegation, OAuth sign-in, policy workflows, inbound protection, and a unified mail trace. Open source, on your own Cloudflare account.">
+  <title>cmail — enterprise-grade email management, simplified</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Crect width='64' height='64' rx='15' fill='%230078D4'/%3E%3Cg stroke='%23fff' stroke-width='3.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 25.5v20.2a2.8 2.8 0 0 0 2.8 2.8h32.4a2.8 2.8 0 0 0 2.8-2.8V25.5'/%3E%3Cpath d='M13 25.5 30.3 38a2.9 2.9 0 0 0 3.4 0L51 25.5'/%3E%3Cpath d='M13 25.5 30.3 13a2.9 2.9 0 0 1 3.4 0L51 25.5'/%3E%3C/g%3E%3Ccircle cx='51' cy='13' r='6' fill='%2350E6FF'/%3E%3C/svg%3E">
   <style>
+    /* ═══════════════════════════════════════════════════════════════
+       cmail landing page.
+
+       Tokens are lifted verbatim from apps/web/src/app.css so the
+       product page and the product itself are visibly one thing:
+       Fluent-informed, #0078d4, 4px radii, Segoe UI Variable.
+       Self-contained — no webfont, no CDN, no network request.
+       ═══════════════════════════════════════════════════════════════ */
     :root {
       color-scheme: light dark;
-      --bg: #ffffff;
-      --surface: #f7f8fb;
-      --surface-strong: #eef2ff;
-      --text: #111827;
-      --muted: #5f6b7a;
-      --border: #dfe4ea;
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
+
+      --primary: #0078d4;
+      --primary-hover: #106ebe;
       --on-primary: #ffffff;
-      --focus: #f59e0b;
-      --radius: 14px;
-      --shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+      --accent: #50e6ff;
+
+      --bg: #f5f5f5;
+      --bg-surface: #ffffff;
+      --bg-subtle: #fafafa;
+      --bg-hover: #f0f0f0;
+
+      --text: #242424;
+      --text-muted: #616161;
+      --text-faint: #8a8a8a;
+
+      --border: #e4e4e4;
+      --border-strong: #d1d1d1;
+
+      --radius: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+      --radius-pill: 999px;
+
+      --shadow-4:  0 2px 4px rgba(0, 0, 0, .14), 0 0 2px rgba(0, 0, 0, .12);
+      --shadow-16: 0 8px 16px rgba(0, 0, 0, .14), 0 0 2px rgba(0, 0, 0, .12);
+      --shadow-64: 0 32px 64px rgba(0, 0, 0, .24), 0 0 8px rgba(0, 0, 0, .20);
+
+      --font: 'Segoe UI Variable Text', 'Segoe UI', -apple-system, BlinkMacSystemFont,
+              system-ui, Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --font-display: 'Segoe UI Variable Display', 'Segoe UI Variable Text', 'Segoe UI',
+              -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-mono: 'Cascadia Mono', 'Cascadia Code', ui-monospace, 'SF Mono', Consolas,
+              'Liberation Mono', monospace;
+
+      --primary-soft:   color-mix(in srgb, var(--primary) 8%, white);
+      --primary-border: color-mix(in srgb, var(--primary) 30%, white);
+      --primary-text:   color-mix(in srgb, var(--primary) 90%, black);
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #0b0e14;
-        --surface: #131822;
-        --surface-strong: #17203a;
-        --text: #f3f4f6;
-        --muted: #aab3c2;
-        --border: #293140;
-        --primary: #60a5fa;
-        --primary-hover: #93c5fd;
-        --on-primary: #07111f;
-        --focus: #fbbf24;
-        --shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+        --bg: #141414;
+        --bg-surface: #1f1f1f;
+        --bg-subtle: #1a1a1a;
+        --bg-hover: #2d2d2d;
+
+        --text: #f0f0f0;
+        --text-muted: #adadad;
+        --text-faint: #8a8a8a;
+
+        --border: #333333;
+        --border-strong: #454545;
+
+        --shadow-4:  0 2px 4px rgba(0, 0, 0, .5), 0 0 2px rgba(0, 0, 0, .4);
+        --shadow-16: 0 8px 16px rgba(0, 0, 0, .6), 0 0 2px rgba(0, 0, 0, .4);
+        --shadow-64: 0 32px 64px rgba(0, 0, 0, .7), 0 0 8px rgba(0, 0, 0, .5);
+
+        --primary-soft:   color-mix(in srgb, var(--primary) 16%, #1f1f1f);
+        --primary-border: color-mix(in srgb, var(--primary) 40%, #1f1f1f);
+        --primary-text:   color-mix(in srgb, var(--primary) 55%, white);
       }
     }
 
@@ -46,107 +89,120 @@
     html { scroll-behavior: smooth; }
     body {
       margin: 0;
-      background:
-        radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 32rem),
-        var(--bg);
+      background: var(--bg);
       color: var(--text);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.6;
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.55;
       -webkit-font-smoothing: antialiased;
     }
+    h1, h2, h3 { font-family: var(--font-display); font-weight: 650; }
 
-    a { color: inherit; }
-    a:focus-visible, button:focus-visible {
-      outline: 3px solid var(--focus);
-      outline-offset: 3px;
+    a { color: var(--primary-text); }
+    a:focus-visible, .button:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+      border-radius: var(--radius);
     }
 
-    .wrap { width: min(1100px, calc(100% - 40px)); margin: 0 auto; }
+    .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .wrap { width: min(1140px, calc(100% - 40px)); margin: 0 auto; }
+
     .skip-link {
-      position: absolute;
-      left: 16px;
-      top: -60px;
-      z-index: 10;
-      padding: 10px 14px;
-      background: var(--text);
-      color: var(--bg);
-      border-radius: 8px;
+      position: absolute; left: 16px; top: -60px; z-index: 10;
+      padding: 9px 13px;
+      border-radius: var(--radius);
+      background: var(--text); color: var(--bg);
+      text-decoration: none;
     }
     .skip-link:focus { top: 12px; }
 
-    nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 24px;
-      padding: 22px 0;
+    /* ─── Command bar ─────────────────────────────────────────── */
+    .topbar {
+      position: sticky; top: 0; z-index: 5;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
+      backdrop-filter: saturate(180%) blur(14px);
     }
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 9px;
-      color: var(--text);
-      font-size: 18px;
-      font-weight: 750;
-      letter-spacing: -0.02em;
-      text-decoration: none;
+    .topbar .wrap {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 24px; height: 52px;
     }
-    .brand svg { color: var(--primary); }
-    .nav-links { display: flex; align-items: center; gap: 22px; }
+    .brand { display: inline-flex; align-items: center; text-decoration: none; }
+    .brand svg { display: block; height: 26px; width: auto; }
+    .nav-links { display: flex; align-items: center; gap: 4px; }
     .nav-links a {
-      color: var(--muted);
-      font-size: 14px;
-      font-weight: 600;
-      text-decoration: none;
+      padding: 5px 10px;
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      font-size: 13px; font-weight: 600; text-decoration: none;
     }
-    .nav-links a:hover { color: var(--text); }
+    .nav-links a:hover { background: var(--bg-hover); color: var(--text); }
+    .nav-links a.cta {
+      border: 1px solid var(--primary);
+      background: var(--primary); color: var(--on-primary);
+    }
+    .nav-links a.cta:hover { background: var(--primary-hover); color: var(--on-primary); }
 
-    .hero {
-      max-width: 820px;
-      padding: 92px 0 70px;
+    /* ─── Hero ────────────────────────────────────────────────── */
+    .hero { padding: 84px 0 68px; text-align: center; }
+    .lockup {
+      display: block;
+      width: min(560px, 88%);
+      height: auto;
+      margin: 0 auto 34px;
+      filter: drop-shadow(0 10px 28px color-mix(in srgb, var(--primary) 22%, transparent));
     }
     .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin: 0 0 20px;
-      padding: 6px 11px;
-      border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--primary) 8%, var(--bg));
-      color: var(--primary);
-      font-size: 13px;
-      font-weight: 700;
+      display: inline-flex; align-items: center; gap: 7px;
+      margin: 0 0 18px;
+      padding: 4px 11px;
+      border: 1px solid var(--primary-border);
+      border-radius: var(--radius-pill);
+      background: var(--primary-soft);
+      color: var(--primary-text);
+      font-size: 12px; font-weight: 650;
+      letter-spacing: .02em;
+    }
+    .eyebrow .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--primary);
     }
     h1 {
-      max-width: 780px;
-      margin: 0;
-      font-size: clamp(42px, 8vw, 76px);
-      line-height: 1.02;
-      letter-spacing: -0.055em;
+      max-width: 18ch;
+      margin: 0 auto;
+      font-size: clamp(34px, 5.6vw, 58px);
+      line-height: 1.06;
+      letter-spacing: -.03em;
     }
-    .hero .lede {
-      max-width: 680px;
-      margin: 24px 0 0;
-      color: var(--muted);
-      font-size: clamp(18px, 2.5vw, 22px);
+    h1 .accent {
+      background: linear-gradient(100deg, #106ebe 0%, #0078d4 55%, #2b88d8 100%);
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent;
     }
-    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+    .lede {
+      max-width: 62ch;
+      margin: 20px auto 0;
+      color: var(--text-muted);
+      font-size: clamp(16px, 2vw, 18px);
+    }
+    .actions {
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 10px; margin-top: 30px;
+    }
     .button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 46px;
-      padding: 10px 18px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: var(--surface);
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      min-height: 36px;
+      padding: 7px 16px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      background: var(--bg-surface);
       color: var(--text);
-      font-size: 15px;
-      font-weight: 700;
+      font-size: 14px; font-weight: 600;
       text-decoration: none;
+      box-shadow: var(--shadow-4);
     }
-    .button:hover { border-color: var(--primary); }
+    .button:hover { background: var(--bg-hover); }
     .button.primary {
       border-color: var(--primary);
       background: var(--primary);
@@ -154,257 +210,408 @@
     }
     .button.primary:hover { background: var(--primary-hover); }
 
-    section { padding: 76px 0; }
-    section + section { border-top: 1px solid var(--border); }
-    .section-heading { max-width: 720px; margin-bottom: 30px; }
+    .trust {
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 8px 22px;
+      margin: 30px auto 0;
+      color: var(--text-faint);
+      font-size: 12.5px;
+    }
+    .trust span { display: inline-flex; align-items: center; gap: 6px; }
+    .trust svg { color: var(--primary); flex: 0 0 auto; }
+
+    /* ─── Sections ────────────────────────────────────────────── */
+    section { padding: 66px 0; border-top: 1px solid var(--border); }
+    /* Clears the sticky command bar, so an in-page anchor does not land its
+       own heading underneath it. */
+    section[id] { scroll-margin-top: 62px; }
+    .section-heading { max-width: 62ch; margin-bottom: 28px; }
     h2 {
-      margin: 0 0 10px;
-      font-size: clamp(28px, 5vw, 42px);
-      line-height: 1.15;
-      letter-spacing: -0.035em;
+      margin: 0 0 8px;
+      font-size: clamp(25px, 3.6vw, 34px);
+      line-height: 1.18;
+      letter-spacing: -.022em;
     }
-    .section-heading p { margin: 0; color: var(--muted); font-size: 17px; }
+    .section-heading p { margin: 0; color: var(--text-muted); font-size: 16px; }
+    .kicker {
+      margin: 0 0 6px;
+      color: var(--primary-text);
+      font-size: 11.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .07em;
+    }
 
-    .features {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px;
-    }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .card {
-      min-height: 190px;
-      padding: 24px;
+      padding: 20px;
       border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      box-shadow: var(--shadow-4);
+    }
+    .card .icon {
+      display: grid; place-items: center;
+      width: 32px; height: 32px;
+      margin-bottom: 13px;
+      border: 1px solid var(--primary-border);
       border-radius: var(--radius);
-      background: color-mix(in srgb, var(--surface) 90%, transparent);
-      box-shadow: var(--shadow);
-    }
-    .card .number {
+      background: var(--primary-soft);
       color: var(--primary);
-      font-size: 13px;
-      font-weight: 800;
-      letter-spacing: 0.08em;
     }
-    .card h3 { margin: 38px 0 8px; font-size: 19px; letter-spacing: -0.015em; }
-    .card p { margin: 0; color: var(--muted); font-size: 15px; }
+    .card h3 { margin: 0 0 5px; font-size: 15.5px; letter-spacing: -.01em; }
+    .card p { margin: 0; color: var(--text-muted); font-size: 14px; }
 
-    .architecture {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 18px;
+    /* ─── Delegation table ────────────────────────────────────── */
+    .split { display: grid; grid-template-columns: .9fr 1.1fr; gap: 32px; align-items: start; }
+    .split p { color: var(--text-muted); }
+    .note {
+      margin-top: 16px; padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--primary);
+      border-radius: var(--radius);
+      background: var(--bg-subtle);
+      color: var(--text-muted);
+      font-size: 13px;
     }
-    .delegation-panel {
-      display: grid;
-      grid-template-columns: .85fr 1.15fr;
-      gap: 30px;
-      align-items: start;
+    .rows {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      box-shadow: var(--shadow-4);
     }
-    .delegation-copy p { margin: 10px 0 0; color: var(--muted); }
-    .delegation-note { margin-top: 18px; padding: 14px 16px; border-left: 4px solid var(--primary); border-radius: 8px; background: var(--surface); color: var(--muted); font-size: 13px; }
-    .permission-list { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
-    .permission-list article { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 15px; padding: 15px 17px; border-bottom: 1px solid var(--border); }
-    .permission-list article:last-child { border-bottom: 0; }
-    .permission-list strong { font-size: 14px; }
-    .permission-list span { color: var(--muted); font-size: 13px; }
+    .rows article {
+      display: grid; grid-template-columns: 128px minmax(0, 1fr);
+      gap: 14px; padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .rows article:last-child { border-bottom: 0; }
+    .rows strong { font-size: 13.5px; }
+    .rows span { color: var(--text-muted); font-size: 13.5px; }
+
+    /* ─── Architecture ────────────────────────────────────────── */
     .flow {
-      padding: 26px;
+      padding: 22px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      box-shadow: var(--shadow-4);
+    }
+    .flow h3 { margin: 0 0 6px; font-size: 15.5px; }
+    .flow p { margin: 0; color: var(--text-muted); font-size: 14px; }
+    .flow code {
+      display: block; margin-top: 15px;
+      padding: 9px 11px;
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      background: var(--surface);
-    }
-    .flow h3 { margin: 0 0 8px; font-size: 17px; }
-    .flow p { margin: 0; color: var(--muted); }
-    .flow code {
-      display: block;
-      margin-top: 18px;
-      color: var(--primary);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 13px;
+      background: var(--bg-subtle);
+      color: var(--primary-text);
+      font-family: var(--font-mono); font-size: 12.5px;
       overflow-wrap: anywhere;
     }
 
-    .deploy-panel {
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 28px;
-      align-items: center;
-      padding: 34px;
-      border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
-      border-radius: calc(var(--radius) + 4px);
-      background: var(--surface-strong);
+    /* ─── Deploy ──────────────────────────────────────────────── */
+    .deploy {
+      display: grid; grid-template-columns: 1.05fr .95fr;
+      gap: 28px; align-items: center;
+      padding: 32px;
+      border: 1px solid var(--primary-border);
+      border-radius: var(--radius-lg);
+      background: var(--primary-soft);
     }
-    .deploy-panel h2 { font-size: clamp(28px, 4vw, 38px); }
-    .deploy-panel p { margin: 12px 0 0; color: var(--muted); }
+    .deploy h2 { font-size: clamp(24px, 3.2vw, 31px); }
+    .deploy p { margin: 10px 0 0; color: var(--text-muted); }
     pre {
-      margin: 0;
-      padding: 20px;
-      overflow-x: auto;
+      margin: 0; padding: 16px 18px; overflow-x: auto;
       border: 1px solid var(--border);
-      border-radius: 12px;
-      background: var(--bg);
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
       color: var(--text);
-      font: 13px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font: 12.5px/1.75 var(--font-mono);
+      box-shadow: var(--shadow-4);
     }
+    pre .c { color: var(--text-faint); }
 
-    .notice {
-      margin-top: 22px;
-      padding: 16px 18px;
-      border-left: 4px solid var(--primary);
-      border-radius: 8px;
-      background: var(--surface);
-      color: var(--muted);
-      font-size: 14px;
-    }
-
+    /* ─── Footer ──────────────────────────────────────────────── */
     footer {
-      padding: 32px 0 40px;
+      padding: 30px 0 42px;
       border-top: 1px solid var(--border);
-      color: var(--muted);
-      font-size: 14px;
+      color: var(--text-muted);
+      font-size: 13px;
     }
-    footer .wrap { display: flex; justify-content: space-between; gap: 20px; }
-    .footer-links { display: flex; flex-wrap: wrap; gap: 16px; }
-    .footer-links a { color: var(--muted); }
-    .footer-links a:hover { color: var(--text); }
+    .footer-top {
+      display: flex; flex-wrap: wrap; justify-content: space-between;
+      gap: 18px; align-items: center;
+    }
+    .footer-links { display: flex; flex-wrap: wrap; gap: 6px; }
+    .footer-links a {
+      padding: 4px 9px;
+      border-radius: var(--radius);
+      color: var(--text-muted); text-decoration: none;
+    }
+    .footer-links a:hover { background: var(--bg-hover); color: var(--text); }
+    .product-credit {
+      display: block; max-width: 74ch; margin-top: 18px;
+      color: var(--text-muted);
+    }
+    .product-meta { display: block; margin-top: 8px; color: var(--text-faint); font-size: 12px; }
+    .product-meta a { color: var(--text-faint); }
 
-    @media (max-width: 820px) {
-      .features { grid-template-columns: 1fr 1fr; }
-      .deploy-panel, .delegation-panel { grid-template-columns: 1fr; }
-      .hero { padding-top: 64px; }
+    @media (max-width: 900px) {
+      .grid-3 { grid-template-columns: 1fr 1fr; }
+      .split, .deploy { grid-template-columns: 1fr; }
     }
-    @media (max-width: 600px) {
-      .wrap { width: min(100% - 28px, 1100px); }
-      .nav-links a:first-child, .nav-links a:nth-child(2) { display: none; }
-      .hero { padding: 52px 0; }
-      .features, .architecture { grid-template-columns: 1fr; }
-      section { padding: 56px 0; }
-      .deploy-panel { padding: 24px; }
-      footer .wrap { flex-direction: column; }
+    @media (max-width: 620px) {
+      .wrap { width: calc(100% - 28px); }
+      .nav-links a:not(.cta) { display: none; }
+      .hero { padding: 52px 0 48px; }
+      .grid-3, .grid-2 { grid-template-columns: 1fr; }
+      section { padding: 48px 0; }
+      .deploy { padding: 22px; }
+      .rows article { grid-template-columns: 1fr; gap: 3px; }
     }
-    @media (prefers-reduced-motion: reduce) {
-      html { scroll-behavior: auto; }
-    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   </style>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
 
-  <div class="wrap">
-    <nav aria-label="Primary navigation">
+  <!-- Brand lockup, identical to apps/web/static/logo.svg. Gradient ids are
+       suffixed so a second instance on the page cannot collide with them. -->
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="tile-lk" x1="0" y1="0" x2="0.85" y2="1">
+        <stop offset="0%" stop-color="#2B88D8"/>
+        <stop offset="55%" stop-color="#0078D4"/>
+        <stop offset="100%" stop-color="#005A9E"/>
+      </linearGradient>
+      <linearGradient id="gloss-lk" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.26"/>
+        <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+      </linearGradient>
+      <!-- userSpaceOnUse: the stems are zero-width paths, and an
+           objectBoundingBox gradient on a zero-width box is degenerate —
+           those glyphs would not render at all. -->
+      <linearGradient id="ink-lk" gradientUnits="userSpaceOnUse" x1="0" y1="8" x2="169" y2="56">
+        <stop offset="0%" stop-color="#106EBE"/>
+        <stop offset="62%" stop-color="#0078D4"/>
+        <stop offset="100%" stop-color="#2B88D8"/>
+      </linearGradient>
+    </defs>
+
+    <symbol id="cmail-lockup" viewBox="0 0 281 96" fill="none">
+      <g transform="translate(8 12) scale(1.125)">
+        <rect x="0" y="0" width="64" height="64" rx="15" fill="url(#tile-lk)"/>
+        <path d="M0 15A15 15 0 0 1 15 0h34a15 15 0 0 1 15 15v13H0z" fill="url(#gloss-lk)"/>
+        <g stroke="#FFFFFF" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13 25.5v20.2a2.8 2.8 0 0 0 2.8 2.8h32.4a2.8 2.8 0 0 0 2.8-2.8V25.5"/>
+          <path d="M13 25.5 30.3 38a2.9 2.9 0 0 0 3.4 0L51 25.5"/>
+          <path d="M13 25.5 30.3 13a2.9 2.9 0 0 1 3.4 0L51 25.5"/>
+        </g>
+        <circle cx="51" cy="13" r="6" fill="#50E6FF"/>
+      </g>
+      <g transform="translate(104 16)">
+        <g stroke="url(#ink-lk)" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M33.65 28.53A17 17 0 1 0 33.65 49.47"/>
+          <path d="M47 56V32A10 10 0 0 1 67 32V56M67 32A10 10 0 0 1 87 32V56"/>
+          <circle cx="117.5" cy="39" r="17"/>
+          <path d="M134.5 22V56"/>
+          <path d="M150 22V56"/>
+          <path d="M165.5 8V56"/>
+        </g>
+        <circle cx="150" cy="11" r="3.75" fill="#50E6FF"/>
+      </g>
+    </symbol>
+
+    <!-- 20×20 grid, 1.5px stroke — the same geometry as the in-app icon set. -->
+    <symbol id="i-shield" viewBox="0 0 20 20"><path d="M10 2.6 4.3 4.7v4.8c0 3.3 2.3 6.1 5.7 7.6 3.4-1.5 5.7-4.3 5.7-7.6V4.7zM7.6 9.9l1.7 1.7 3.4-3.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-people" viewBox="0 0 20 20"><path d="M13.2 16.5v-1.4a3.2 3.2 0 0 0-3.2-3.2H5.6a3.2 3.2 0 0 0-3.2 3.2v1.4M7.8 8.9a2.9 2.9 0 1 0 0-5.8 2.9 2.9 0 0 0 0 5.8M17.6 16.5v-1.4a3.2 3.2 0 0 0-2.4-3.1M12.8 3.2a3.2 3.2 0 0 1 0 6.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-key" viewBox="0 0 20 20"><path d="M17 3.5 9.6 10.9M14.4 6.1l2 2M12 8.5l2.1 2.1M8.7 9.9a4.1 4.1 0 1 0-3.3 7 4.1 4.1 0 0 0 3.3-7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 20 20"><path d="M2.5 10.5h3.1l2-5.6 3.2 10 2-4.4h4.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 20 20"><path d="M2.5 6.4a1.9 1.9 0 0 1 1.9-1.9h11.2a1.9 1.9 0 0 1 1.9 1.9v7.2a1.9 1.9 0 0 1-1.9 1.9H4.4a1.9 1.9 0 0 1-1.9-1.9zM2.9 5.8 10 10.8l7.1-5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-clipboard" viewBox="0 0 20 20"><path d="M7.5 3.4H6a1.6 1.6 0 0 0-1.6 1.6v10.1A1.6 1.6 0 0 0 6 16.7h8a1.6 1.6 0 0 0 1.6-1.6V5A1.6 1.6 0 0 0 14 3.4h-1.5M7.5 3.4a1.3 1.3 0 0 1 1.3-1.3h2.4a1.3 1.3 0 0 1 1.3 1.3M7.5 3.4a1.3 1.3 0 0 0 1.3 1.3h2.4a1.3 1.3 0 0 0 1.3-1.3M7.3 9.2h5.4M7.3 12.4h3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 20 20"><path d="M4 10.4 8 14.4l8-8.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-link" viewBox="0 0 20 20"><path d="M8.4 11.6a3.4 3.4 0 0 0 5.1.4l2-2a3.4 3.4 0 0 0-4.8-4.8l-1.1 1.1M11.6 8.4a3.4 3.4 0 0 0-5.1-.4l-2 2a3.4 3.4 0 0 0 4.8 4.8l1.1-1.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 20 20"><path d="M5.8 15.4a3.9 3.9 0 0 1-.5-7.7 5 5 0 0 1 9.6-1.1 3.9 3.9 0 0 1 .5 7.7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </svg>
+
+  <div class="topbar">
+    <div class="wrap">
       <a class="brand" href="/" aria-label="cmail home">
-        <svg aria-hidden="true" width="23" height="23" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/>
-        </svg>
-        cmail
+        <svg viewBox="0 0 281 96" role="img" aria-label="cmail"><use href="#cmail-lockup"/></svg>
       </a>
-      <div class="nav-links">
-        <a href="#features">Features</a>
-        <a href="#shared-mailboxes">Shared mailboxes</a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#capabilities">Capabilities</a>
+        <a href="#delegation">Shared mailboxes</a>
+        <a href="#trust">Security</a>
         <a href="#architecture">Architecture</a>
-        <a href="#deploy">Deploy</a>
         <a href="https://github.com/Rob142857/cmail">Source</a>
-      </div>
-    </nav>
+        <a class="cta" href="#deploy">Deploy it</a>
+      </nav>
+    </div>
   </div>
 
   <main id="main">
     <div class="wrap">
       <header class="hero">
-        <p class="eyebrow">Open source · MIT licensed</p>
-        <h1>Organisational email you operate.</h1>
-        <p class="lede">cmail brings personal mailboxes and familiar Exchange-style shared mailbox administration to infrastructure in your own Cloudflare account—without a proprietary identity or hosting lock-in.</p>
+        <svg class="lockup" viewBox="0 0 281 96" role="img" aria-label="cmail"><use href="#cmail-lockup"/></svg>
+        <p class="eyebrow"><span class="dot" aria-hidden="true"></span> Open source · MIT licensed</p>
+        <h1>Enterprise-grade email management, <span class="accent">simplified</span>.</h1>
+        <p class="lede">
+          Personal and shared mailboxes, Exchange-style delegation, and accountable
+          administration — built for small organisations and for teams spread across
+          places and reporting lines. It runs in your own Cloudflare account, on your
+          own domain.
+        </p>
         <div class="actions">
-          <a class="button primary" href="https://github.com/Rob142857/cmail#quick-start">Read the setup guide</a>
-          <a class="button" href="#features">Explore the application</a>
+          <a class="button primary" href="#deploy">Deploy your own</a>
+          <a class="button" href="https://github.com/Rob142857/cmail">View the source</a>
         </div>
+        <p class="trust">
+          <span><svg width="15" height="15" aria-hidden="true"><use href="#i-check"/></svg> No proprietary lock-in</span>
+          <span><svg width="15" height="15" aria-hidden="true"><use href="#i-check"/></svg> Your domain, your data</span>
+          <span><svg width="15" height="15" aria-hidden="true"><use href="#i-check"/></svg> Standards-compliant mail</span>
+        </p>
       </header>
+    </div>
 
-      <section id="features" aria-labelledby="features-heading">
+    <div class="wrap">
+      <section id="capabilities" aria-labelledby="capabilities-heading">
         <div class="section-heading">
-          <h2 id="features-heading">A focused mail workspace</h2>
-          <p>Built for small organisations that need shared addresses, accountable administration, and control over their own deployment.</p>
+          <p class="kicker">Capabilities</p>
+          <h2 id="capabilities-heading">A focused mail workspace</h2>
+          <p>Everything a small organisation actually needs to run shared addresses accountably — and nothing that only exists to fill a comparison table.</p>
         </div>
-        <div class="features">
+        <div class="grid-3">
           <article class="card">
-            <span class="number" aria-hidden="true">01</span>
-            <h3>Exchange-style mailbox delegation</h3>
-            <p>Manage Shared mailboxes, Read, Send as, and Full access with every permission check kept on the server.</p>
+            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-people"/></svg></span>
+            <h3>Exchange-style delegation</h3>
+            <p>Shared mailboxes with Read, Send as, and Full access. Every permission check stays on the server.</p>
           </article>
           <article class="card">
-            <span class="number" aria-hidden="true">02</span>
-            <h3>Google and Microsoft OAuth</h3>
-            <p>Use one or both identity providers without maintaining a separate password database.</p>
+            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-key"/></svg></span>
+            <h3>Google and Microsoft sign-in</h3>
+            <p>Use either identity provider, or both. No separate password database to hold, rotate, or leak.</p>
           </article>
           <article class="card">
-            <span class="number" aria-hidden="true">03</span>
+            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-mail"/></svg></span>
             <h3>Inbound and outbound flow</h3>
-            <p>Receive through Cloudflare Email Routing and send externally through Cloudflare Email Service or Postmark.</p>
+            <p>Receive through Cloudflare Email Routing; send through the native Cloudflare Email Service or Postmark.</p>
           </article>
           <article class="card">
-            <span class="number" aria-hidden="true">04</span>
-            <h3>Message workflow</h3>
-            <p>Compose, reply, forward, save drafts, handle attachments, and organise common folders.</p>
+            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-activity"/></svg></span>
+            <h3>Unified mail trace</h3>
+            <p>Delivery diagnostics and administrative audit folded into one investigation pane, the way an admin actually works.</p>
           </article>
           <article class="card">
-            <span class="number" aria-hidden="true">05</span>
+            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-clipboard"/></svg></span>
             <h3>Policy acknowledgement</h3>
-            <p>Publish versioned acceptable-use text and record user acknowledgement before access.</p>
+            <p>Publish versioned acceptable-use text and record who accepted which version, before access is granted.</p>
           </article>
           <article class="card">
-            <span class="number" aria-hidden="true">06</span>
-            <h3>Operational visibility</h3>
-            <p>Review administrative audit records and inbound or outbound mail-trace metadata.</p>
+            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-shield"/></svg></span>
+            <h3>Inbound protection</h3>
+            <p>Spam scoring, disguised-link and look-alike-domain detection, and a first-contact notice on unfamiliar senders.</p>
           </article>
         </div>
       </section>
 
-      <section id="shared-mailboxes" aria-labelledby="shared-heading">
-        <div class="delegation-panel">
-          <div class="delegation-copy">
-            <p class="eyebrow">Shared mailboxes</p>
-            <h2 id="shared-heading">A team address without a shared password</h2>
-            <p>Every delegate signs in with their own invited Google or Microsoft identity. Managers create functional addresses, control delivery state, and grant the least access each person needs.</p>
-            <div class="delegation-note">Read state, folders, stars, drafts, and Sent history are shared operational state. cmail uses familiar Exchange-style terminology in an independent Cloudflare-native implementation; it is not a Microsoft Exchange server.</div>
+      <section id="delegation" aria-labelledby="delegation-heading">
+        <div class="split">
+          <div>
+            <p class="kicker">Shared mailboxes</p>
+            <h2 id="delegation-heading">A team address without a shared password</h2>
+            <p>
+              Every delegate signs in with their own invited Google or Microsoft identity.
+              Managers create functional addresses, control delivery state, and grant each
+              person the least access they need — and it is visible afterwards who did what.
+            </p>
+            <p class="note">
+              Read state, folders, stars, drafts, and Sent history are shared operational
+              state, so the team sees one consistent mailbox. cmail uses familiar
+              Exchange-style terminology in an independent, Cloudflare-native
+              implementation; it is not a Microsoft Exchange server.
+            </p>
           </div>
-          <div class="permission-list" aria-label="Mailbox delegation levels">
+          <div class="rows" aria-label="Mailbox delegation levels">
             <article><strong>Read</strong><span>Open messages and manage read or unread state.</span></article>
-            <article><strong>Send as</strong><span>Includes reading and lets a delegate compose or reply from the shared address.</span></article>
-            <article><strong>Full access</strong><span>Adds shared folder moves, stars, archive, trash, and restore controls.</span></article>
+            <article><strong>Send as</strong><span>Everything in Read, plus composing and replying from the shared address.</span></article>
+            <article><strong>Full access</strong><span>Adds shared folder moves, stars, archive, trash, and restore.</span></article>
           </div>
+        </div>
+      </section>
+
+      <section id="trust" aria-labelledby="trust-heading">
+        <div class="section-heading">
+          <p class="kicker">Security and compliance</p>
+          <h2 id="trust-heading">Standards-compliant, and honest about the gaps</h2>
+          <p>The deployment guide walks SPF, DKIM, DMARC, MTA-STS, and TLS reporting. Where a capability depends on something upstream that does not yet exist, the documentation says so rather than implying coverage.</p>
+        </div>
+        <div class="grid-2">
+          <article class="card">
+            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-shield"/></svg></span>
+            <h3>Authenticated mail, by default</h3>
+            <p>SPF, DKIM, and a DMARC policy you actually enforce. Mail failing authentication is rejected at the boundary, before it reaches a mailbox.</p>
+          </article>
+          <article class="card">
+            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-link"/></svg></span>
+            <h3>Link and sender warnings</h3>
+            <p>Anchor text that names one domain but points at another is flagged, as are look-alike internationalised hostnames. Following one shows the real destination first.</p>
+          </article>
+          <article class="card">
+            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-activity"/></svg></span>
+            <h3>Nothing silently deleted</h3>
+            <p>Quarantine files a message into Junk and records why. Retention is destructive, so it stays switched off until an operator deliberately enables it.</p>
+          </article>
+          <article class="card">
+            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-clipboard"/></svg></span>
+            <h3>A published gap register</h3>
+            <p>The standards page lists what is implemented, what is deliberately out of scope, and what is blocked upstream — with the reasoning.</p>
+          </article>
         </div>
       </section>
 
       <section id="architecture" aria-labelledby="architecture-heading">
         <div class="section-heading">
-          <h2 id="architecture-heading">Cloudflare-native architecture</h2>
-          <p>The web application and inbound Worker share D1 and R2 resources while keeping interactive and mail-routing responsibilities separate.</p>
+          <p class="kicker">Architecture</p>
+          <h2 id="architecture-heading">Cloudflare-native, with responsibilities kept apart</h2>
+          <p>The web application and the inbound Worker share D1 and R2, while interactive and mail-routing duties stay in separate runtimes.</p>
         </div>
-        <div class="architecture">
+        <div class="grid-2">
           <div class="flow">
             <h3>Inbound</h3>
-            <p>Email Routing invokes the Worker. It validates the recipient, parses the message, and stores metadata and content.</p>
-            <code>Routing → Worker → D1 + R2</code>
+            <p>Email Routing invokes the Worker. It validates the recipient, enforces quota and rate guardrails atomically, parses the message, and stores metadata and content.</p>
+            <code>Email Routing → Worker → D1 + R2</code>
           </div>
           <div class="flow">
             <h3>Interactive and outbound</h3>
-            <p>Cloudflare Pages runs the SvelteKit app. Authenticated users read mail and submit external delivery to a configured provider.</p>
+            <p>Cloudflare Pages runs the SvelteKit application. Signed-in users read and compose; external delivery goes out through the configured provider.</p>
             <code>Browser → Pages → D1 + R2 → provider</code>
           </div>
         </div>
       </section>
 
       <section id="deploy" aria-labelledby="deploy-heading">
-        <div class="deploy-panel">
+        <div class="deploy">
           <div>
+            <p class="kicker">Deploy</p>
             <h2 id="deploy-heading">Bring your own domain and providers</h2>
-            <p>Clone the repository, create D1 and R2 resources, register OAuth callbacks, store secrets in Cloudflare, and verify mail flow before routing real traffic.</p>
-            <div class="notice">cmail is pre-1.0 software. Complete the repository's deployment and security checklists, define backups, and test with controlled accounts before production use.</div>
+            <p>
+              Clone the repository, create D1 and R2, register your OAuth callbacks, store
+              secrets in Cloudflare, and verify mail flow before routing real traffic.
+            </p>
+            <div class="note">
+              cmail is pre-1.0 software. Work through the deployment and security
+              checklists, define your backups, and test with controlled accounts before
+              production use.
+            </div>
           </div>
-          <pre aria-label="Initial setup commands">git clone https://github.com/Rob142857/cmail.git
+          <pre aria-label="Initial setup commands"><span class="c"># clone, configure, and validate</span>
+git clone https://github.com/Rob142857/cmail.git
 cd cmail
 pnpm install
 pnpm setup
-pnpm check
-pnpm build</pre>
+pnpm validate</pre>
         </div>
       </section>
     </div>
@@ -412,16 +619,27 @@ pnpm build</pre>
 
   <footer>
     <div class="wrap">
-      <span>cmail · Exchange-style shared mailbox administration · MIT licensed</span>
-      <div class="footer-links" role="navigation" aria-label="Project links">
-        <a href="https://github.com/Rob142857/cmail">Source</a>
-        <a href="https://github.com/Rob142857/cmail/blob/main/README.md">Documentation</a>
-        <a href="https://github.com/Rob142857/cmail/blob/main/LICENSE">MIT License</a>
-        <a href="https://github.com/Rob142857/cmail/security/policy">Security</a>
-        <a href="https://github.com/Rob142857/cmail/issues">Issues</a>
+      <div class="footer-top">
+        <a class="brand" href="/" aria-label="cmail home">
+          <svg viewBox="0 0 281 96" role="img" aria-label="cmail"><use href="#cmail-lockup"/></svg>
+        </a>
+        <div class="footer-links" role="navigation" aria-label="Project links">
+          <a href="https://github.com/Rob142857/cmail">Source</a>
+          <a href="https://github.com/Rob142857/cmail/blob/main/README.md">Documentation</a>
+          <a href="https://github.com/Rob142857/cmail/blob/main/docs/deployment.md">Deployment</a>
+          <a href="https://github.com/Rob142857/cmail/blob/main/LICENSE">MIT License</a>
+          <a href="https://github.com/Rob142857/cmail/security/policy">Security</a>
+          <a href="https://github.com/Rob142857/cmail/issues">Issues</a>
+        </div>
       </div>
+      <span class="product-credit">
+        Enterprise-grade email management, simplified for small organisations and for
+        geographically and managerially dispersed groups.
+      </span>
+      <span class="product-meta">
+        <a href="https://github.com/Rob142857/cmail/blob/main/docs/email-authentication.md">Compliant email</a> · MIT open source
+      </span>
     </div>
-    <div class="wrap" style="padding-top: 10px; font-size: 11px;">Independent open-source software; not affiliated with or endorsed by Microsoft.</div>
   </footer>
 </body>
 </html>
