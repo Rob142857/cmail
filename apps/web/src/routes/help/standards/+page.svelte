@@ -69,14 +69,14 @@
         {
           standard: 'Authentication-Results handling',
           rfc: 'RFC 8601',
-          status: 'gap',
-          detail: 'Inbound SPF, DKIM and DMARC verdicts are deliberately not recorded. See the gap register below for why, and what would change it.',
+          status: 'operator',
+          detail: 'Inbound SPF, DKIM and DMARC verdicts are recorded only from a boundary you name in INBOUND_AUTHSERV_ID, and only from the topmost record carrying that identifier. Results are validated against the RFC 8601 registry, commas inside comments and quoted strings cannot split a record, and a forged header from any other authserv-id is discarded. Leave the setting unset and nothing is recorded — which is the safe default, because an unattributed "dkim=pass" is sender-controlled.',
         },
         {
           standard: 'Authenticated Received Chain',
           rfc: 'RFC 8617',
           status: 'gap',
-          detail: 'Not implemented. Mail relayed through a forwarder or mailing list cannot have a broken SPF or DKIM result reassessed.',
+          detail: 'The boundary\'s own arc= verdict is parsed but not stored, and cmail performs no chain validation of its own. Mail relayed through a forwarder or mailing list cannot have a broken SPF or DKIM result reassessed here.',
         },
       ],
     },
@@ -186,16 +186,16 @@
   // entry states the consequence and what would close it.
   const gaps = [
     {
-      title: 'Inbound SPF, DKIM and DMARC results are not recorded',
-      why: 'The Authentication-Results and X-Real-IP headers on an inbound message are sender-controlled until a trusted receiver boundary is configured and its authserv-id validated (RFC 8601). Recording them unverified would present an attacker-supplied "dkim=pass" as though the platform had checked it, which is worse than recording nothing. A test asserts that a forged Authentication-Results header is ignored.',
-      effect: 'The SPF, DKIM, DMARC and source-IP columns in Mail trace stay empty. Your DMARC policy is still enforced upstream by the receiving MX; it simply is not attributed per message here.',
-      closes: 'Configuring a trusted boundary MTA, pinning its authserv-id, and accepting results only from that boundary.',
+      title: 'Inbound authentication results need INBOUND_AUTHSERV_ID before anything is recorded',
+      why: 'An Authentication-Results header is only meaningful if it can be attributed to an MTA you trust — any sender can write "dkim=pass". RFC 8601 §5 requires a consumer to ignore records whose authserv-id is not its own. The parser therefore refuses to produce a verdict until the boundary is named.',
+      effect: 'Until the setting is applied, the SPF, DKIM, DMARC and source-address columns in Investigate and Mail trace stay empty. Your DMARC policy is still enforced upstream by the receiving MX; it simply is not attributed per message here.',
+      closes: 'Setting INBOUND_AUTHSERV_ID on the email Worker to the authserv-id your boundary stamps. Results then appear against every subsequent message.',
     },
     {
       title: 'No Authenticated Received Chain (RFC 8617)',
-      why: 'ARC lets a receiver trust an earlier authentication result after a forwarder or mailing list has broken SPF or DKIM alignment.',
+      why: 'ARC lets a receiver trust an earlier authentication result after a forwarder or mailing list has broken SPF or DKIM alignment. The boundary\'s arc= verdict is parsed, but cmail seals and validates no chain of its own.',
       effect: 'Legitimate mail relayed through a forwarder may fail authentication downstream with no chain to appeal to.',
-      closes: 'Implementing ARC sealing and validation once inbound result handling above exists.',
+      closes: 'Implementing ARC sealing and chain validation, which needs its own key management and cryptographic verification.',
     },
     {
       title: 'No one-click unsubscribe (RFC 8058)',

@@ -5,6 +5,7 @@
 import PostalMime from 'postal-mime';
 import { sendNewMailNotifications, type PushEnvironment } from '@cmail/shared/push';
 import { sanitizeBoundedEmailHtml } from '@cmail/shared/sanitize-email';
+import { parseAuthenticationResults } from './authentication-results';
 import {
   releaseInboundReservation,
   reserveInboundDelivery,
@@ -28,6 +29,13 @@ interface Env extends RetentionEnv, PushEnvironment, InboundGuardEnv {
   MAX_INBOUND_DECODED_BODY_BYTES?: string | number;
   /** Retention is destructive and remains off until an operator explicitly opts in. */
   RETENTION_JOBS_ENABLED?: string | number | boolean;
+  /**
+   * authserv-id of the trusted boundary MTA, e.g. the receiving domain used by
+   * Cloudflare Email Routing. Inbound SPF/DKIM/DMARC results are recorded only
+   * when the topmost Authentication-Results record carries this identifier
+   * (RFC 8601 §5). Leave unset to record nothing.
+   */
+  INBOUND_AUTHSERV_ID?: string;
 }
 
 type TraceStatus = 'delivered' | 'bounced' | 'rejected' | 'quarantined' | 'deferred' | 'sent';
@@ -230,15 +238,18 @@ export function prepareInboundBody(
   return result.ok ? { ok: true, html: result.html } : result;
 }
 
-export function inboundTransportFacts(_headers: Headers): { sourceIp: null; spf: null; dkim: null; dmarc: null } {
-  // These MIME headers are sender-controlled until a trusted receiver
-  // authserv-id boundary is explicitly configured and validated.
-  return {
-    sourceIp: null,
-    spf: null,
-    dkim: null,
-    dmarc: null,
-  };
+export function inboundTransportFacts(
+  headers: Headers,
+  env?: { INBOUND_AUTHSERV_ID?: string },
+): { sourceIp: string | null; spf: string | null; dkim: string | null; dmarc: string | null } {
+  // These MIME headers stay sender-controlled until a trusted receiver
+  // authserv-id boundary is explicitly configured. With INBOUND_AUTHSERV_ID
+  // set, RFC 8601 results are taken from the topmost record and only when that
+  // record came from the named boundary. Without it, nothing is recorded.
+  const facts = parseAuthenticationResults(headers.get('authentication-results'), env?.INBOUND_AUTHSERV_ID);
+  // `arc` is parsed but not persisted: mail_trace has no column for it, and a
+  // boundary's ARC verdict is not our own chain validation.
+  return { sourceIp: facts.sourceIp, spf: facts.spf, dkim: facts.dkim, dmarc: facts.dmarc };
 }
 
 export async function stableInboundId(mailboxId: string, messageIdHeader: string): Promise<string> {
@@ -312,7 +323,7 @@ export default {
     const recipientAddress = normalizeEnvelopeAddress(message.to);
     const senderAddress = normalizeEnvelopeAddress(message.from);
     const messageSize = message.rawSize;
-    const transport = inboundTransportFacts(message.headers);
+    const transport = inboundTransportFacts(message.headers, env);
     const sourceIp = transport.sourceIp;
     const inboundLimit = getInboundLimit(env);
 

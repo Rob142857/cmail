@@ -44,10 +44,16 @@
     },
   ];
 
+  // Pages that are reachable but deliberately not in the rail — they still need
+  // to resolve a breadcrumb and a document title.
+  const unlisted: NavItem[] = [
+    { href: '/admin/investigate', label: 'Investigate', description: 'Trace and audit timeline', icon: 'activity' },
+  ];
+
   const allItems = groups.flatMap((group) => group.items);
   const currentPath = $derived(page.url.pathname);
   const currentItem = $derived(
-    allItems.find((item) => (item.href === '/admin'
+    [...unlisted, ...allItems].find((item) => (item.href === '/admin'
       ? currentPath === '/admin'
       : currentPath.startsWith(item.href))) ?? allItems[0],
   );
@@ -123,6 +129,7 @@
         <span class="nav-label">Return to mail</span>
       </a>
       <nav class="nav-footer-links" aria-label="Management help">
+        <a href="/admin/investigate">Investigate</a>
         <a href="/help/managers">Manager handbook</a>
         <a href="/help/shared-mailboxes">Shared mailbox guide</a>
       </nav>

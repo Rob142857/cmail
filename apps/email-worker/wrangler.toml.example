@@ -21,6 +21,11 @@ binding = "STORAGE"
 bucket_name = "cmail-storage"
 
 [vars]
+# authserv-id of the trusted boundary MTA that stamps Authentication-Results on
+# inbound mail. Inbound SPF/DKIM/DMARC verdicts are recorded only when the
+# topmost record carries this identifier (RFC 8601 section 5). Leave blank and
+# nothing is recorded, because an unattributed result is sender-controlled.
+INBOUND_AUTHSERV_ID = ""
 # 10 MiB default; code hard-caps this setting at 25 MiB.
 MAX_INBOUND_BYTES = "10485760"
 MAX_ATTACHMENTS_PER_MESSAGE = "25"
