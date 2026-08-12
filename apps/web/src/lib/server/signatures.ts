@@ -1,4 +1,8 @@
 import { sanitizeBoundedEmailHtml } from '@cmail/shared/sanitize-email';
+import type { Root, RootContent } from 'hast';
+import rehypeParse from 'rehype-parse';
+import rehypeStringify from 'rehype-stringify';
+import { unified } from 'unified';
 
 const SIGNATURE_LIMITS = {
   maxInputBytes: 64 * 1024,
@@ -7,6 +11,12 @@ const SIGNATURE_LIMITS = {
   maxDepth: 32,
 } as const;
 const MAX_PLAIN_TEXT_LENGTH = 16_384;
+const BLOCK_ELEMENTS = new Set([
+  'address', 'article', 'blockquote', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'li', 'p', 'pre', 'section', 'tr',
+]);
+const signatureParser = unified().use(rehypeParse, { fragment: true });
+const signatureStringifier = unified().use(rehypeStringify);
 
 export interface StoredPersonalSignature {
   user_id: string;
@@ -40,19 +50,40 @@ export interface EffectiveSignature {
   personalLocked: boolean;
 }
 
-function plainTextFromHtml(html: string): string {
-  return html
-    .replace(/<\s*br\s*\/?>/gi, '\n')
-    .replace(/<\s*\/\s*(?:address|article|blockquote|div|h[1-6]|li|p|pre|section|tr)\s*>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#(?:x27|39);/gi, "'")
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+function stripImages<T extends RootContent>(nodes: T[]): T[] {
+  const filtered: T[] = [];
+  for (const node of nodes) {
+    if (node.type === 'element') {
+      if (node.tagName === 'img') continue;
+      node.children = stripImages(node.children);
+    }
+    filtered.push(node);
+  }
+  return filtered;
+}
+
+function appendVisibleText(node: RootContent, output: string[]): void {
+  if (node.type === 'text') {
+    output.push(node.value);
+    return;
+  }
+  if (node.type !== 'element') return;
+  if (node.tagName === 'br') output.push('\n');
+  for (const child of node.children) appendVisibleText(child, output);
+  if (BLOCK_ELEMENTS.has(node.tagName)) output.push('\n');
+}
+
+function imageFreeSignature(html: string): { html: string; plainText: string } {
+  const tree = signatureParser.parse(html) as Root;
+  tree.children = stripImages(tree.children);
+  const output: string[] = [];
+  for (const node of tree.children) appendVisibleText(node, output);
+  return {
+    html: signatureStringifier.stringify(tree).trim(),
+    // Entity references are decoded once by the HTML parser. A tree walk
+    // avoids recursive unescaping and never treats decoded text as markup.
+    plainText: output.join('').replace(/\u00a0/g, ' ').replace(/\n{3,}/g, '\n\n').trim(),
+  };
 }
 
 function sanitizePlainText(value: string): string {
@@ -62,21 +93,16 @@ function sanitizePlainText(value: string): string {
     .trim();
 }
 
-function removeSignatureImages(html: string): string {
-  // Email signatures are sent to every recipient. Even a one-pixel remote
-  // image can disclose the recipient's IP address and open time, so this
-  // stricter layer removes all images after the general email sanitizer.
-  return html.replace(/<img\b[^>]*>/gi, '');
-}
-
 /** Applies the parser-backed email sanitizer with signature-specific limits. */
 export function sanitizeSignature(html: string, plainText = ''): SanitizedSignature | null {
   const result = sanitizeBoundedEmailHtml(html, SIGNATURE_LIMITS);
   if (!result.ok) return null;
-  const safeHtml = removeSignatureImages(result.html).trim();
+  // Even a one-pixel remote image can disclose the recipient's IP address and
+  // open time, so signatures use a stricter image-free tree after sanitising.
+  const safe = imageFreeSignature(result.html);
   return {
-    html: safeHtml,
-    plainText: sanitizePlainText(plainText) || plainTextFromHtml(safeHtml),
+    html: safe.html,
+    plainText: sanitizePlainText(plainText) || sanitizePlainText(safe.plainText),
   };
 }
 

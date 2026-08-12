@@ -17,6 +17,13 @@ describe('signature helpers', () => {
     expect(signature?.plainText).toContain('Regards me');
   });
 
+  it('decodes entities once without turning recursively encoded text into markup', () => {
+    const signature = sanitizeSignature(
+      '<p>&amp;lt;script&amp;gt; &lt;strong&gt;visible text&lt;/strong&gt;</p>',
+    );
+    expect(signature?.plainText).toBe('&lt;script&gt; <strong>visible text</strong>');
+  });
+
   it('layers personal content above an enabled organisation notice in distinct blocks', async () => {
     const db = {
       prepare(query: string) {
