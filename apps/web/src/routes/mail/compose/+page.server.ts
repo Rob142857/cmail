@@ -71,6 +71,7 @@ import {
   type ComposeBodyFailureReason,
 } from '$lib/server/compose-body';
 import { formatQuoteDate } from '$lib/dates';
+import { appendSignatureToAuthoredHtml, getEffectiveSignature } from '$lib/server/signatures';
 
 const BLOCKED_EXTENSIONS = new Set([
   '.exe', '.bat', '.cmd', '.scr', '.js', '.vbs', '.ps1', '.msi',
@@ -324,10 +325,6 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
     }
   }
 
-  const signature = await env.DB.prepare(
-    `SELECT html_body, plain_text_body FROM signature_templates WHERE applies_to = '*' LIMIT 1`,
-  ).first<{ html_body: string; plain_text_body: string }>();
-
   const mailboxes = sendableMailboxes.results || [];
   const assignedMailboxRows = sourceId && !forwardId
     ? await env.DB.prepare(
@@ -347,6 +344,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
     || (replyTo ? mailboxes.find((mailbox) => mailbox.id === replyTo.mailbox_id)?.address : '')
     || mailboxes[0]?.address
     || '';
+  const signature = await getEffectiveSignature(env.DB, locals.user.id, preferredFrom);
   const fallbackReturn = sourceId
     ? `/mail/${encodeURIComponent(sourceId)}`
     : draftId
@@ -366,7 +364,10 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
     isForward: !!forwardId,
     isReplyAll: Boolean(replyAllId),
     replySourceId: replyTo && !forwardId ? replyTo.id : '',
-    signature: signature?.html_body || '',
+    // Kept for the existing preview. The separate fields let settings-aware UI
+    // label personal versus organisation content without parsing HTML.
+    signature: signature.html,
+    effectiveSignature: signature,
     draft,
     returnHref: safeComposeReturnHref(url.searchParams.get('returnTo'), fallbackReturn),
     recoveryId,
@@ -595,17 +596,13 @@ export const actions: Actions = {
     // raw transport sends only to the external SMTP envelope. This avoids both
     // header distortion and duplicate/loopback delivery to local recipients.
 
-    const signature = await env.DB.prepare(
-      `SELECT html_body, plain_text_body FROM signature_templates
-       WHERE applies_to = '*' OR applies_to = ?
-       ORDER BY CASE WHEN applies_to = ? THEN 0 ELSE 1 END LIMIT 1`,
-    ).bind(from, from).first<{ html_body: string; plain_text_body: string }>();
+    const signature = await getEffectiveSignature(env.DB, locals.user.id, from);
     // Match familiar email clients: the sender's signature belongs immediately
     // after their new text, before the immutable quoted conversation.
-    const htmlWithSignature = `${preparedBody.authoredHtml}${signature?.html_body || ''}${preparedBody.quotedHtml}`;
+    const htmlWithSignature = `${appendSignatureToAuthoredHtml(preparedBody.authoredHtml, signature.html)}${preparedBody.quotedHtml}`;
     const textWithSignature = [
       body.trimEnd(),
-      signature?.plain_text_body || '',
+      signature.text,
       preparedBody.quotedText,
     ].filter(Boolean).join('\n\n');
     const mailDomain = normalizeDomain(env.MAIL_DOMAIN);

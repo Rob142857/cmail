@@ -26,6 +26,7 @@
       label: 'Mail',
       items: [
         { href: '/admin/mailboxes', label: 'Mailboxes', description: 'Addresses and permissions', icon: 'mailMultiple' },
+        { href: '/admin/signatures', label: 'Signatures', description: 'Personal and organisation', icon: 'compose' },
         { href: '/admin/trace', label: 'Mail trace', description: 'Delivery diagnostics', icon: 'activity' },
       ],
     },

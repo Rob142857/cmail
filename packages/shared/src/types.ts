@@ -134,6 +134,30 @@ export interface PolicySignature {
   session_id: string | null;
 }
 
+// ─── Email signatures ────────────────────────────────────────────────────
+/** One self-service signature per user; managers may lock it centrally. */
+export interface PersonalSignature {
+  user_id: string;
+  html_body: string;
+  plain_text_body: string;
+  is_locked: number;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+/** An organisation signature chosen by mailbox address, or the `*` default. */
+export interface SignatureTemplate {
+  id: string;
+  name: string;
+  applies_to: string;
+  html_body: string;
+  plain_text_body: string;
+  is_locked: number;
+  is_enabled: number;
+  updated_at: string;
+  updated_by: string | null;
+}
+
 // ─── Audit ────────────────────────────────────────────────
 export type AuditEventType =
   | 'user.onboard' | 'user.offboard' | 'user.pause' | 'user.reactivate' | 'user.role_change'

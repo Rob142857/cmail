@@ -141,3 +141,44 @@ describe('central admin authorization', () => {
     },
   );
 });
+
+describe('central ICT policy gate', () => {
+  it.each(['/mail', '/mail/compose', '/admin/users']) (
+    'redirects an unsigned user from %s before resolving the route',
+    async (path) => {
+      const { response, resolve } = await invoke({
+        path,
+        role: 'manager',
+        publishedPolicy: true,
+      });
+      expect(response.status).toBe(303);
+      expect(response.headers.get('location')).toBe('/policy');
+      expect(response.headers.get('cache-control')).toBe('private, no-store');
+      expect(resolve).not.toHaveBeenCalled();
+    },
+  );
+
+  it('returns a policy-required API response instead of redirecting', async () => {
+    const { response, resolve } = await invoke({
+      path: '/api/messages/message-1',
+      role: 'standard',
+      publishedPolicy: true,
+    });
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: 'policy_required' });
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it.each(['/policy', '/auth/logout', '/_app/immutable/assets/app.css']) (
+    'does not apply the policy gate to %s',
+    async (path) => {
+      const { response, resolve } = await invoke({
+        path,
+        role: 'standard',
+        publishedPolicy: true,
+      });
+      expect(response.status).toBe(200);
+      expect(resolve).toHaveBeenCalledOnce();
+    },
+  );
+});

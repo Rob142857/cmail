@@ -12,6 +12,8 @@ real mail to it.
   Push on iPhone, iPad, and Android, including permission troubleshooting.
 - [Shared mailboxes](shared-mailboxes.md) — delegation, Send as, Full access,
   shared folders and read state, lifecycle, and product boundaries.
+- [Email signatures](signatures.md) — personal sign-offs, optional
+  organisation footers, Manager locking, message ordering, and safe formatting.
 - [Manager handbook](manager-handbook.md) — People, Mailboxes, Organisation,
   Usage policy, Mail trace, Audit log, Settings, and safe operations.
 

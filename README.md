@@ -68,6 +68,8 @@ by default, with Postmark as an alternative.
 - Internal delivery between cmail mailboxes
 - Draft autosave, attachments, Reply, Reply all, Forward, message importance,
   standards-compatible threading, search, bulk actions, and mailbox folders
+- Personal signatures with safe rich formatting, optional organisation
+  signatures or disclaimers, and Manager-controlled locking where required
 - Durable outbound journaling that prevents an accepted message from being
   resent while safely recovering missing Sent or internal-recipient copies
 - Manager tools for users, mailboxes, organisation settings, policy versions, audit records, and mail trace
@@ -93,6 +95,8 @@ mail flow.
   iPhone, iPad, or Android and troubleshoot optional new-mail alerts.
 - [Shared mailboxes](docs/shared-mailboxes.md) — delegation, From identity,
   permission bundles, and shared message state.
+- [Email signatures](docs/signatures.md) — personal sign-offs, optional
+  organisation footers, Manager locking, ordering, and safe formatting.
 - [Manager handbook](docs/manager-handbook.md) — account lifecycle, mailboxes,
   organisation structure, directory privacy, policy, trace, audit, and settings.
 - [Email authentication and sender requirements](docs/email-authentication.md)

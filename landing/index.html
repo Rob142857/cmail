@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="cmail is open-source organisational email on Cloudflare: personal and shared mailboxes, Exchange-style delegation, standards-compliant mail handling, and a unified mail trace — running entirely in your own account.">
+  <meta name="description" content="cmail is open-source organisational email on Cloudflare: personal and shared mailboxes, policy acknowledgement, managed signatures, Exchange-style delegation, mail trace, and standards-focused delivery.">
   <meta name="theme-color" content="#0078d4">
   <meta name="color-scheme" content="light dark">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="cmail — enterprise-grade email management, simplified">
-  <meta property="og:description" content="Personal and shared mailboxes, Exchange-style delegation, OAuth sign-in, policy workflows, inbound protection, and a unified mail trace. Open source, on your own Cloudflare account.">
-  <title>cmail — enterprise-grade email management, simplified</title>
+  <meta property="og:title" content="cmail — organisational email, under your control">
+  <meta property="og:description" content="Personal and shared mailboxes, managed signatures, policy acknowledgement, OAuth sign-in, inbound protection, and accountable administration in your own Cloudflare account.">
+  <title>cmail — organisational email, under your control</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Crect width='64' height='64' rx='15' fill='%230078D4'/%3E%3Cg stroke='%23fff' stroke-width='3.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 25.5v20.2a2.8 2.8 0 0 0 2.8 2.8h32.4a2.8 2.8 0 0 0 2.8-2.8V25.5'/%3E%3Cpath d='M13 25.5 30.3 38a2.9 2.9 0 0 0 3.4 0L51 25.5'/%3E%3Cpath d='M13 25.5 30.3 13a2.9 2.9 0 0 1 3.4 0L51 25.5'/%3E%3C/g%3E%3Ccircle cx='51' cy='13' r='6' fill='%2350E6FF'/%3E%3C/svg%3E">
   <style>
     /* ═══════════════════════════════════════════════════════════════
@@ -261,6 +261,53 @@
     .card h3 { margin: 0 0 5px; font-size: 15.5px; letter-spacing: -.01em; }
     .card p { margin: 0; color: var(--text-muted); font-size: 14px; }
 
+    /* ─── Product tour ───────────────────────────────────────── */
+    .tour { display: grid; gap: 18px; }
+    .product-shot {
+      overflow: hidden;
+      margin: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--bg-surface);
+      box-shadow: var(--shadow-16);
+    }
+    .product-shot img {
+      display: block;
+      width: 100%; height: auto;
+      background: var(--bg-subtle);
+    }
+    .product-shot figcaption {
+      display: grid; gap: 3px;
+      padding: 15px 17px 17px;
+      border-top: 1px solid var(--border);
+    }
+    .product-shot figcaption strong { font-size: 14px; }
+    .product-shot figcaption span { color: var(--text-muted); font-size: 12.5px; }
+    .tour-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+
+    /* A literal feature list is deliberately easy to scan and copy into an
+       internal evaluation or implementation brief. */
+    .feature-list {
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0 28px;
+      margin: 0 0 28px; padding: 0;
+      list-style: none;
+      border-top: 1px solid var(--border);
+    }
+    .feature-list li {
+      position: relative;
+      padding: 13px 0 13px 24px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 13.5px;
+    }
+    .feature-list li::before {
+      content: '✓';
+      position: absolute; left: 2px; top: 13px;
+      color: var(--primary); font-weight: 800;
+    }
+    .feature-list strong { color: var(--text); font-weight: 650; }
+
     /* ─── Delegation table ────────────────────────────────────── */
     .split { display: grid; grid-template-columns: .9fr 1.1fr; gap: 32px; align-items: start; }
     .split p { color: var(--text-muted); }
@@ -365,7 +412,7 @@
       .wrap { width: calc(100% - 28px); }
       .nav-links a:not(.cta) { display: none; }
       .hero { padding: 52px 0 48px; }
-      .grid-3, .grid-2 { grid-template-columns: 1fr; }
+      .grid-3, .grid-2, .tour-grid, .feature-list { grid-template-columns: 1fr; }
       section { padding: 48px 0; }
       .deploy { padding: 22px; }
       .rows article { grid-template-columns: 1fr; gap: 3px; }
@@ -442,6 +489,7 @@
       </a>
       <nav class="nav-links" aria-label="Primary">
         <a href="#capabilities">Capabilities</a>
+        <a href="#tour">Product tour</a>
         <a href="#delegation">Shared mailboxes</a>
         <a href="#trust">Security</a>
         <a href="#architecture">Architecture</a>
@@ -456,7 +504,7 @@
       <header class="hero">
         <svg class="lockup" viewBox="0 0 281 96" role="img" aria-label="cmail"><use href="#cmail-lockup"/></svg>
         <p class="eyebrow"><span class="dot" aria-hidden="true"></span> Open source · MIT licensed</p>
-        <h1>Enterprise-grade email management, <span class="accent">simplified</span>.</h1>
+        <h1>Organisational email, <span class="accent">under your control</span>.</h1>
         <p class="lede">
           Personal and shared mailboxes, Exchange-style delegation, and accountable
           administration — built for small organisations and for teams spread across
@@ -468,20 +516,81 @@
           <a class="button" href="https://github.com/Rob142857/cmail">View the source</a>
         </div>
         <p class="trust">
-          <span><svg width="15" height="15" aria-hidden="true"><use href="#i-check"/></svg> No proprietary lock-in</span>
+          <span><svg width="15" height="15" aria-hidden="true"><use href="#i-check"/></svg> MIT licensed source</span>
           <span><svg width="15" height="15" aria-hidden="true"><use href="#i-check"/></svg> Your domain, your data</span>
-          <span><svg width="15" height="15" aria-hidden="true"><use href="#i-check"/></svg> Standards-compliant mail</span>
+          <span><svg width="15" height="15" aria-hidden="true"><use href="#i-check"/></svg> Documented mail standards</span>
         </p>
       </header>
     </div>
 
     <div class="wrap">
+      <section id="tour" aria-labelledby="tour-heading">
+        <div class="section-heading">
+          <p class="kicker">Product tour</p>
+          <h2 id="tour-heading">A familiar mail experience, with the operating controls visible</h2>
+          <p>These are real cmail surfaces populated with fictional demonstration data. Personal mail, shared work, and administration stay connected without sharing passwords or hiding who can do what.</p>
+        </div>
+        <div class="tour">
+          <figure class="product-shot">
+            <img src="screenshots/shared-inbox.png" width="1280" height="720" loading="lazy" alt="cmail shared Community Enquiries inbox showing mailbox navigation, unread messages, importance, attachments, search, and bulk actions">
+            <figcaption>
+              <strong>Personal and shared mailboxes in one workspace</strong>
+              <span>Move between your own mailbox and delegated team addresses; unread counts, folders, search, importance, attachments, and shared operational state remain visible.</span>
+            </figcaption>
+          </figure>
+          <div class="tour-grid">
+            <figure class="product-shot">
+              <img src="screenshots/admin-overview.png" width="1280" height="720" loading="lazy" alt="cmail management overview showing account, mailbox, message, deployment readiness, and directory privacy summaries">
+              <figcaption>
+                <strong>Management overview</strong>
+                <span>Identity, mail flow, readiness, policy, directory privacy, and operational activity in an Entra-inspired management workspace.</span>
+              </figcaption>
+            </figure>
+            <figure class="product-shot">
+              <img src="screenshots/mailbox-delegation.png" width="1270" height="714" loading="lazy" alt="cmail shared mailbox administration showing named delegates and Read, Send as, and Full access permissions">
+              <figcaption>
+                <strong>Shared mailbox delegation</strong>
+                <span>Create functional addresses and grant each person Read, Send as, or Full access—with no shared sign-in.</span>
+              </figcaption>
+            </figure>
+            <figure class="product-shot">
+              <img src="screenshots/personal-signature.png" width="1280" height="720" loading="lazy" alt="cmail signature settings showing a personal signature layered above a locked organisation signature">
+              <figcaption>
+                <strong>Personal and organisation signatures</strong>
+                <span>People can maintain their own signature unless a manager configures and locks it. The optional organisation signature is appended beneath it.</span>
+              </figcaption>
+            </figure>
+            <figure class="product-shot">
+              <img src="screenshots/policy-management.png" width="1280" height="720" loading="lazy" alt="cmail policy management showing a current organisation IT policy and acknowledgement progress">
+              <figcaption>
+                <strong>Versioned IT policy acknowledgement</strong>
+                <span>Publish the current organisation policy, require acknowledgement before mail access, and retain the acceptance record.</span>
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
       <section id="capabilities" aria-labelledby="capabilities-heading">
         <div class="section-heading">
           <p class="kicker">Capabilities</p>
           <h2 id="capabilities-heading">A focused mail workspace</h2>
           <p>Everything a small organisation actually needs to run shared addresses accountably — and nothing that only exists to fill a comparison table.</p>
         </div>
+        <ul class="feature-list" aria-label="cmail features">
+          <li><strong>Personal and shared mailboxes</strong> with Inbox, Sent, Drafts, Archive, Junk, and Deleted folders.</li>
+          <li><strong>Read, Send as, and Full access</strong> delegation using each person’s own identity.</li>
+          <li><strong>Versioned organisation IT policy</strong> acknowledgement enforced before protected mail and management access.</li>
+          <li><strong>Personal signatures</strong> configurable by the user or a manager, with optional manager locking.</li>
+          <li><strong>Optional organisation signature or disclaimer</strong> managed centrally and appended beneath the personal signature.</li>
+          <li><strong>Compose, reply, reply-all, and forward</strong> with autosaved drafts, attachments, rich quoted-message rendering, and importance.</li>
+          <li><strong>Google and Microsoft sign-in</strong> shown only when that provider is configured—including supported Outlook, Hotmail, and Live accounts.</li>
+          <li><strong>Inbound and outbound delivery</strong> through Cloudflare Email Routing and Cloudflare Email Service, with Postmark as an alternative.</li>
+          <li><strong>Mail trace and audit views</strong> for delivery investigation and recorded administrative activity.</li>
+          <li><strong>SPF, DKIM, DMARC, MTA-STS, and TLS reporting guidance</strong> with a published standards gap register.</li>
+          <li><strong>Organisation layers, units, roles, and positions</strong> with internal-by-default directory privacy controls.</li>
+          <li><strong>Installable PWA</strong> with optional new-mail push notifications on supported devices.</li>
+        </ul>
         <div class="grid-3">
           <article class="card">
             <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-people"/></svg></span>
@@ -505,8 +614,8 @@
           </article>
           <article class="card">
             <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-clipboard"/></svg></span>
-            <h3>Policy acknowledgement</h3>
-            <p>Publish versioned acceptable-use text and record who accepted which version, before access is granted.</p>
+            <h3>Policy and signature controls</h3>
+            <p>Gate protected access on the current policy, layer personal and organisation signatures, and let managers lock centrally configured personal details.</p>
           </article>
           <article class="card">
             <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-shield"/></svg></span>
@@ -527,8 +636,8 @@
               person the least access they need — and it is visible afterwards who did what.
             </p>
             <p class="note">
-              Read state, folders, stars, drafts, and Sent history are shared operational
-              state, so the team sees one consistent mailbox. cmail uses familiar
+              Read state, folders, stars, and Sent history are shared operational
+              state, while unfinished drafts stay private to their author. cmail uses familiar
               Exchange-style terminology in an independent, Cloudflare-native
               implementation; it is not a Microsoft Exchange server.
             </p>
@@ -544,14 +653,14 @@
       <section id="trust" aria-labelledby="trust-heading">
         <div class="section-heading">
           <p class="kicker">Security and compliance</p>
-          <h2 id="trust-heading">Standards-compliant, and honest about the gaps</h2>
+          <h2 id="trust-heading">Standards-focused, and honest about the gaps</h2>
           <p>The deployment guide walks SPF, DKIM, DMARC, MTA-STS, and TLS reporting. Where a capability depends on something upstream that does not yet exist, the documentation says so rather than implying coverage.</p>
         </div>
         <div class="grid-2">
           <article class="card">
             <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-shield"/></svg></span>
-            <h3>Authenticated mail, by default</h3>
-            <p>SPF, DKIM, and a DMARC policy you actually enforce. Mail failing authentication is rejected at the boundary, before it reaches a mailbox.</p>
+            <h3>Authenticated domains, deliberately configured</h3>
+            <p>Deployment guidance covers SPF, provider-managed DKIM, and staged DMARC enforcement. cmail records trusted boundary results for investigation; the receiving provider remains responsible for applying its authentication policy.</p>
           </article>
           <article class="card">
             <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-link"/></svg></span>
@@ -633,7 +742,7 @@ pnpm validate</pre>
         </div>
       </div>
       <span class="product-credit">
-        Enterprise-grade email management, simplified for small organisations and for
+        Organisational email under your control, for small organisations and for
         geographically and managerially dispersed groups.
       </span>
       <span class="product-meta">
