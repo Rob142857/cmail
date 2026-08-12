@@ -52,6 +52,8 @@ export interface Mailbox {
   id: string;
   address: string;
   type: MailboxType;
+  /** The immutable account owner for a personal mailbox; null for shared mailboxes. */
+  owner_user_id: string | null;
   display_name: string;
   status: 'active' | 'disabled';
   created_at: string;

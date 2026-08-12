@@ -180,8 +180,7 @@ export async function provisionBootstrapManager(
   const assignedMailbox = existing
     ? await db.prepare(
       `SELECT m.id FROM mailboxes m
-       INNER JOIN mailbox_assignments assignment ON assignment.mailbox_id = m.id
-       WHERE assignment.user_id = ? AND m.type = 'personal' LIMIT 1`,
+       WHERE m.owner_user_id = ? AND m.type = 'personal' LIMIT 1`,
     ).bind(userId).first<{ id: string }>()
     : null;
   if (options.mailDomain && !assignedMailbox) {
@@ -193,9 +192,9 @@ export async function provisionBootstrapManager(
     const mailboxId = crypto.randomUUID();
     statements.push(
       db.prepare(
-        `INSERT INTO mailboxes (id, address, display_name, type, status, created_at)
-         SELECT ?, ?, ?, 'personal', 'active', datetime('now') WHERE changes() = 1`,
-      ).bind(mailboxId, mailboxAddress, displayName || email),
+        `INSERT INTO mailboxes (id, address, display_name, type, status, owner_user_id, created_at)
+         SELECT ?, ?, ?, 'personal', 'active', ?, datetime('now') WHERE changes() = 1`,
+      ).bind(mailboxId, mailboxAddress, displayName || email, userId),
       db.prepare(
         `INSERT INTO mailbox_assignments
            (mailbox_id, user_id, permissions, assigned_at, assigned_by)

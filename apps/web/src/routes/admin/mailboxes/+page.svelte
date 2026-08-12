@@ -1,7 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import type { SubmitFunction } from '@sveltejs/kit';
-  import EmailAutocomplete from '$lib/EmailAutocomplete.svelte';
+  import MailboxAssigneePicker from '$lib/MailboxAssigneePicker.svelte';
   import { formatDateTime } from '$lib/dates';
   import {
     mailboxPermissionDescription,
@@ -34,28 +34,13 @@
     return type === 'shared' ? 'Shared mailbox' : 'Personal mailbox';
   }
 
-  function hasEligibleOwner(
-    assignments: Array<{ permissions: string; user_status: string }>,
+  function hasEligibleOwner(mailbox: { owner_user_id: string | null; assignments: Array<{ user_id: string; permissions: string; user_status: string }> },
   ): boolean {
-    return assignments.some((assignment) =>
+    return Boolean(mailbox.owner_user_id) && mailbox.assignments.some((assignment) =>
+      assignment.user_id === mailbox.owner_user_id &&
       assignment.permissions === 'full' &&
       (assignment.user_status === 'active' || assignment.user_status === 'pending')
     );
-  }
-
-  function isProtectedOwner(
-    mailboxType: string,
-    mailboxStatus: string,
-    assignment: { permissions: string; user_status: string },
-    assignments: Array<{ permissions: string; user_status: string }>,
-  ): boolean {
-    if (mailboxType !== 'personal' || mailboxStatus !== 'active') return false;
-    if (assignment.permissions !== 'full') return false;
-    if (assignment.user_status !== 'active' && assignment.user_status !== 'pending') return false;
-    return assignments.filter((candidate) =>
-      candidate.permissions === 'full' &&
-      (candidate.user_status === 'active' || candidate.user_status === 'pending')
-    ).length === 1;
   }
 
   function trackSubmission(
@@ -113,6 +98,14 @@
   ): boolean {
     const message = `Remove ${mailboxPermissionLabel(permission)} for ${email} from ${address}? They will lose this mailbox access immediately.`;
     return window.confirm(message);
+  }
+
+  function assignmentMailbox(assignment: { personal_mailbox_address: string | null }): string {
+    return assignment.personal_mailbox_address || 'Personal mailbox unavailable';
+  }
+
+  function assignmentName(assignment: { display_name: string; personal_mailbox_address: string | null }): string {
+    return assignment.display_name || assignmentMailbox(assignment);
   }
 </script>
 
@@ -192,15 +185,13 @@
               </div>
               <div class="field">
                 <label for="initial-delegate">Initial delegate <span>(optional)</span></label>
-                <EmailAutocomplete
-                  value=""
-                  types={['user']}
-                  name="delegate_email"
+                <MailboxAssigneePicker
+                  name="delegate_user_id"
                   id="initial-delegate"
                   placeholder="Start typing a name or email"
                   required={false}
                 />
-                <small>Only active or pending accounts can be delegated access.</small>
+                <small>Choose the person's provisioned personal mailbox. Paused and offboarded people are excluded.</small>
               </div>
               <div class="field">
                 <label for="initial-permission">Initial access level</label>
@@ -366,6 +357,9 @@
                   <dl class="property-list">
                     <div><dt>Email address</dt><dd>{mailbox.address}</dd></div>
                     <div><dt>Mailbox type</dt><dd>{mailboxTypeLabel(mailbox.type)}</dd></div>
+                    {#if mailbox.type === 'personal'}
+                      <div><dt>Owner</dt><dd>{mailbox.owner_display_name || (mailbox.owner_user_id ? mailbox.address : 'Ownership needs review')}</dd></div>
+                    {/if}
                     <div><dt>Stored messages</dt><dd>{mailbox.message_count}</dd></div>
                     <div>
                       <dt>Created</dt>
@@ -377,7 +371,7 @@
                     <div class="state-note state-note-info">
                       This mailbox is disabled. It is hidden from users, cannot be used as a sender, and does not accept new mail.
                     </div>
-                    {#if mailbox.type === 'personal' && !hasEligibleOwner(mailbox.assignments)}
+                    {#if mailbox.type === 'personal' && !hasEligibleOwner(mailbox)}
                       <div class="state-note state-note-warning" role="status">
                         Assign an active or pending owner with Full access before enabling this personal mailbox.
                       </div>
@@ -407,9 +401,9 @@
                       disabled={Boolean(submitting) || (
                         mailbox.status === 'disabled' &&
                         mailbox.type === 'personal' &&
-                        !hasEligibleOwner(mailbox.assignments)
+                        !hasEligibleOwner(mailbox)
                       )}
-                      title={mailbox.status === 'disabled' && mailbox.type === 'personal' && !hasEligibleOwner(mailbox.assignments)
+                      title={mailbox.status === 'disabled' && mailbox.type === 'personal' && !hasEligibleOwner(mailbox)
                         ? 'Assign an active or pending owner with Full access before enabling'
                         : undefined}
                     >
@@ -434,8 +428,9 @@
                     <span>{mailbox.assignments.length} {mailbox.assignments.length === 1 ? 'assignment' : 'assignments'}</span>
                   </div>
 
+                  {#if mailbox.type === 'shared'}
                   <details class="add-delegation">
-                    <summary>{mailbox.type === 'shared' ? 'Add delegation' : 'Add owner'}</summary>
+                    <summary>Add delegation</summary>
                     <form
                       method="POST"
                       action="?/assign"
@@ -447,37 +442,29 @@
                       <div class="field">
                         <label for={`delegate-user-${mailbox.id}`}>Account</label>
                         {#key mailbox.assignments.length}
-                          <EmailAutocomplete
-                            value=""
-                            types={['user']}
-                            name="user_email"
+                          <MailboxAssigneePicker
+                            excludedUserIds={mailbox.assignments.map((assignment) => assignment.user_id)}
+                            name="user_id"
                             id={`delegate-user-${mailbox.id}`}
                             placeholder="Start typing a name or email"
                             required={true}
                           />
                         {/key}
                       </div>
-                      {#if mailbox.type === 'shared'}
-                        <div class="field">
-                          <label for={`delegate-permission-${mailbox.id}`}>Access level</label>
-                          <select id={`delegate-permission-${mailbox.id}`} name="permissions">
-                            <option value="full">Full access</option>
-                            <option value="send-as">Send as</option>
-                            <option value="read">Read access</option>
-                          </select>
-                        </div>
-                      {:else}
-                        <input type="hidden" name="permissions" value="full" />
-                        <div class="fixed-permission">
-                          <span>Access level</span>
-                          <strong>Full access</strong>
-                        </div>
-                      {/if}
+                      <div class="field">
+                        <label for={`delegate-permission-${mailbox.id}`}>Access level</label>
+                        <select id={`delegate-permission-${mailbox.id}`} name="permissions">
+                          <option value="full">Full access</option>
+                          <option value="send-as">Send as</option>
+                          <option value="read">Read access</option>
+                        </select>
+                      </div>
                       <button type="submit" class="btn btn-primary" disabled={Boolean(submitting)}>
-                        {submitting === `add:${mailbox.id}` ? 'Adding…' : mailbox.type === 'shared' ? 'Add delegation' : 'Add owner'}
+                        {submitting === `add:${mailbox.id}` ? 'Adding…' : 'Add delegation'}
                       </button>
                     </form>
                   </details>
+                  {/if}
 
                   {#if mailbox.assignments.length}
                     <ul class="assignment-list">
@@ -485,11 +472,11 @@
                         <li>
                           <div class="principal">
                             <span class="principal-mark" aria-hidden="true">
-                              {(assignment.display_name || assignment.email).slice(0, 1).toUpperCase()}
+                              {assignmentName(assignment).slice(0, 1).toUpperCase()}
                             </span>
                             <span>
-                              <strong>{assignment.display_name || assignment.email}</strong>
-                              <small>{assignment.email}</small>
+                              <strong>{assignmentName(assignment)}</strong>
+                              <small>{assignmentMailbox(assignment)}</small>
                               <small>
                                 Assigned <time datetime={assignment.assigned_at}>{formatDateTime(assignment.assigned_at, data.locale, data.timeZone)}</time>
                               </small>
@@ -510,14 +497,14 @@
                               class="permission-editor"
                               use:enhance={trackSubmission(
                                 `permission:${mailbox.id}:${assignment.user_id}`,
-                                (formData) => confirmPermissionChange(formData, assignment.email, mailbox.address, assignment.permissions),
+                                (formData) => confirmPermissionChange(formData, assignmentMailbox(assignment), mailbox.address, assignment.permissions),
                               )}
                               aria-busy={submitting === `permission:${mailbox.id}:${assignment.user_id}`}
                             >
                               <input type="hidden" name="mailbox_address" value={mailbox.address} />
-                              <input type="hidden" name="user_email" value={assignment.email} />
+                              <input type="hidden" name="user_id" value={assignment.user_id} />
                               <label class="sr-only" for={`permission-${mailbox.id}-${assignment.user_id}`}>
-                                Access level for {assignment.email}
+                                Access level for {assignmentMailbox(assignment)}
                               </label>
                               <select
                                 id={`permission-${mailbox.id}-${assignment.user_id}`}
@@ -547,17 +534,15 @@
                             </div>
                           {/if}
 
-                          {#if isProtectedOwner(mailbox.type, mailbox.status, assignment, mailbox.assignments)}
-                            <span class="protected-owner" title="An active personal mailbox must retain an active or pending owner with Full access">
-                              Required owner
-                            </span>
+                          {#if mailbox.type === 'personal'}
+                            <span class="protected-owner">Managed in People</span>
                           {:else}
                             <form
                               method="POST"
                               action="?/unassign"
                               use:enhance={trackSubmission(
                                 `remove:${mailbox.id}:${assignment.user_id}`,
-                                () => confirmRemoval(assignment.email, mailbox.address, assignment.permissions),
+                                () => confirmRemoval(assignmentMailbox(assignment), mailbox.address, assignment.permissions),
                               )}
                               aria-busy={submitting === `remove:${mailbox.id}:${assignment.user_id}`}
                             >
@@ -636,7 +621,7 @@
 
   .create-form { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 14px; align-items: start; }
   .field { display: grid; gap: 5px; min-width: 0; }
-  .field label, .fixed-permission > span { color: var(--text); font-size: 12px; font-weight: 650; }
+  .field label { color: var(--text); font-size: 12px; font-weight: 650; }
   .field label span { color: var(--text-muted); font-weight: 400; }
   .field small { color: var(--text-muted); font-size: 11px; line-height: 1.45; }
   .suffix-control { display: flex; align-items: stretch; }
@@ -713,8 +698,6 @@
   .add-delegation { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface); }
   .add-delegation > summary { padding: 9px 11px; cursor: pointer; color: var(--primary); font-size: 12px; font-weight: 700; }
   .delegation-form { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(135px, .45fr) auto; gap: 10px; align-items: end; padding: 0 11px 11px; }
-  .fixed-permission { display: grid; gap: 5px; padding-bottom: 7px; }
-  .fixed-permission strong { font-size: 12px; }
   .assignment-list { display: grid; gap: 0; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); list-style: none; overflow: hidden; background: var(--bg-surface); }
   .assignment-list li { display: grid; grid-template-columns: minmax(190px, 1fr) auto minmax(220px, auto) auto; gap: 10px; align-items: center; padding: 10px; border-bottom: 1px solid var(--border); }
   .assignment-list li:last-child { border-bottom: 0; }
