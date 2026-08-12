@@ -29,6 +29,15 @@ export {
 interface Env extends RetentionEnv, PushEnvironment, InboundGuardEnv {
   /** Native Cloudflare Email Service binding used by the private service endpoint. */
   EMAIL?: SendEmail;
+  /**
+   * Optional native Cloudflare per-colo abuse-signal counter for the actor
+   * that submitted inbound mail. It never enforces ingress or skips D1 work.
+   */
+  INBOUND_ACTOR_RATE_LIMITER?: InboundRateLimitBinding;
+  /** Optional native per-colo aggregate abuse-signal counter; non-enforcing. */
+  INBOUND_GLOBAL_RATE_LIMITER?: InboundRateLimitBinding;
+  /** Optional native per-colo limiter that bounds generic abuse-alert logs. */
+  INBOUND_ABUSE_ALERT_RATE_LIMITER?: InboundRateLimitBinding;
   /** Optional byte limit. Values above HARD_MAX_INBOUND_BYTES are clamped. */
   MAX_INBOUND_BYTES?: string | number;
   /** Optional attachment-count limit. Values above HARD_MAX_ATTACHMENTS are clamped. */
@@ -89,6 +98,15 @@ const MAX_CONTENT_TYPE_CHARS = 255;
 const MAX_OUTBOUND_PROXY_BYTES = 6 * 1024 * 1024;
 const ENCODER = new TextEncoder();
 const OPAQUE_STORAGE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// Deliberately neutral: do not disclose whether this address never existed,
+// was disabled, or belonged to an offboarded person. Cloudflare controls the
+// permanent SMTP rejection and passes this plain-text reason to the sender;
+// it does not cause Cmail to send mail.
+export const RECIPIENT_UNAVAILABLE_SMTP_RESPONSE = 'cmail: recipient unavailable; verify the address or contact the organisation';
+/** Structural type so the Worker can still run locally without the optional binding. */
+export interface InboundRateLimitBinding {
+  limit(input: { key: string }): Promise<{ success: boolean }>;
+}
 
 // Blocked attachment extensions. This is a defense-in-depth guard, not malware scanning.
 const BLOCKED_EXTENSIONS = new Set([
@@ -211,6 +229,74 @@ function normalizeContentId(value: unknown): string | null {
 
 export function normalizeEnvelopeAddress(value: string): string {
   return value.trim().toLowerCase();
+}
+
+/**
+ * Authentication-Results source IPs are usable only when inboundTransportFacts
+ * obtained them from the configured, trusted authserv-id. Otherwise the
+ * normalized (but still sender-controlled and spoofable) envelope sender is
+ * the available pre-recipient actor. The input is SHA-256 pseudonymized before
+ * it reaches Cloudflare's counter key; prefixes prevent source-type collisions.
+ */
+export async function inboundRateLimitActorKey(sourceIp: string | null, senderAddress: string): Promise<string> {
+  const actor = sourceIp ? `trusted-source-ip\u0000${sourceIp}` : `envelope-sender\u0000${senderAddress}`;
+  const digest = await crypto.subtle.digest('SHA-256', ENCODER.encode(actor));
+  return `actor:${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/**
+ * Native Rate Limiting bindings are deliberately optional and fail open: a
+ * missing binding or an edge binding fault must not become a mail outage. The
+ * Email Workers API documents setReject() as a permanent SMTP error, so these
+ * bindings are observability-only rather than a false "temporary" rejection.
+ * The configured binding itself is local to a Cloudflare colo, so the fixed
+ * global key is a per-colo signal, not a global enforcement guarantee.
+ */
+async function allowByRateLimiter(limiter: InboundRateLimitBinding | undefined, key: string): Promise<boolean> {
+  if (!limiter) return true;
+  try {
+    return (await limiter.limit({ key })).success;
+  } catch {
+    return true;
+  }
+}
+
+export async function inboundRateLimitThresholdObserved(
+  env: Pick<Env, 'INBOUND_ACTOR_RATE_LIMITER' | 'INBOUND_GLOBAL_RATE_LIMITER'>,
+  sourceIp: string | null,
+  senderAddress: string,
+): Promise<boolean> {
+  const [actorAllowed, globalAllowed] = await Promise.all([
+    allowByRateLimiter(env.INBOUND_ACTOR_RATE_LIMITER, await inboundRateLimitActorKey(sourceIp, senderAddress)),
+    allowByRateLimiter(env.INBOUND_GLOBAL_RATE_LIMITER, 'inbound-email'),
+  ]);
+  return !actorAllowed || !globalAllowed;
+}
+
+/**
+ * A separate one-per-minute native binding bounds observability itself. Unlike
+ * the actor/global counters, absent or faulty alert capability suppresses the
+ * log rather than failing open to log amplification. It never affects mail.
+ */
+async function mayEmitInboundAbuseAlert(limiter: InboundRateLimitBinding | undefined): Promise<boolean> {
+  if (!limiter) return false;
+  try {
+    return (await limiter.limit({ key: 'inbound-abuse-alert' })).success;
+  } catch {
+    return false;
+  }
+}
+
+export async function observeInboundRateLimitThreshold(
+  env: Pick<Env, 'INBOUND_ACTOR_RATE_LIMITER' | 'INBOUND_GLOBAL_RATE_LIMITER' | 'INBOUND_ABUSE_ALERT_RATE_LIMITER'>,
+  sourceIp: string | null,
+  senderAddress: string,
+): Promise<void> {
+  if (await inboundRateLimitThresholdObserved(env, sourceIp, senderAddress)
+    && await mayEmitInboundAbuseAlert(env.INBOUND_ABUSE_ALERT_RATE_LIMITER)) {
+    // Intentionally generic: no source, recipient, message, or mailbox data.
+    console.warn('Inbound native rate-limit threshold observed');
+  }
 }
 
 export function isValidEnvelopeAddress(value: string): boolean {
@@ -594,7 +680,7 @@ export default {
       !isValidEnvelopeAddress(recipientAddress) ||
       !isValidEnvelopeAddress(senderAddress)
     ) {
-      message.setReject('550 Invalid envelope address');
+      message.setReject('Invalid envelope address');
       // Do not turn arbitrary pre-mailbox address spray into durable D1 rows.
       return;
     }
@@ -602,10 +688,16 @@ export default {
     // Reject before reading message.raw so oversized messages never enter the
     // PostalMime buffering/parsing path.
     if (!isInboundSizeAllowed(messageSize, inboundLimit)) {
-      message.setReject('552 Message exceeds the configured size limit');
+      message.setReject('Message exceeds the configured size limit');
       // Repeated oversized traffic is not persisted before mailbox controls.
       return;
     }
+
+    // These native Cloudflare counters are non-enforcing abuse signals. Email
+    // Workers exposes setReject() as permanent SMTP failure, so no threshold
+    // can skip D1 work or discard mail. A separate native alert binding permits
+    // at most one generic no-PII warning per colo/minute.
+    await observeInboundRateLimitThreshold(env, sourceIp, senderAddress);
 
     // Look up recipient mailbox.
     const mailbox = await env.DB.prepare(
@@ -613,14 +705,14 @@ export default {
     ).bind(recipientAddress, 'active').first<{ id: string; status: string }>();
 
     if (!mailbox) {
-      message.setReject('550 User not found');
+      message.setReject(RECIPIENT_UNAVAILABLE_SMTP_RESPONSE);
       // Unknown-recipient spray must not create unbounded trace/audit data.
       return;
     }
 
     const rawMessageIdHeader = (message.headers.get('message-id') || '').trim();
     if (rawMessageIdHeader.length > MAX_MESSAGE_ID_CHARS) {
-      message.setReject('552 Message metadata exceeds the configured limit');
+      message.setReject('Message metadata exceeds the configured limit');
       return;
     }
 
@@ -648,10 +740,10 @@ export default {
       return;
     }
     if (reservation.status !== 'accepted') {
-      // Policy and dependency failures deliberately have the same temporary,
+      // Policy and dependency failures deliberately have the same generic,
       // non-diagnostic SMTP response. Do not persist attacker-controlled PII
       // in trace/audit rows for guardrail denials.
-      message.setReject('451 Message temporarily unavailable');
+      message.setReject('Message cannot be accepted at this time');
       console.warn(
         reservation.status === 'rejected'
           ? 'Inbound delivery rejected by configured protection policy'
@@ -670,7 +762,7 @@ export default {
       const parser = new PostalMime();
       parsed = await parser.parse(rawEmail);
       } catch {
-        message.setReject('550 Message could not be parsed');
+      message.setReject('Message could not be parsed');
         await logTrace(env.DB, {
           direction: 'inbound',
           envelope_from: senderAddress,
@@ -689,7 +781,7 @@ export default {
       getDecodedBodyLimit(env),
     );
     if (!preparedBody.ok) {
-      message.setReject('552 Message body exceeds the configured processing limit');
+      message.setReject('Message body exceeds the configured processing limit');
       await logTrace(env.DB, {
         direction: 'inbound',
         status: 'rejected',
@@ -703,7 +795,7 @@ export default {
     const attachments = parsed.attachments || [];
 
     if (attachments.length > getAttachmentLimit(env)) {
-      message.setReject('552 Message exceeds the attachment count limit');
+      message.setReject('Message exceeds the attachment count limit');
       await logTrace(env.DB, {
         direction: 'inbound',
         envelope_from: senderAddress,
@@ -739,7 +831,7 @@ export default {
     const totalAttachmentBytes = preparedAttachments.reduce((total, attachment) => total + attachment.size, 0);
     const attachmentByteLimit = Math.min(MAX_TOTAL_ATTACHMENT_BYTES, inboundLimit);
     if (!Number.isSafeInteger(totalAttachmentBytes) || totalAttachmentBytes > attachmentByteLimit) {
-      message.setReject('552 Message exceeds the attachment size limit');
+      message.setReject('Message exceeds the attachment size limit');
       await logTrace(env.DB, {
         direction: 'inbound',
         envelope_from: senderAddress,
@@ -762,7 +854,7 @@ export default {
     );
     if (blockedAttachment) {
       // Never echo an attacker-controlled filename in the SMTP rejection.
-      message.setReject('550 Attachment type not allowed');
+      message.setReject('Attachment type not allowed');
       await logTrace(env.DB, {
         direction: 'inbound',
         envelope_from: senderAddress,
@@ -784,7 +876,7 @@ export default {
     const ccAddresses = flattenParsedAddresses(parsed.cc);
     const replyToAddresses = flattenParsedAddresses(parsed.replyTo);
     if (toAddresses.length + ccAddresses.length + replyToAddresses.length > MAX_ADDRESSES) {
-      message.setReject('552 Message exceeds the recipient metadata limit');
+      message.setReject('Message exceeds the recipient metadata limit');
       await logTrace(env.DB, {
         direction: 'inbound',
         envelope_from: senderAddress,

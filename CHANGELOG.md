@@ -27,6 +27,10 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Changed
 
+- Unavailable recipients now return one neutral, cmail-labelled permanent SMTP
+  diagnostic for unknown, disabled, and offboarded addresses. The sender's mail
+  system may render its own non-delivery report; cmail sends no autoresponder
+  and consumes no outbound quota.
 - Account provisioning now requires one personal mailbox on `MAIL_DOMAIN`;
   mailbox delegation is restricted to shared mailboxes and excludes paused,
   offboarded, disabled, ownerless, and wrong-domain identities.
@@ -52,6 +56,12 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Security
 
+- Added non-enforcing, pseudonymized native Cloudflare inbound abuse signals
+  with a separately rate-limited generic alert (at most once per colo/minute);
+  these signals never reject mail or avoid recipient/D1 work.
+- Unavailable-recipient rejection remains an early, read-only path: it neither
+  discloses prior mailbox existence nor parses or stores message content,
+  creates per-attempt trace/rate rows, or invokes any outbound provider.
 - Mailbox and organisation-management surfaces no longer use or disclose an
   external Google/Microsoft sign-in address as the person's mail identity.
 - Personal-mailbox ownership and its Full owner assignment are immutable at the

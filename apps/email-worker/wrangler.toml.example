@@ -23,6 +23,29 @@ migrations_dir = "../../packages/shared/migrations"
 binding = "STORAGE"
 bucket_name = "cmail-storage"
 
+# Native, local-to-a-Cloudflare-colo inbound abuse signals. They run before D1
+# but do not reject: Email Workers setReject() is permanent SMTP failure, not
+# a retryable throttle. Change every namespace_id to a unique positive integer
+# in your Cloudflare account, and never reuse one across environments.
+[[ratelimits]]
+name = "INBOUND_ACTOR_RATE_LIMITER"
+namespace_id = "1001001" # placeholder: replace for your account
+simple.limit = 120
+simple.period = 60
+
+[[ratelimits]]
+name = "INBOUND_GLOBAL_RATE_LIMITER"
+namespace_id = "1001002" # placeholder: replace for your account
+simple.limit = 1000
+simple.period = 60
+
+# This third binding rate-limits the generic alert itself, not delivery.
+[[ratelimits]]
+name = "INBOUND_ABUSE_ALERT_RATE_LIMITER"
+namespace_id = "1001003" # placeholder: replace for your account
+simple.limit = 1
+simple.period = 60
+
 # Native Cloudflare Email Service sending. Pages reaches this Worker through
 # the private EMAIL_SERVICE service binding; no outbound API token is required.
 [[send_email]]
@@ -91,6 +114,26 @@ migrations_dir = "../../packages/shared/migrations"
 [[env.preview.r2_buckets]]
 binding = "STORAGE"
 bucket_name = "cmail-storage-preview"
+
+# Preview deliberately has independent limiter namespaces: otherwise preview
+# traffic could consume production counters (or the reverse).
+[[env.preview.ratelimits]]
+name = "INBOUND_ACTOR_RATE_LIMITER"
+namespace_id = "1001004" # placeholder: replace for your account
+simple.limit = 120
+simple.period = 60
+
+[[env.preview.ratelimits]]
+name = "INBOUND_GLOBAL_RATE_LIMITER"
+namespace_id = "1001005" # placeholder: replace for your account
+simple.limit = 1000
+simple.period = 60
+
+[[env.preview.ratelimits]]
+name = "INBOUND_ABUSE_ALERT_RATE_LIMITER"
+namespace_id = "1001006" # placeholder: replace for your account
+simple.limit = 1
+simple.period = 60
 
 [env.preview.vars]
 MAX_INBOUND_BYTES = "10485760"

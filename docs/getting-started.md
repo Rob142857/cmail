@@ -91,7 +91,8 @@ ignored `.dev.vars`.
 
 Sender limiting is enabled by default. The generated Worker key is therefore
 required for local inbound processing; deleting or corrupting it makes the
-Worker fail closed with a generic temporary SMTP rejection. Production needs a
+Worker fail closed with a generic permanent SMTP rejection controlled by
+Cloudflare. Production needs a
 different 32-byte key in the Worker secret store. Do not reuse session, OAuth,
 VAPID, or provider secrets.
 

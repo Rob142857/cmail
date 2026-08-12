@@ -10,10 +10,12 @@ import worker, {
   isValidEnvelopeAddress,
   messageBodyR2Key,
   extractInboundSnippet,
+  inboundRateLimitActorKey,
   normalizeMessageIdHeader,
   normalizeReferencesHeader,
   normalizeEnvelopeAddress,
   prepareInboundBody,
+  RECIPIENT_UNAVAILABLE_SMTP_RESPONSE,
   retentionDays,
   retentionEnabled,
   stableInboundId,
@@ -46,16 +48,25 @@ function routedMessage(overrides: Partial<{
 
 function entryDatabase(options: {
   mailbox?: { id: string; status: string } | null;
+  mailboxes?: Record<string, { id: string; status: string }>;
   existing?: { id: string; body_r2_key: string | null } | null;
 } = {}) {
   const queries: string[] = [];
+  const bindings: unknown[][] = [];
   const database = {
     prepare(query: string) {
       queries.push(query);
       return {
-        bind: (..._values: unknown[]) => ({
+        bind: (...values: unknown[]) => ({
           first: async () => {
-            if (query.includes('FROM mailboxes')) return options.mailbox ?? null;
+            if (query.includes('FROM mailboxes')) {
+              bindings.push(values);
+              if (options.mailboxes) {
+                const candidate = options.mailboxes[String(values[0])];
+                return candidate?.status === values[1] ? candidate : null;
+              }
+              return options.mailbox ?? null;
+            }
             if (query.includes('FROM messages')) return options.existing ?? null;
             return null;
           },
@@ -64,7 +75,7 @@ function entryDatabase(options: {
       };
     },
   };
-  return { database, queries };
+  return { database, queries, bindings };
 }
 
 async function invokeEmail(message: unknown, env: Record<string, unknown>): Promise<void> {
@@ -324,6 +335,146 @@ describe('retention configuration', () => {
 });
 
 describe('pre-reservation write amplification', () => {
+  it('emits one generic rate-limited abuse alert without turning a threshold into an SMTP rejection', async () => {
+    const db = entryDatabase({
+      mailbox: { id: 'mailbox-test', status: 'active' },
+      existing: { id: 'inbound-existing', body_r2_key: 'messages/opaque/body' },
+    });
+    const storage = { put: vi.fn(), delete: vi.fn() };
+    const email = { send: vi.fn() };
+    const actorLimiter = { limit: vi.fn().mockResolvedValue({ success: false }) };
+    const globalLimiter = { limit: vi.fn().mockResolvedValue({ success: true }) };
+    const alertLimiter = { limit: vi.fn().mockResolvedValue({ success: true }) };
+    const observed = routedMessage({ messageId: '<known-rate-limit@example.test>' });
+    const warn = vi.spyOn(console, 'warn');
+
+    try {
+      await invokeEmail(observed.value, {
+        DB: db.database,
+        STORAGE: storage,
+        EMAIL: email,
+        INBOUND_ACTOR_RATE_LIMITER: actorLimiter,
+        INBOUND_GLOBAL_RATE_LIMITER: globalLimiter,
+        INBOUND_ABUSE_ALERT_RATE_LIMITER: alertLimiter,
+      });
+
+      expect(observed.setReject).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledExactlyOnceWith('Inbound native rate-limit threshold observed');
+      expect(actorLimiter.limit).toHaveBeenCalledTimes(1);
+      expect(actorLimiter.limit.mock.calls[0]?.[0]?.key).toMatch(/^actor:[a-f0-9]{64}$/);
+      expect(actorLimiter.limit.mock.calls[0]?.[0]?.key).not.toContain('sender@example.test');
+      expect(globalLimiter.limit).toHaveBeenCalledExactlyOnceWith({ key: 'inbound-email' });
+      expect(alertLimiter.limit).toHaveBeenCalledExactlyOnceWith({ key: 'inbound-abuse-alert' });
+      expect(db.queries).toHaveLength(2);
+      expect(db.queries[0]).toContain('FROM mailboxes');
+      expect(db.queries[1]).toContain('FROM messages');
+      expect(storage.put).not.toHaveBeenCalled();
+      expect(storage.delete).not.toHaveBeenCalled();
+      expect(email.send).not.toHaveBeenCalled();
+      expect(observed.value.forward).not.toHaveBeenCalled();
+      expect(observed.value.reply).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('suppresses the alert when its dedicated rate-limit binding is absent, denied, or faults', async () => {
+    for (const alertLimiter of [undefined, { limit: vi.fn().mockResolvedValue({ success: false }) }, { limit: vi.fn().mockRejectedValue(new Error('edge binding unavailable')) }]) {
+      const db = entryDatabase({
+        mailbox: { id: 'mailbox-test', status: 'active' },
+        existing: { id: 'inbound-existing', body_r2_key: 'messages/opaque/body' },
+      });
+      const observed = routedMessage({ messageId: '<known-rate-limit@example.test>' });
+      const warn = vi.spyOn(console, 'warn');
+      try {
+        await invokeEmail(observed.value, {
+          DB: db.database,
+          STORAGE: { put: vi.fn(), delete: vi.fn() },
+          INBOUND_ACTOR_RATE_LIMITER: { limit: vi.fn().mockResolvedValue({ success: false }) },
+          INBOUND_ABUSE_ALERT_RATE_LIMITER: alertLimiter,
+        });
+        expect(observed.setReject).not.toHaveBeenCalled();
+        expect(warn).not.toHaveBeenCalled();
+        expect(db.queries).toHaveLength(2);
+      } finally {
+        warn.mockRestore();
+      }
+    }
+  });
+
+  it('uses only a trusted boundary source IP for the actor key and observes the aggregate per-colo signal', async () => {
+    const db = entryDatabase({
+      mailbox: { id: 'mailbox-test', status: 'active' },
+      existing: { id: 'inbound-existing', body_r2_key: 'messages/opaque/body' },
+    });
+    const actorLimiter = { limit: vi.fn().mockResolvedValue({ success: true }) };
+    const globalLimiter = { limit: vi.fn().mockResolvedValue({ success: false }) };
+    const observed = routedMessage({ messageId: '<known-rate-limit@example.test>' });
+    observed.value.headers.set('authentication-results', 'edge.example.test; spf=pass smtp.remote-ip=203.0.113.9');
+
+    await invokeEmail(observed.value, {
+      DB: db.database,
+      STORAGE: { put: vi.fn(), delete: vi.fn() },
+      INBOUND_AUTHSERV_ID: 'edge.example.test',
+      INBOUND_ACTOR_RATE_LIMITER: actorLimiter,
+      INBOUND_GLOBAL_RATE_LIMITER: globalLimiter,
+    });
+
+    expect(actorLimiter.limit).toHaveBeenCalledTimes(1);
+    expect(actorLimiter.limit.mock.calls[0]?.[0]?.key).toMatch(/^actor:[a-f0-9]{64}$/);
+    expect(actorLimiter.limit.mock.calls[0]?.[0]?.key).not.toContain('203.0.113.9');
+    expect(globalLimiter.limit).toHaveBeenCalledExactlyOnceWith({ key: 'inbound-email' });
+    expect(observed.setReject).not.toHaveBeenCalled();
+    expect(db.queries).toHaveLength(2);
+    const senderKey = await inboundRateLimitActorKey(null, 'sender@example.test');
+    const sourceIpKey = await inboundRateLimitActorKey('203.0.113.9', 'sender@example.test');
+    expect(senderKey).toMatch(/^actor:[a-f0-9]{64}$/);
+    expect(sourceIpKey).toMatch(/^actor:[a-f0-9]{64}$/);
+    expect(senderKey).not.toBe(sourceIpKey);
+  });
+
+  it('fails open when native limiter bindings are absent or fault, then reaches the normal recipient path', async () => {
+    for (const limiter of [undefined, { limit: vi.fn().mockRejectedValue(new Error('edge binding unavailable')) }]) {
+      const db = entryDatabase({
+        mailbox: { id: 'mailbox-test', status: 'active' },
+        existing: { id: 'inbound-existing', body_r2_key: 'messages/opaque/body' },
+      });
+      const accepted = routedMessage({ messageId: '<known-rate-limit@example.test>' });
+      await invokeEmail(accepted.value, {
+        DB: db.database,
+        STORAGE: { put: vi.fn(), delete: vi.fn() },
+        INBOUND_ACTOR_RATE_LIMITER: limiter,
+      });
+
+      expect(accepted.setReject).not.toHaveBeenCalled();
+      expect(db.queries).toHaveLength(2);
+      expect(db.queries[0]).toContain('FROM mailboxes');
+      expect(db.queries[1]).toContain('FROM messages');
+    }
+  });
+
+  it('does not change unknown/offboarded recipient disclosure when a threshold is observed', async () => {
+    const limiter = { limit: vi.fn().mockResolvedValue({ success: false }) };
+    const unknown = routedMessage({ to: 'unknown@example.test' });
+    const offboarded = routedMessage({ to: 'offboarded@example.test' });
+    const unknownDb = entryDatabase({ mailbox: null });
+    const offboardedDb = entryDatabase({ mailbox: null });
+
+    await invokeEmail(unknown.value, { DB: unknownDb.database, INBOUND_ACTOR_RATE_LIMITER: limiter });
+    await invokeEmail(offboarded.value, { DB: offboardedDb.database, INBOUND_ACTOR_RATE_LIMITER: limiter });
+
+    expect(unknown.setReject).toHaveBeenCalledExactlyOnceWith(RECIPIENT_UNAVAILABLE_SMTP_RESPONSE);
+    expect(offboarded.setReject).toHaveBeenCalledExactlyOnceWith(RECIPIENT_UNAVAILABLE_SMTP_RESPONSE);
+    expect(unknown.setReject.mock.calls[0]?.[0]).toBe(offboarded.setReject.mock.calls[0]?.[0]);
+    expect(unknownDb.queries).toHaveLength(1);
+    expect(offboardedDb.queries).toHaveLength(1);
+  });
+
+  it('uses a plain-text recipient-unavailable reason and leaves SMTP status selection to Cloudflare', () => {
+    expect(RECIPIENT_UNAVAILABLE_SMTP_RESPONSE).toBe('cmail: recipient unavailable; verify the address or contact the organisation');
+    expect(RECIPIENT_UNAVAILABLE_SMTP_RESPONSE).not.toMatch(/\b[45]\d\d(?:[ .]|$)/);
+  });
+
   it('does not persist invalid-envelope or oversized attempts', async () => {
     const invalidDb = entryDatabase();
     const invalid = routedMessage({ from: 'not-an-address' });
@@ -343,6 +494,54 @@ describe('pre-reservation write amplification', () => {
     });
     expect(oversized.setReject).toHaveBeenCalledOnce();
     expect(oversizedDb.queries).toEqual([]);
+  });
+
+  it('returns an identical neutral SMTP diagnostic for unknown and disabled/offboarded recipients without side effects', async () => {
+    const unknownDb = entryDatabase({ mailbox: null });
+    const unavailableDb = entryDatabase({
+      // The test database models a stored, disabled mailbox. The worker's
+      // active-only lookup must not return it to the inbound delivery path.
+      mailboxes: { 'offboarded@example.test': { id: 'former-mailbox', status: 'disabled' } },
+    });
+    const unknown = routedMessage({ to: 'unknown@example.test' });
+    const unavailable = routedMessage({ to: 'offboarded@example.test' });
+    const unknownStorage = { put: vi.fn(), delete: vi.fn() };
+    const unavailableStorage = { put: vi.fn(), delete: vi.fn() };
+    const unknownEmail = { send: vi.fn() };
+    const unavailableEmail = { send: vi.fn() };
+
+    await invokeEmail(unknown.value, {
+      DB: unknownDb.database,
+      STORAGE: unknownStorage,
+      EMAIL: unknownEmail,
+    });
+    await invokeEmail(unavailable.value, {
+      DB: unavailableDb.database,
+      STORAGE: unavailableStorage,
+      EMAIL: unavailableEmail,
+    });
+
+    expect(unknown.setReject).toHaveBeenCalledExactlyOnceWith(RECIPIENT_UNAVAILABLE_SMTP_RESPONSE);
+    expect(unavailable.setReject).toHaveBeenCalledExactlyOnceWith(RECIPIENT_UNAVAILABLE_SMTP_RESPONSE);
+    expect(unknown.setReject.mock.calls[0]?.[0]).toBe(unavailable.setReject.mock.calls[0]?.[0]);
+
+    for (const attempt of [
+      { db: unknownDb, message: unknown, storage: unknownStorage, email: unknownEmail },
+      { db: unavailableDb, message: unavailable, storage: unavailableStorage, email: unavailableEmail },
+    ]) {
+      // The active-mailbox lookup is the sole D1 operation: no reservation,
+      // trace, message, or other durable work is reachable from this path.
+      expect(attempt.db.queries).toHaveLength(1);
+      expect(attempt.db.queries[0]).toContain('FROM mailboxes');
+      expect(attempt.db.queries[0]).toContain("status = ?");
+      expect(attempt.db.bindings).toEqual([[attempt.message.value.to, 'active']]);
+      expect(attempt.db.queries.some((query) => /INSERT|UPDATE|DELETE/i.test(query))).toBe(false);
+      expect(attempt.message.value.forward).not.toHaveBeenCalled();
+      expect(attempt.message.value.reply).not.toHaveBeenCalled();
+      expect(attempt.email.send).not.toHaveBeenCalled();
+      expect(attempt.storage.put).not.toHaveBeenCalled();
+      expect(attempt.storage.delete).not.toHaveBeenCalled();
+    }
   });
 
   it('performs only the mailbox lookup for repeated unknown recipients', async () => {

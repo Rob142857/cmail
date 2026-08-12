@@ -332,7 +332,7 @@ repository. Review `MAX_INBOUND_DECODED_BODY_BYTES`, the three inbound hourly
 limits, and the shared `MAILBOX_STORAGE_QUOTA_BYTES` in the committed templates;
 the web app uses that same storage quota for Sent/internal copies and drafts.
 
-In Cloudflare Email Routing, create routing rules for the mail domain and direct inbound messages to the cmail email Worker. The Worker rejects recipients that do not correspond to active mailboxes in D1. Email Routing remains the inbound path regardless of which outbound provider you select.
+In Cloudflare Email Routing, create routing rules for the mail domain and direct inbound messages to the cmail email Worker. The Worker accepts only active mailbox rows in D1. Unknown, disabled, and offboarded personal addresses receive the same generic SMTP-time rejection; cmail does not disclose whether an address once existed. The sending mail system normally generates any non-delivery report to its sender. cmail never sends a branded follow-up or auto-reply for these rejected attempts, so this protection consumes no cmail outbound quota and cannot be amplified into backscatter during abuse. Email Routing remains the inbound path regardless of which outbound provider you select.
 
 For external outbound delivery, verify the sending domain and sender required
 by your chosen provider. Follow [Email authentication and sender

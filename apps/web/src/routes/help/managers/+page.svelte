@@ -87,7 +87,9 @@
       <li>Offboarding automatically makes their public positions internal; replace published occupant details only after appointing a successor.</li>
       <li>Preserve mail according to policy and legal requirements; do not delete storage ad hoc.</li>
       <li>Offboard the account when the transition is complete, then review Audit log.</li>
+      <li>Expect later mail to receive the same generic SMTP rejection as any unavailable address. The sender's mail system may show a cmail-labelled delivery failure; cmail sends no auto-reply, which protects outbound quota and prevents backscatter.</li>
     </ol>
+    <p>Review unavailable-recipient patterns in Cloudflare Email Routing and Worker metrics. cmail deliberately creates no durable per-attempt trace for this attacker-controlled path.</p>
   </section>
 </article>
 
