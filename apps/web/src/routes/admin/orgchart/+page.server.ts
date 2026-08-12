@@ -1,6 +1,10 @@
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { audit, generateId } from '$lib/server/db';
+import {
+  ELIGIBLE_MAILBOX_ASSIGNEE_EXISTS_SQL,
+  getEligibleMailboxAssignee,
+} from '$lib/server/mailbox-assignees';
 import { isAddressAtDomain, normalizeDomain, normalizeEmail } from '$lib/server/validation';
 
 const ID_RX = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/;
@@ -292,6 +296,7 @@ async function validatePositionReferences(
   db: D1Database,
   mailDomain: string,
   input: PositionInput,
+  retainedPosition?: { user_id: string | null; work_email: string },
 ): Promise<string | null> {
   const [unit, role] = await Promise.all([
     db.prepare('SELECT id FROM organization_units WHERE id = ?').bind(input.unitId).first(),
@@ -310,7 +315,14 @@ async function validatePositionReferences(
     `SELECT id, status FROM users
      WHERE id = ? AND status IN ('active', 'pending')`,
   ).bind(input.userId).first<{ id: string; status: string }>();
-  if (!user) return 'Assigned user not found or inactive';
+  if (!user) {
+    const retainingHistoricalLink = input.visibility === 'internal'
+      && retainedPosition?.user_id === input.userId
+      && (input.workEmail === retainedPosition.work_email || !input.workEmail);
+    return retainingHistoricalLink
+      ? null
+      : 'Choose an active or pending user with an eligible personal mailbox';
+  }
 
   if (input.workEmail) {
     const domain = normalizeDomain(mailDomain);
@@ -347,17 +359,27 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
        FROM mailboxes WHERE type = 'shared' ORDER BY address`,
     ).all<{ id: string; address: string; display_name: string; status: string }>(),
     env.DB.prepare(
-      `SELECT ma.mailbox_id, ma.user_id, ma.permissions, u.email, u.display_name
+      `SELECT ma.mailbox_id, ma.user_id, ma.permissions, u.display_name,
+              personal.address AS personal_mailbox_address
        FROM mailbox_assignments ma
        INNER JOIN users u ON u.id = ma.user_id
        INNER JOIN mailboxes m ON m.id = ma.mailbox_id
+       LEFT JOIN mailboxes personal ON personal.owner_user_id = u.id
+         AND personal.type = 'personal' AND personal.status = 'active'
        WHERE m.type = 'shared'
-       ORDER BY u.display_name, u.email`,
-    ).all<{ mailbox_id: string; user_id: string; permissions: string; email: string; display_name: string }>(),
+       ORDER BY u.display_name, personal.address, u.id`,
+    ).all<{ mailbox_id: string; user_id: string; permissions: string; display_name: string; personal_mailbox_address: string | null }>(),
     env.DB.prepare(
-      `SELECT id, email, display_name, status FROM users
-       WHERE status IN ('active', 'pending') ORDER BY display_name, email`,
-    ).all<{ id: string; email: string; display_name: string; status: string }>(),
+      `SELECT u.id, u.display_name, u.status, m.address AS personal_mailbox_address
+       FROM users u
+       INNER JOIN mailboxes m ON m.owner_user_id = u.id
+       WHERE u.status IN ('active', 'pending')
+         AND m.type = 'personal' AND m.status = 'active'
+         AND lower(substr(m.address, instr(m.address, '@') + 1)) = ?
+       GROUP BY u.id
+       HAVING COUNT(*) = 1
+       ORDER BY u.display_name, m.address, u.id`,
+    ).bind(normalizeDomain(env.MAIL_DOMAIN) || '__invalid__').all<{ id: string; display_name: string; status: string; personal_mailbox_address: string }>(),
     env.DB.prepare(
       `SELECT m.id, m.address, m.display_name, m.type, m.status, ma.user_id
        FROM mailboxes m
@@ -700,9 +722,11 @@ export const actions: Actions = {
     const id = formText(data, 'position_id');
     const input = parsePositionInput(data);
     if (!validId(id) || !input) return fail(400, { error: 'Invalid position update' });
-    const existing = await env.DB.prepare('SELECT id FROM organization_positions WHERE id = ?').bind(id).first();
+    const existing = await env.DB.prepare(
+      'SELECT id, user_id, work_email FROM organization_positions WHERE id = ?',
+    ).bind(id).first<{ id: string; user_id: string | null; work_email: string }>();
     if (!existing) return fail(404, { error: 'Position not found' });
-    const referenceError = await validatePositionReferences(env.DB, env.MAIL_DOMAIN, input);
+    const referenceError = await validatePositionReferences(env.DB, env.MAIL_DOMAIN, input, existing);
     if (referenceError) return fail(400, { error: referenceError });
 
     try {
@@ -783,14 +807,13 @@ export const actions: Actions = {
     }
     if (!validSingleLine(displayName, 120, false)) return fail(400, { error: 'Display name is too long' });
 
-    const user = await env.DB.prepare(
-      `SELECT id, email FROM users WHERE id = ? AND status IN ('active', 'pending')`,
-    ).bind(userId).first<{ id: string; email: string }>();
-    if (!user) return fail(404, { error: 'User not found or inactive' });
+    const domain = normalizeDomain(env.MAIL_DOMAIN);
+    if (!domain) return fail(503, { error: 'MAIL_DOMAIN is not configured' });
+    const user = await getEligibleMailboxAssignee(env.DB, domain, userId);
+    if (!user) return fail(409, { error: 'Choose an active or pending user with one active owned personal mailbox on the organisation domain' });
 
+    let mailboxToCreate: { id: string; address: string; displayName: string } | null = null;
     if (!mailboxId) {
-      const domain = normalizeDomain(env.MAIL_DOMAIN);
-      if (!domain) return fail(503, { error: 'MAIL_DOMAIN is not configured' });
       if (!LOCAL_PART_RX.test(localPart)) {
         return fail(400, { error: 'Mailbox name must use letters, numbers, dots, underscores, or hyphens' });
       }
@@ -800,35 +823,67 @@ export const actions: Actions = {
         mailboxId = existing.id;
       } else {
         mailboxId = generateId();
-        await env.DB.prepare(
-          `INSERT INTO mailboxes (id, address, display_name, type, status, created_at)
-           VALUES (?, ?, ?, 'shared', 'active', datetime('now'))`,
-        ).bind(mailboxId, address, displayName || localPart).run();
+        mailboxToCreate = { id: mailboxId, address, displayName: displayName || localPart };
       }
     }
     if (!validId(mailboxId)) return fail(400, { error: 'Invalid mailbox' });
 
-    const mailbox = await env.DB.prepare(
+    const mailbox = mailboxToCreate || await env.DB.prepare(
       `SELECT id, address FROM mailboxes WHERE id = ? AND type = 'shared' AND status = 'active'`,
     ).bind(mailboxId).first<{ id: string; address: string }>();
     if (!mailbox) return fail(404, { error: 'Shared mailbox not found or disabled' });
 
-    await env.DB.prepare(
+    const statements: D1PreparedStatement[] = [];
+    if (mailboxToCreate) {
+      // D1 batches are transactional. The mailbox and its first delegation use
+      // the same mutation-time eligibility predicate, so an offboard or mailbox
+      // disable before this batch leaves neither record behind.
+      statements.push(env.DB.prepare(
+        `INSERT INTO mailboxes (id, address, display_name, type, status, created_at)
+         SELECT ?, ?, ?, 'shared', 'active', datetime('now')
+         WHERE ${ELIGIBLE_MAILBOX_ASSIGNEE_EXISTS_SQL}`,
+      ).bind(
+        mailboxToCreate.id,
+        mailboxToCreate.address,
+        mailboxToCreate.displayName,
+        domain,
+        user.userId,
+      ));
+    }
+    statements.push(env.DB.prepare(
       `INSERT INTO mailbox_assignments (mailbox_id, user_id, permissions, assigned_at, assigned_by)
-       VALUES (?, ?, ?, datetime('now'), ?)
+       SELECT m.id, ?, ?, datetime('now'), ?
+       FROM mailboxes m
+       WHERE m.id = ? AND m.type = 'shared' AND m.status = 'active'
+         AND ${ELIGIBLE_MAILBOX_ASSIGNEE_EXISTS_SQL}
        ON CONFLICT(user_id, mailbox_id) DO UPDATE SET
          permissions = excluded.permissions,
          assigned_at = excluded.assigned_at,
          assigned_by = excluded.assigned_by`,
-    ).bind(mailbox.id, user.id, permission, locals.user.id).run();
+    ).bind(user.userId, permission, locals.user.id, mailbox.id, domain, user.userId));
+
+    try {
+      const results = await env.DB.batch(statements);
+      if (results.some((result) => !changes(result))) {
+        return fail(409, { error: 'The user or mailbox changed; refresh and try again' });
+      }
+    } catch (cause) {
+      if (isConstraintError(cause)) {
+        return fail(409, { error: 'The mailbox or delegation conflicts with current data; refresh and try again' });
+      }
+      throw cause;
+    }
+    if (mailboxToCreate) {
+      await auditOrganization(env.DB, locals, 'mailbox.created', mailbox.id, 'Created shared mailbox with initial delegation');
+    }
     await auditOrganization(
       env.DB,
       locals,
       'mailbox.assigned',
       mailbox.address,
-      `Assigned user ${user.id} with ${permission} permission`,
+      `Assigned user ${user.userId} with ${permission} permission`,
     );
-    return { success: `${user.email} assigned to ${mailbox.address}` };
+    return { success: `${user.mailboxAddress} assigned to ${mailbox.address}` };
   },
 
   unassign: async ({ request, platform, locals }) => {

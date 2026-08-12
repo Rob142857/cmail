@@ -30,7 +30,7 @@ mailbox. Apply least privilege in each model independently.
 2. In **Settings**, confirm system-mail identity, support address,
    organisation names and URLs, and the application name.
 3. In **People**, provision at least two trusted managers, then create standard
-   accounts and optional personal mailboxes.
+   accounts and their required personal mailboxes.
 4. In **Mailboxes**, create shared addresses and assign explicit permissions.
 5. In **Organisation**, build layers, units, role definitions, and positions.
    Keep the public directory off until its publication preflight is clean.
@@ -58,8 +58,9 @@ sign-in: the person must complete a current manager-issued enrolment invitation.
 
 1. Select **Add a person**.
 2. Enter the exact verified Google or Microsoft UserInfo email and a display name.
-3. Optionally create a personal mailbox local part on the configured mail
-   domain. It is created active with Full access assigned to the new account.
+3. Create the required personal mailbox local part on the configured mail
+   domain. It is created active with an immutable owner link and retained Full
+   owner assignment for the new account.
 4. Choose Standard or Manager.
 5. Send an invitation now when delivery is configured, or deliberately leave
    the person pending and use **Resend invitation** later.
@@ -98,12 +99,23 @@ email simply to force the enrolment through.
 |---|---|---|
 | Pause | Revokes active sessions and prevents sign-in | Personal mailboxes and shared assignments remain |
 | Reactivate | Allows sign-in again | Disabled personal mailboxes remain disabled; removed access is not restored |
-| Offboard | Revokes sessions, disables personal mailboxes, removes shared access | Stored personal-mailbox data remains; ownership, retention, and reassignment need an explicit decision |
+| Offboard | Revokes every session, pending invitation, and registered notification endpoint; disables owned personal mailboxes; removes shared access; and makes published positions internal | Stored personal-mailbox data and its owner link remain; reactivation does not restore a mailbox, invitation, device notification, public listing, or shared access |
 
 The UI prevents you from pausing or offboarding your own account and protects
 the last active manager. Downgrading another manager to Standard revokes that
 person's current sessions. Maintain at least two active managers and use a
 separate emergency recovery process controlled by the operator.
+
+### Ownership migration follow-up
+
+The ownership migration backfills only a personal mailbox whose sole assignment
+is Full. If a legacy person had more than one otherwise-valid candidate, only
+the earliest is linked; mailboxes with extra or conflicting assignments and any
+additional candidates remain ownerless, disabled, and excluded from delegation.
+Inspect these records in D1 after taking a backup before any retention,
+successor, or address-reuse action. cmail intentionally provides no quick
+delegation shortcut for this repair: preserve the disabled record and its mail,
+then follow a separately reviewed migration or retention procedure.
 
 Before offboarding:
 
@@ -119,8 +131,9 @@ Before offboarding:
 **Management > Mailboxes** lists personal and shared mailboxes, status, stored
 message counts, and direct user assignments.
 
-- Personal mailboxes are normally created with a person and must retain at
-  least one active or pending owner with Full access before they can be active.
+- Personal mailboxes are created with a person. Their owner link and Full
+  owner assignment are retained for audit; personal mailboxes are not a
+  general delegation surface.
 - Shared mailboxes are created independently for a team or function address.
 - Assigning existing access updates its permission bundle.
 - Removing an assignment removes access but does not delete messages.

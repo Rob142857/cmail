@@ -36,7 +36,7 @@
     <h2>Onboard a person</h2>
     <ol>
       <li>Create the person with the exact Google or Microsoft sign-in email.</li>
-      <li>Use Standard unless management access is required, and provision a personal mailbox when the person needs an individual organisational address.</li>
+      <li>Use Standard unless management access is required, and provision the required personal mailbox on the organisation domain.</li>
       <li>Select <strong>Send invitation now</strong>, or use <strong>Send invitation</strong> afterward. This creates a hashed, single-use enrolment token that expires after 72 hours.</li>
       <li>Grant shared mailbox access separately, using the least capable level that meets the role.</li>
       <li>Ask the person to use the newest invitation with the matching Google or Microsoft UserInfo address, accept any published policy, and verify their mailbox and From addresses.</li>
@@ -84,7 +84,7 @@
     <ol>
       <li>Pause the account immediately when access must stop; this blocks sign-in and revokes sessions.</li>
       <li>Transfer operational ownership and review every shared mailbox assignment.</li>
-      <li>Remove the person from public positions or replace the published occupant details.</li>
+      <li>Offboarding automatically makes their public positions internal; replace published occupant details only after appointing a successor.</li>
       <li>Preserve mail according to policy and legal requirements; do not delete storage ad hoc.</li>
       <li>Offboard the account when the transition is complete, then review Audit log.</li>
     </ol>

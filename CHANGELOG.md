@@ -8,6 +8,11 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Added
 
+- A Microsoft-style mailbox assignee picker that resolves people through their
+  canonical organisational personal mailbox while persisting stable account
+  identifiers.
+- Durable personal-mailbox ownership and a fail-closed legacy migration that
+  quarantines ambiguous records for deliberate operator review.
 - Personal rich-text signatures, optional organisation-wide signatures, and
   Manager configure-and-lock controls with protected compose previews.
 - A screenshot-led product tour using fictional demonstration data, plus a
@@ -22,6 +27,12 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Changed
 
+- Account provisioning now requires one personal mailbox on `MAIL_DOMAIN`;
+  mailbox delegation is restricted to shared mailboxes and excludes paused,
+  offboarded, disabled, ownerless, and wrong-domain identities.
+- Offboarding now revokes sessions, invitations, and notification endpoints,
+  disables the owned personal mailbox, removes shared-mailbox access, and makes
+  published positions internal. Reactivation restores none of those grants.
 - Signature layers now render personal then organisation content below the
   sender's text and above quoted history in new messages, replies, and forwards.
 - Product security copy now distinguishes cmail controls and guidance from
@@ -41,6 +52,11 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Security
 
+- Mailbox and organisation-management surfaces no longer use or disclose an
+  external Google/Microsoft sign-in address as the person's mail identity.
+- Personal-mailbox ownership and its Full owner assignment are immutable at the
+  database layer; lifecycle and delegation writes recheck eligibility at the
+  point of mutation.
 - Signature HTML is bounded and sanitised before storage and again before use;
   self-service saves cannot race and overwrite a Manager lock.
 - Pinned the patched Nano ID 3.3.17 transitive dependency after the release

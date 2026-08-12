@@ -1,7 +1,11 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import type { Mailbox, MailboxAssignment, User, UserStatus } from '@cmail/shared/types';
+import type { Mailbox, MailboxAssignment, UserStatus } from '@cmail/shared/types';
 import { audit, generateId } from '$lib/server/db';
+import {
+  ELIGIBLE_MAILBOX_ASSIGNEE_EXISTS_SQL,
+  getEligibleMailboxAssignee,
+} from '$lib/server/mailbox-assignees';
 import {
   boundedInteger,
   escapeLike,
@@ -23,14 +27,17 @@ const PAGE_SIZE = 20;
 
 interface AssignmentSummary {
   user_id: string;
-  email: string;
   display_name: string;
+  personal_mailbox_address: string | null;
   user_status: UserStatus;
   permissions: MailboxAssignment['permissions'];
   assigned_at: string;
 }
 
-type MailboxRow = Mailbox & { message_count: number };
+type MailboxRow = Mailbox & {
+  message_count: number;
+  owner_display_name: string | null;
+};
 type MailboxWithAssignments = MailboxRow & { assignments: AssignmentSummary[] };
 
 interface MailboxSummary {
@@ -98,7 +105,12 @@ export const load: PageServerLoad = async ({ platform, url }) => {
         FROM mailbox_assignments ma_search
         INNER JOIN users u_search ON u_search.id = ma_search.user_id
         WHERE ma_search.mailbox_id = m.id
-          AND (u_search.email LIKE ? ESCAPE '\\' OR u_search.display_name LIKE ? ESCAPE '\\')
+          AND (u_search.display_name LIKE ? ESCAPE '\\' OR EXISTS (
+            SELECT 1 FROM mailboxes personal_search
+            WHERE personal_search.owner_user_id = u_search.id
+              AND personal_search.type = 'personal'
+              AND personal_search.address LIKE ? ESCAPE '\\'
+          ))
       )
     )`);
     bindings.push(term, term, term, term);
@@ -134,9 +146,10 @@ export const load: PageServerLoad = async ({ platform, url }) => {
   const offset = (page - 1) * PAGE_SIZE;
 
   const mailboxStatement = env.DB.prepare(
-    `SELECT m.*,
+    `SELECT m.*, owner.display_name AS owner_display_name,
             (SELECT COUNT(*) FROM messages msg WHERE msg.mailbox_id = m.id) AS message_count
      FROM mailboxes m
+     LEFT JOIN users owner ON owner.id = m.owner_user_id
      ${where}
      ORDER BY CASE m.type WHEN 'shared' THEN 0 ELSE 1 END,
               CASE m.status WHEN 'active' THEN 0 ELSE 1 END,
@@ -156,19 +169,20 @@ export const load: PageServerLoad = async ({ platform, url }) => {
     const placeholders = mailboxes.map(() => '?').join(', ');
     const assignmentResult = await env.DB.prepare(
       `SELECT ma.mailbox_id, ma.user_id, ma.permissions, ma.assigned_at,
-              u.email, u.display_name, u.status AS user_status
+              u.display_name, u.status AS user_status, personal.address AS personal_mailbox_address
        FROM mailbox_assignments ma
        INNER JOIN users u ON u.id = ma.user_id
+       LEFT JOIN mailboxes personal ON personal.owner_user_id = u.id AND personal.type = 'personal'
        WHERE ma.mailbox_id IN (${placeholders})
-       ORDER BY u.display_name, u.email, u.id`,
+       ORDER BY u.display_name, personal.address, u.id`,
     ).bind(...mailboxes.map((mailbox) => mailbox.id)).all<AssignmentSummary & { mailbox_id: string }>();
     const byMailbox = new Map<string, AssignmentSummary[]>();
     for (const assignment of assignmentResult.results || []) {
       const list = byMailbox.get(assignment.mailbox_id) || [];
       list.push({
         user_id: assignment.user_id,
-        email: assignment.email,
         display_name: assignment.display_name,
+        personal_mailbox_address: assignment.personal_mailbox_address,
         user_status: assignment.user_status,
         permissions: assignment.permissions,
         assigned_at: assignment.assigned_at,
@@ -210,12 +224,8 @@ export const actions: Actions = {
     const data = await request.formData();
     const rawAddress = textField(data.get('address'), 254);
     const displayName = textField(data.get('display_name'), 120);
-    const delegateEntry = data.get('delegate_email');
-    const rawDelegateEmail = delegateEntry === null ? '' : textField(delegateEntry, 254);
-    if (rawDelegateEmail === null) {
-      return fail(400, { error: 'Initial delegate email must be 254 characters or fewer' });
-    }
-    const delegateEmail = rawDelegateEmail ? normalizeEmail(rawDelegateEmail) : '';
+    const delegateEntry = data.get('delegate_user_id');
+    const delegateUserId = delegateEntry === null ? '' : formId(delegateEntry);
     const rawPermissions = data.get('permissions');
     const permissions = typeof rawPermissions === 'string' && (MAILBOX_PERMISSIONS as readonly string[]).includes(rawPermissions)
       ? rawPermissions as MailboxAssignment['permissions']
@@ -229,10 +239,10 @@ export const actions: Actions = {
       return fail(400, { error: 'Display name must be 120 characters or fewer' });
     }
     if (!displayName) return fail(400, { error: 'Enter a display name for the shared mailbox' });
-    if (rawDelegateEmail && !delegateEmail) {
-      return fail(400, { error: 'Enter a valid initial delegate email address' });
+    if (delegateUserId === null) {
+      return fail(400, { error: 'Choose a valid initial delegate from the results list' });
     }
-    if (delegateEmail && !permissions) {
+    if (delegateUserId && !permissions) {
       return fail(400, { error: 'Select a valid permission level for the initial delegate' });
     }
 
@@ -249,35 +259,41 @@ export const actions: Actions = {
     const [existing, delegate] = await Promise.all([
       env.DB.prepare('SELECT id FROM mailboxes WHERE lower(address) = ?')
         .bind(address).first<{ id: string }>(),
-      delegateEmail
-        ? env.DB.prepare('SELECT id, status FROM users WHERE lower(email) = ?')
-          .bind(delegateEmail).first<Pick<User, 'id' | 'status'>>()
+      delegateUserId
+        ? getEligibleMailboxAssignee(env.DB, mailDomain, delegateUserId)
         : Promise.resolve(null),
     ]);
     if (existing) return fail(409, { error: 'That mailbox address is already in use' });
-    if (delegateEmail && !delegate) return fail(404, { error: 'The initial delegate account was not found' });
-    if (delegate && delegate.status !== 'active' && delegate.status !== 'pending') {
-      return fail(409, { error: 'Reactivate the initial delegate account before adding mailbox delegation' });
-    }
+    if (delegateUserId && !delegate) return fail(409, { error: 'Choose an active or pending account with an active personal mailbox' });
 
     const mailboxId = generateId();
     try {
       const statements = [
-        env.DB.prepare(
-          `INSERT INTO mailboxes (id, address, display_name, type, status, created_at)
-           VALUES (?, ?, ?, 'shared', 'active', datetime('now'))`,
-        ).bind(mailboxId, address, displayName),
+        delegate
+          ? env.DB.prepare(
+            `INSERT INTO mailboxes (id, address, display_name, type, status, created_at)
+             SELECT ?, ?, ?, 'shared', 'active', datetime('now')
+             WHERE ${ELIGIBLE_MAILBOX_ASSIGNEE_EXISTS_SQL}`,
+          ).bind(mailboxId, address, displayName, mailDomain, delegate.userId)
+          : env.DB.prepare(
+            `INSERT INTO mailboxes (id, address, display_name, type, status, created_at)
+             VALUES (?, ?, ?, 'shared', 'active', datetime('now'))`,
+          ).bind(mailboxId, address, displayName),
       ];
       if (delegate && permissions) {
         statements.push(
           env.DB.prepare(
             `INSERT INTO mailbox_assignments
                (user_id, mailbox_id, permissions, assigned_at, assigned_by)
-             VALUES (?, ?, ?, datetime('now'), ?)`,
-          ).bind(delegate.id, mailboxId, permissions, locals.user!.id),
+             SELECT ?, ?, ?, datetime('now'), ?
+             WHERE ${ELIGIBLE_MAILBOX_ASSIGNEE_EXISTS_SQL}`,
+          ).bind(delegate.userId, mailboxId, permissions, locals.user!.id, mailDomain, delegate.userId),
         );
       }
-      await env.DB.batch(statements);
+      const results = await env.DB.batch(statements);
+      if (results.some((result) => !result.meta.changes)) {
+        return fail(409, { error: 'The selected account changed; refresh and choose an eligible personal mailbox' });
+      }
     } catch (error) {
       logAdminFailure('create', error);
       return fail(409, { error: 'The mailbox could not be created; check for an existing address and try again' });
@@ -296,7 +312,7 @@ export const actions: Actions = {
         actor_id: locals.user!.id,
         actor_role: 'manager',
         target: mailboxId,
-        detail: `Granted ${permissions} access to account ${delegate.id}`,
+        detail: `Granted ${permissions} access to account ${delegate.userId}`,
       });
     }
     return {
@@ -313,37 +329,34 @@ export const actions: Actions = {
 
     const data = await request.formData();
     const mailboxAddress = normalizeEmail(data.get('mailbox_address'));
-    const userEmail = normalizeEmail(data.get('user_email'));
+    const userId = formId(data.get('user_id'));
     const rawPermissions = data.get('permissions');
     const permissions = typeof rawPermissions === 'string' && (MAILBOX_PERMISSIONS as readonly string[]).includes(rawPermissions)
       ? rawPermissions as MailboxAssignment['permissions']
       : null;
-    if (!mailboxAddress || !userEmail || !permissions) {
-      return fail(400, { error: 'Enter a mailbox, an active or pending account, and a valid access level' });
+    if (!mailboxAddress || !userId || !permissions) {
+      return fail(400, { error: 'Choose an active or pending account with an active personal mailbox and a valid access level' });
     }
 
     const [mailbox, user, existingAssignment] = await Promise.all([
       env.DB.prepare('SELECT id, type FROM mailboxes WHERE lower(address) = ?')
         .bind(mailboxAddress).first<Pick<Mailbox, 'id' | 'type'>>(),
-      env.DB.prepare('SELECT id, status FROM users WHERE lower(email) = ?')
-        .bind(userEmail).first<Pick<User, 'id' | 'status'>>(),
+      getEligibleMailboxAssignee(env.DB, normalizeDomain(env.MAIL_DOMAIN) || '__invalid__', userId),
       env.DB.prepare(
         `SELECT ma.permissions
          FROM mailbox_assignments ma
          INNER JOIN mailboxes m ON m.id = ma.mailbox_id
-         INNER JOIN users u ON u.id = ma.user_id
-         WHERE lower(m.address) = ? AND lower(u.email) = ?`,
-      ).bind(mailboxAddress, userEmail).first<Pick<MailboxAssignment, 'permissions'>>(),
+         WHERE lower(m.address) = ? AND ma.user_id = ?`,
+      ).bind(mailboxAddress, userId).first<Pick<MailboxAssignment, 'permissions'>>(),
     ]);
     if (!mailbox) return fail(404, { error: 'Mailbox not found' });
-    if (!user) return fail(404, { error: 'Account not found' });
-    if (user.status !== 'active' && user.status !== 'pending') {
-      return fail(409, { error: 'Reactivate the account before changing mailbox delegation' });
-    }
-    if (mailbox.type === 'personal' && permissions !== 'full') {
-      return fail(400, { error: 'Personal mailbox owners must have Full access' });
+    if (!user) return fail(409, { error: 'Choose an active or pending account with an active personal mailbox' });
+    if (mailbox.type === 'personal') {
+      return fail(400, { error: 'Personal mailbox ownership is managed from People and cannot be delegated' });
     }
     if (existingAssignment?.permissions === permissions) {
+      // This is intentionally read-only. Lifecycle cleanup remains
+      // authoritative if the account changes after the eligibility read.
       return { success: `${mailboxPermissionLabel(permissions)} is already assigned to this account` };
     }
 
@@ -351,15 +364,22 @@ export const actions: Actions = {
       const result = await env.DB.prepare(
         `INSERT INTO mailbox_assignments
            (user_id, mailbox_id, permissions, assigned_at, assigned_by)
-         SELECT u.id, m.id, ?, datetime('now'), ?
-         FROM users u, mailboxes m
-         WHERE u.id = ? AND u.status IN ('active', 'pending')
-           AND m.id = ? AND (m.type = 'shared' OR ? = 'full')
+         SELECT ?, m.id, ?, datetime('now'), ?
+         FROM mailboxes m
+         WHERE m.id = ? AND m.type = 'shared'
+           AND ${ELIGIBLE_MAILBOX_ASSIGNEE_EXISTS_SQL}
          ON CONFLICT(user_id, mailbox_id) DO UPDATE SET
            permissions = excluded.permissions,
            assigned_at = excluded.assigned_at,
            assigned_by = excluded.assigned_by`,
-      ).bind(permissions, locals.user!.id, user.id, mailbox.id, permissions).run();
+      ).bind(
+        user.userId,
+        permissions,
+        locals.user!.id,
+        mailbox.id,
+        normalizeDomain(env.MAIL_DOMAIN) || '__invalid__',
+        user.userId,
+      ).run();
       if (!result.meta.changes) {
         return fail(409, { error: 'The account or mailbox changed; refresh and try again' });
       }
@@ -374,8 +394,8 @@ export const actions: Actions = {
       actor_role: 'manager',
       target: mailbox.id,
       detail: existingAssignment
-        ? `Changed account ${user.id} from ${existingAssignment.permissions} to ${permissions} access`
-        : `Granted ${permissions} access to account ${user.id}`,
+        ? `Changed account ${user.userId} from ${existingAssignment.permissions} to ${permissions} access`
+        : `Granted ${permissions} access to account ${user.userId}`,
     });
     return {
       success: existingAssignment
@@ -405,31 +425,18 @@ export const actions: Actions = {
       status: Mailbox['status'];
     }>();
     if (!assignment) return fail(404, { error: 'Mailbox assignment not found' });
+    if (assignment.type === 'personal') {
+      return fail(400, { error: 'Personal mailbox ownership is managed from People and cannot be removed here' });
+    }
 
     try {
       const result = await env.DB.prepare(
         `DELETE FROM mailbox_assignments
          WHERE mailbox_id = ? AND user_id = ?
-           AND EXISTS (
-             SELECT 1 FROM mailboxes m
-             WHERE m.id = ? AND (
-               m.type = 'shared' OR m.status = 'disabled' OR
-               EXISTS (
-                 SELECT 1
-                 FROM mailbox_assignments remaining
-                 INNER JOIN users u ON u.id = remaining.user_id
-                 WHERE remaining.mailbox_id = m.id
-                   AND remaining.user_id <> ?
-                   AND remaining.permissions = 'full'
-                   AND u.status IN ('active', 'pending')
-               )
-             )
-           )`,
-      ).bind(mailboxId, userId, mailboxId, userId).run();
+           AND EXISTS (SELECT 1 FROM mailboxes m WHERE m.id = ? AND m.type = 'shared')`,
+      ).bind(mailboxId, userId, mailboxId).run();
       if (!result.meta.changes) {
-        return fail(409, {
-          error: 'An active personal mailbox must retain at least one active or pending owner with Full access',
-        });
+        return fail(409, { error: 'The mailbox assignment changed; refresh and try again' });
       }
     } catch (error) {
       logAdminFailure('unassign', error);
@@ -475,6 +482,7 @@ export const actions: Actions = {
              FROM mailbox_assignments ma
              INNER JOIN users u ON u.id = ma.user_id
              WHERE ma.mailbox_id = mailboxes.id
+               AND ma.user_id = mailboxes.owner_user_id
                AND ma.permissions = 'full'
                AND u.status IN ('active', 'pending')
            )

@@ -102,10 +102,11 @@ Use disable for a controlled hold; do not treat it as data deletion.
 Pausing a user revokes active sessions but preserves mailbox assignments.
 Reactivation restores the account with those assignments still present.
 
-Offboarding a user revokes sessions, disables that user's personal mailboxes,
-and removes their shared-mailbox assignments. Reactivating the account later
-does not automatically re-enable personal mailboxes or restore shared access;
-a manager must review both explicitly.
+Offboarding a user revokes every session, pending invitation, and device
+notification subscription; disables that user's owned personal mailbox; removes
+their shared-mailbox assignments; and makes any public position internal. Reactivating the account later does not
+automatically re-enable personal mailboxes, issue an invitation, republish a
+position, or restore shared access; a manager must review each explicitly.
 
 Before removing the final operational delegate from a shared mailbox, transfer
 responsibility and confirm that retention, pending drafts, and unresolved mail

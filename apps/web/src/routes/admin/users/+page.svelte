@@ -102,7 +102,7 @@
   <details class="card create-card">
     <summary>Add a person</summary>
     <p class="form-intro">
-      Create the account and optionally assign a personal mailbox. A new account remains pending and unbound until its owner uses a secure invitation.
+      Create the account with its organisational personal mailbox. A new account remains pending and unbound until its owner uses a secure invitation.
     </p>
     <form method="POST" action="?/create" class="create-form">
       <div class="field">
@@ -128,7 +128,7 @@
         />
       </div>
       <div class="field">
-        <label for="new-user-mailbox">Personal mailbox name</label>
+        <label for="new-user-mailbox">Personal mailbox name <small>Required</small></label>
         <div class="suffix-control">
           <input
             id="new-user-mailbox"
@@ -139,13 +139,14 @@
             placeholder={data.mailDomain ? 'firstname.lastname' : 'MAIL_DOMAIN not configured'}
             aria-describedby="mailbox-domain-hint"
             disabled={!data.mailDomain}
+            required
             spellcheck="false"
           />
           {#if data.mailDomain}<span aria-hidden="true">@{data.mailDomain}</span>{/if}
         </div>
         <small id="mailbox-domain-hint">
           {data.mailDomain
-            ? 'Optional. Use letters, numbers, dots, underscores, or hyphens.'
+            ? 'Required. Use letters, numbers, dots, underscores, or hyphens.'
             : 'Configure MAIL_DOMAIN before provisioning personal mailboxes.'}
         </small>
       </div>
@@ -279,7 +280,7 @@
                         class="btn btn-sm danger-outline"
                         formaction="?/updateStatus"
                         onclick={(event) => {
-                          if (!window.confirm(`Offboard ${user.email}? Personal mailboxes will be disabled and shared access removed.`)) {
+                           if (!window.confirm(`Offboard ${user.email}? This revokes sessions, pending invitations, and device notifications; disables the personal mailbox; removes shared access; and makes public positions internal. Stored mail is retained.`)) {
                             event.preventDefault();
                           }
                         }}

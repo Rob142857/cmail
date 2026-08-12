@@ -8,6 +8,7 @@ import { getEnabledProviders, getProviderConfig } from '$lib/server/auth';
 import { loadOrgSettings } from '$lib/server/org-settings';
 import { publicRuntimeConfig } from '$lib/server/config';
 import { issueEnrollmentToken } from '$lib/server/identity';
+import { offboardingCleanupStatements } from '$lib/server/offboarding';
 import {
   boundedInteger,
   escapeLike,
@@ -252,7 +253,10 @@ export const actions: Actions = {
     if (rawMailboxLocal && !mailboxLocal) {
       return fail(400, { error: 'Mailbox name must start and end with a letter or number and may contain dots, underscores, or hyphens' });
     }
-    if (mailboxLocal && !mailDomain) {
+    if (!mailboxLocal) {
+      return fail(400, { error: 'A personal mailbox name is required for every provisioned account' });
+    }
+    if (!mailDomain) {
       return fail(503, { error: 'MAIL_DOMAIN must be configured before creating mailboxes' });
     }
 
@@ -267,26 +271,24 @@ export const actions: Actions = {
     if (existingMailbox) return fail(409, { error: 'That mailbox address is already in use' });
 
     const userId = generateId();
-    const mailboxId = mailboxAddress ? generateId() : '';
+    const mailboxId = generateId();
     const statements = [
       env.DB.prepare(
         `INSERT INTO users (id, email, display_name, role, status, created_at, updated_at)
          VALUES (?, ?, ?, ?, 'pending', datetime('now'), datetime('now'))`,
       ).bind(userId, email, displayName, role),
     ];
-    if (mailboxAddress) {
-      statements.push(
-        env.DB.prepare(
-          `INSERT INTO mailboxes (id, address, display_name, type, status, created_at)
-           VALUES (?, ?, ?, 'personal', 'active', datetime('now'))`,
-        ).bind(mailboxId, mailboxAddress, displayName || mailboxLocal),
-        env.DB.prepare(
-          `INSERT INTO mailbox_assignments
-             (mailbox_id, user_id, permissions, assigned_at, assigned_by)
-           VALUES (?, ?, 'full', datetime('now'), ?)`,
-        ).bind(mailboxId, userId, locals.user!.id),
-      );
-    }
+    statements.push(
+      env.DB.prepare(
+        `INSERT INTO mailboxes (id, address, display_name, type, status, owner_user_id, created_at)
+         VALUES (?, ?, ?, 'personal', 'active', ?, datetime('now'))`,
+      ).bind(mailboxId, mailboxAddress, displayName || mailboxLocal, userId),
+      env.DB.prepare(
+        `INSERT INTO mailbox_assignments
+           (mailbox_id, user_id, permissions, assigned_at, assigned_by)
+         VALUES (?, ?, 'full', datetime('now'), ?)`,
+      ).bind(mailboxId, userId, locals.user!.id),
+    );
 
     try {
       // D1 batches are transactional: the account cannot survive without its
@@ -381,7 +383,9 @@ export const actions: Actions = {
       'SELECT id, role, status FROM users WHERE id = ?',
     ).bind(userId).first<Pick<User, 'id' | 'role' | 'status'>>();
     if (!user) return fail(404, { error: 'Account not found' });
-    if (user.status === status) return { success: `Account is already ${status}` };
+    // An offboard action is deliberately repairable: running it again closes
+    // any stale capability left by an interrupted legacy lifecycle change.
+    if (user.status === status && status !== 'offboarded') return { success: `Account is already ${status}` };
     if (userId === locals.user!.id && status !== 'active') {
       return fail(409, { error: 'You cannot pause or offboard your own account' });
     }
@@ -399,7 +403,7 @@ export const actions: Actions = {
       ).bind(status, userId, status, userId),
     ];
 
-    if (status === 'paused' || status === 'offboarded') {
+    if (status === 'paused') {
       statements.push(
         env.DB.prepare(
           `UPDATE sessions SET revoked = 1
@@ -409,22 +413,7 @@ export const actions: Actions = {
         ).bind(userId, userId, status),
       );
     }
-    if (status === 'offboarded') {
-      statements.push(
-        env.DB.prepare(
-          `UPDATE mailboxes SET status = 'disabled'
-           WHERE type = 'personal'
-             AND id IN (SELECT mailbox_id FROM mailbox_assignments WHERE user_id = ?)
-             AND EXISTS (SELECT 1 FROM users WHERE id = ? AND status = 'offboarded')`,
-        ).bind(userId, userId),
-        env.DB.prepare(
-          `DELETE FROM mailbox_assignments
-           WHERE user_id = ?
-             AND mailbox_id IN (SELECT id FROM mailboxes WHERE type = 'shared')
-             AND EXISTS (SELECT 1 FROM users WHERE id = ? AND status = 'offboarded')`,
-        ).bind(userId, userId),
-      );
-    }
+    if (status === 'offboarded') statements.push(...offboardingCleanupStatements(env.DB, userId));
 
     try {
       const results = await env.DB.batch(statements);
@@ -442,7 +431,7 @@ export const actions: Actions = {
       actor_role: 'manager',
       target: userId,
       detail: status === 'offboarded'
-        ? 'Offboarded account, disabled personal mailboxes, and removed shared access'
+        ? 'Offboarded account, revoked sessions, invitations, and device notifications; disabled personal mailboxes; removed shared access; and made public positions internal'
         : status === 'active'
           ? 'Reactivated account; personal mailboxes remain in their existing state'
           : `Changed account status to ${status}`,
@@ -450,7 +439,7 @@ export const actions: Actions = {
 
     return {
       success: status === 'offboarded'
-        ? 'Account offboarded; personal mailboxes were disabled and shared access was removed'
+        ? 'Account offboarded; sessions, invitations, and device notifications were revoked; personal mailboxes disabled; shared access removed; and public positions made internal'
         : status === 'active'
           ? 'Account reactivated; review any disabled personal mailboxes separately'
           : `Account status updated to ${status}`,
@@ -548,9 +537,8 @@ export const actions: Actions = {
     const mailbox = await env.DB.prepare(
       `SELECT m.address, m.status
        FROM mailboxes m
-       INNER JOIN mailbox_assignments a ON a.mailbox_id = m.id
-       WHERE a.user_id = ? AND m.type = 'personal'
-       ORDER BY CASE m.status WHEN 'active' THEN 0 ELSE 1 END, m.created_at ASC
+       WHERE m.owner_user_id = ? AND m.type = 'personal' AND m.status = 'active'
+       ORDER BY m.created_at ASC
        LIMIT 1`,
     ).bind(userId).first<{ address: string; status: 'active' | 'disabled' }>();
 

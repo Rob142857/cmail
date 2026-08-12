@@ -6,28 +6,22 @@ export const GET: RequestHandler = async ({ locals, platform }) => {
   const env = platform?.env;
   if (!env) return json([]);
 
-  // Users (active/pending) + all active mailboxes in one go
-  const [users, mailboxes] = await Promise.all([
-    env.DB.prepare(
-      `SELECT email, display_name FROM users WHERE status IN ('active', 'pending') ORDER BY display_name, email`,
-    ).all<{ email: string; display_name: string }>(),
-    env.DB.prepare(
-      `SELECT address, display_name, type FROM mailboxes WHERE status = 'active' ORDER BY type, address`,
-    ).all<{ address: string; display_name: string; type: string }>(),
-  ]);
+  // Recipient suggestions must be mail identities.  An OIDC sign-in address
+  // may be external and is deliberately never exposed through this endpoint.
+  // Mailbox lifecycle controls availability. A paused account's active mailbox
+  // remains a valid internal address until an explicit offboarding disables it.
+  const mailboxes = await env.DB.prepare(
+    `SELECT m.address, m.display_name, m.type
+       FROM mailboxes m
+      WHERE m.status = 'active'
+      ORDER BY CASE m.type WHEN 'shared' THEN 0 ELSE 1 END, m.display_name, m.address`,
+  ).all<{ address: string; display_name: string; type: string }>();
 
-  const contacts: Array<{ email: string; name: string; type: string }> = [];
-  const seen = new Set<string>();
-
-  for (const u of users.results || []) {
-    seen.add(u.email.toLowerCase());
-    contacts.push({ email: u.email, name: u.display_name || '', type: 'user' });
-  }
-  for (const mb of mailboxes.results || []) {
-    if (seen.has(mb.address.toLowerCase())) continue;
-    seen.add(mb.address.toLowerCase());
-    contacts.push({ email: mb.address, name: mb.display_name || '', type: mb.type === 'shared' ? 'shared' : 'mailbox' });
-  }
+  const contacts = (mailboxes.results || []).map((mailbox) => ({
+    email: mailbox.address,
+    name: mailbox.display_name || '',
+    type: mailbox.type === 'shared' ? 'shared' : 'mailbox',
+  }));
 
   return json(contacts, {
     headers: { 'Cache-Control': 'private, max-age=30' },

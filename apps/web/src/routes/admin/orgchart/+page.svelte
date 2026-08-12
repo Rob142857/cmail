@@ -56,8 +56,8 @@
 
   interface User {
     id: string;
-    email: string;
     display_name: string;
+    personal_mailbox_address: string;
     status?: string;
   }
 
@@ -195,7 +195,7 @@
 
   function userName(id: string | null): string {
     const user = users.find((item) => item.id === id);
-    return user?.display_name || user?.email || '';
+    return user?.display_name || user?.personal_mailbox_address || 'Former or unlinked account';
   }
 
   function positionName(position: Position): string {
@@ -893,7 +893,12 @@
             onchange={changePositionUser}
           >
             <option value="">No linked account</option>
-            {#each users as user}<option value={user.id}>{user.display_name || user.email} · {user.email}</option>{/each}
+            {#if positionUserId && !users.some((user) => user.id === positionUserId)}
+              <option value={positionUserId}>
+                {selectedPosition?.occupant_display_name || 'Former or inactive account'} · retained internal link
+              </option>
+            {/if}
+            {#each users as user}<option value={user.id}>{user.display_name || user.personal_mailbox_address} · {user.personal_mailbox_address}</option>{/each}
           </select>
           <small class="field-help">Linking a user does not change mailbox or admin permissions.</small>
         </label>

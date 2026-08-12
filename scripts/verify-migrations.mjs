@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +17,10 @@ if (expectedMigrations.length === 0) {
 }
 
 const persistenceDirectory = mkdtempSync(join(tmpdir(), 'cmail-migrations-'));
+const upgradeFixtureDirectory = mkdtempSync(join(tmpdir(), 'cmail-migrations-upgrade-'));
+const upgradePersistenceDirectory = join(upgradeFixtureDirectory, 'd1');
+const upgradeMigrationsDirectory = join(upgradeFixtureDirectory, 'migrations');
+const upgradeConfigPath = join(upgradeFixtureDirectory, 'wrangler.toml');
 
 function runWrangler(args, captureOutput = false) {
   const result = spawnSync(process.execPath, [wranglerCli, ...args], {
@@ -72,6 +76,166 @@ const baseArguments = [
   '--persist-to',
   persistenceDirectory,
 ];
+
+function executeJson(arguments_, command) {
+  const raw = runWrangler(['d1', 'execute', ...arguments_, '--command', command, '--json'], true);
+  return JSON.parse(raw)?.[0]?.results ?? [];
+}
+
+function verifyUpgradeFixture() {
+  // Apply the historical release first, then seed a database that predates
+  // ownership enforcement. This exercises the upgrade path rather than merely
+  // testing a fresh 0006 schema.
+  mkdirSync(upgradeMigrationsDirectory);
+  for (const migration of expectedMigrations.filter((name) => name < '0006_')) {
+    copyFileSync(join(root, 'packages', 'shared', 'migrations', migration), join(upgradeMigrationsDirectory, migration));
+  }
+  writeFileSync(upgradeConfigPath, `name = "cmail-migration-upgrade-test"\ncompatibility_date = "2026-08-01"\n\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "cmail-migration-upgrade-test"\ndatabase_id = "00000000-0000-0000-0000-000000000000"\nmigrations_dir = "migrations"\n`);
+
+  const upgradeArguments = [
+    'cmail-migration-upgrade-test',
+    '--local',
+    '--config', upgradeConfigPath,
+    '--persist-to', upgradePersistenceDirectory,
+  ];
+  runWrangler(['d1', 'migrations', 'apply', ...upgradeArguments]);
+
+  runWrangler(['d1', 'execute', ...upgradeArguments, '--command', `
+    INSERT INTO users (id, email, display_name, status, role) VALUES
+      ('upgrade-good', 'login-good@external.example', 'Good Owner', 'active', 'standard'),
+      ('upgrade-duplicate', 'login-duplicate@external.example', 'Duplicate Owner', 'active', 'standard'),
+      ('upgrade-ambiguous-a', 'login-ambiguous-a@external.example', 'Ambiguous A', 'active', 'standard'),
+      ('upgrade-ambiguous-b', 'login-ambiguous-b@external.example', 'Ambiguous B', 'active', 'standard'),
+      ('upgrade-offboarded', 'login-offboarded@external.example', 'Former Member', 'offboarded', 'standard'),
+      ('upgrade-manager', 'login-manager@external.example', 'Manager', 'active', 'manager');
+
+    INSERT INTO mailboxes (id, address, display_name, type, created_at) VALUES
+      ('upgrade-good-personal', 'good@example.test', 'Good Owner', 'personal', '2024-01-01 00:00:00'),
+      ('upgrade-duplicate-first', 'duplicate-first@example.test', 'Duplicate first', 'personal', '2024-01-02 00:00:00'),
+      ('upgrade-duplicate-second', 'duplicate-second@example.test', 'Duplicate second', 'personal', '2024-01-03 00:00:00'),
+      ('upgrade-ambiguous-personal', 'ambiguous@example.test', 'Ambiguous', 'personal', '2024-01-04 00:00:00'),
+      ('upgrade-extra-access-personal', 'extra-access@example.test', 'Extra access', 'personal', '2024-01-05 00:00:00'),
+      ('upgrade-offboarded-personal', 'former@example.test', 'Former Member', 'personal', '2024-01-06 00:00:00'),
+      ('upgrade-shared', 'team@example.test', 'Team', 'shared', '2024-01-07 00:00:00');
+    INSERT INTO mailbox_assignments (mailbox_id, user_id, permissions) VALUES
+      ('upgrade-good-personal', 'upgrade-good', 'full'),
+      ('upgrade-duplicate-first', 'upgrade-duplicate', 'full'),
+      ('upgrade-duplicate-second', 'upgrade-duplicate', 'full'),
+      ('upgrade-ambiguous-personal', 'upgrade-ambiguous-a', 'full'),
+      ('upgrade-ambiguous-personal', 'upgrade-ambiguous-b', 'full'),
+      ('upgrade-extra-access-personal', 'upgrade-good', 'full'),
+      ('upgrade-extra-access-personal', 'upgrade-manager', 'read'),
+      ('upgrade-offboarded-personal', 'upgrade-offboarded', 'full'),
+      ('upgrade-shared', 'upgrade-offboarded', 'full'),
+      ('upgrade-shared', 'upgrade-good', 'read');
+
+    INSERT INTO sessions (id, user_id, token_hash, expires_at, revoked)
+    VALUES ('upgrade-offboarded-session', 'upgrade-offboarded', 'upgrade-offboarded-session-hash', '2099-01-01 00:00:00', 0);
+    INSERT INTO enrollment_tokens (id, user_id, token_hash, expires_at)
+    VALUES ('upgrade-offboarded-token', 'upgrade-offboarded', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 4102444800);
+    INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth)
+    VALUES ('upgrade-offboarded-push', 'upgrade-offboarded', 'https://push.example.test/upgrade-offboarded-endpoint', '${'p'.repeat(40)}', '12345678');
+    INSERT INTO organization_layers (id, name) VALUES ('upgrade-layer', 'Upgrade layer');
+    INSERT INTO organization_units (id, layer_id, name) VALUES ('upgrade-unit', 'upgrade-layer', 'Upgrade unit');
+    INSERT INTO organization_roles (id, title) VALUES ('upgrade-role', 'Upgrade role');
+    INSERT INTO organization_positions (id, unit_id, role_id, user_id, visibility)
+    VALUES ('upgrade-offboarded-position', 'upgrade-unit', 'upgrade-role', 'upgrade-offboarded', 'public');
+  `]);
+
+  copyFileSync(
+    join(root, 'packages', 'shared', 'migrations', '0006_personal_mailbox_ownership.sql'),
+    join(upgradeMigrationsDirectory, '0006_personal_mailbox_ownership.sql'),
+  );
+  runWrangler(['d1', 'migrations', 'apply', ...upgradeArguments]);
+
+  const [row] = executeJson(upgradeArguments, `
+    SELECT
+      (SELECT owner_user_id FROM mailboxes WHERE id = 'upgrade-good-personal') AS good_owner,
+      (SELECT owner_user_id FROM mailboxes WHERE id = 'upgrade-duplicate-first') AS duplicate_first_owner,
+      (SELECT owner_user_id FROM mailboxes WHERE id = 'upgrade-duplicate-second') AS duplicate_second_owner,
+      (SELECT owner_user_id FROM mailboxes WHERE id = 'upgrade-ambiguous-personal') AS ambiguous_owner,
+      (SELECT owner_user_id FROM mailboxes WHERE id = 'upgrade-extra-access-personal') AS extra_access_owner,
+      (SELECT owner_user_id FROM mailboxes WHERE id = 'upgrade-offboarded-personal') AS offboarded_owner,
+      (SELECT status FROM mailboxes WHERE id = 'upgrade-duplicate-second') AS duplicate_second_status,
+      (SELECT status FROM mailboxes WHERE id = 'upgrade-ambiguous-personal') AS ambiguous_status,
+      (SELECT status FROM mailboxes WHERE id = 'upgrade-extra-access-personal') AS extra_access_status,
+      (SELECT status FROM mailboxes WHERE id = 'upgrade-offboarded-personal') AS offboarded_personal_status,
+      (SELECT revoked FROM sessions WHERE id = 'upgrade-offboarded-session') AS offboarded_session_revoked,
+      (SELECT COUNT(*) FROM enrollment_tokens WHERE user_id = 'upgrade-offboarded') AS offboarded_token_count,
+      (SELECT COUNT(*) FROM push_subscriptions WHERE user_id = 'upgrade-offboarded') AS offboarded_push_count,
+      (SELECT COUNT(*) FROM mailbox_assignments WHERE mailbox_id = 'upgrade-shared' AND user_id = 'upgrade-offboarded') AS offboarded_shared_assignment_count,
+      (SELECT COUNT(*) FROM mailbox_assignments WHERE mailbox_id = 'upgrade-offboarded-personal' AND user_id = 'upgrade-offboarded' AND permissions = 'full') AS retained_personal_owner_assignment_count,
+      (SELECT visibility FROM organization_positions WHERE id = 'upgrade-offboarded-position') AS offboarded_position_visibility,
+      (SELECT COUNT(*) FROM pragma_foreign_key_check) AS foreign_key_violation_count,
+      (SELECT COUNT(*) FROM sqlite_master WHERE type = 'trigger' AND name IN (
+        'trg_mailboxes_owner_insert', 'trg_mailboxes_owner_update',
+        'trg_personal_mailbox_owner_immutable', 'trg_personal_mailbox_assignment_insert',
+        'trg_personal_mailbox_assignment_update', 'trg_personal_mailbox_owner_assignment_delete'
+      )) AS ownership_trigger_count;
+  `);
+  if (!row) throw new Error('Upgrade fixture returned no verification row.');
+  assertEqual(row.good_owner, 'upgrade-good', 'Upgrade unambiguous owner backfill');
+  assertEqual(row.duplicate_first_owner, 'upgrade-duplicate', 'Upgrade deterministic first personal owner');
+  assertEqual(row.duplicate_second_owner, null, 'Upgrade additional personal mailbox remains ownerless');
+  assertEqual(row.ambiguous_owner, null, 'Upgrade multi-assignment personal mailbox remains ownerless');
+  assertEqual(row.extra_access_owner, null, 'Upgrade extra-access personal mailbox remains ownerless');
+  assertEqual(row.offboarded_owner, 'upgrade-offboarded', 'Upgrade offboarded personal mailbox retains owner');
+  assertEqual(row.duplicate_second_status, 'disabled', 'Upgrade additional personal mailbox disabled');
+  assertEqual(row.ambiguous_status, 'disabled', 'Upgrade ambiguous personal mailbox disabled');
+  assertEqual(row.extra_access_status, 'disabled', 'Upgrade extra-access personal mailbox disabled');
+  assertEqual(row.offboarded_personal_status, 'disabled', 'Upgrade offboarded personal mailbox disabled');
+  assertEqual(Number(row.offboarded_session_revoked), 1, 'Upgrade offboarded session revocation');
+  assertEqual(Number(row.offboarded_token_count), 0, 'Upgrade offboarded enrollment-token cleanup');
+  assertEqual(Number(row.offboarded_push_count), 0, 'Upgrade offboarded push cleanup');
+  assertEqual(Number(row.offboarded_shared_assignment_count), 0, 'Upgrade offboarded shared delegation cleanup');
+  assertEqual(Number(row.retained_personal_owner_assignment_count), 1, 'Upgrade retained personal owner assignment');
+  assertEqual(row.offboarded_position_visibility, 'internal', 'Upgrade offboarded public position cleanup');
+  assertEqual(Number(row.foreign_key_violation_count), 0, 'Upgrade foreign-key validation');
+  assertEqual(Number(row.ownership_trigger_count), 6, 'Upgrade ownership trigger count');
+
+  assertWranglerFailure(
+    ['d1', 'execute', ...upgradeArguments, '--command', `
+      INSERT INTO mailboxes (id, address, display_name, type)
+      VALUES ('upgrade-invalid-personal', 'invalid-personal@example.test', 'Invalid', 'personal');
+    `],
+    'Upgrade personal mailbox owner requirement',
+  );
+  assertWranglerFailure(
+    ['d1', 'execute', ...upgradeArguments, '--command', `
+      INSERT INTO mailboxes (id, address, display_name, type, owner_user_id)
+      VALUES ('upgrade-invalid-shared', 'invalid-shared@example.test', 'Invalid', 'shared', 'upgrade-good');
+    `],
+    'Upgrade shared mailbox ownership prohibition',
+  );
+  assertWranglerFailure(
+    ['d1', 'execute', ...upgradeArguments, '--command', `
+      INSERT INTO mailbox_assignments (mailbox_id, user_id, permissions)
+      VALUES ('upgrade-good-personal', 'upgrade-manager', 'full');
+    `],
+    'Upgrade personal mailbox delegation prohibition',
+  );
+  assertWranglerFailure(
+    ['d1', 'execute', ...upgradeArguments, '--command', `
+      DELETE FROM mailbox_assignments
+      WHERE mailbox_id = 'upgrade-good-personal' AND user_id = 'upgrade-good';
+    `],
+    'Upgrade personal mailbox owner-assignment retention',
+  );
+  assertWranglerFailure(
+    ['d1', 'execute', ...upgradeArguments, '--command', `
+      UPDATE mailbox_assignments SET permissions = 'read'
+      WHERE mailbox_id = 'upgrade-good-personal' AND user_id = 'upgrade-good';
+    `],
+    'Upgrade personal mailbox owner-assignment permission immutability',
+  );
+  assertWranglerFailure(
+    ['d1', 'execute', ...upgradeArguments, '--command', `
+      UPDATE mailbox_assignments SET mailbox_id = 'upgrade-shared'
+      WHERE mailbox_id = 'upgrade-good-personal' AND user_id = 'upgrade-good';
+    `],
+    'Upgrade personal mailbox owner-assignment move prohibition',
+  );
+}
 
 try {
   runWrangler(['d1', 'migrations', 'apply', ...baseArguments]);
@@ -177,6 +341,8 @@ try {
           AND dflt_value = '1') AS organisation_signature_enabled_column_count,
       (SELECT COUNT(*) FROM pragma_table_info('personal_signatures')
         WHERE name IN ('user_id', 'html_body', 'plain_text_body', 'is_locked', 'updated_at', 'updated_by')) AS personal_signature_column_count,
+      (SELECT COUNT(*) FROM pragma_table_info('mailboxes')
+        WHERE name = 'owner_user_id') AS personal_mailbox_owner_column_count,
       (SELECT COUNT(*) FROM pragma_foreign_key_check) AS foreign_key_violation_count;
   `;
 
@@ -212,7 +378,10 @@ try {
   assertEqual(Number(row.default_signature_count), 1, 'Default signature seed count');
   assertEqual(Number(row.organisation_signature_enabled_column_count), 1, 'Organisation signature enabled column');
   assertEqual(Number(row.personal_signature_column_count), 6, 'Personal signature columns');
+  assertEqual(Number(row.personal_mailbox_owner_column_count), 1, 'Personal mailbox owner column');
   assertEqual(Number(row.foreign_key_violation_count), 0, 'Foreign-key violation count');
+
+  verifyUpgradeFixture();
 
   const senderHashA = 'a'.repeat(64);
   const senderHashB = 'b'.repeat(64);
@@ -220,18 +389,18 @@ try {
     INSERT INTO users (id, email, display_name, status) VALUES
       ('guard-user', 'guard-user@example.test', 'Guard user', 'active');
 
-    INSERT INTO mailboxes (id, address, display_name) VALUES
-      ('guard-count', 'guard-count@example.test', 'Guard count'),
-      ('guard-bytes', 'guard-bytes@example.test', 'Guard bytes'),
-      ('guard-sender', 'guard-sender@example.test', 'Guard sender'),
-      ('guard-storage', 'guard-storage@example.test', 'Guard storage'),
-      ('guard-disabled', 'guard-disabled@example.test', 'Guard disabled'),
-      ('guard-multi-a', 'guard-multi-a@example.test', 'Guard multi A'),
-      ('guard-multi-b', 'guard-multi-b@example.test', 'Guard multi B'),
-      ('guard-same', 'guard-same@example.test', 'Guard same'),
-      ('guard-duplicate', 'guard-duplicate@example.test', 'Guard duplicate'),
-      ('guard-draft', 'guard-draft@example.test', 'Guard draft'),
-      ('guard-journal', 'guard-journal@example.test', 'Guard journal');
+    INSERT INTO mailboxes (id, address, display_name, type) VALUES
+      ('guard-count', 'guard-count@example.test', 'Guard count', 'shared'),
+      ('guard-bytes', 'guard-bytes@example.test', 'Guard bytes', 'shared'),
+      ('guard-sender', 'guard-sender@example.test', 'Guard sender', 'shared'),
+      ('guard-storage', 'guard-storage@example.test', 'Guard storage', 'shared'),
+      ('guard-disabled', 'guard-disabled@example.test', 'Guard disabled', 'shared'),
+      ('guard-multi-a', 'guard-multi-a@example.test', 'Guard multi A', 'shared'),
+      ('guard-multi-b', 'guard-multi-b@example.test', 'Guard multi B', 'shared'),
+      ('guard-same', 'guard-same@example.test', 'Guard same', 'shared'),
+      ('guard-duplicate', 'guard-duplicate@example.test', 'Guard duplicate', 'shared'),
+      ('guard-draft', 'guard-draft@example.test', 'Guard draft', 'shared'),
+      ('guard-journal', 'guard-journal@example.test', 'Guard journal', 'shared');
 
     INSERT OR IGNORE INTO mailbox_reservations
       (id, delivery_key, mailbox_id, sender_hash, message_bytes,
@@ -660,6 +829,37 @@ try {
   assertEqual(Number(pruneRow.new_reservation_count), 1, 'Reservation insert after terminal pruning');
   assertEqual(Number(pruneRow.detached_target_count), 1, 'Terminal target reservation detachment');
 
+  // Ownership controls: a personal mailbox has exactly one immutable owner
+  // assignment, while a shared mailbox remains the delegation surface.
+  runWrangler(['d1', 'execute', ...baseArguments, '--command', `
+    INSERT INTO users (id, email, display_name, status) VALUES
+      ('owner-one', 'owner-one@example.test', 'Owner One', 'active'),
+      ('owner-two', 'owner-two@example.test', 'Owner Two', 'active');
+    INSERT INTO mailboxes (id, address, display_name, type, owner_user_id)
+    VALUES ('owned-personal', 'owner-one@company.example', 'Owner One', 'personal', 'owner-one');
+    INSERT INTO mailbox_assignments (mailbox_id, user_id, permissions)
+    VALUES ('owned-personal', 'owner-one', 'full');
+  `]);
+  assertWranglerFailure(
+    ['d1', 'execute', ...baseArguments, '--command', `
+      INSERT INTO mailbox_assignments (mailbox_id, user_id, permissions)
+      VALUES ('owned-personal', 'owner-two', 'full');
+    `],
+    'Personal mailbox non-owner assignment guard',
+  );
+  assertWranglerFailure(
+    ['d1', 'execute', ...baseArguments, '--command', `
+      DELETE FROM mailbox_assignments WHERE mailbox_id = 'owned-personal' AND user_id = 'owner-one';
+    `],
+    'Personal mailbox owner-assignment retention guard',
+  );
+  assertWranglerFailure(
+    ['d1', 'execute', ...baseArguments, '--command', `
+      UPDATE mailboxes SET owner_user_id = 'owner-two' WHERE id = 'owned-personal';
+    `],
+    'Personal mailbox owner immutability guard',
+  );
+
   const migrationLabel = expectedMigrations.length === 1 ? 'migration' : 'migrations';
   console.log(
     `Fresh D1 migration verified: ${expectedMigrations.length} ${migrationLabel}, ` +
@@ -667,6 +867,12 @@ try {
   );
 } finally {
   rmSync(persistenceDirectory, {
+    recursive: true,
+    force: true,
+    maxRetries: 3,
+    retryDelay: 100,
+  });
+  rmSync(upgradeFixtureDirectory, {
     recursive: true,
     force: true,
     maxRetries: 3,
