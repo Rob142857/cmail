@@ -97,7 +97,7 @@ try {
         WHERE type = 'table' AND name IN (
           'users', 'sessions', 'mailboxes', 'mailbox_assignments', 'messages',
           'attachments', 'ict_policy_versions', 'ict_policy_signatures',
-          'signature_templates', 'audit_log', 'mail_trace', 'rate_limits',
+          'signature_templates', 'personal_signatures', 'audit_log', 'mail_trace', 'rate_limits',
           'mailbox_reservations', 'send_idempotency', 'retention_config', 'org_settings',
           'organization_directory_settings', 'organization_layers',
           'organization_units', 'organization_roles', 'organization_positions',
@@ -172,6 +172,11 @@ try {
           AND "notnull" = 1) AS outbound_digest_column_count,
       (SELECT COUNT(*) FROM signature_templates
         WHERE id = 'sig-default' AND applies_to = '*') AS default_signature_count,
+      (SELECT COUNT(*) FROM pragma_table_info('signature_templates')
+        WHERE name = 'is_enabled' AND "notnull" = 1
+          AND dflt_value = '1') AS organisation_signature_enabled_column_count,
+      (SELECT COUNT(*) FROM pragma_table_info('personal_signatures')
+        WHERE name IN ('user_id', 'html_body', 'plain_text_body', 'is_locked', 'updated_at', 'updated_by')) AS personal_signature_column_count,
       (SELECT COUNT(*) FROM pragma_foreign_key_check) AS foreign_key_violation_count;
   `;
 
@@ -188,7 +193,7 @@ try {
 
   assertEqual(Number(row.migration_count), expectedMigrations.length, 'Applied migration count');
   assertArrayEqual(appliedMigrations, expectedMigrations, 'Applied migration names');
-  assertEqual(Number(row.application_table_count), 25, 'Application table count');
+  assertEqual(Number(row.application_table_count), 26, 'Application table count');
   assertEqual(Number(row.essential_index_count), 9, 'Essential index count');
   assertEqual(Number(row.organization_trigger_count), 2, 'Organisation cycle-trigger count');
   assertEqual(Number(row.inbound_guard_trigger_count), 5, 'Delivery reservation-trigger count');
@@ -205,6 +210,8 @@ try {
   assertEqual(Number(row.trace_delivery_column_count), 2, 'Trace provider delivery columns');
   assertEqual(Number(row.outbound_digest_column_count), 3, 'Outbound journal digest columns');
   assertEqual(Number(row.default_signature_count), 1, 'Default signature seed count');
+  assertEqual(Number(row.organisation_signature_enabled_column_count), 1, 'Organisation signature enabled column');
+  assertEqual(Number(row.personal_signature_column_count), 6, 'Personal signature columns');
   assertEqual(Number(row.foreign_key_violation_count), 0, 'Foreign-key violation count');
 
   const senderHashA = 'a'.repeat(64);
@@ -656,7 +663,7 @@ try {
   const migrationLabel = expectedMigrations.length === 1 ? 'migration' : 'migrations';
   console.log(
     `Fresh D1 migration verified: ${expectedMigrations.length} ${migrationLabel}, ` +
-      '25 application tables, required indexes, atomic delivery guards, triggers, and defaults.',
+      '26 application tables, required indexes, atomic delivery guards, triggers, and defaults.',
   );
 } finally {
   rmSync(persistenceDirectory, {

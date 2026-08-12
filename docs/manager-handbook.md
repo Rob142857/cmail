@@ -135,6 +135,28 @@ For a shared mailbox rollout, define who may respond as the function, who owns
 filing and deletion, and what shared read/unread means operationally. Test the
 workflow with at least two delegates before publishing the address.
 
+## Email signatures
+
+**Management > Email signatures** controls the optional organisation-wide
+signature and personal signature governance. cmail appends a sender's personal
+signature first, then the enabled organisation signature. Both are placed below
+the sender's new text and above quoted history for new messages, replies, and
+forwards.
+
+Use the organisation layer for approved contact details, branding, or a legal
+notice. **Append to outgoing mail** enables it; disabling it retains its saved
+content but stops using it. People can manage their own personal signature in
+**Mail > Settings** unless you set and select **Lock personal signature** for
+that person. Saving a personal signature in Management replaces only that
+person's layer; it does not alter the organisation footer.
+
+Use concise, approved content and do not put secrets, tracking pixels, or
+unnecessary personal information in a signature. cmail limits and sanitises
+the supported rich HTML before storing and sending it. Review locked personal
+signatures during staff or role changes, and use Audit log to confirm signature
+and lock changes. See [Email signatures](signatures.md) for the operator and
+user procedure.
+
 ## Organisation and public directory
 
 **Management > Organisation** models structure without assuming a particular

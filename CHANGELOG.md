@@ -8,6 +8,10 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Added
 
+- Personal rich-text signatures, optional organisation-wide signatures, and
+  Manager configure-and-lock controls with protected compose previews.
+- A screenshot-led product tour using fictional demonstration data, plus a
+  complete feature inventory and dedicated signature operator documentation.
 - Standards-aligned High, Normal, and Low message importance across inbound
   parsing, drafts, external providers, Sent copies, and mail views.
 - Reply all recipient handling, RFC-style References ancestry, inline MIME image
@@ -18,6 +22,10 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Changed
 
+- Signature layers now render personal then organisation content below the
+  sender's text and above quoted history in new messages, replies, and forwards.
+- Product security copy now distinguishes cmail controls and guidance from
+  authentication policy enforced by the deployed receiving provider.
 - Cloudflare production delivery now uses a private Pages service binding to the
   email Worker's native Email Sending binding; the API-token REST path remains
   an optional fallback. Opaque native delivery IDs are stored separately from
@@ -33,6 +41,10 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Security
 
+- Signature HTML is bounded and sanitised before storage and again before use;
+  self-service saves cannot race and overwrite a Manager lock.
+- Pinned the patched Nano ID 3.3.17 transitive dependency after the release
+  audit identified GHSA-2v37-7h3g-55p8.
 - Bounded and validated the private outbound Worker request, kept that Worker
   off public HTTP routes, verified production/preview Wrangler isolation, and
   restricted inline images to authenticated, same-origin safe raster

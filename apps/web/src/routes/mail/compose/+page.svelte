@@ -713,6 +713,39 @@
       <textarea name="body" id="body" bind:value={body} oninput={markDirty} rows="14" maxlength="1000000" placeholder="Write your message in plain text…"></textarea>
     </div>
 
+    {#if d.signature}
+      <details class="signature-preview">
+        <summary>
+          <span class="signature-summary-copy">
+            <strong>Automatic email signature</strong>
+            <small>Personal first, then organisation</small>
+          </span>
+          {#if d.effectiveSignature?.personalLocked}<span class="signature-lock">Admin managed</span>{/if}
+        </summary>
+        <div class="signature-preview-body">
+          <p class="signature-help">cmail adds these protected blocks below your message and above quoted conversation history when you send.</p>
+          <div class="signature-layers">
+            {#if d.effectiveSignature?.personalHtml}
+              <section class="signature-layer">
+                <span>1 · Personal</span>
+                <iframe title="Personal signature preview" sandbox="" srcdoc={d.effectiveSignature.personalHtml}></iframe>
+              </section>
+            {/if}
+            {#if d.effectiveSignature?.organisationHtml}
+              <section class="signature-layer signature-layer-org">
+                <span>2 · Organisation</span>
+                <iframe title="Organisation signature preview" sandbox="" srcdoc={d.effectiveSignature.organisationHtml}></iframe>
+              </section>
+            {/if}
+          </div>
+          <div class="signature-footer">
+            <span>Signature content is kept outside the editable message so it cannot be accidentally changed.</span>
+            <a href="/mail/settings">{d.effectiveSignature?.personalLocked ? 'View signature settings' : 'Manage personal signature'}</a>
+          </div>
+        </div>
+      </details>
+    {/if}
+
     {#if quotedHtml}
       <section class="quoted-message" aria-labelledby="quoted-message-title">
         <div class="quoted-heading">
@@ -758,12 +791,6 @@
       </p>
     </div>
 
-    {#if d.signature}
-      <details class="signature-preview">
-        <summary>Signature preview</summary>
-        <iframe class="signature-body" title="Signature preview" sandbox="" srcdoc={d.signature}></iframe>
-      </details>
-    {/if}
     </fieldset>
 
     <div class="compose-actions">
@@ -831,9 +858,24 @@
   .external-warning span { overflow-wrap: anywhere; }
   .external-warning small { color: color-mix(in srgb, var(--warning) 78%, var(--text)); }
 
-  .signature-preview { font-size: 13px; margin: 4px 0 12px; }
-  .signature-preview summary { cursor: pointer; color: var(--text-muted); }
-  .signature-body { display:block; width:100%; min-height:100px; padding:0; background:#fff; border:1px solid var(--border); border-radius:var(--radius); margin-top:6px; }
+  .signature-preview { margin: -2px 0 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-subtle); font-size: 12px; }
+  .signature-preview > summary { display:flex; align-items:center; gap:12px; min-height:46px; padding:8px 12px; cursor:pointer; list-style:none; }
+  .signature-preview > summary::-webkit-details-marker { display:none; }
+  .signature-preview > summary::before { content:'›'; color:var(--text-muted); font-size:18px; line-height:1; transition:transform var(--dur-fast) var(--ease); }
+  .signature-preview[open] > summary::before { transform:rotate(90deg); }
+  .signature-summary-copy { display:flex; flex:1; flex-direction:column; min-width:0; }
+  .signature-summary-copy strong { color:var(--text); font-size:12px; font-weight:600; }
+  .signature-summary-copy small { color:var(--text-muted); font-size:10.5px; }
+  .signature-lock { flex:0 0 auto; padding:3px 7px; border-radius:var(--radius-pill); background:var(--warning-soft); color:var(--warning); font-size:10px; font-weight:650; }
+  .signature-preview-body { padding:0 12px 12px; border-top:1px solid var(--border); }
+  .signature-help { margin:10px 0; color:var(--text-muted); font-size:11px; }
+  .signature-layers { display:flex; flex-direction:column; gap:8px; }
+  .signature-layer { overflow:hidden; border:1px solid var(--border); border-left:3px solid var(--primary); border-radius:var(--radius); background:var(--bg-surface); }
+  .signature-layer-org { border-left-color:#7c3aed; }
+  .signature-layer > span { display:block; padding:4px 8px; border-bottom:1px solid var(--border); color:var(--text-faint); font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+  .signature-layer iframe { display:block; width:100%; min-height:76px; border:0; background:#fff; }
+  .signature-footer { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-top:9px; color:var(--text-faint); font-size:10.5px; }
+  .signature-footer a { flex:0 0 auto; font-weight:600; }
 
   .attachments { margin: 0 0 14px; }
   .attachments-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
@@ -880,5 +922,6 @@
     .quoted-heading { align-items:flex-start; flex-direction:column; gap:2px; }
     .recovery-warning { align-items:flex-start; flex-direction:column; }
     .recovery-actions { flex-wrap:wrap; }
+    .signature-footer { flex-direction:column; gap:5px; }
   }
 </style>

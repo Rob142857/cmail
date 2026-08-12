@@ -131,6 +131,21 @@ the intended files. Drafts remain private to their creator even when
 the selected From address is a shared mailbox; delegates see the Sent copy
 after delivery, not the unfinished draft.
 
+### Email signatures
+
+Open **Mail > Settings > Email signature** to maintain your personal sign-off.
+cmail adds it below your new text in a new message, reply, or forward. If an
+organisation signature is enabled, it follows directly underneath; both layers
+stay above quoted conversation history. You can use the limited safe rich-text
+toolbar for emphasis, lists, and web or mail links. Pasted content is inserted
+as plain text and unsupported or unsafe markup is removed before saving.
+
+If the page says **Admin managed**, your personal signature is locked. You can
+preview it but cannot change it; ask a Manager to update it. An empty personal
+signature removes only your layer, not any centrally managed organisation
+footer. See [Email signatures](signatures.md) for the exact ordering and
+formatting boundaries.
+
 After sending, cmail stores a Sent copy in the selected From mailbox. If a
 provider accepts a message but the local Sent copy fails, do not send it again;
 ask a manager to inspect Mail trace.

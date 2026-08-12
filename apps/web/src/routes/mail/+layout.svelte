@@ -87,6 +87,7 @@
   ]);
 
   const isList = $derived((page.route.id || '') === '/mail');
+  const isMailSettings = $derived(page.url.pathname === '/mail/settings');
 
   const permissionLabel = /** @type {Record<string, string>} */ ({
     read: 'Read only',
@@ -139,7 +140,7 @@
         <div class="nav-group">
           <p class="nav-heading" id="nav-mailboxes">Mailboxes</p>
           <nav class="nav-list" aria-labelledby="nav-mailboxes">
-            <a href={mailboxHref('')} class="nav-item" aria-current={!currentMailboxId ? 'page' : undefined}>
+            <a href={mailboxHref('')} class="nav-item" aria-current={!isMailSettings && !currentMailboxId ? 'page' : undefined}>
               <span class="nav-icon"><Icon name="mailMultiple" size={16} /></span>
               <span class="nav-label">All mailboxes</span>
               {#if d.totalUnread > 0}<span class="count">{d.totalUnread}</span>{/if}
@@ -155,7 +156,7 @@
                 <a
                   href={mailboxHref(mb.id)}
                   class="nav-item"
-                  aria-current={currentMailboxId === mb.id ? 'page' : undefined}
+                  aria-current={!isMailSettings && currentMailboxId === mb.id ? 'page' : undefined}
                   title="{mb.address} — {permissionLabel[mb.permissions] || mb.permissions}"
                 >
                   <span class="nav-icon"><Icon name="mail" size={16} /></span>
@@ -175,7 +176,7 @@
                 <a
                   href={mailboxHref(mb.id)}
                   class="nav-item"
-                  aria-current={currentMailboxId === mb.id ? 'page' : undefined}
+                  aria-current={!isMailSettings && currentMailboxId === mb.id ? 'page' : undefined}
                   title="{mb.address} — {permissionLabel[mb.permissions] || mb.permissions}"
                 >
                   <span class="nav-icon"><Icon name="people" size={16} /></span>
@@ -187,6 +188,20 @@
           </div>
         {/if}
       {/if}
+
+      <div class="nav-group">
+        <p class="nav-heading" id="nav-mail-settings">Settings</p>
+        <nav class="nav-list" aria-labelledby="nav-mail-settings">
+          <a
+            href="/mail/settings"
+            class="nav-item"
+            aria-current={isMailSettings ? 'page' : undefined}
+          >
+            <span class="nav-icon"><Icon name="compose" size={16} /></span>
+            <span class="nav-label">Email signature</span>
+          </a>
+        </nav>
+      </div>
     </div>
 
     <div class="nav-pane-bottom">
