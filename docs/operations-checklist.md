@@ -28,7 +28,10 @@ boundary.
 - [ ] Manager and standard-user authorization checked
 - [ ] Known inbound recipient tested
 - [ ] Unknown inbound recipient rejected
+- [ ] A disabled or offboarded address returns the same generic SMTP-time
+      rejection as an unknown address; no cmail outbound auto-reply is sent
 - [ ] Worker-only `INBOUND_SENDER_HASH_KEY` present and malformed/missing-key fail-closed behavior tested
+- [ ] Native inbound actor, aggregate, and one-per-minute alert bindings have unique production/preview namespaces; a controlled threshold emits at most one generic no-PII Worker warning per colo/minute while delivery continues
 - [ ] Inbound byte/count/body-complexity limits and shared mailbox storage quota exercised at exact boundaries
 - [ ] Internal delivery tested
 - [ ] External outbound tested, when enabled
@@ -67,6 +70,9 @@ boundary.
       and allow `accepted` records to finish idempotent local materialization
 - [ ] Review mailbox reservation denials, D1/R2 growth, and orphan-object reconciliation results
 - [ ] Review bounces, complaints, and provider reputation signals
+- [ ] Review Cloudflare Email Routing/Worker rejection metrics and logs for
+      sustained abuse or unexpected unavailable-recipient volume; rejected
+      inbound attempts are not durable per-attempt cmail trace records
 - [ ] Review DMARC aggregate reports, authentication drift, and unauthorised
       senders; investigate every sustained failure
 - [ ] Review MTA-STS and TLS-RPT failures, certificate changes, and MX drift,

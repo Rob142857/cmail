@@ -188,6 +188,18 @@ function requireNamed(config, entry, path, key) {
   return value;
 }
 
+function requirePositiveIntegerString(config, entry, path, key) {
+  const value = requireNamed(config, entry, path, key);
+  if (!value) return null;
+  try {
+    if (!/^\d+$/.test(value) || BigInt(value) <= 0n) throw new Error('invalid');
+  } catch {
+    fail(config.file, `${path}.${key}`, 'must be a positive integer string');
+    return null;
+  }
+  return value;
+}
+
 function requireDistinct(config, path, previewValue, productionValue) {
   if (previewValue && productionValue && previewValue === productionValue) {
     fail(config.file, path, 'must differ from the production resource');
@@ -203,6 +215,35 @@ function validateDistinctEntries(config, previewPath, productionPath, keys) {
       const value = requireNamed(config, entry, previewPath, key);
       if (value && productionValues.has(value)) {
         fail(config.file, `${previewPath}.${key}`, 'must not reuse a production resource');
+      }
+    }
+  }
+}
+
+function validateRateLimitBindings(config) {
+  const paths = ['ratelimits', 'env.preview.ratelimits'];
+  const expectedNames = ['INBOUND_ACTOR_RATE_LIMITER', 'INBOUND_GLOBAL_RATE_LIMITER', 'INBOUND_ABUSE_ALERT_RATE_LIMITER'];
+  const namespaceIds = new Set();
+
+  for (const path of paths) {
+    const entries = config.entries(path);
+    for (const name of expectedNames) {
+      const entry = requireSingleBinding(config, path, 'name', name);
+      if (!entry) continue;
+      const namespaceId = requirePositiveIntegerString(config, entry, path, 'namespace_id');
+      if (namespaceId) {
+        if (namespaceIds.has(namespaceId)) {
+          fail(config.file, `${path}.namespace_id`, 'must not reuse another inbound rate-limit namespace');
+        }
+        namespaceIds.add(namespaceId);
+      }
+      const limit = entry.get('simple.limit');
+      const period = entry.get('simple.period');
+      if (!Number.isSafeInteger(limit) || limit <= 0) {
+        fail(config.file, `${path}.simple.limit`, 'must be a positive integer');
+      }
+      if (period !== 10 && period !== 60) {
+        fail(config.file, `${path}.simple.period`, 'must be 10 or 60 seconds');
       }
     }
   }
@@ -244,6 +285,7 @@ function validateWorker(config) {
   if (productionR2) requireNamed(config, productionR2, 'r2_buckets', 'bucket_name');
   validateDistinctEntries(config, 'env.preview.d1_databases', 'd1_databases', ['database_name', 'database_id']);
   validateDistinctEntries(config, 'env.preview.r2_buckets', 'r2_buckets', ['bucket_name']);
+  validateRateLimitBindings(config);
 
   return { productionName, previewName, productionDb, previewDb, productionR2, previewR2 };
 }

@@ -123,8 +123,31 @@ Before offboarding:
 - transfer any team responsibilities and unfinished shared drafts;
 - decide how the personal mailbox and retained data must be handled;
 - check organisation positions that name the person, especially public ones;
+- tell the successor or relevant contact owner how correspondence should be
+  redirected before disabling the address; cmail does not send a departure
+  notice on later inbound attempts;
 - perform the offboard action and review Audit log; and
 - test the successor's access without using the former user's session.
+
+### Unavailable former addresses
+
+After offboarding, the person's personal mailbox is disabled. Incoming mail to
+that address is rejected during SMTP with the same generic cmail response used
+for an unknown or disabled address. This avoids confirming whether an address
+ever existed and avoids revealing offboarding status.
+
+The sending mail system normally creates any non-delivery report (NDR) for its
+sender. cmail does **not** send a branded bounce, automatic reply, or departure
+notice itself. That is intentional: cmail sends no outbound mail for a rejected
+attempt, consumes no outbound quota, and cannot be used to generate
+backscatter by sending spam or forged mail to former addresses. An SMTP
+rejection is not a guarantee that the original sender will see a human-facing
+notice; their provider decides whether and how to issue one.
+
+Use Cloudflare Email Routing and Worker metrics/logs to monitor unusual inbound
+rejection rates or abuse. Rejected attempts are not retained as a durable,
+per-address cmail audit or mail-trace record, so do not use Mail trace to
+estimate every attempted delivery to former addresses.
 
 ## Mailboxes
 

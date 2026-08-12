@@ -271,7 +271,20 @@ Verify the resulting Pages origin and Worker name before changing mail routing.
 
 Enable Cloudflare Email Routing for the chosen mail domain. Route only intended addresses or an explicitly approved catch-all to the deployed email Worker. Email Routing is cmail's inbound path and is configured independently of the selected outbound provider, including when Cloudflare Email Service handles outbound delivery.
 
-The Worker accepts mail only for active mailbox rows in D1 and rejects unknown recipients. Test a known address and an unknown address before broadening rules.
+The Worker accepts mail only for active mailbox rows in D1. Unknown, disabled,
+and offboarded addresses receive one generic SMTP-time rejection; the response
+does not say whether an address ever existed or why it is unavailable. The
+sending MTA normally produces any non-delivery report (NDR) to its sender.
+cmail intentionally sends no branded auto-reply or bounce email for rejected
+inbound attempts: it uses no cmail outbound quota, prevents backscatter, and
+cannot be amplified by a spammer. An SMTP rejection is not a promise that a
+human will receive an NDR—sender-side policy and delivery software decide that.
+
+Test a known address and an unknown address before broadening rules. Also test
+an offboarded address and confirm it has the same generic result. Use
+Cloudflare Email Routing/Worker metrics and logs to monitor rejection patterns;
+cmail deliberately does not retain a durable per-attempt log for rejected
+addresses.
 
 ## 9. Bootstrap and lock down administration
 

@@ -390,6 +390,26 @@ removes those objects, internal copies are bounded rather than sharing blobs.
 
 ## Inbound Worker limits
 
+Before any D1 recipient lookup, the optional native Cloudflare Rate Limiting
+bindings in `apps/email-worker/wrangler.toml` record a generous per-colo abuse
+threshold:
+120 messages/minute for a trusted source IP (or, if no trusted boundary IP is
+available, the normalized but sender-controlled envelope sender), plus a 1,000
+messages/minute per-colo aggregate circuit breaker. Actor inputs are SHA-256
+pseudonymized (not anonymized) before reaching the native counter key. This makes
+unavailable-recipient spraying visible without spending outbound-send quota.
+Cloudflare documents Email Workers `setReject()` as a permanent SMTP error, so
+cmail deliberately does **not** turn this signal into a misleading `451` or
+drop mail. The bindings are intentionally fail-open when absent or when the
+edge limiter faults, so an optional protection cannot create a mail outage;
+their namespaces must be positive, account-unique integers and preview must
+use different namespaces. Thresholds never alter delivery or prevent D1 reads.
+A third one-per-minute-per-colo native alert binding permits one generic
+no-PII Worker warning when either signal is over limit; if that binding is
+absent, denied, or faulty, cmail omits the warning. Native counters are
+local to a Cloudflare colo, so retain the D1-backed limits below as the durable
+mailbox and sender controls.
+
 | Variable | Default | Hard maximum | Behavior |
 |---|---:|---:|---|
 | `MAX_INBOUND_BYTES` | 10 MiB | 25 MiB | Maximum raw size of one inbound message |
@@ -417,7 +437,8 @@ pnpm exec wrangler secret put INBOUND_SENDER_HASH_KEY --config apps/email-worker
 
 For local Worker development, put the generated value only in the ignored
 `apps/email-worker/.dev.vars`. The default sender control fails closed with a
-generic temporary SMTP rejection when this secret is absent or malformed. The
+generic permanent rejection controlled by Cloudflare when this secret is absent
+or malformed. The
 ledger stores only a mailbox-scoped HMAC, never the raw sender address. Rotating
 the HMAC key creates new sender buckets, so plan rotation as a deliberate
 one-hour rate-limit reset.
@@ -474,8 +495,8 @@ recovery is used at the boundary; the irreducible case is a runtime termination
 after a provider accepts mail but before cmail records the result. That case is
 marked for operator reconciliation instead of risking a duplicate send.
 
-Guardrail denials use the same generic `451 Message temporarily unavailable`
-response for quota and dependency failures. They add no sender, recipient,
+Guardrail denials use a generic plain-text reason for quota and dependency
+failures; Cloudflare controls the permanent SMTP rejection. They add no sender, recipient,
 subject, source IP, message ID, or sender hash to audit/trace records; Worker
 warnings are generic so attacker-controlled mail cannot enter new telemetry.
 
