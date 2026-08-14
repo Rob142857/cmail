@@ -218,6 +218,8 @@
       <nav class="nav-footer-links" aria-label="Account and product help">
         <a href="/help">Help centre</a>
         <a href="/help/shared-mailboxes">Shared mailboxes</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
         {#if d.supportEmail}<a href={`mailto:${d.supportEmail}`}>Support</a>{/if}
       </nav>
       <span class="product-credit">

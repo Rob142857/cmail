@@ -42,7 +42,7 @@
 
   <footer class="help-footer">
     <span>Enterprise-grade email management, simplified for small organisations and for geographically and managerially dispersed groups.</span>
-    <span><a href="/help/standards">Standards &amp; assurance</a> · open source under the MIT License</span>
+    <span><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/help/standards">Standards &amp; assurance</a> · open source under the MIT License</span>
   </footer>
 </div>
 
