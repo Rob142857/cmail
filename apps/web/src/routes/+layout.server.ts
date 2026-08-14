@@ -13,6 +13,8 @@ export const load: LayoutServerLoad = async ({ locals, platform }) => {
       authProviders: [],
       supportEmail: '',
       orgName: '',
+      orgUrl: '',
+      landingUrl: '',
       brandLogoUrl: '/logo.svg',
       brandIconUrl: '/icon.svg',
       brandIcon192Url: '/icon-192.png',
@@ -34,6 +36,8 @@ export const load: LayoutServerLoad = async ({ locals, platform }) => {
     appName: settings.appName || runtime.appName,
     appUrl: settings.appUrl || runtime.appUrl,
     orgName: settings.orgName,
+    orgUrl: settings.orgUrl,
+    landingUrl: settings.landingUrl,
     supportEmail: settings.supportEmail,
     authProviders: getEnabledProviders(env as unknown as Record<string, string | undefined>),
   };

@@ -294,6 +294,7 @@ try {
       (SELECT COUNT(*) FROM sqlite_master
         WHERE type = 'trigger' AND name IN (
           'trg_outbound_send_journal_payload_immutable',
+          'trg_outbound_send_journal_from_name_immutable',
           'trg_outbound_send_journal_result_guard',
           'trg_outbound_send_journal_state_guard',
           'trg_outbound_send_journal_materialized_guard',
@@ -363,7 +364,7 @@ try {
   assertEqual(Number(row.essential_index_count), 9, 'Essential index count');
   assertEqual(Number(row.organization_trigger_count), 2, 'Organisation cycle-trigger count');
   assertEqual(Number(row.inbound_guard_trigger_count), 5, 'Delivery reservation-trigger count');
-  assertEqual(Number(row.outbound_journal_trigger_count), 10, 'Outbound journal-trigger count');
+  assertEqual(Number(row.outbound_journal_trigger_count), 11, 'Outbound journal-trigger count');
   assertEqual(Number(row.retention_default_count), 4, 'Retention default count');
   assertEqual(Number(row.public_directory_enabled), 0, 'Public directory default');
   assertEqual(Number(row.internal_visibility_default_count), 1, 'Position visibility default');
@@ -694,6 +695,12 @@ try {
   );
   assertWranglerFailure(
     ['d1', 'execute', ...baseArguments, '--command', `
+      UPDATE outbound_send_journal SET from_name = 'Mutated pending' WHERE id = 'journal-1';
+    `],
+    'Pending outbound sender-name immutability',
+  );
+  assertWranglerFailure(
+    ['d1', 'execute', ...baseArguments, '--command', `
       DELETE FROM outbound_send_journal WHERE id = 'journal-1';
     `],
     'Unresolved outbound journal deletion',
@@ -744,6 +751,12 @@ try {
   );
   assertWranglerFailure(
     ['d1', 'execute', ...baseArguments, '--command', `
+      UPDATE outbound_send_journal SET from_name = 'Mutated accepted' WHERE id = 'journal-1';
+    `],
+    'Accepted outbound sender-name immutability',
+  );
+  assertWranglerFailure(
+    ['d1', 'execute', ...baseArguments, '--command', `
       UPDATE outbound_send_journal SET state = 'materialized' WHERE id = 'journal-1';
     `],
     'Incomplete outbound materialization guard',
@@ -777,6 +790,13 @@ try {
   if (!journalRow) throw new Error('Wrangler returned no outbound-journal verification row.');
   assertEqual(String(journalRow.state), 'materialized', 'Outbound journal terminal state');
   assertEqual(Number(journalRow.storage_pending), 0, 'Outbound reservation settlement');
+
+  assertWranglerFailure(
+    ['d1', 'execute', ...baseArguments, '--command', `
+      UPDATE outbound_send_journal SET from_name = 'Mutated materialized' WHERE id = 'journal-1';
+    `],
+    'Materialized outbound sender-name immutability',
+  );
 
   assertWranglerFailure(
     ['d1', 'execute', ...baseArguments, '--command', `

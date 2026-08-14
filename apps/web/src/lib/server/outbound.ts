@@ -210,7 +210,7 @@ export async function sendEmail(email: OutboundEmail, env: Record<string, unknow
   }
 }
 
-function cleanDisplayName(value: string | undefined): string {
+export function sanitizeSenderDisplayName(value: string | undefined): string {
   return (value || '')
     .replace(/[\u0000-\u001f\u007f"\\]/g, '')
     .trim()
@@ -218,7 +218,7 @@ function cleanDisplayName(value: string | undefined): string {
 }
 
 function formattedFrom(email: OutboundEmail): string {
-  const name = cleanDisplayName(email.fromName);
+  const name = sanitizeSenderDisplayName(email.fromName);
   return name ? `"${name}" <${email.from}>` : email.from;
 }
 
@@ -326,7 +326,7 @@ export function buildRawMimeMessage(email: OutboundEmail): string | null {
 
   try {
     const message = createMimeMessage();
-    const fromName = cleanDisplayName(email.fromName);
+    const fromName = sanitizeSenderDisplayName(email.fromName);
     message.setSender(fromName ? { addr: from, name: fromName } : from);
     message.setTo(to as string[]);
     if (cc.length) message.setCc(cc as string[]);
@@ -542,7 +542,7 @@ function cloudflarePayload(email: OutboundEmail): CloudflareEmailPayload | null 
   const replyTo = email.replyTo ? normalizeEmail(email.replyTo) : undefined;
   if (!from || to.some((address) => !address) || cc.some((address) => !address)) return null;
 
-  const name = cleanDisplayName(email.fromName);
+  const name = sanitizeSenderDisplayName(email.fromName);
   const headers = safeOutboundHeaders(email);
   return {
     from: name ? { address: from, name } : from,

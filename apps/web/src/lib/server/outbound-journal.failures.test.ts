@@ -109,6 +109,7 @@ function acceptedJournal(overrides: Partial<OutboundJournalRow> = {}): OutboundJ
     state: 'accepted',
     provider: 'cloudflare',
     from_address: 'sender@example.com',
+    from_name: 'Sender Example',
     to_addresses: JSON.stringify(['person@example.net']),
     cc_addresses: '[]',
     envelope_recipients: JSON.stringify(['person@example.net']),
@@ -420,6 +421,21 @@ describe('outbound journal failure and recovery boundaries', () => {
 
     await expect(loadJournalOutboundEmail(bucket, journal, []))
       .rejects.toThrow('integrity verification');
+  });
+
+  it('restores the journaled sender display name for a provider retry', async () => {
+    const journal = acceptedJournal({
+      html_sha256: await digest('<p>Expected</p>'),
+      text_sha256: await digest('Expected'),
+    });
+    const { bucket, seed } = fakeBucket();
+    seed(journal.html_r2_key, '<p>Expected</p>');
+    seed(journal.text_r2_key, 'Expected');
+
+    await expect(loadJournalOutboundEmail(bucket, journal, [])).resolves.toMatchObject({
+      from: 'sender@example.com',
+      fromName: 'Sender Example',
+    });
   });
 
   it('rejects altered staged bytes before writing a materialized copy', async () => {
