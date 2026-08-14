@@ -14,6 +14,7 @@ function payload(overrides: Record<string, unknown> = {}) {
   return {
     provider: 'cloudflare' as const,
     from: 'sender@example.com',
+    fromName: 'Sender Example',
     to: ['person@example.net'],
     cc: ['copy@example.net'],
     envelopeRecipients: ['person@example.net', 'copy@example.net'],
@@ -51,6 +52,7 @@ describe('durable outbound journal', () => {
   it.each([
     ['body', { html: '<p>Changed</p>' }],
     ['recipient', { envelopeRecipients: ['other@example.net'] }],
+    ['sender display name', { fromName: 'Changed Sender' }],
     ['importance', { importance: 'high' as const }],
     ['target plan', { deliveryTargets: [{ mailboxId: 'other-mailbox', direction: 'internal' as const, folder: 'inbox' as const }] }],
     ['attachment bytes', { attachments: [{ filename: 'report.txt', contentType: 'text/plain', bytes: new TextEncoder().encode('changed') }] }],

@@ -32,6 +32,7 @@ export interface JournalTargetInput {
 export interface JournalPayloadInput {
   provider: JournalProvider;
   from: string;
+  fromName?: string;
   to: string[];
   cc: string[];
   envelopeRecipients: string[];
@@ -70,6 +71,7 @@ export interface CreateJournalInput {
   staged: StagedJournalPayload;
   provider: JournalProvider;
   from: string;
+  fromName?: string;
   to: string[];
   cc: string[];
   envelopeRecipients: string[];
@@ -101,6 +103,7 @@ export interface OutboundJournalRow {
   state: OutboundJournalState;
   provider: JournalProvider;
   from_address: string;
+  from_name: string;
   to_addresses: string;
   cc_addresses: string;
   envelope_recipients: string;
@@ -199,6 +202,7 @@ export async function fingerprintJournalPayload(input: JournalPayloadInput): Pro
     version: 1,
     provider: input.provider,
     from: input.from,
+    fromName: input.fromName || '',
     to: input.to,
     cc: input.cc,
     envelopeRecipients: input.envelopeRecipients,
@@ -389,7 +393,7 @@ export async function insertOutboundJournal(db: D1Database, input: CreateJournal
       `INSERT INTO outbound_send_journal
        (id, user_id, mailbox_id, idempotency_key, payload_hash, html_sha256,
         text_sha256, state, provider,
-        from_address, to_addresses, cc_addresses, envelope_recipients, subject,
+        from_address, from_name, to_addresses, cc_addresses, envelope_recipients, subject,
         snippet, importance, in_reply_to, references_header, thread_id,
         proposed_message_id_header, message_id_header, html_r2_key, text_r2_key,
         persisted_bytes, provider_payload_bytes, draft_id, claimed_draft_version,
@@ -405,6 +409,7 @@ export async function insertOutboundJournal(db: D1Database, input: CreateJournal
       input.fingerprint.textHash,
       input.provider,
       input.from,
+      input.fromName || '',
       JSON.stringify(input.to),
       JSON.stringify(input.cc),
       JSON.stringify(input.envelopeRecipients),
@@ -642,6 +647,7 @@ export async function loadJournalOutboundEmail(
   }));
   return {
     from: journal.from_address,
+    ...(journal.from_name ? { fromName: journal.from_name } : {}),
     to: validStringArray(journal.to_addresses, 50),
     cc: validStringArray(journal.cc_addresses, 50),
     envelopeRecipients: validStringArray(journal.envelope_recipients, 50),

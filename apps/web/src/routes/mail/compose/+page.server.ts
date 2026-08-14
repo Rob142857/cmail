@@ -49,6 +49,7 @@ import {
 import {
   getProviderInfo,
   preflightEmail,
+  sanitizeSenderDisplayName,
   sendEmail,
   supportsSeparatedEnvelope,
   type OutboundAttachment,
@@ -509,11 +510,14 @@ export const actions: Actions = {
     }
 
     const mailbox = await env.DB.prepare(
-      `SELECT m.id, m.address FROM mailboxes m
+      `SELECT m.id, m.address, m.display_name FROM mailboxes m
        INNER JOIN mailbox_assignments ma ON m.id = ma.mailbox_id
        WHERE m.address = ? AND ma.user_id = ? AND ma.permissions IN ('send-as', 'full') AND m.status = 'active'`,
-    ).bind(from, locals.user.id).first<{ id: string; address: string }>();
+    ).bind(from, locals.user.id).first<{ id: string; address: string; display_name: string }>();
     if (!mailbox) return fail(403, { error: 'You do not have permission to send from this address' });
+    const fromName = sanitizeSenderDisplayName(
+      mailbox.display_name.trim() || locals.user.display_name.trim(),
+    );
 
     let sourceDraft: {
       body_r2_key: string | null;
@@ -614,6 +618,7 @@ export const actions: Actions = {
 
     const outboundEmail: OutboundEmail | null = hasExternalRecipients ? {
       from,
+      ...(fromName ? { fromName } : {}),
       to: providerTo,
       cc: providerCc,
       envelopeRecipients: providerRecipients,
@@ -686,6 +691,7 @@ export const actions: Actions = {
     const fingerprint = await fingerprintJournalPayload({
       provider: journalProvider,
       from,
+      fromName,
       to: toResult.recipients,
       cc: ccRecipients,
       envelopeRecipients: providerRecipients,
@@ -835,6 +841,7 @@ export const actions: Actions = {
           staged,
           provider: journalProvider,
           from,
+          fromName,
           to: toResult.recipients,
           cc: ccRecipients,
           envelopeRecipients: providerRecipients,
