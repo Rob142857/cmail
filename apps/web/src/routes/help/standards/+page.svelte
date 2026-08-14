@@ -134,7 +134,7 @@
         {
           standard: 'OAuth 2.0 / OpenID Connect',
           status: 'met',
-          detail: 'Sign-in delegates to Google or Microsoft Entra ID. No password is set, stored or transmitted, so your existing multi-factor and conditional-access rules continue to apply.',
+          detail: 'Sign-in delegates to Google or Microsoft Entra ID. No password is set, stored or transmitted. Multi-factor and conditional-access protection is provided when the deployment operator configures it with the identity provider.',
         },
         {
           standard: 'Session integrity',
@@ -151,12 +151,12 @@
     {
       eyebrow: 'Governance',
       title: 'Evidence and retention',
-      intro: 'The records an auditor asks for are produced as a by-product of ordinary operation.',
+      intro: 'Operational records may support a review, but preservation and independent assurance remain operator responsibilities.',
       rows: [
         {
-          standard: 'Append-only audit log',
+          standard: 'Application audit log',
           status: 'met',
-          detail: 'Every administrative action and authentication event is recorded with actor, event type, target, source address and timestamp. The interface offers no way to edit or delete an entry.',
+          detail: 'Every administrative action and authentication event is recorded with actor, event type, target, source address and timestamp. The application interface offers no way to edit or delete an entry; it is not a tamper-evident or independently immutable evidence store.',
         },
         {
           standard: 'Message trace',
@@ -165,8 +165,8 @@
         },
         {
           standard: 'Configurable retention',
-          status: 'met',
-          detail: 'Deleted messages, attachments, trace records and audit records each carry their own retention period, enforced on a schedule rather than by hand.',
+          status: 'operator',
+          detail: 'When the operator enables retention jobs and configures periods, deleted messages, attachments, trace records and audit records can be processed on a schedule. Retention jobs are off by default and require review of backup, recovery and legal requirements first.',
         },
         {
           standard: 'Versioned acceptable use policy',
@@ -185,6 +185,18 @@
   // Verified gaps. An unqualified compliance claim is worth nothing, so each
   // entry states the consequence and what would close it.
   const gaps = [
+    {
+      title: 'No deployment assurance or privacy certification',
+      why: 'This page describes source-checked product behavior. DNS records, provider settings, identity controls, data location, backups, staff access and operational practices belong to the organisation running a deployment.',
+      effect: 'A capability marked Implemented does not attest that a particular deployment is configured, operated, lawful, or suitable for a framework or jurisdiction.',
+      closes: 'Deployment-specific evidence, review and any applicable independent assessment arranged by the operator.',
+    },
+    {
+      title: 'No legal hold or protected audit export',
+      why: 'cmail has configurable retention processing, but no legal-hold workflow, signed export, write-once archive, or tamper-evident audit store.',
+      effect: 'Operators must preserve and protect records using their own approved backup, access-control and evidence-retention processes before destructive retention is enabled.',
+      closes: 'An organisation-approved preservation and evidence-export capability, with controls appropriate to the required assurance standard.',
+    },
     {
       title: 'Inbound authentication results need INBOUND_AUTHSERV_ID before anything is recorded',
       why: 'An Authentication-Results header is only meaningful if it can be attributed to an MTA you trust — any sender can write "dkim=pass". RFC 8601 §5 requires a consumer to ignore records whose authserv-id is not its own. The parser therefore refuses to produce a verdict until the boundary is named.',
@@ -225,13 +237,14 @@
 </script>
 
 <svelte:head>
-  <title>Standards and compliance · {appName} help</title>
+  <title>Standards &amp; assurance · {appName} help</title>
 </svelte:head>
 
 <article class="standards">
   <header>
-    <p class="eyebrow">Compliant email</p>
-    <h1>Standards and compliance</h1>
+    <div class="title-row"><p class="eyebrow">Standards &amp; assurance</p><button class="btn print-button" type="button" onclick={() => window.print()}>Print / save as PDF</button></div>
+    <h1>Standards &amp; assurance</h1>
+    <p class="document-meta">Public operational guide · reviewed 14 August 2026 · verify against the exact deployed commit and configuration</p>
     <p class="lede">
       {appName} implements the open standards that make email interoperable and the controls an
       organisation is expected to evidence. Every row marked <em>Implemented</em> was checked
@@ -244,6 +257,17 @@
       documentation, not legal advice.
     </p>
   </header>
+
+  <section class="responsibility" aria-labelledby="responsibility-heading">
+    <p class="eyebrow">Scope and responsibility</p>
+    <h2 id="responsibility-heading">Capability is not deployment assurance</h2>
+    <p class="section-intro">This self-hosted application supplies some controls, while the organisation operating it configures and evidences others. Cloudflare, identity and outbound-mail providers operate their own services. Review each layer together.</p>
+    <div class="responsibility-grid">
+      <div><strong>cmail product</strong><span>Source-checked application behavior such as server-side mailbox checks, sessions, content handling, trace and policy records.</span></div>
+      <div><strong>Deployment operator</strong><span>DNS, SPF/DMARC/MTA-STS, identity-provider MFA, provider accounts, retention activation, backups, privacy, legal hold and evidence protection.</span></div>
+      <div><strong>Providers</strong><span>Infrastructure, identity, signing, delivery and platform controls according to their current service terms and configuration.</span></div>
+    </div>
+  </section>
 
   {#each areas as area}
     <section aria-labelledby={`area-${area.eyebrow.replace(/\s+/g, '-').toLowerCase()}`}>
@@ -287,24 +311,41 @@
     </ul>
   </section>
 
+  <section class="evidence-checklist" aria-labelledby="evidence-heading">
+    <p class="eyebrow">Deployment evidence</p>
+    <h2 id="evidence-heading">What to retain for an assurance review</h2>
+    <p class="section-intro">Complete these items for the specific deployment. They are not generated or attested by cmail.</p>
+    <ul>
+      <li>Deployed version or commit, review owner and review date.</li>
+      <li>Approved provider list, data handling/privacy decisions and Cloudflare Email Preview decision.</li>
+      <li>DNS authentication and transport verification, including SPF, DKIM, DMARC, MTA-STS and TLS reporting where used.</li>
+      <li>Identity-provider MFA and conditional-access evidence; manager and mailbox-access review.</li>
+      <li>Retention periods and enabled state, legal-hold decision, protected audit/trace exports, and backup/restore exercise evidence.</li>
+      <li>Incident contacts, escalation process and review of known gaps.</li>
+    </ul>
+  </section>
+
   <aside class="closing">
     <div>
       <strong>Deploying or operating this yourself?</strong>
       <p>
-        The DNS record sets, the MTA-STS rollout order, the provider requirements and the
-        production checklist are in <code>docs/email-authentication.md</code> in the project
-        repository. The acceptable use policy for this deployment is published in the app.
+        Use this page's print action to save a dated review copy, then retain the deployment-specific
+        evidence named above. Review the versioned <a href="https://github.com/Rob142857/cmail/blob/main/docs/assurance.md">assurance guide</a> and <a href="https://github.com/Rob142857/cmail/blob/main/docs/privacy-and-data-handling.md">privacy and data-handling guide</a> for source and operator detail. The acceptable use policy for this deployment is published in the app.
       </p>
     </div>
-    <a class="btn" href="/policy">Read the usage policy</a>
+    <div class="closing-actions"><a class="btn" href="/policy">Read the usage policy</a><a class="btn" href="https://github.com/Rob142857/cmail">Review source</a></div>
   </aside>
 </article>
 
 <style>
   .standards { display: grid; gap: 34px; max-width: 860px; }
+  .title-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .title-row .eyebrow { margin: 0; }
+  .print-button { white-space: nowrap; }
   header { max-width: 720px; }
   .eyebrow { margin: 0 0 6px; color: var(--primary); font-size: 11px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
   h1 { margin: 0; font-size: clamp(30px, 6vw, 46px); letter-spacing: -.035em; }
+  .document-meta { margin: 7px 0 0; color: var(--text-faint); font-size: 11.5px; line-height: 1.5; }
   .lede { margin-top: 12px; color: var(--text-muted); font-size: 17px; line-height: 1.65; }
   .lede em { color: var(--text); font-style: normal; font-weight: 600; }
   .note {
@@ -321,6 +362,9 @@
 
   section h2 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
   .section-intro { margin: 8px 0 0; color: var(--text-muted); font-size: 14px; line-height: 1.6; max-width: 70ch; }
+  .responsibility-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+  .responsibility-grid div { display: grid; gap: 5px; padding: 15px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); }
+  .responsibility-grid span { color: var(--text-muted); font-size: 12px; line-height: 1.55; }
 
   .rows { margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
   .rows li {
@@ -369,6 +413,7 @@
   .gaps dl > div { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 10px; }
   .gaps dt { color: var(--text-faint); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding-top: 2px; }
   .gaps dd { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+  .evidence-checklist ul { margin: 16px 0 0; padding-left: 21px; display: grid; gap: 8px; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
 
   .closing {
     display: grid;
@@ -382,12 +427,22 @@
     background: var(--bg-surface);
   }
   .closing p { margin: 4px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.55; }
-  .closing code { font-family: var(--font-mono); font-size: 11.5px; }
+  .closing-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 
   @media (max-width: 680px) {
+    .title-row { align-items: flex-start; flex-direction: column; }
+    .responsibility-grid { grid-template-columns: 1fr; }
     .closing { grid-template-columns: 1fr; }
-    .closing .btn { justify-self: start; }
+    .closing-actions { justify-content: flex-start; }
     .status { margin-left: 0; }
     .gaps dl > div { grid-template-columns: 1fr; gap: 2px; }
+  }
+  @media print {
+    :global(.help-header), :global(.help-footer), .print-button { display: none !important; }
+    :global(.help-content) { width: 100%; padding: 0; }
+    .standards { max-width: none; gap: 20px; }
+    .rows, .gaps { gap: 6px; }
+    .rows li, .gaps > li, .responsibility-grid div { break-inside: avoid; box-shadow: none; }
+    .closing { break-inside: avoid; }
   }
 </style>

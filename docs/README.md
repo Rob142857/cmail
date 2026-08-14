@@ -36,6 +36,12 @@ real mail to it.
 
 ## Customisation and governance
 
+- [Security, privacy, and assurance](assurance.md) — public responsibility
+  boundary, control matrix, limitations, and deployment evidence checklist for
+  managers, reviewers, and auditors.
+- [Privacy and data-handling guide](privacy-and-data-handling.md) — operator
+  data inventory, provider boundary, public-directory, retention, rights, and
+  privacy-notice checklist.
 - [Branding and first customisation](branding.md)
 - [Downstream and private implementations](downstream-implementations.md) —
   keep proprietary deployment work separate while tracking public cmail.

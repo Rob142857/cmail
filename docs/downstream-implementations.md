@@ -82,6 +82,14 @@ The normal customisation surface is configuration:
 | External delivery | `OUTBOUND_PROVIDER`; Cloudflare production uses the Worker's `EMAIL` send binding plus Pages `EMAIL_SERVICE` service binding, the optional REST fallback uses `CLOUDFLARE_ACCOUNT_ID` plus `CLOUDFLARE_EMAIL_API_TOKEN`, and Postmark uses `POSTMARK_API_KEY` |
 | Browser notifications | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_ENDPOINT_HOSTS` |
 
+If the downstream publishes `landing/`, review every upstream GitHub URL and
+clone command in `landing/index.html` and `landing/assurance/index.html` before
+deployment. Point source, issue, security, documentation, and assurance links
+at the repository and policy the downstream actually supports. Update the
+assurance document date/baseline, publish the organisation's own privacy
+notice and incident contacts, and do not present upstream project guidance as
+an audit or certification of the downstream deployment.
+
 Google and Microsoft controls appear only when that provider's complete
 configuration and the shared session prerequisites are valid. Keep `APP_URL`
 at deployment level because it defines OAuth callbacks plus first-party

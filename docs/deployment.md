@@ -20,6 +20,9 @@ Routing rules, a custom domain, or cmail's one-time bootstrap.
 
 Use the button only to begin importing the public repository. Complete every
 manual step in this guide before describing the environment as deployed. A
+fork or private downstream must replace the button's repository URL with its
+own reviewed source; copying the upstream badge unchanged imports upstream
+cmail rather than the downstream implementation. A
 future migration of the web application to
 [SvelteKit on Workers](https://developers.cloudflare.com/workers/framework-guides/web-apps/sveltekit/)
 could make more of the flow automatic, but the separate email Worker and
@@ -43,6 +46,20 @@ pnpm r2:create
 
 Copy the D1 database ID into the web and Worker Wrangler configuration. Confirm the same R2 bucket name is used by both applications.
 
+The copied `apps/web/wrangler.toml` and
+`apps/email-worker/wrangler.toml` files are ignored, environment-specific
+deployment manifests: `pnpm deploy` reads them directly. Store them in
+access-controlled operator documentation or configuration management, not Git;
+do not copy a manifest, resource ID, bucket name, or Worker name between
+Cloudflare accounts.
+
+Replace all six `namespace_id` placeholders in
+`apps/email-worker/wrangler.toml`: three production IDs and three preview IDs.
+Choose positive integer IDs that are unique within this Cloudflare account, and
+never reuse one between production and preview. Record the selected IDs with
+the environment manifest. The config check detects duplicate IDs, but cannot
+know whether a placeholder is appropriate for a particular account.
+
 Apply pending migrations:
 
 ```sh
@@ -56,6 +73,58 @@ migration instead. Back up existing data and verify a restore path before
 schema changes. Name local SQL exports with the `.d1-export.sql` suffix so the
 repository ignore rules protect them from accidental commits; backups still
 need access controls and storage outside the source checkout.
+
+### Back up and rehearse recovery
+
+Mail metadata, bodies, and attachments live in separate D1 and R2 resources.
+Back up and restore both as one recovery point. Cloudflare does not provide one
+atomic snapshot across D1 and R2, so use a controlled maintenance window when
+strict point-in-time consistency is required. Exports contain private mail,
+addresses, and audit data: write them only to an encrypted, access-controlled
+location outside this checkout. Do not use a production export as preview or
+development data.
+
+Use Cloudflare's [D1 export](https://developers.cloudflare.com/d1/best-practices/import-export-data/)
+and an S3-compatible client such as Cloudflare's documented
+[`rclone` integration](https://developers.cloudflare.com/r2/examples/rclone/).
+Give the R2 client a restricted token and a separately controlled backup
+destination. A D1 export blocks other database requests while it runs. For a
+routine recovery point, pre-copy R2, export D1, then copy R2 again; the second
+copy captures objects committed around the export without deleting backup
+objects. For a strict recovery point, pause Email Routing and interactive
+writes before the first command and resume them only after validation. Replace
+all names and the date before running:
+
+```sh
+rclone copy r2-production:cmail-storage r2-backup:cmail-storage-YYYY-MM-DD --checksum
+pnpm exec wrangler d1 export cmail-db --remote --output ../cmail-backups/cmail-db-YYYY-MM-DD.d1-export.sql
+rclone copy r2-production:cmail-storage r2-backup:cmail-storage-YYYY-MM-DD --checksum
+rclone check r2-production:cmail-storage r2-backup:cmail-storage-YYYY-MM-DD --one-way
+```
+
+Hash the D1 export (`sha256sum` on common Unix systems or `Get-FileHash
+-Algorithm SHA256` in PowerShell) and retain the checksum with the R2 prefix
+and maintenance-window record. A two-pass live copy can contain harmless extra
+R2 objects created after the D1 snapshot; it is not a substitute for quiescing
+writes when exact consistency is mandatory.
+
+At least once before production mail flow, rehearse recovery into **new,
+isolated** resources rather than overwriting production. Create a recovery D1
+database and R2 bucket, then import the matching export and object backup:
+
+```sh
+pnpm exec wrangler d1 create cmail-db-recovery
+pnpm exec wrangler d1 execute cmail-db-recovery --remote --file ../cmail-backups/cmail-db-YYYY-MM-DD.d1-export.sql
+rclone copy r2-backup:cmail-storage-YYYY-MM-DD r2-recovery:cmail-storage-recovery --checksum
+rclone check r2-backup:cmail-storage-YYYY-MM-DD r2-recovery:cmail-storage-recovery --one-way
+```
+
+Record the D1 export checksum, R2 backup prefix, creation time, source resource
+names, and the successful recovery validation. Validate table counts and a
+small approved sample of message bodies/attachments on the isolated resources.
+Restoring a live environment requires an approved outage plan: stop mail
+routing and writes first, restore the matching D1 and R2 point together, update
+both application bindings together, and test before re-enabling routing.
 
 Create the Pages project before attempting to write Pages secrets:
 
@@ -266,6 +335,44 @@ pnpm deploy
 ```
 
 Verify the resulting Pages origin and Worker name before changing mail routing.
+
+### Roll back a release
+
+Before each release, record the deployed Git commit and the exact prior Worker
+version and Pages deployment identifiers. These read-only commands list the
+current rollback candidates:
+
+```sh
+pnpm exec wrangler deployments list --config apps/email-worker/wrangler.toml
+pnpm exec wrangler pages deployment list --project-name cmail-web
+```
+
+Keep a known-good release available until the new release passes verification.
+Normal releases deploy a backward-compatible Worker first and Pages second. A
+full rollback reverses that order: roll Pages back first, while the newer
+Worker still supports the previous private API, then roll the Worker back. This
+avoids leaving the newer Pages application calling an older Worker contract.
+Use the Pages project's **Deployments → Rollback to this deployment** action,
+then roll back the Worker to the recorded version:
+
+```sh
+pnpm exec wrangler rollback <WORKER_VERSION_ID> --config apps/email-worker/wrangler.toml --message "Rollback to reviewed release"
+```
+
+Cloudflare documents [Pages rollbacks](https://developers.cloudflare.com/pages/configuration/rollbacks/)
+and [Worker rollbacks](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/).
+If the incident is isolated to one runtime, roll back only that runtime after
+confirming its current counterpart is compatible. Pause routing changes and
+outbound tests during the decision and repeat the controlled smoke tests after
+each rollback.
+
+Do **not** blindly roll application code back after a D1 migration. Migrations
+are forward-only: a prior application version may not understand the current
+schema. Roll back only after confirming the prior release is schema-compatible;
+otherwise deploy a forward corrective release. If recovery requires restoring
+D1, restore the matching R2 point too, use the isolated recovery rehearsal
+above first, and do not re-enable Email Routing until both bindings and mail
+flow verification succeed.
 
 ## 8. Configure inbound routing
 

@@ -9,6 +9,7 @@
     { href: '/help/shared-mailboxes', label: 'Shared mailboxes' },
     { href: '/help/mobile', label: 'iPhone, iPad & Android' },
     { href: '/help/managers', label: 'Manager handbook' },
+    { href: '/help/standards', label: 'Standards & assurance' },
   ];
 
   function active(href: string): boolean {
@@ -40,7 +41,7 @@
 
   <footer class="help-footer">
     <span>Enterprise-grade email management, simplified for small organisations and for geographically and managerially dispersed groups.</span>
-    <span><a href="/help/standards">Compliant email</a> · open source under the MIT License</span>
+    <span><a href="/help/standards">Standards &amp; assurance</a> · open source under the MIT License</span>
   </footer>
 </div>
 
