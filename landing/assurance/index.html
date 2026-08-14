@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A concise security and assurance summary for the cmail upstream project, including responsibilities, deployment evidence, and current limitations.">
+  <title>cmail security &amp; assurance</title>
+  <style>
+    :root { color-scheme: light dark; --ink:#242424; --muted:#616161; --paper:#fff; --ground:#f5f5f5; --line:#d1d1d1; --blue:#0078d4; --soft:#edf6fc; --warn:#8a4b00; --warn-soft:#fff4ce; --font:'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; }
+    @media (prefers-color-scheme: dark) { :root { --ink:#f0f0f0; --muted:#adadad; --paper:#1f1f1f; --ground:#141414; --line:#454545; --soft:#073b5b; --warn:#ffd28a; --warn-soft:#4b3300; } }
+    * { box-sizing:border-box; } html { scroll-behavior:smooth; } body { margin:0; background:var(--ground); color:var(--ink); font:15px/1.58 var(--font); } a { color:#006fc9; } a:focus-visible,button:focus-visible,.table-scroll:focus-visible { outline:3px solid var(--blue); outline-offset:3px; } .wrap { max-width:980px; margin:auto; padding:0 24px; } header { border-bottom:1px solid var(--line); background:var(--paper); } .bar { display:flex; justify-content:space-between; align-items:center; gap:18px; min-height:58px; } .brand { color:var(--ink); font-weight:700; text-decoration:none; } main { padding:42px 0 60px; } h1,h2 { line-height:1.16; letter-spacing:-.02em; } h1 { font-size:clamp(32px,5vw,48px); margin:0 0 10px; } h2 { font-size:22px; margin:36px 0 12px; } .lede { max-width:70ch; font-size:18px; color:var(--muted); } .meta, .small { color:var(--muted); font-size:13px; } .notice { margin:26px 0; padding:15px 18px; border-left:4px solid var(--blue); background:var(--soft); } .warning { border-left-color:var(--warn); background:var(--warn-soft); } .actions { display:flex; flex-wrap:wrap; gap:10px; margin:22px 0; } button,.button { display:inline-block; padding:8px 13px; border:1px solid var(--blue); border-radius:4px; background:var(--blue); color:#fff; font:inherit; font-weight:600; text-decoration:none; cursor:pointer; } .button.secondary { background:var(--paper); color:var(--blue); } table { width:100%; border-collapse:collapse; background:var(--paper); } th,td { padding:12px; border:1px solid var(--line); vertical-align:top; text-align:left; } th { background:var(--soft); } ul { padding-left:22px; } li + li { margin-top:7px; } .checklist { list-style:none; padding:0; } .checklist li { padding-left:27px; position:relative; } .checklist li::before { content:'☐'; position:absolute; left:0; color:var(--blue); font-size:19px; line-height:1.2; } footer { border-top:1px solid var(--line); padding:25px 0; color:var(--muted); font-size:13px; }
+    .table-scroll { max-width:100%; overflow-x:auto; }
+    @media (max-width:720px) { .table-scroll table { min-width:720px; } }
+    @media print { :root { color-scheme:light; --ink:#111; --muted:#444; --paper:#fff; --ground:#fff; --line:#aaa; --soft:#eef7fc; } body { font-size:10.5pt; } .no-print { display:none !important; } main { padding:18px 0; } .wrap { max-width:none; } h1 { font-size:28pt; } h2 { break-after:avoid; margin-top:22px; } .table-scroll { overflow:visible; } .table-scroll table { min-width:0; } table, .notice { break-inside:avoid; } a { color:#111; text-decoration:none; } a[href]::after { content:' (' attr(href) ')'; font-size:8pt; color:#555; word-break:break-all; } .brand::after { content:none !important; } }
+  </style>
+</head>
+<body>
+  <header class="no-print"><div class="wrap bar"><a class="brand" href="/">cmail</a><a href="/">Back to product page</a></div></header>
+  <main class="wrap">
+    <p class="meta">UPSTREAM ASSURANCE SUMMARY · VERSION 1.0 · 14 AUGUST 2026 · SOURCE REVISION: RECORD THE DEPLOYED COMMIT WITH THIS PAGE</p>
+    <h1>Security &amp; assurance</h1>
+    <p class="lede">A practical, evidence-oriented summary of cmail’s upstream capabilities and the work that remains with each deployment. It is not a certification, audit report, or promise that a deployment meets a particular legal or regulatory obligation.</p>
+    <div class="actions no-print"><button id="print-button" type="button">Print or save as PDF</button><a class="button secondary" href="https://github.com/Rob142857/cmail/blob/main/SECURITY.md">Upstream security policy</a></div>
+    <aside class="notice warning"><strong>Pre-1.0 software.</strong> Assess the code and threat model for your environment; complete backup, recovery, provider, DNS, and access-control testing before handling sensitive or production mail.</aside>
+
+    <h2>Upstream capability summary</h2>
+    <ul>
+      <li>Personal and shared mailboxes; server-enforced Read, Send as, and Full access delegation; per-user Google or Microsoft OpenID Connect sign-in.</li>
+      <li>Inbound handling through Cloudflare Email Routing and outbound delivery through Cloudflare Email Service or Postmark, with D1 metadata and R2 message storage.</li>
+      <li>Mail trace and administrative audit views; versioned policy acknowledgement; personal and organisation signatures; configurable retention and quota guardrails.</li>
+      <li>Safety controls including HTML sanitisation, executable-attachment blocking, suspicious-link warnings, sender-first-contact notices, and optional spam-score quarantine.</li>
+      <li>Guidance for SPF, DKIM, DMARC, MTA-STS, and TLS reporting. These are deployment and transport controls, not an application certification.</li>
+    </ul>
+
+    <h2>Who is responsible for what</h2>
+    <div class="table-scroll" tabindex="0" aria-label="Responsibility matrix; scroll horizontally on small screens"><table>
+      <thead><tr><th scope="col">Area</th><th scope="col">Product</th><th scope="col">Operator</th><th scope="col">Provider</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Access and administration</th><td>Invitation-bound sign-in, server-side delegation checks, sessions, audit and policy controls.</td><td>Configure identity clients, invite/offboard people, review access and audit records.</td><td>Identity-provider authentication, MFA and conditional-access enforcement.</td></tr>
+        <tr><th scope="row">Mail flow and data</th><td>Mailbox workflows, storage integration, trace metadata, guardrails and safety presentation.</td><td>Own Cloudflare account, D1/R2 backups, retention decisions, routing rules, monitoring and incident response.</td><td>Cloudflare routing/storage/runtime availability; outbound provider acceptance and delivery.</td></tr>
+        <tr><th scope="row">Domain authentication</th><td>Records trusted inbound authentication results when configured and presents operational guidance.</td><td>Publish and maintain SPF, DMARC, MTA-STS and TLS-RPT records; validate DNS and reports.</td><td>Provider-managed DKIM signing and receiving-provider policy application.</td></tr>
+        <tr><th scope="row">Assurance and obligations</th><td>Documents supported controls and known limitations.</td><td>Determine applicable obligations; obtain independent advice, evidence and assessments where required.</td><td>Meet their own contractual, service and compliance commitments.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2>Deployment evidence checklist</h2>
+    <ul class="checklist">
+      <li>Record the upstream commit or release deployed, configuration review date, and responsible operator.</li>
+      <li>Confirm isolated Cloudflare resources and secrets for development, staging, and production; test D1/R2 backup and restore.</li>
+      <li>Verify OAuth callback URLs, invitation enrolment, least-privilege mailbox access, offboarding, and session revocation.</li>
+      <li>Test inbound routing, internal and external delivery, failure paths, attachments, mail trace, and audit events using controlled accounts.</li>
+      <li>Verify provider DNS records and controlled-message SPF, DKIM, and aligned DMARC results; monitor TLS-RPT and DMARC reports where enabled.</li>
+      <li>Set and test retention, quota, rate-limit, spam-quarantine, notification, and outbound-provider settings appropriate to the organisation.</li>
+      <li>Document incident contacts, provider-account access, change control, recovery exercises, and the decision not to use cmail for bulk marketing.</li>
+    </ul>
+
+    <h2>Explicit non-claims</h2>
+    <div class="notice warning"><ul>
+      <li>cmail is not certified against any regulatory, security, privacy, or assurance framework.</li>
+      <li>It is not a hosted email service, a managed backup service, or a replacement for operator monitoring and incident response.</li>
+      <li>It is not a bulk-marketing or campaign platform and does not provide the related consent, unsubscribe, complaint, reputation, or deliverability controls.</li>
+      <li>An in-product audit log is useful operational evidence, not tamper-proof external audit retention.</li>
+      <li>Configuring SPF, DKIM, DMARC, MTA-STS, or TLS-RPT does not by itself establish compliance or guarantee delivery.</li>
+    </ul></div>
+
+    <h2>Current limitations and primary evidence</h2>
+    <p>Read the project materials alongside the source revision you deploy. The <a href="https://github.com/Rob142857/cmail/blob/main/docs/email-authentication.md">email standards and sender requirements</a> explain DNS and sender responsibilities. The current in-product <a href="https://github.com/Rob142857/cmail/blob/main/apps/web/src/routes/help/standards/+page.svelte">standards page and gap register</a> identifies unavailable capabilities and why. The <a href="https://github.com/Rob142857/cmail/blob/main/SECURITY.md">security policy</a>, <a href="https://github.com/Rob142857/cmail/blob/main/docs/security-checklist.md">security checklist</a>, and <a href="https://github.com/Rob142857/cmail/blob/main/docs/deployment.md">deployment and verification guide</a> provide the upstream operating baseline.</p>
+    <p>The versioned technical source for this summary is <a href="https://github.com/Rob142857/cmail/blob/main/docs/assurance.md">docs/assurance.md</a>. The companion <a href="https://github.com/Rob142857/cmail/blob/main/docs/privacy-and-data-handling.md">privacy and data-handling guide</a> provides an operator data inventory and notice checklist. Use both with the exact source revision deployed when collecting or reviewing evidence.</p>
+    <p class="small">This page describes the named upstream revision only. Forks, local changes, provider configuration, and deployed versions require their own review and evidence.</p>
+  </main>
+  <footer><div class="wrap">cmail is MIT-licensed open source. <a href="https://github.com/Rob142857/cmail/blob/main/LICENSE">Read the license</a>.</div></footer>
+  <script src="/assurance/print.js" defer></script>
+</body>
+</html>

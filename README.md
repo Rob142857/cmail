@@ -16,6 +16,7 @@
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
   <a href="docs/README.md">Documentation</a> ·
+  <a href="docs/assurance.md">Security &amp; assurance</a> ·
   <a href="ROADMAP.md">Roadmap</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
   <a href="SECURITY.md">Security</a>
@@ -33,6 +34,9 @@
 > to begin the public-repository import, then complete the documented resource,
 > secret, DNS, routing, and bootstrap steps in [Deployment and
 > verification](docs/deployment.md#guided-repository-import).
+> Forks and private downstream repositories must replace the button's `url=`
+> value with their reviewed repository URL; the upstream button deliberately
+> imports `Rob142857/cmail` and cannot infer the page from which it was copied.
 
 cmail is an open-source email application for organisations that want personal
 and shared mailboxes on a domain they control. It combines a SvelteKit web

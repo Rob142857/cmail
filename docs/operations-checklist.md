@@ -13,13 +13,14 @@ boundary.
 - [ ] Manual regression scenarios recorded
 - [ ] Dependency and security advisories reviewed
 - [ ] No secrets, tenant IDs, private mail, or personal data in the diff
-- [ ] D1/R2 backup or recovery point confirmed
+- [ ] D1/R2 backup point recorded together (D1 export checksum, R2 prefix, source resources, and creation time)
+- [ ] Isolated D1/R2 restore rehearsal completed and validated before production mail flow
 - [ ] Schema changes reviewed against existing data
 - [ ] OAuth callback URLs verified
 - [ ] OIDC scopes and access-token UserInfo endpoints verified
 - [ ] Invitation enrolment, expiry, single-use, and resend rotation tested
 - [ ] Provider and Cloudflare administrative access reviewed
-- [ ] Rollback owner and decision point identified
+- [ ] Rollback owner, decision point, prior Worker/Pages deployment IDs, and migration-compatibility decision recorded
 
 ## After deployment
 
@@ -81,6 +82,7 @@ boundary.
       stop marketing or campaign use until the documented missing controls exist
 - [ ] Review Cloudflare Email Sending quota, activity logs, native/service bindings, optional REST-token access, and preview setting, when enabled
 - [ ] Confirm backups and perform scheduled restore exercises
+- [ ] Retain D1 and R2 recovery points as matching pairs; test an isolated restore before relying on a new backup process
 - [ ] Rotate secrets according to local policy
 - [ ] Remove expired OAuth credentials and administrator access
 - [ ] Apply dependency and platform security updates

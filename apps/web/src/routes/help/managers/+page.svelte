@@ -16,7 +16,7 @@
   {/if}
 
   <nav class="on-this-page" aria-label="On this page">
-    <strong>On this page</strong><a href="#model">Management model</a><a href="#people">People</a><a href="#mailboxes">Mailboxes</a><a href="#operations">Operations</a><a href="#privacy">Directory privacy</a><a href="#offboard">Offboarding</a>
+    <strong>On this page</strong><a href="#model">Management model</a><a href="#people">People</a><a href="#mailboxes">Mailboxes</a><a href="#operations">Operations</a><a href="#evidence">Evidence</a><a href="#privacy">Directory privacy</a><a href="#offboard">Offboarding</a>
   </nav>
 
   <section id="model">
@@ -66,6 +66,18 @@
       <li>Check the selected outbound provider, verified sender domain, and trace status for failed sends.</li>
       <li>Use the operations and security checklists in the source repository for backups, rotation, and incident handling.</li>
     </ul>
+  </section>
+
+  <section id="evidence">
+    <h2>Prepare evidence for review</h2>
+    <p><a href="/help/standards">Standards &amp; assurance</a> describes product capabilities, operator-configured controls, provider responsibilities, and known gaps. It is a shareable operational summary, not a certification or assurance of this deployment.</p>
+    <ul>
+      <li>Record the deployed version, providers, DNS checks, identity-provider MFA and conditional-access settings, and the approved Cloudflare Email Preview setting.</li>
+      <li>Keep protected exports or snapshots of Audit log and Mail trace with the backup and retention evidence required by your organisation.</li>
+      <li>Record retention periods, whether retention jobs are enabled, legal-hold decisions, backup owners, and the date of the latest restore exercise.</li>
+      <li>Have an accountable owner review the evidence after material access, routing, provider, or retention changes.</li>
+    </ul>
+    <div class="callout"><strong>Audit log is application evidence, not immutable evidence storage.</strong><p>cmail does not provide a protected audit export, legal hold, or tamper-evident audit store. Preserve and protect required evidence through the deployment's own backup, access, and retention controls.</p></div>
   </section>
 
   <section id="privacy">

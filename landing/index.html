@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Upstream landing configuration marker: downstream publishers should review
+       the repository URLs and clone command below for their own public project. -->
   <meta name="description" content="cmail is open-source organisational email on Cloudflare: personal and shared mailboxes, policy acknowledgement, managed signatures, Exchange-style delegation, mail trace, and standards-focused delivery.">
   <meta name="theme-color" content="#0078d4">
   <meta name="color-scheme" content="light dark">
@@ -407,6 +409,7 @@
     @media (max-width: 900px) {
       .grid-3 { grid-template-columns: 1fr 1fr; }
       .split, .deploy { grid-template-columns: 1fr; }
+      .nav-links a.nav-secondary { display: none; }
     }
     @media (max-width: 620px) {
       .wrap { width: calc(100% - 28px); }
@@ -488,12 +491,13 @@
         <svg viewBox="0 0 281 96" role="img" aria-label="cmail"><use href="#cmail-lockup"/></svg>
       </a>
       <nav class="nav-links" aria-label="Primary">
-        <a href="#capabilities">Capabilities</a>
-        <a href="#tour">Product tour</a>
-        <a href="#delegation">Shared mailboxes</a>
-        <a href="#trust">Security</a>
-        <a href="#architecture">Architecture</a>
-        <a href="https://github.com/Rob142857/cmail">Source</a>
+        <a class="nav-secondary" href="#capabilities">Capabilities</a>
+        <a class="nav-secondary" href="#tour">Product tour</a>
+        <a class="nav-secondary" href="#delegation">Shared mailboxes</a>
+        <a class="nav-secondary" href="#trust">Security</a>
+        <a href="/assurance/">Security &amp; assurance</a>
+        <a class="nav-secondary" href="#architecture">Architecture</a>
+        <a class="nav-secondary" href="https://github.com/Rob142857/cmail">Source</a>
         <a class="cta" href="#deploy">Deploy it</a>
       </nav>
     </div>
@@ -513,6 +517,7 @@
         </p>
         <div class="actions">
           <a class="button primary" href="#deploy">Deploy your own</a>
+          <a class="button" href="/assurance/">Security &amp; assurance</a>
           <a class="button" href="https://github.com/Rob142857/cmail">View the source</a>
         </div>
         <p class="trust">
@@ -652,7 +657,7 @@
 
       <section id="trust" aria-labelledby="trust-heading">
         <div class="section-heading">
-          <p class="kicker">Security and compliance</p>
+          <p class="kicker">Security &amp; assurance</p>
           <h2 id="trust-heading">Standards-focused, and honest about the gaps</h2>
           <p>The deployment guide walks SPF, DKIM, DMARC, MTA-STS, and TLS reporting. Where a capability depends on something upstream that does not yet exist, the documentation says so rather than implying coverage.</p>
         </div>
@@ -674,8 +679,8 @@
           </article>
           <article class="card">
             <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-clipboard"/></svg></span>
-            <h3>A published gap register</h3>
-            <p>The standards page lists what is implemented, what is deliberately out of scope, and what is blocked upstream — with the reasoning.</p>
+            <h3>A public gap register</h3>
+            <p><a href="/assurance/">Review the security and assurance summary</a>, including current limitations and the upstream gap register.</p>
           </article>
         </div>
       </section>
@@ -714,6 +719,7 @@
               checklists, define your backups, and test with controlled accounts before
               production use.
             </div>
+            <p><a class="button" href="https://github.com/Rob142857/cmail/blob/main/docs/deployment.md">Read the full deployment and verification guide</a></p>
           </div>
           <pre aria-label="Initial setup commands"><span class="c"># clone, configure, and validate</span>
 git clone https://github.com/Rob142857/cmail.git
@@ -737,7 +743,9 @@ pnpm validate</pre>
           <a href="https://github.com/Rob142857/cmail/blob/main/README.md">Documentation</a>
           <a href="https://github.com/Rob142857/cmail/blob/main/docs/deployment.md">Deployment</a>
           <a href="https://github.com/Rob142857/cmail/blob/main/LICENSE">MIT License</a>
-          <a href="https://github.com/Rob142857/cmail/security/policy">Security</a>
+          <a href="/assurance/">Security &amp; assurance</a>
+          <a href="https://github.com/Rob142857/cmail/blob/main/docs/privacy-and-data-handling.md">Privacy &amp; data-handling guide</a>
+          <a href="https://github.com/Rob142857/cmail/security/policy">Upstream security policy</a>
           <a href="https://github.com/Rob142857/cmail/issues">Issues</a>
         </div>
       </div>
@@ -746,7 +754,7 @@ pnpm validate</pre>
         geographically and managerially dispersed groups.
       </span>
       <span class="product-meta">
-        <a href="https://github.com/Rob142857/cmail/blob/main/docs/email-authentication.md">Compliant email</a> · MIT open source
+        <a href="https://github.com/Rob142857/cmail/blob/main/docs/email-authentication.md">Email standards &amp; sender requirements</a> · MIT open source
       </span>
     </div>
   </footer>

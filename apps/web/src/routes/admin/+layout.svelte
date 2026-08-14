@@ -80,6 +80,7 @@
   </span>
   <span class="cmd-spacer"></span>
   <a href="/help/managers" class="cmd"><span class="cmd-icon"><Icon name="help" /></span>Manager handbook</a>
+  <a href="/help/standards" class="cmd"><span class="cmd-icon"><Icon name="shieldCheck" /></span>Standards &amp; assurance</a>
 {/snippet}
 
 <AppShell
@@ -132,6 +133,7 @@
       <nav class="nav-footer-links" aria-label="Management help">
         <a href="/admin/investigate">Investigate</a>
         <a href="/help/managers">Manager handbook</a>
+        <a href="/help/standards">Standards &amp; assurance</a>
         <a href="/help/shared-mailboxes">Shared mailbox guide</a>
       </nav>
       <span class="product-credit">
@@ -139,7 +141,7 @@
         geographically and managerially dispersed groups.
       </span>
       <span class="product-meta">
-        <a href="/help/standards">Compliant email</a> · MIT open source
+        <a href="/help/standards">Standards &amp; assurance</a> · MIT open source
       </span>
     </div>
   {/snippet}

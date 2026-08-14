@@ -8,6 +8,11 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Added
 
+- A public, printable Security & Assurance summary, an in-app deployment
+  evidence checklist, and an operator privacy/data-handling guide for managers,
+  reviewers, and auditors.
+- Recovery-grade D1/R2 backup and isolated-restore guidance plus version-aware
+  Worker/Pages rollback procedures for new deployments.
 - A Microsoft-style mailbox assignee picker that resolves people through their
   canonical organisational personal mailbox while persisting stable account
   identifiers.
@@ -56,6 +61,9 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Security
 
+- Updated the transitive `nanoid` override to 3.3.18 to incorporate the latest
+  upstream security fix; the release dependency audit reports no known
+  vulnerabilities.
 - Added non-enforcing, pseudonymized native Cloudflare inbound abuse signals
   with a separately rate-limited generic alert (at most once per colo/minute);
   these signals never reject mail or avoid recipient/D1 work.

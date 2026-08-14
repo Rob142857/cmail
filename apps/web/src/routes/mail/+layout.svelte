@@ -225,7 +225,7 @@
         geographically and managerially dispersed groups.
       </span>
       <span class="product-meta">
-        <a href="/help/standards">Compliant email</a> · MIT open source
+        <a href="/help/standards">Standards &amp; assurance</a> · MIT open source
       </span>
     </div>
   {/snippet}
