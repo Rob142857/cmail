@@ -5,9 +5,9 @@
 
   const sections = [
     { href: '/help', label: 'Help home' },
+    { href: '/help/mobile', label: 'Mobile access' },
     { href: '/help/getting-started', label: 'Using mail' },
     { href: '/help/shared-mailboxes', label: 'Shared mailboxes' },
-    { href: '/help/mobile', label: 'iPhone, iPad & Android' },
     { href: '/help/managers', label: 'Manager handbook' },
     { href: '/help/support', label: 'Support process' },
     { href: '/help/standards', label: 'Standards & assurance' },

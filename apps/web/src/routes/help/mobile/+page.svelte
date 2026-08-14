@@ -4,9 +4,9 @@
 
 <article class="guide">
   <header>
-    <p class="eyebrow">Mobile setup</p>
-    <h1>Install {page.data?.appName || 'cmail'} on your device</h1>
-    <p>The installed web app opens from your Home Screen and can receive optional, privacy-minimised new-mail notifications when the deployment has enabled them.</p>
+    <p class="eyebrow">Mobile access</p>
+    <h1>Use {page.data?.appName || 'cmail'} on your device</h1>
+    <p>{page.data?.appName || 'cmail'} is an installable web app. Add it to your Home Screen for a focused mobile experience and, when the deployment enables it, optional privacy-minimised new-mail notifications.</p>
   </header>
 
   <div class="platform-grid">
@@ -35,6 +35,15 @@
       <p class="source-link"><a href="https://support.google.com/chrome/answer/9658361/use-progressive-web-apps-android?co=GENIE.Platform%3DAndroid&amp;hl=en-GB" rel="external noreferrer">Google's current Android instructions</a></p>
     </section>
   </div>
+
+  <section>
+    <h2>Native mail apps and connection settings</h2>
+    <div class="connection-status">
+      <div><strong>Web app</strong><span>Available now</span><p>Use this site in a supported browser, or install it from the device instructions above.</p></div>
+      <div><strong>Native mail clients</strong><span>Not available</span><p>The current product does not provide Exchange, Microsoft Graph, IMAP, POP, JMAP or end-user SMTP mailbox access. It does not add mailboxes to Outlook, Apple Mail, Thunderbird, or another native mail client.</p></div>
+    </div>
+    <p class="connection-note">No server, port, encryption or protocol settings are currently available. If a future deployment supports a connection method, its exact settings and security requirements will be published here by the operator.</p>
+  </section>
 
   <section>
     <h2>Turn on new-mail notifications</h2>
@@ -75,5 +84,10 @@
   .troubleshooting { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
   .troubleshooting div { padding: 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-surface); }
   .troubleshooting p { margin-top: 4px; font-size: 12px !important; }
-  @media (max-width: 680px) { .platform-grid, .troubleshooting { grid-template-columns: 1fr; } }
+  .connection-status { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+  .connection-status div { padding: 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-surface); }
+  .connection-status strong { display: block; }
+  .connection-status span { display: inline-block; margin-top: 4px; color: var(--primary); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+  .connection-status p, .connection-note { margin-top: 7px; font-size: 12px !important; }
+  @media (max-width: 680px) { .platform-grid, .troubleshooting, .connection-status { grid-template-columns: 1fr; } }
 </style>

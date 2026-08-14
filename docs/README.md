@@ -10,6 +10,8 @@ real mail to it.
   folders, safety, and support.
 - [Mobile app and notification guide](mobile-pwa.md) — installation and Web
   Push on iPhone, iPad, and Android, including permission troubleshooting.
+- [Mail client connectivity architecture](mail-client-connectivity.md) — the
+  current PWA boundary and the staged JMAP/optional IMAP compatibility path.
 - [Shared mailboxes](shared-mailboxes.md) — delegation, Send as, Full access,
   shared folders and read state, lifecycle, and product boundaries.
 - [Email signatures](signatures.md) — personal sign-offs, optional

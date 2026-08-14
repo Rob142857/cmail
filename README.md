@@ -97,6 +97,8 @@ mail flow.
   composing, folders, and safety.
 - [Mobile app and notification guide](docs/mobile-pwa.md) — install cmail on
   iPhone, iPad, or Android and troubleshoot optional new-mail alerts.
+- [Mail client connectivity architecture](docs/mail-client-connectivity.md) —
+  current PWA-only support and the future JMAP/optional IMAP path.
 - [Shared mailboxes](docs/shared-mailboxes.md) — delegation, From identity,
   permission bundles, and shared message state.
 - [Email signatures](docs/signatures.md) — personal sign-offs, optional
@@ -456,6 +458,7 @@ test every affected mail flow before a production release.
 - [Documentation home](docs/README.md)
 - [User guide](docs/user-guide.md)
 - [Mobile app and notification guide](docs/mobile-pwa.md)
+- [Mail client connectivity architecture](docs/mail-client-connectivity.md)
 - [Shared mailboxes](docs/shared-mailboxes.md)
 - [Manager handbook](docs/manager-handbook.md)
 - [Support and service-management process](docs/support-process.md)

@@ -37,7 +37,7 @@
 <main id="main-content" class="login-page" tabindex="-1">
     <div class="login-card card">
       <img src={data.brandLogoUrl || '/logo.svg'} alt="" class="brand-logo" width="240" height="82" />
-      <h1>Sign in to {data.appName || 'cmail'}</h1>
+      <h1>Connect to your {data.orgName || 'organisation'} email</h1>
       <p class="subtitle">Organisational email{data.orgName ? ` for ${data.orgName}` : ' for your organisation'}</p>
 
       <div class="welcome-message">
@@ -62,6 +62,11 @@
       <div class="trust-message">
         <p>Sign-in only verifies your identity. We cannot access your personal inbox, drive, or search history.</p>
       </div>
+
+      <a class="mobile-access" href="/help/mobile">
+        <strong>Mobile access</strong>
+        <span>Install {data.appName || 'cmail'} as an app on your phone or tablet, and check the current device guidance.</span>
+      </a>
 
       <div class="providers">
         {#each data.authProviders as provider}
@@ -99,7 +104,7 @@
 
       <nav class="login-links" aria-label="Public information">
         <a href="/help/getting-started">New user guide</a>
-        <a href="/help/mobile">iPhone &amp; Android setup</a>
+        <a href="/help/mobile">Mobile access guide</a>
         {#if data.publicDirectoryEnabled}<a href="/organization">Organisation directory</a>{/if}
         <a href="/policy">Usage policy</a>
         {#if data.supportEmail}<a href={`mailto:${data.supportEmail}`}>Contact support</a>{/if}
@@ -141,6 +146,10 @@
     font-size: 13px;
     color: var(--text-muted);
   }
+  .mobile-access { display: grid; gap: 3px; margin: -10px 0 20px; padding: 12px; border: 1px solid var(--primary); border-radius: var(--radius); background: var(--primary-soft); color: var(--text); text-align: left; text-decoration: none; }
+  .mobile-access:hover { background: color-mix(in srgb, var(--primary-soft) 70%, var(--bg-surface)); }
+  .mobile-access strong { color: var(--primary); font-size: 13px; }
+  .mobile-access span { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
   .providers { display: flex; flex-direction: column; gap: 10px; }
   .provider-btn { flex-direction: column; justify-content: center; padding: 11px 12px; }
   .provider-btn strong { font-size: 15px; }
