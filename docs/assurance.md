@@ -101,6 +101,8 @@ endpoints, or unnecessary personal information.
 - [Deployment and verification](deployment.md)
 - [Configuration reference](configuration.md)
 - [Email authentication and sender requirements](email-authentication.md)
+- [ISO and ITIL alignment map](standards-alignment.md)
+- [Support and service management](support-process.md)
 - [Security checklist](security-checklist.md)
 - [Operations checklist](operations-checklist.md)
 - [Manager handbook](manager-handbook.md)

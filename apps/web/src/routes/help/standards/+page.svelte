@@ -2,7 +2,7 @@
   import { page } from '$app/state';
 
   // Status vocabulary. Colour is never the only signal — each chip is labelled.
-  type Status = 'met' | 'operator' | 'delegated' | 'gap';
+  type Status = 'met' | 'operator' | 'delegated' | 'reference' | 'gap';
   type Row = { standard: string; rfc?: string; status: Status; detail: string };
   type Area = { eyebrow: string; title: string; intro: string; rows: Row[] };
 
@@ -12,6 +12,7 @@
     met: 'Implemented',
     operator: 'Operator-configured',
     delegated: 'Delegated to transport',
+    reference: 'Alignment reference',
     gap: 'Not implemented',
   };
 
@@ -156,12 +157,12 @@
         {
           standard: 'Application audit log',
           status: 'met',
-          detail: 'Every administrative action and authentication event is recorded with actor, event type, target, source address and timestamp. The application interface offers no way to edit or delete an entry; it is not a tamper-evident or independently immutable evidence store.',
+          detail: 'The application writes audit entries for administrative actions and authentication events with actor, event type, target, source address and timestamp. Audit persistence is best-effort and can have gaps if storage fails. The supported interface offers no way to edit or delete an entry; it is not a tamper-evident or independently immutable evidence store.',
         },
         {
           standard: 'Message trace',
           status: 'met',
-          detail: 'Delivery metadata is recorded for every message in and out — envelope addresses, size, status and the relay response. Message content is never written to the trace.',
+          detail: 'The application writes trace metadata while processing accepted inbound messages and outbound sends — envelope addresses, size, processing status and the immediate relay response. Persistence can have gaps, and this is not an end-to-end provider delivery receipt. Message content is never written to the trace.',
         },
         {
           standard: 'Configurable retention',
@@ -177,6 +178,43 @@
           standard: 'NIST SP 800-177 Rev. 1',
           status: 'operator',
           detail: 'Trustworthy Email recommends exactly this combination — SPF, DKIM and DMARC published by the domain owner, with TLS for transport. It is guidance for administrators, not a certification scheme, and the DNS-layer work belongs to you.',
+        },
+      ],
+    },
+    {
+      eyebrow: 'Management systems',
+      title: 'Alignment references for operators and support',
+      intro: 'These are management-system and practice references, not product certifications. A deployment must define its own scope, controls, evidence, review and independent assessment.',
+      rows: [
+        {
+          standard: 'ISO/IEC 27001:2022 and ISO/IEC 27002:2022',
+          status: 'reference',
+          detail: 'The security alignment target: risk and asset ownership, least privilege, provider and secret management, monitoring, secure change, vulnerability handling, backup and restore, incident response, audit and continual review. cmail contributes controls; the operator establishes and evidences the ISMS.',
+        },
+        {
+          standard: 'ISO/IEC 20000-1:2018',
+          status: 'reference',
+          detail: 'The service-management alignment target: defined service and support scope, ownership, incident/request/problem/change records, supplier management, service targets, reporting and improvement. The cmail support model maps these practices but is not a certified service-management system.',
+        },
+        {
+          standard: 'ISO/IEC 27701:2025 and ISO/IEC 27018:2025',
+          status: 'reference',
+          detail: 'Privacy-management and public-cloud PII guidance. Operators must determine controller/processor roles, purposes, minimisation, notices, rights handling, retention, subprocessors and breach workflow. ISO/IEC 27018 applies conditionally to a hosted public-cloud processor, not automatically to upstream self-hosted code.',
+        },
+        {
+          standard: 'ISO 22301:2019 and ISO/IEC 27035-1/-2:2023',
+          status: 'reference',
+          detail: 'Continuity and security-incident references: impact and recovery objectives, tested runbooks, incident roles, detection, assessment, containment, recovery, communications, evidence preservation and lessons learned.',
+        },
+        {
+          standard: 'ISO/IEC 25010:2023, ISO 15489-1:2016 and ISO 30301:2019',
+          status: 'reference',
+          detail: 'Product-quality and records references: measurable acceptance criteria, reliable and maintainable operation, identifying which mail/support/change artifacts are records, and controlled capture, retention, preservation and disposition. Formal records obligations remain deployment-specific.',
+        },
+        {
+          standard: 'ITIL service-management practices',
+          status: 'reference',
+          detail: 'Service desk, incident, service request, problem, change enablement, monitoring and event, service level, knowledge, information security, supplier management and continual improvement practices inform the support workflow. ITIL is a licensed practice framework, not an ISO standard or a product certification.',
         },
       ],
     },
@@ -330,7 +368,7 @@
       <strong>Deploying or operating this yourself?</strong>
       <p>
         Use this page's print action to save a dated review copy, then retain the deployment-specific
-        evidence named above. Review the versioned <a href="https://github.com/Rob142857/cmail/blob/main/docs/assurance.md">assurance guide</a> and <a href="https://github.com/Rob142857/cmail/blob/main/docs/privacy-and-data-handling.md">privacy and data-handling guide</a> for source and operator detail. The acceptable use policy for this deployment is published in the app.
+        evidence named above. Review the versioned <a href="https://github.com/Rob142857/cmail/blob/main/docs/assurance.md">assurance guide</a>, <a href="https://github.com/Rob142857/cmail/blob/main/docs/standards-alignment.md">ISO and ITIL alignment map</a>, and <a href="https://github.com/Rob142857/cmail/blob/main/docs/privacy-and-data-handling.md">privacy and data-handling guide</a> for source and operator detail. The acceptable use policy for this deployment is published in the app.
       </p>
     </div>
     <div class="closing-actions"><a class="btn" href="/policy">Read the usage policy</a><a class="btn" href="https://github.com/Rob142857/cmail">Review source</a></div>
@@ -377,6 +415,7 @@
   .rows li.met { border-left-color: var(--success); }
   .rows li.operator { border-left-color: var(--primary); }
   .rows li.delegated { border-left-color: var(--primary); }
+  .rows li.reference { border-left-color: var(--primary); }
   .rows li.gap { border-left-color: var(--warning); }
 
   .row-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
@@ -395,7 +434,8 @@
   }
   .status-met { background: var(--success-soft); border-color: var(--success-border); color: var(--success-text); }
   .status-operator,
-  .status-delegated { background: var(--primary-soft); border-color: var(--primary-border); color: var(--primary-text); }
+  .status-delegated,
+  .status-reference { background: var(--primary-soft); border-color: var(--primary-border); color: var(--primary-text); }
   .status-gap { background: var(--warning-soft); border-color: var(--warning-border); color: var(--warning-text); }
 
   .rows li p { margin: 7px 0 0; color: var(--text-muted); font-size: 13px; line-height: 1.6; }

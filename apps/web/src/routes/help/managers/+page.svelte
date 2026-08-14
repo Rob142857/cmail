@@ -16,7 +16,7 @@
   {/if}
 
   <nav class="on-this-page" aria-label="On this page">
-    <strong>On this page</strong><a href="#model">Management model</a><a href="#people">People</a><a href="#mailboxes">Mailboxes</a><a href="#operations">Operations</a><a href="#evidence">Evidence</a><a href="#privacy">Directory privacy</a><a href="#offboard">Offboarding</a>
+    <strong>On this page</strong><a href="#model">Management model</a><a href="#people">People</a><a href="#mailboxes">Mailboxes</a><a href="#operations">Operations</a><a href="#support">Support</a><a href="#evidence">Evidence</a><a href="#privacy">Directory privacy</a><a href="#offboard">Offboarding</a>
   </nav>
 
   <section id="model">
@@ -66,6 +66,13 @@
       <li>Check the selected outbound provider, verified sender domain, and trace status for failed sends.</li>
       <li>Use the operations and security checklists in the source repository for backups, rotation, and incident handling.</li>
     </ul>
+  </section>
+
+  <section id="support">
+    <h2>Run support and escalation through a safe boundary</h2>
+    <p>Designated, internally trained people provide first-level support (L1): receive the report, check approved runbooks, Mail trace and Audit log, communicate with the user, and follow the organisation's incident and privacy processes. Keep case notes free of message bodies, attachments, credentials, OAuth or session values, and raw exports.</p>
+    <p>Escalate a real, reproducible cmail product defect to RME Solutions Technology through the organisation's agreed ticket or email channel. Include the deployed version, safe steps, expected and observed result, impact, UTC time window, and redacted trace or error identifiers. Operational help expressly included in a separate support agreement follows that agreement; detailed design, configuration, provider or DNS work, bespoke changes, and non-reproducible troubleshooting outside it are separately scoped or quoted work.</p>
+    <div class="callout"><strong>Security and privacy take a separate path.</strong><p>For suspected compromise, unauthorised access, or data exposure, contain the issue and follow the organisation's incident process immediately. Suspected cmail vulnerabilities use the private security process, not ordinary support. <a href="/help/support">Read the full support process</a>.</p></div>
   </section>
 
   <section id="evidence">

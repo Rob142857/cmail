@@ -16,6 +16,9 @@ real mail to it.
   organisation footers, Manager locking, message ordering, and safe formatting.
 - [Manager handbook](manager-handbook.md) — People, Mailboxes, Organisation,
   Usage policy, Mail trace, Audit log, Settings, and safe operations.
+- [Support process](support-process.md) — L1 intake, safe evidence, L2
+  escalation to RME Solutions Technology, and the boundary between product
+  defects and separately scoped work.
 
 ## Deploy cmail
 
@@ -39,6 +42,9 @@ real mail to it.
 - [Security, privacy, and assurance](assurance.md) — public responsibility
   boundary, control matrix, limitations, and deployment evidence checklist for
   managers, reviewers, and auditors.
+- [ISO and ITIL alignment](standards-alignment.md) — applicable standards,
+  current editions, service-management practices, scope boundaries, and the
+  evidence an operator or support provider must establish.
 - [Privacy and data-handling guide](privacy-and-data-handling.md) — operator
   data inventory, provider boundary, public-directory, retention, rights, and
   privacy-notice checklist.
