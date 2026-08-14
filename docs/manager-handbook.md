@@ -289,5 +289,25 @@ organisation's deployment change process.
 - Treat notification delivery as best-effort. Mail trace and the mailbox itself
   are the authoritative operational checks.
 
+## Support and escalation
+
+Train designated internal people as the first support level (L1). They should
+own user communication, follow approved runbooks, use Mail trace and Audit log
+without copying message content, and apply the organisation's incident and
+privacy processes. Escalate a real, reproducible cmail product defect to RME
+Solutions Technology through the agreed ticket or email channel; include the
+safe reproduction, deployed version, impact, time window, and redacted trace
+or error identifiers.
+
+Operational help expressly included in a separate support agreement follows
+that agreement. Detailed design, configuration, provider or DNS work, bespoke
+changes, and non-reproducible troubleshooting outside it are separately scoped
+or quoted work, not an included defect response. Never include credentials, message bodies,
+attachments, raw exports, or unnecessary personal data in a case. Handle a
+suspected vulnerability through [the security policy](../SECURITY.md), and
+follow the organisation's incident process for suspected security or privacy
+incidents. The full [support process](support-process.md) explains the intake,
+scope, and evidence boundaries; it is not an SLA or certification claim.
+
 Use the [operations checklist](operations-checklist.md) for recurring controls
 and the [security checklist](security-checklist.md) before production use.

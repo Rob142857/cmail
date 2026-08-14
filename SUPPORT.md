@@ -3,6 +3,11 @@
 cmail is a community-maintained, self-hosted project. There is no hosted-service
 or guaranteed-response support included with the MIT-licensed software.
 
+For an organisation's operational support model, including internal first-line
+triage and an optional RME Solutions Technology escalation path, see the
+[support process](docs/support-process.md). That process does not change the
+community-maintainer scope described here.
+
 ## Before asking for help
 
 1. Check the [documentation](docs/README.md), especially
@@ -17,6 +22,10 @@ or guaranteed-response support included with the MIT-licensed software.
 Use a bug report for a reproducible cmail defect and a feature request for a
 broadly useful product change. Include the affected commit, component,
 deployment shape, safe reproduction steps, expected result, and actual result.
+
+Deployment-specific design, configuration, troubleshooting, and other work
+outside a reproducible product defect are not included with the project. They
+may require separately scoped assistance.
 
 ## Keep reports safe
 

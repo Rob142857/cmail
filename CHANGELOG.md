@@ -8,6 +8,12 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Added
 
+- An in-app and public support process with trained internal Level 1 triage,
+  safe evidence handling, RME Solutions Technology Level 2 escalation, and a
+  clear boundary between defects, agreed operational support, and quoted work.
+- A current ISO and ITIL alignment map covering information security, service
+  management, privacy, continuity, incident response, software quality,
+  records, cloud responsibilities, and evidence without claiming certification.
 - A public, printable Security & Assurance summary, an in-app deployment
   evidence checklist, and an operator privacy/data-handling guide for managers,
   reviewers, and auditors.
