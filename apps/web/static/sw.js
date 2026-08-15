@@ -2,7 +2,7 @@
 // We do NOT cache responses — the goal is just PWA installability and
 // guaranteeing that a new deployment reaches every installed client immediately.
 
-const VERSION = 'cmail-2026-08-03-2';
+const VERSION = 'cmail-2026-08-15-1';
 
 self.addEventListener('install', (event) => {
   // Take over straight away on first install or version bump.
@@ -37,14 +37,48 @@ self.addEventListener('push', (event) => {
   const title = typeof payload.title === 'string' ? payload.title.slice(0, 80) : 'cmail';
   const body = typeof payload.body === 'string' ? payload.body.slice(0, 160) : 'A new message arrived.';
   const url = typeof payload.url === 'string' && /^\/mail(?:[/?]|$)/.test(payload.url) ? payload.url : '/mail';
+  const tag = typeof payload.tag === 'string' && /^cmail:[A-Za-z0-9_-]{1,128}:[A-Za-z0-9_-]{1,128}$/.test(payload.tag)
+    ? payload.tag
+    : 'cmail-new-mail';
   event.waitUntil(self.registration.showNotification(title, {
     body,
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    tag: 'cmail-new-mail',
+    tag,
     renotify: true,
     data: { url },
   }));
+});
+
+// Subscription endpoints can rotate while the app is not open. Re-subscribe
+// with the browser's existing public VAPID key where available, then persist
+// only the replacement subscription through the same-origin, cookie-authenticated
+// endpoint. A foreground refresh is retained as the fail-safe path.
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil((async () => {
+    let subscription = event.newSubscription;
+    if (!subscription && event.oldSubscription?.options?.applicationServerKey) {
+      try {
+        subscription = await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: event.oldSubscription.options.applicationServerKey,
+        });
+      } catch {
+        // The next controlled foreground refresh retries without exposing a
+        // subscription endpoint or provider error to logs.
+      }
+    }
+    if (subscription) {
+      await fetch('/api/push/subscriptions', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subscription.toJSON()),
+      }).catch(() => undefined);
+    }
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of windows) client.postMessage({ type: 'PUSH_SUBSCRIPTION_CHANGED' });
+  })());
 });
 
 self.addEventListener('notificationclick', (event) => {

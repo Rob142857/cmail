@@ -36,6 +36,7 @@ function base64Url(value: unknown, min: number, max: number): value is string {
 export const POST: RequestHandler = async ({ request, locals, platform }) => {
   const env = platform?.env;
   if (!locals.user) return json({ error: 'Authentication required' }, { status: 401, headers: RESPONSE_HEADERS });
+  if (locals.user.status !== 'active') return json({ error: 'New-mail alerts are available after account activation' }, { status: 403, headers: RESPONSE_HEADERS });
   if (!env || !pushConfiguration(env)) return json({ error: 'Push notifications are not configured' }, { status: 404, headers: RESPONSE_HEADERS });
   let rawPayload: unknown;
   try {

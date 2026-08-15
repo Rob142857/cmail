@@ -1,5 +1,16 @@
 <script>
+  import { stopPushBeforeSignOut } from '$lib/push-client';
   let { data, form } = $props();
+  let signingOut = $state(false);
+
+  /** @param {SubmitEvent} event */
+  async function signOut(event) {
+    event.preventDefault();
+    if (signingOut) return;
+    signingOut = true;
+    await stopPushBeforeSignOut();
+    /** @type {HTMLFormElement} */ (event.currentTarget).submit();
+  }
 </script>
 
 <svelte:head><title>Usage policy · {data.appName || 'cmail'}</title></svelte:head>
@@ -8,7 +19,7 @@
   {#if data.user}
     <div class="account-bar">
       <span>Signed in as <strong>{data.user.display_name || data.user.email}</strong></span>
-      <form method="POST" action="/auth/logout"><button type="submit" class="btn btn-sm">Sign out</button></form>
+      <form method="POST" action="/auth/logout" onsubmit={signOut}><button type="submit" class="btn btn-sm" disabled={signingOut}>{signingOut ? 'Signing out…' : 'Sign out'}</button></form>
     </div>
   {/if}
   <div class="card policy-card">

@@ -5,11 +5,13 @@
 <script>
   import { browser } from '$app/environment';
   import { page } from '$app/state';
+  import { onMount } from 'svelte';
 
   /** @type {any} */
   let deferredPrompt = $state(null);
   let dismissed = $state(false);
   let installed = $state(false);
+  let wasDismissed = $state(false);
 
   // Check if already in standalone mode (already installed)
   const isStandalone = Boolean(browser && (window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && navigator.standalone)));
@@ -17,37 +19,57 @@
     /iPad|iPhone|iPod/i.test(navigator.userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   ));
+  const isIosSafari = Boolean(browser && isIos
+    && /Safari/i.test(navigator.userAgent)
+    && !/(CriOS|FxiOS|EdgiOS|OPiOS)/i.test(navigator.userAgent));
 
   // Session-dismiss key (sessionStorage so it resets each session)
   const DISMISS_KEY = 'cmail_pwa_dismissed';
-  const wasDismissed = browser && sessionStorage.getItem(DISMISS_KEY) === '1';
-
-  if (browser && !isStandalone && !wasDismissed) {
-    window.addEventListener('beforeinstallprompt', (e) => {
+  onMount(() => {
+    try {
+      wasDismissed = sessionStorage.getItem(DISMISS_KEY) === '1';
+    } catch {
+      // Installation remains available when storage is blocked.
+    }
+    if (isStandalone || wasDismissed) return;
+    const beforeInstall = (e) => {
       e.preventDefault();
       deferredPrompt = e;
-    });
-    window.addEventListener('appinstalled', () => {
+    };
+    const appInstalled = () => {
       installed = true;
       deferredPrompt = null;
-    });
-  }
+    };
+    window.addEventListener('beforeinstallprompt', beforeInstall);
+    window.addEventListener('appinstalled', appInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', beforeInstall);
+      window.removeEventListener('appinstalled', appInstalled);
+    };
+  });
 
   function dismiss() {
     dismissed = true;
     deferredPrompt = null;
-    if (browser) sessionStorage.setItem(DISMISS_KEY, '1');
+    if (browser) {
+      try { sessionStorage.setItem(DISMISS_KEY, '1'); } catch { /* non-essential */ }
+    }
   }
 
   async function install() {
     if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') installed = true;
+    const prompt = deferredPrompt;
     deferredPrompt = null;
+    try {
+      prompt.prompt();
+      const { outcome } = await prompt.userChoice;
+      if (outcome === 'accepted') installed = true;
+    } catch {
+      // Browser-owned prompts can disappear when another install UI wins.
+    }
   }
 
-  const show = $derived(!isStandalone && !wasDismissed && !dismissed && !installed && (deferredPrompt || isIos));
+  const show = $derived(!isStandalone && !wasDismissed && !dismissed && !installed && (deferredPrompt || isIosSafari));
 </script>
 
 {#if show}
@@ -55,15 +77,15 @@
     <div class="pwa-content">
       <img src={page.data?.brandIconUrl || '/icon.svg'} alt="" width="28" height="28" />
       <span>
-        {#if isIos}
-          Install <strong>{page.data?.appName || 'cmail'}</strong>: Share → Add to Home Screen
+        {#if isIosSafari}
+          Install <strong>{page.data?.appName || 'cmail'}</strong>: Share → Add to Home Screen → Open as Web App
         {:else}
           Install <strong>{page.data?.appName || 'cmail'}</strong> for quicker access
         {/if}
       </span>
     </div>
     <div class="pwa-actions">
-      {#if isIos}
+      {#if isIosSafari}
         <a class="pwa-install" href="/help/mobile">View steps</a>
       {:else}
         <button class="pwa-install" onclick={install}>Install</button>

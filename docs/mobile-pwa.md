@@ -1,14 +1,19 @@
 # Mobile app and notification guide
 
-cmail is an installable Progressive Web App (PWA). Installation gives it an app
-icon and standalone window; it does not download or synchronise mail for
-offline use. cmail deliberately keeps mail out of browser caches, so reading,
-searching, composing, and sending require a network connection.
+cmail is an installable Progressive Web App (PWA). When the browser offers an
+install flow, it requests an app icon and standalone window. A Home Screen
+shortcut can instead open in the browser; both provide quick access. cmail does
+not download or synchronise mail for offline use. It deliberately keeps mail
+out of browser caches, so reading, searching, composing, and sending require a
+network connection.
 
 New-mail alerts are optional. They appear only when the operator has configured
 Web Push, the browser and operating system support it, and you grant permission
 on that specific browser or installed app. Repeat the setup on every device
-where you want alerts.
+where you want alerts. Alerts cover active personal and assigned shared
+mailboxes. Tapping one opens the message in its mailbox, where access is
+checked again; the alert itself contains no sender, subject, mailbox address,
+or message text.
 
 ## iPhone and iPad
 
@@ -53,11 +58,13 @@ labels or may offer different PWA and notification support.
 
 1. Open the organisation's cmail URL in Chrome and sign in.
 2. Open **More** beside the address bar.
-3. Select **Add to home screen**, then **Install**.
-4. Follow the on-screen confirmation and open cmail from its new icon.
+3. Choose **Install app** when Chrome offers it. If it instead offers **Add to
+   home screen**, create the shortcut.
+4. Open cmail from its new icon. An installed web app opens separately from
+   the regular browser; a shortcut can open in Chrome.
 
 These steps follow Google's current
-[Android web-app installation guide](https://support.google.com/chrome/answer/9658361/use-progressive-web-apps-android?co=GENIE.Platform%3DAndroid&hl=en-GB).
+[Android Home Screen guide](https://support.google.com/chrome/answer/15085120?co=GENIE.Platform%3DAndroid&hl=en).
 
 ### Turn on new-mail alerts
 
@@ -82,6 +89,17 @@ Because subscriptions are per browser and device, turning alerts off on one
 device does not change another. If a device is lost or no longer controlled,
 ask a manager or operator to revoke account sessions and follow the
 organisation's device-loss process; do not rely only on hiding notifications.
+
+## Updates and recovery
+
+cmail checks for updated application files while it is open. Reopen the app or
+refresh the page to receive a new release; there is no separate app-store
+update process. If the installed app will not load, check the network, reopen
+or refresh it, and then ask support if the problem continues.
+
+Removing a Home Screen icon does not close the account or revoke an existing
+session. Return to the organisation's cmail URL and repeat the relevant install
+steps to restore the icon.
 
 ## Troubleshooting
 

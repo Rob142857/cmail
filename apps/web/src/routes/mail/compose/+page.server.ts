@@ -214,6 +214,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
      WHERE ma.user_id = ? AND ma.permissions IN ('send-as', 'full') AND m.status = 'active'
      ORDER BY CASE m.type WHEN 'personal' THEN 0 ELSE 1 END, m.address`,
   ).bind(locals.user.id).all<Mailbox>();
+  const requestedMailboxId = (url.searchParams.get('mailbox') || '').slice(0, 64);
 
   const replyId = url.searchParams.get('reply');
   const replyAllId = url.searchParams.get('replyAll');
@@ -343,6 +344,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
     : { to: [], cc: [] };
   const preferredFrom = draft?.from_address
     || (replyTo ? mailboxes.find((mailbox) => mailbox.id === replyTo.mailbox_id)?.address : '')
+    || mailboxes.find((mailbox) => mailbox.id === requestedMailboxId)?.address
     || mailboxes[0]?.address
     || '';
   const signature = await getEffectiveSignature(env.DB, locals.user.id, preferredFrom);

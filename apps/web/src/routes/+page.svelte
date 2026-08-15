@@ -135,14 +135,17 @@
     justify-content: center;
     min-height: 100vh;
     padding: 24px;
+    overflow-x: clip;
   }
   .login-card {
-    max-width: 420px;
+    min-width: 0;
+    max-width: min(420px, 100%);
     width: 100%;
     text-align: center;
     padding: 32px;
   }
-  .brand-logo { display: block; margin: 0 auto 12px; max-width: min(240px, 100%); height: auto; }
+  .login-card > * { min-width: 0; }
+  .brand-logo { display: block; width: min(240px, 100%); height: auto; max-width: 100%; margin: 0 auto 12px; object-fit: contain; }
   h1 { margin: 0; font-size: 22px; }
   .subtitle { color: var(--text-muted); margin-bottom: 24px; }
   .welcome-message { display: grid; gap: 3px; margin: -8px 0 18px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-subtle); text-align: left; }
@@ -163,8 +166,8 @@
   .mobile-access { display: grid; gap: 3px; margin: -10px 0 20px; padding: 12px; border: 1px solid var(--primary); border-radius: var(--radius); background: var(--primary-soft); color: var(--text); text-align: left; text-decoration: none; }
   .mobile-access:hover { background: color-mix(in srgb, var(--primary-soft) 70%, var(--bg-surface)); }
   .mobile-access strong { color: var(--primary); font-size: 13px; }
-  .mobile-access span { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
-  .providers { display: flex; flex-direction: column; gap: 10px; }
+  .mobile-access span { color: var(--text-muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+  .providers { display: flex; min-width: 0; flex-direction: column; gap: 10px; }
   .provider-btn { flex-direction: column; justify-content: center; padding: 11px 12px; }
   .provider-btn strong { font-size: 15px; }
   .provider-btn span { color: color-mix(in srgb, var(--on-primary) 82%, transparent); font-size: 11px; font-weight: 400; }
@@ -189,7 +192,7 @@
   .google-sign-in:hover { background: #f8faff; border-color: #1a73e8; color: #1f1f1f; }
   .google-sign-in:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
   .google-sign-in svg { width: 18px; height: 18px; }
-  .google-sign-in span { grid-column: 2; grid-row: 1; }
+  .google-sign-in span { grid-column: 2; grid-row: 1; min-width: 0; overflow-wrap: anywhere; }
   .error { color: var(--danger); margin-top: 16px; }
   .login-error {
     margin-bottom: 18px;
@@ -216,6 +219,12 @@
   .faq dl { margin-top: 12px; }
   .faq dt { font-weight: 500; color: var(--text); margin-top: 8px; }
   .faq dd { margin: 4px 0 0 0; }
-  .login-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 14px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; }
+  .login-links { display: flex; min-width: 0; flex-wrap: wrap; justify-content: center; gap: 8px 14px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; }
+  .login-links a { overflow-wrap: anywhere; }
   .product-credit { margin: 13px 0 0; color: var(--text-faint); font-size: 10px; }
+  @media (max-width: 420px) {
+    .login-page { padding: 12px; align-items: flex-start; }
+    .login-card { padding: 20px 16px; }
+    .brand-logo { width: min(210px, 100%); }
+  }
 </style>

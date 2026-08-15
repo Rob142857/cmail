@@ -8,6 +8,7 @@
 <script>
   import Icon from './Icon.svelte';
   import Persona from './Persona.svelte';
+  import { stopPushBeforeSignOut } from '$lib/push-client';
 
   /**
    * @type {{
@@ -24,6 +25,7 @@
   let root = $state(null);
   /** @type {HTMLButtonElement | null} */
   let trigger = $state(null);
+  let signingOut = $state(false);
 
   const name = $derived(user?.display_name || user?.email || 'Account');
   const roleLabel = $derived(user?.role === 'manager' ? 'Manager' : 'Standard user');
@@ -39,6 +41,15 @@
     if (event.key !== 'Escape' || !open) return;
     open = false;
     trigger?.focus();
+  }
+
+  /** @param {SubmitEvent} event */
+  async function signOut(event) {
+    event.preventDefault();
+    if (signingOut) return;
+    signingOut = true;
+    await stopPushBeforeSignOut();
+    /** @type {HTMLFormElement} */ (event.currentTarget).submit();
   }
 </script>
 
@@ -85,9 +96,9 @@
 
       <div class="um-sep"></div>
 
-      <form method="POST" action="/auth/logout">
-        <button type="submit" class="um-item um-item-btn" role="menuitem">
-          <Icon name="signOut" /> Sign out
+      <form method="POST" action="/auth/logout" onsubmit={signOut}>
+        <button type="submit" class="um-item um-item-btn" role="menuitem" disabled={signingOut}>
+          <Icon name="signOut" /> {signingOut ? 'Signing out…' : 'Sign out'}
         </button>
       </form>
     </div>

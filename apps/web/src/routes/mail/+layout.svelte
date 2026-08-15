@@ -1,6 +1,6 @@
 <script>
   import { page } from '$app/state';
-  import { afterNavigate, replaceState } from '$app/navigation';
+  import { afterNavigate, goto, replaceState } from '$app/navigation';
   import { browser } from '$app/environment';
   import AppShell from '$lib/ui/AppShell.svelte';
   import Icon from '$lib/ui/Icon.svelte';
@@ -80,6 +80,15 @@
     return qs ? `/mail?${qs}` : '/mail';
   }
 
+  /** Keep a compose action in the mailbox/folder the person was working in. */
+  const composeHref = $derived.by(() => {
+    const params = new URLSearchParams();
+    if (currentMailboxId) params.set('mailbox', currentMailboxId);
+    if (currentFolder) params.set('folder', currentFolder);
+    const qs = params.toString();
+    return qs ? `/mail/compose?${qs}` : '/mail/compose';
+  });
+
   /** Search stays scoped to whatever mailbox and folder are in view. */
   const searchHidden = $derived([
     ...(currentMailboxId ? [{ name: 'mailbox', value: currentMailboxId }] : []),
@@ -110,9 +119,24 @@
 >
   {#snippet nav()}
     <div class="nav-pane-top">
-      <a href="/mail/compose" class="btn btn-primary btn-block">
+      <a href={composeHref} class="btn btn-primary btn-block">
         <Icon name="compose" size={16} /> New message
       </a>
+      {#if d.mailboxes && d.mailboxes.length > 0}
+        <label class="sr-only" for="mailbox-picker">Mailbox</label>
+        <select
+          id="mailbox-picker"
+          class="mailbox-picker"
+          value={currentMailboxId}
+          aria-label="Choose mailbox"
+          onchange={(event) => { void goto(mailboxHref(event.currentTarget.value)); }}
+        >
+          <option value="">All mailboxes</option>
+          {#each d.mailboxes as mb}
+            <option value={mb.id}>{mb.type === 'shared' ? 'Shared — ' : ''}{mb.display_name || mb.address} ({permissionLabel[mb.permissions] || mb.permissions})</option>
+          {/each}
+        </select>
+      {/if}
     </div>
 
     <div class="nav-scroll">
@@ -244,3 +268,8 @@
   />
 {/if}
 <Toast message={toastMessage} onDismiss={() => { toastMessage = ''; }} />
+
+<style>
+  .mailbox-picker { width: 100%; min-height: 38px; margin-top: 8px; }
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+</style>

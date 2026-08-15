@@ -68,6 +68,7 @@ export const load: PageServerLoad = async ({ locals, platform, params, url }) =>
   ).bind(locals.user.id).all<{ address: string }>();
   const assignedAddresses = (assignments.results || []).map((row) => row.address);
   const canReplyAll = replyAllAddsRecipients(message, assignedAddresses);
+  const requestedReturnMailbox = (url.searchParams.get('mailbox') || '').slice(0, 64);
 
   return {
     message,
@@ -88,7 +89,12 @@ export const load: PageServerLoad = async ({ locals, platform, params, url }) =>
     returnFolder: ['inbox', 'sent', 'drafts', 'archive', 'spam', 'trash'].includes(url.searchParams.get('folder') || '')
       ? url.searchParams.get('folder') || ''
       : message.folder === 'inbox' ? '' : message.folder,
-    returnMailbox: url.searchParams.get('mailbox') || '',
+    // Preserve a scoped list only when it is this message's mailbox. A stale
+    // notification/list query must never send Back into another or revoked
+    // mailbox context.
+    returnMailbox: requestedReturnMailbox
+      ? (requestedReturnMailbox === message.mailbox_id ? requestedReturnMailbox : message.mailbox_id)
+      : '',
     returnSearch: (url.searchParams.get('q') || '').slice(0, 200),
     returnPage: Math.max(1, Math.min(10000, Number.parseInt(url.searchParams.get('page') || '1', 10) || 1)),
   };

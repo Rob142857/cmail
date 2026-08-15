@@ -65,6 +65,10 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
     ).bind(mailboxId, locals.user.id).first();
   }
 
+  // A stale deep link must not silently widen back to every assigned mailbox:
+  // assignment removal, offboarding, and mailbox disablement all fail closed.
+  const mailboxUnavailable = Boolean(mailboxId && !currentMailbox);
+
   return {
     messages: rows.slice(0, PAGE_SIZE),
     folder,
@@ -74,5 +78,6 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
     partialDelivery: folder === 'sent' && url.searchParams.get('delivery') === 'partial',
     mailboxId: currentMailbox ? mailboxId : null,
     currentMailbox,
+    mailboxUnavailable,
   };
 };

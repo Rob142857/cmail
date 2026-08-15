@@ -89,6 +89,63 @@ describe('disabled mailbox access boundaries', () => {
     expect(specificResult.mailboxId).toBeNull();
     expectActiveMailboxFilter(specific.queries[0]);
     expectActiveMailboxFilter(specific.queries[1], 'm');
+    expect(specificResult.mailboxUnavailable).toBe(true);
+  });
+
+  it('keeps an unavailable mailbox deep link fail-closed after assignment revocation or offboarding', async () => {
+    const captured = capturedDatabase();
+    const result = await (listMessages as any)({
+      locals: locals(),
+      platform: platform(captured.db),
+      url: new URL('https://mail.example.com/mail?mailbox=former-shared-mailbox'),
+    });
+    expect(result.mailboxId).toBeNull();
+    expect(result.mailboxUnavailable).toBe(true);
+    expect(captured.queries[0]).toMatch(/mailbox_assignments ma/);
+    expect(captured.queries[0]).toMatch(/ma\.user_id = \?/);
+    expectActiveMailboxFilter(captured.queries[0]);
+  });
+
+  it('repairs a stale message return context to the mailbox that owns the message', async () => {
+    const message = {
+      id: 'message-1',
+      mailbox_id: 'mailbox-a',
+      folder: 'inbox',
+      direction: 'inbound',
+      from_address: 'sender@example.net',
+      to_addresses: '[]',
+      cc_addresses: '[]',
+      bcc_addresses: '[]',
+      subject: 'Context check',
+      body_r2_key: null,
+      mailbox_permissions: 'full',
+      mailbox_address: 'a@example.com',
+      mailbox_display_name: 'Mailbox A',
+      draft_owner_id: null,
+    };
+    const db = {
+      prepare(query: string) {
+        const statement = {
+          bind() { return statement; },
+          async first() { return /FROM messages m/.test(query) ? message : null; },
+          async all() {
+            if (/FROM attachments/.test(query)) return { results: [] };
+            if (/FROM mailbox_assignments/.test(query)) return { results: [{ address: 'a@example.com' }] };
+            return { results: [] };
+          },
+        };
+        return statement;
+      },
+    } as unknown as D1Database;
+
+    const result = await (loadMessage as any)({
+      locals: locals(),
+      platform: platform(db),
+      params: { id: 'message-1' },
+      url: new URL('https://mail.example.com/mail/message-1?mailbox=revoked-mailbox'),
+    });
+
+    expect(result.returnMailbox).toBe('mailbox-a');
   });
 
   it.each(['standard', 'manager'] as const)(

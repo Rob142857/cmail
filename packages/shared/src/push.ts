@@ -25,6 +25,13 @@ export interface WebPushRequest {
   body: Uint8Array<ArrayBuffer>;
 }
 
+interface NewMailNotificationPayload {
+  title: string;
+  body: string;
+  url: string;
+  tag: string;
+}
+
 const DEFAULT_PUSH_HOSTS = [
   'fcm.googleapis.com',
   'push.services.mozilla.com',
@@ -46,6 +53,34 @@ class InvalidPushSubscriptionError extends Error {
 
 function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function opaqueNotificationId(value: string): string | null {
+  const trimmed = value.trim();
+  return /^[A-Za-z0-9_-]{1,128}$/.test(trimmed) ? trimmed : null;
+}
+
+/**
+ * Keep lock-screen payloads content-free while retaining enough opaque context
+ * to take an authorised recipient to the correct personal or shared mailbox.
+ */
+export function newMailNotificationPayload(
+  appName: string | undefined,
+  mailboxId: string,
+  messageId: string,
+): NewMailNotificationPayload | null {
+  const mailbox = opaqueNotificationId(mailboxId);
+  const message = opaqueNotificationId(messageId);
+  if (!mailbox || !message) return null;
+  const title = text(appName).replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 80) || 'cmail';
+  return {
+    title,
+    body: 'A new message arrived.',
+    url: `/mail/${encodeURIComponent(message)}?mailbox=${encodeURIComponent(mailbox)}`,
+    // One tag per opaque delivery suppresses retries without collapsing alerts
+    // for different messages or mailboxes shared with the same person.
+    tag: `cmail:${mailbox}:${message}`,
+  };
 }
 
 function validVapidSubject(value: string): boolean {
@@ -301,7 +336,6 @@ export async function createWebPushRequest(
       'Content-Type': 'application/octet-stream',
       TTL: '300',
       Urgency: 'normal',
-      Topic: 'cmail-new-mail',
     },
     body,
   };
@@ -353,7 +387,9 @@ export async function sendNewMailNotifications(
   messageId: string,
 ): Promise<void> {
   const configuration = pushConfiguration(env);
-  if (!configuration || !mailboxId || !messageId) return;
+  if (!configuration) return;
+  const notification = newMailNotificationPayload(env.APP_NAME, mailboxId, messageId);
+  if (!notification) return;
 
   let subscriptions: WebPushSubscription[] = [];
   try {
@@ -362,23 +398,24 @@ export async function sendNewMailNotifications(
        FROM push_subscriptions ps
        INNER JOIN users u ON u.id = ps.user_id AND u.status = 'active'
        INNER JOIN mailbox_assignments ma ON ma.user_id = ps.user_id
+       INNER JOIN mailboxes mailbox ON mailbox.id = ma.mailbox_id AND mailbox.status = 'active'
        WHERE ma.mailbox_id = ?
        ORDER BY ps.updated_at DESC
        LIMIT 500`,
     ).bind(mailboxId).all<WebPushSubscription>();
-    subscriptions = result.results || [];
+    // DISTINCT is enforced in D1 as the primary guard. The second bounded
+    // dedupe keeps a malformed adapter/mock/result set from sending the same
+    // browser endpoint twice for one delivery.
+    subscriptions = [...new Map((result.results || []).map((subscription) => [
+      subscription.endpoint,
+      subscription,
+    ])).values()];
   } catch {
     // A deployment that has not applied the optional migration fails closed.
     return;
   }
 
-  const appName = text(env.APP_NAME).replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 80) || 'cmail';
-  const payload = JSON.stringify({
-    title: appName,
-    body: 'A new message arrived.',
-    url: `/mail/${encodeURIComponent(messageId)}`,
-    tag: 'cmail-new-mail',
-  });
+  const payload = JSON.stringify(notification);
 
   // Bound concurrent external requests so a heavily shared mailbox cannot
   // turn one inbound delivery into an unbounded fan-out burst.

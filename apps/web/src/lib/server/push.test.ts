@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createWebPushRequest,
   configuredPushHosts,
   isAllowedPushEndpoint,
+  newMailNotificationPayload,
   publicPushKey,
   pushConfiguration,
+  sendNewMailNotifications,
 } from '@cmail/shared/push';
 
 const encoder = new TextEncoder();
@@ -58,6 +60,72 @@ const validEnvironment = {
   VAPID_SUBJECT: 'mailto:operator@example.com',
 };
 
+async function notificationDeliveryFixture(responseStatus = 201) {
+  const vapidKeys = await crypto.subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    true,
+    ['sign', 'verify'],
+  ) as CryptoKeyPair;
+  const vapidPrivate = await crypto.subtle.exportKey('jwk', vapidKeys.privateKey);
+  const vapidPublic = new Uint8Array(await crypto.subtle.exportKey('raw', vapidKeys.publicKey));
+  const subscriberKeys = await crypto.subtle.generateKey(
+    { name: 'ECDH', namedCurve: 'P-256' },
+    true,
+    ['deriveBits'],
+  ) as CryptoKeyPair;
+  const subscriberPublic = new Uint8Array(await crypto.subtle.exportKey('raw', subscriberKeys.publicKey));
+  const subscription = {
+    endpoint: 'https://fcm.googleapis.com/fcm/send/shared-mailbox-test',
+    p256dh: encodeBase64Url(subscriberPublic),
+    auth: encodeBase64Url(crypto.getRandomValues(new Uint8Array(16))),
+  };
+  const subscriptions = [subscription];
+  const queries: string[] = [];
+  const selectedMailboxIds: unknown[][] = [];
+  const removedEndpoints: unknown[][] = [];
+  const DB = {
+    prepare(sql: string) {
+      queries.push(sql);
+      if (/SELECT DISTINCT ps\.endpoint/.test(sql)) {
+        return {
+          bind(...values: unknown[]) {
+            selectedMailboxIds.push(values);
+            return { all: async () => ({ results: subscriptions }) };
+          },
+        };
+      }
+      if (/DELETE FROM push_subscriptions WHERE endpoint/.test(sql)) {
+        return {
+          bind(...values: unknown[]) {
+            removedEndpoints.push(values);
+            return { run: async () => ({ success: true }) };
+          },
+        };
+      }
+      throw new Error(`Unexpected query: ${sql}`);
+    },
+  };
+  const fetch = vi.fn().mockResolvedValue({ status: responseStatus });
+  vi.stubGlobal('fetch', fetch);
+  return {
+    env: {
+      DB,
+      APP_NAME: 'Cmail',
+      VAPID_PUBLIC_KEY: encodeBase64Url(vapidPublic),
+      VAPID_PRIVATE_KEY: vapidPrivate.d!,
+      VAPID_SUBJECT: 'mailto:operator@example.com',
+    },
+    subscription,
+    subscriptions,
+    queries,
+    selectedMailboxIds,
+    removedEndpoints,
+    fetch,
+  };
+}
+
+afterEach(() => vi.unstubAllGlobals());
+
 describe('Web Push configuration', () => {
   it('fails closed unless the complete VAPID configuration is valid', () => {
     expect(pushConfiguration(validEnvironment)).toEqual({
@@ -91,6 +159,46 @@ describe('Web Push configuration', () => {
     expect(configuredPushHosts(environment)).toContain('push.example.org');
     expect(configuredPushHosts(environment)).not.toContain('localhost');
     expect(isAllowedPushEndpoint('https://region.push.example.org/subscription/123', environment)).toBe(true);
+  });
+
+  it('creates privacy-safe, mailbox-specific notification routes and dedupe tags', () => {
+    expect(newMailNotificationPayload(' Cmail\n', 'mailbox_1', 'message-1')).toEqual({
+      title: 'Cmail',
+      body: 'A new message arrived.',
+      url: '/mail/message-1?mailbox=mailbox_1',
+      tag: 'cmail:mailbox_1:message-1',
+    });
+    expect(newMailNotificationPayload('cmail', 'mailbox 1', 'message-1')).toBeNull();
+    expect(newMailNotificationPayload('cmail', 'mailbox-1', '../message')).toBeNull();
+  });
+
+  it('fans out once per browser for an active assigned shared mailbox', async () => {
+    const fixture = await notificationDeliveryFixture();
+    fixture.subscriptions.push({ ...fixture.subscription });
+
+    await sendNewMailNotifications(fixture.env as never, 'shared-mailbox-1', 'message-1');
+
+    expect(fixture.queries[0]).toMatch(/INNER JOIN users u ON u\.id = ps\.user_id AND u\.status = 'active'/);
+    expect(fixture.queries[0]).toMatch(/INNER JOIN mailbox_assignments ma ON ma\.user_id = ps\.user_id/);
+    expect(fixture.queries[0]).toMatch(/INNER JOIN mailboxes mailbox ON mailbox\.id = ma\.mailbox_id AND mailbox\.status = 'active'/);
+    expect(fixture.selectedMailboxIds).toEqual([['shared-mailbox-1']]);
+    expect(fixture.fetch).toHaveBeenCalledTimes(1);
+    expect(fixture.fetch).toHaveBeenCalledWith(fixture.subscription.endpoint, expect.objectContaining({
+      method: 'POST',
+      redirect: 'error',
+    }));
+  });
+
+  it('purges an expired endpoint and rejects malformed delivery IDs before querying recipients', async () => {
+    const fixture = await notificationDeliveryFixture(410);
+
+    await sendNewMailNotifications(fixture.env as never, 'shared-mailbox-1', 'message-1');
+    expect(fixture.removedEndpoints).toEqual([[fixture.subscription.endpoint]]);
+
+    const queryCount = fixture.queries.length;
+    await sendNewMailNotifications(fixture.env as never, 'shared mailbox', 'message-2');
+    expect(fixture.queries).toHaveLength(queryCount);
+    expect(fixture.fetch).toHaveBeenCalledTimes(1);
   });
 
   it('creates an authenticated request whose RFC 8291 payload decrypts for the subscriber', async () => {
@@ -131,8 +239,8 @@ describe('Web Push configuration', () => {
       'Content-Type': 'application/octet-stream',
       TTL: '300',
       Urgency: 'normal',
-      Topic: 'cmail-new-mail',
     });
+    expect(request.headers).not.toHaveProperty('Topic');
     expect(request.body.byteLength).toBeLessThanOrEqual(4096);
     expect(new DataView(request.body.buffer).getUint32(16, false)).toBe(4096);
     expect(request.body[20]).toBe(65);

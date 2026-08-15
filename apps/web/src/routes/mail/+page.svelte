@@ -275,6 +275,12 @@
     </p>
   {/if}
 
+  {#if d.mailboxUnavailable}
+    <p class="bulk-feedback error" role="alert">
+      This mailbox is no longer available to you. Choose an assigned mailbox from the account picker.
+    </p>
+  {/if}
+
   {#if refreshStatus}
     <p class="refresh-feedback" class:error={refreshFailed} role={refreshFailed ? 'alert' : 'status'}>{refreshStatus}</p>
   {/if}

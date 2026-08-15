@@ -29,6 +29,9 @@
       if (typeof target === 'string' && /^\/mail(?:[/?]|$)/.test(target)) {
         void goto(target);
       }
+      if (event.data?.type === 'PUSH_SUBSCRIPTION_CHANGED') {
+        window.dispatchEvent(new Event('cmail-push-refresh'));
+      }
     };
     navigator.serviceWorker.addEventListener('message', openNotification);
     navigator.serviceWorker
@@ -51,6 +54,10 @@
 <svelte:head>
   <title>{page.data?.appName || 'cmail'}</title>
   <meta name="theme-color" content={page.data?.brandPrimaryColor || '#0078d4'} />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content={page.data?.appName || 'cmail'} />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="description" content={`Secure, open-source email for ${page.data?.orgName || 'your organisation'}.`} />
   <link rel="icon" href={page.data?.brandIconUrl || '/favicon.svg'} />
   <link rel="apple-touch-icon" sizes="192x192" href={page.data?.brandIcon192Url || '/icon-192.png'} />

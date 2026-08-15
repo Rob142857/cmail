@@ -123,7 +123,9 @@ configured outbound provider handles external submission.
 For new mail, cmail attempts a generic Web Push alert to each active delegate
 who has subscribed on a device. It does not identify the shared mailbox,
 sender, subject, or message on the lock screen. Alerts are best-effort and do
-not reserve work for one team member.
+not reserve work for one team member. Tapping an alert opens the message in
+the relevant shared mailbox; the server checks the person's current assignment
+again, so a revoked or disabled mailbox is not exposed by an old alert.
 
 For administration details and safe lifecycle procedures, see the
 [manager handbook](manager-handbook.md). For day-to-day message use, see the

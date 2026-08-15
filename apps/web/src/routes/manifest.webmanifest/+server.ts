@@ -17,12 +17,15 @@ export const GET: RequestHandler = async ({ platform }) => {
     id: '/mail',
     name,
     short_name: name.slice(0, 30),
+    lang: runtime.locale,
     description: `Secure organisational email for ${organisation}`,
     start_url: '/mail',
     scope: '/',
     display: 'standalone',
     background_color: '#0b0d10',
     theme_color: runtime.brandPrimaryColor,
+    categories: ['business', 'productivity'],
+    prefer_related_applications: false,
     icons: [
       {
         src: runtime.brandIconUrl,
@@ -40,6 +43,22 @@ export const GET: RequestHandler = async ({ platform }) => {
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any',
+      },
+    ],
+    shortcuts: [
+      {
+        name: 'Inbox',
+        short_name: 'Inbox',
+        description: 'Open assigned mailboxes',
+        url: '/mail',
+        icons: [{ src: runtime.brandIcon192Url, sizes: '192x192', type: 'image/png' }],
+      },
+      {
+        name: 'New message',
+        short_name: 'Compose',
+        description: 'Compose a new message',
+        url: '/mail/compose',
+        icons: [{ src: runtime.brandIcon192Url, sizes: '192x192', type: 'image/png' }],
       },
     ],
   }, {

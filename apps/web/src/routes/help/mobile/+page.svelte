@@ -29,10 +29,10 @@
       <ol>
         <li>Open this site in <strong>Chrome</strong> and sign in.</li>
         <li>Tap the three-dot <strong>More</strong> menu.</li>
-        <li>Choose <strong>Add to home screen</strong>, then <strong>Install</strong>.</li>
-        <li>Follow the prompts and open the installed app.</li>
+        <li>Choose <strong>Install app</strong> when it is offered. If Chrome instead shows <strong>Add to home screen</strong>, create the shortcut.</li>
+        <li>Open the new icon. An installed web app opens separately from the regular browser; a shortcut can open in Chrome.</li>
       </ol>
-      <p class="source-link"><a href="https://support.google.com/chrome/answer/9658361/use-progressive-web-apps-android?co=GENIE.Platform%3DAndroid&amp;hl=en-GB" rel="external noreferrer">Google's current Android instructions</a></p>
+      <p class="source-link"><a href="https://support.google.com/chrome/answer/15085120?co=GENIE.Platform%3DAndroid&amp;hl=en" rel="external noreferrer">Google's current Android Home Screen instructions</a></p>
     </section>
   </div>
 
@@ -52,15 +52,26 @@
       <li>On iPhone and iPad, Web Push requires iOS/iPadOS 16.4 or newer and the site must be opened as a Home Screen web app.</li>
       <li>Enable alerts separately on every browser or installed device where you want them.</li>
       <li>Alerts intentionally omit sender, subject, mailbox, recipients, and message content.</li>
+      <li>Personal and assigned shared mailboxes are covered. Tapping an alert opens that message in its mailbox; current access is checked again before anything is shown.</li>
       <li>Focus, Do Not Disturb, battery controls, and operating-system settings can delay or suppress alerts.</li>
     </ul>
     <p class="source-link"><a href="https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/" rel="external noreferrer">WebKit's iOS and iPadOS Web Push guidance</a></p>
   </section>
 
   <section>
+    <h2>Updates, recovery and offline use</h2>
+    <p>{page.data?.appName || 'cmail'} checks for updated application files while it is open. Reopen the app or refresh the page to receive a new release; there is no separate app-store update process.</p>
+    <ul>
+      <li>Mail, search, compose and sending require a network connection. The app does not keep mailbox pages or message content for offline use.</li>
+      <li>If the icon was removed, return to this site and install it again. Removing an icon does not close the account or revoke an existing session.</li>
+      <li>If the installed app will not load, first check the connection, then reopen or refresh it. Ask support if the problem continues.</li>
+    </ul>
+  </section>
+
+  <section>
     <h2>Troubleshooting</h2>
     <div class="troubleshooting">
-      <div><strong>No Install option</strong><p>Use Safari on Apple devices or current Chrome on Android, confirm the site uses HTTPS, and ask the operator to verify the web manifest and icons.</p></div>
+      <div><strong>No Install option</strong><p>On iPhone or iPad, use Safari and make sure Open as Web App is enabled. On Android, look for Install app or Add to home screen in Chrome. Confirm the site uses HTTPS, then ask the operator to verify the web manifest and icons.</p></div>
       <div><strong>No notification control</strong><p>The operator may not have configured VAPID keys, the browser may not support Web Push, or an iPhone/iPad site may not be running from its Home Screen icon.</p></div>
       <div><strong>Notifications blocked</strong><p>Open the device's notification or site settings, allow notifications for this app/site, reopen it, and check the control again.</p></div>
       <div><strong>Mail unavailable offline</strong><p>This is expected. cmail deliberately does not cache mailbox pages or message content for offline use. Reconnect and refresh.</p></div>
@@ -69,7 +80,7 @@
 
   <section>
     <h2>Shared or managed devices</h2>
-    <p>Do not install or enable notifications on a device you do not control. Sign out when finished. Removing an icon does not necessarily revoke the server session; managers can revoke sessions by pausing or offboarding the account when a device is lost.</p>
+    <p>Do not install or enable notifications on a device you do not control. Sign out when finished; the app also attempts to remove that browser's alert subscription before ending the session. Removing an icon does not necessarily revoke the server session; managers can revoke sessions and every registered alert endpoint by pausing or offboarding the account when a device is lost.</p>
     {#if page.data?.supportEmail}<p><a class="btn" href={`mailto:${page.data.supportEmail}`}>Ask for device setup help</a></p>{/if}
   </section>
 </article>
