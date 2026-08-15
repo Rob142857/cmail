@@ -1,11 +1,9 @@
-const EMAIL_RX = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i;
+import { normalizeParticipantAddress } from '@cmail/shared/message-participants';
+
 const DOMAIN_RX = /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i;
 
 export function normalizeEmail(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const email = value.trim().toLowerCase();
-  if (email.length > 254 || !EMAIL_RX.test(email)) return null;
-  return email;
+  return normalizeParticipantAddress(value);
 }
 
 export function normalizeDomain(value: unknown): string | null {
@@ -40,7 +38,35 @@ export function parseRecipientList(
 ): { recipients: string[]; error?: string } {
   if (typeof value !== 'string') return { recipients: [], error: 'Recipient list is invalid' };
 
-  const raw = value.split(/[;,]/).map((part) => part.trim()).filter(Boolean);
+  const raw: string[] = [];
+  let start = 0;
+  let quoted = false;
+  let escaped = false;
+  let domainLiteral = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (quoted && character === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (!domainLiteral && character === '"') {
+      quoted = !quoted;
+      continue;
+    }
+    if (!quoted && character === '[') domainLiteral = true;
+    if (!quoted && character === ']') domainLiteral = false;
+    if (!quoted && !domainLiteral && (character === ',' || character === ';')) {
+      const entry = value.slice(start, index).trim();
+      if (entry) raw.push(entry);
+      start = index + 1;
+    }
+  }
+  const tail = value.slice(start).trim();
+  if (tail) raw.push(tail);
   if (raw.length > maxRecipients) {
     return { recipients: [], error: `A message can have at most ${maxRecipients} recipients` };
   }

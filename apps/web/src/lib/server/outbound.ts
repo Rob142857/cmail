@@ -6,6 +6,7 @@ import {
   messageImportanceHeaders,
   normalizeMessageImportance,
 } from '@cmail/shared/message-importance';
+import { sanitizeParticipantName } from '@cmail/shared/message-participants';
 import type { MessageImportance } from '@cmail/shared/types';
 import { createMimeMessage, Mailbox } from 'mimetext/browser';
 
@@ -211,10 +212,9 @@ export async function sendEmail(email: OutboundEmail, env: Record<string, unknow
 }
 
 export function sanitizeSenderDisplayName(value: string | undefined): string {
-  return (value || '')
-    .replace(/[\u0000-\u001f\u007f"\\]/g, '')
-    .trim()
-    .slice(0, 120);
+  return sanitizeParticipantName(value)
+    .replace(/["\\]/g, '')
+    .trim();
 }
 
 function formattedFrom(email: OutboundEmail): string {

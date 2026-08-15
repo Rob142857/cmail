@@ -34,9 +34,12 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
     const term = `%${escapeLike(search)}%`;
     conditions.push(`(
       m.subject LIKE ? ESCAPE '\\' OR m.snippet LIKE ? ESCAPE '\\' OR
-      m.from_address LIKE ? ESCAPE '\\' OR m.to_addresses LIKE ? ESCAPE '\\'
+      m.from_address LIKE ? ESCAPE '\\' OR m.from_name LIKE ? ESCAPE '\\' OR
+      m.to_addresses LIKE ? ESCAPE '\\' OR m.cc_addresses LIKE ? ESCAPE '\\' OR
+      m.to_participants LIKE ? ESCAPE '\\' OR m.cc_participants LIKE ? ESCAPE '\\' OR
+      m.reply_to_participants LIKE ? ESCAPE '\\'
     )`);
-    bindings.push(term, term, term, term);
+    bindings.push(term, term, term, term, term, term, term, term, term);
   }
 
   const result = await env.DB.prepare(

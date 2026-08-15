@@ -11,6 +11,8 @@ import worker, {
   messageBodyR2Key,
   extractInboundSnippet,
   inboundRateLimitActorKey,
+  inboundFromParticipant,
+  flattenParsedParticipants,
   normalizeMessageIdHeader,
   normalizeReferencesHeader,
   normalizeEnvelopeAddress,
@@ -21,6 +23,8 @@ import worker, {
   stableInboundId,
 } from './index';
 import { parseMessageImportance } from '@cmail/shared/message-importance';
+import { normalizeParticipants, sanitizeParticipantName } from '@cmail/shared/message-participants';
+import PostalMime from 'postal-mime';
 
 function routedMessage(overrides: Partial<{
   from: string;
@@ -147,6 +151,79 @@ describe('private outbound service binding', () => {
     expect(response.status).toBe(503);
   });
 
+});
+
+describe('RFC 5322 participant metadata', () => {
+  async function parseHeaders(raw: string) {
+    return new PostalMime().parse(new TextEncoder().encode(`${raw}\r\n\r\nBody`));
+  }
+
+  it('keeps decoded Unicode and quoted-comma names separate from canonical routing addresses', async () => {
+    const parsed = await parseHeaders([
+      'From: =?UTF-8?B?Sm9zw6kgTcO8bGxlcg==?= <Jose@example.test>',
+      'To: "Evans, Robert" <ROBERT@example.test>',
+      'Reply-To: =?UTF-8?Q?Helpdesk_=E2=80=94_Clio?= <HELP@example.test>',
+    ].join('\r\n'));
+
+    expect(inboundFromParticipant(parsed.from, 'envelope@example.test')).toEqual({
+      address: 'jose@example.test', name: 'José Müller',
+    });
+    expect(flattenParsedParticipants(parsed.to)).toEqual([
+      { address: 'robert@example.test', name: 'Evans, Robert' },
+    ]);
+    expect(flattenParsedParticipants(parsed.replyTo)).toEqual([
+      { address: 'help@example.test', name: 'Helpdesk — Clio' },
+    ]);
+  });
+
+  it('flattens MIME groups to valid members and drops malformed Reply-To entries', async () => {
+    const parsed = await parseHeaders([
+      'To: Engineering: "Doe, Jane" <JANE@example.test>, John <JOHN@example.test>;',
+      'Reply-To: Not an address, valid@example.test',
+    ].join('\r\n'));
+
+    expect(flattenParsedParticipants(parsed.to)).toEqual([
+      { address: 'jane@example.test', name: 'Doe, Jane' },
+      { address: 'john@example.test', name: 'John' },
+    ]);
+    expect(flattenParsedParticipants(parsed.replyTo)).toEqual([
+      { address: 'valid@example.test', name: '' },
+    ]);
+  });
+
+  it('retains RFC quoted local-parts and domain literals after MIME parsing', async () => {
+    const parsed = await parseHeaders([
+      'From: Quoted sender <"john..doe"@example.test>',
+      'To: Local service <user@[192.0.2.1]>',
+      'Reply-To: Special <"team@desk"@example.test>',
+    ].join('\r\n'));
+
+    expect(inboundFromParticipant(parsed.from, 'envelope@example.test')).toEqual({
+      address: '"john..doe"@example.test', name: 'Quoted sender',
+    });
+    expect(flattenParsedParticipants(parsed.to)).toEqual([
+      { address: 'user@[192.0.2.1]', name: 'Local service' },
+    ]);
+    expect(flattenParsedParticipants(parsed.replyTo)).toEqual([
+      { address: '"team@desk"@example.test', name: 'Special' },
+    ]);
+  });
+
+  it('uses the validated envelope sender when From is malformed and never retains its name', async () => {
+    const parsed = await parseHeaders('From: Display Only <not-an-address>');
+    expect(inboundFromParticipant(parsed.from, 'envelope@example.test')).toEqual({
+      address: 'envelope@example.test', name: '',
+    });
+  });
+
+  it('removes invisible identity controls, bounds Unicode by code point, and keeps a useful duplicate name', () => {
+    expect(sanitizeParticipantName('  Safe\r\n\u202Ename\u2066  ')).toBe('Safe name');
+    expect(Array.from(sanitizeParticipantName('😀'.repeat(140)))).toHaveLength(120);
+    expect(normalizeParticipants([
+      { address: 'person@example.test', name: '' },
+      { address: 'PERSON@example.test', name: 'Person Example' },
+    ])).toEqual([{ address: 'person@example.test', name: 'Person Example' }]);
+  });
 });
 
 describe('inbound size limits', () => {

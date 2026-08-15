@@ -10,10 +10,11 @@
     "./link-risk": "./src/link-risk.ts",
     "./inbound-risk": "./src/inbound-risk.ts",
     "./mailbox-storage": "./src/mailbox-storage.ts",
-    "./message-importance": "./src/message-importance.ts"
+    "./message-importance": "./src/message-importance.ts",
+    "./message-participants": "./src/message-participants.ts"
   },
   "scripts": {
-    "check": "tsc --noEmit --target ES2022 --module ES2022 --moduleResolution Bundler --types @cloudflare/workers-types --strict --skipLibCheck src/types.ts src/push.ts src/sanitize-email.ts src/link-risk.ts src/inbound-risk.ts src/mailbox-storage.ts src/message-importance.ts",
+    "check": "tsc --noEmit --target ES2022 --module ES2022 --moduleResolution Bundler --types @cloudflare/workers-types --strict --skipLibCheck src/types.ts src/push.ts src/sanitize-email.ts src/link-risk.ts src/inbound-risk.ts src/mailbox-storage.ts src/message-importance.ts src/message-participants.ts",
     "lint": "pnpm check",
     "test": "node --test"
   },

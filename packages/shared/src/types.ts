@@ -71,6 +71,10 @@ export interface MailboxAssignment {
 export type MessageDirection = 'inbound' | 'outbound' | 'internal';
 export type Folder = 'inbox' | 'sent' | 'drafts' | 'archive' | 'spam' | 'trash';
 export type MessageImportance = 'low' | 'normal' | 'high';
+export interface MessageParticipant {
+  address: string;
+  name: string;
+}
 
 export interface Message {
   id: string;
@@ -78,8 +82,12 @@ export interface Message {
   message_id_header: string | null;
   direction: MessageDirection;
   from_address: string;
+  /** Decoded display-only RFC 5322 name; routing always uses from_address. */
+  from_name: string;
   to_addresses: string; // JSON array
   cc_addresses: string; // JSON array
+  to_participants: string; // JSON array of MessageParticipant
+  cc_participants: string; // JSON array of MessageParticipant
   subject: string;
   snippet: string;
   body_r2_key: string | null;
@@ -94,6 +102,7 @@ export interface Message {
   in_reply_to: string | null;
   references_header: string | null;
   reply_to_addresses: string;
+  reply_to_participants: string; // JSON array of MessageParticipant
   /** JSON array of provider tracking identifiers; they are not RFC Message-IDs. */
   provider_message_ids: string;
   failed_recipients: string;

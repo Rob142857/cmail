@@ -4,6 +4,7 @@ import {
   buildRawMimeMessage,
   getProviderInfo,
   preflightEmail,
+  sanitizeSenderDisplayName,
   sendEmail,
   type OutboundEmail,
 } from './outbound';
@@ -54,6 +55,19 @@ describe('outbound provider selection', () => {
       CLOUDFLARE_ACCOUNT_ID: '../unsafe',
       CLOUDFLARE_EMAIL_API_TOKEN: API_TOKEN,
     })).toBe('none');
+  });
+});
+
+describe('outbound sender identity', () => {
+  it('removes control, bidi, quote, and backslash ambiguity before transport', () => {
+    expect(sanitizeSenderDisplayName('  Safe\u0085\u202Ename\u2066 "Desk"\\  ')).toBe('Safe name Desk');
+    expect(Array.from(sanitizeSenderDisplayName('😀'.repeat(140)))).toHaveLength(120);
+    const raw = buildRawMimeMessage({
+      ...baseEmail,
+      fromName: 'Safe\u202Ename\u2066 "Desk"\\',
+    });
+    expect(raw).toMatch(/^From: =\?utf-8\?B\?U2FmZSBuYW1lIERlc2s=\?= <sender@example\.com>$/im);
+    expect(raw).not.toMatch(/[\u0085\u202e\u2066]/u);
   });
 });
 

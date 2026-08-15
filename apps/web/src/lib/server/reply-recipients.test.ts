@@ -65,6 +65,20 @@ describe('reply recipient construction', () => {
     });
   });
 
+  it('preserves quoted local-parts and domain literals through Reply all', () => {
+    expect(buildReplyRecipients({
+      from_address: '"team,desk"@example.net',
+      to_addresses: JSON.stringify(['me@example.com', 'user@[192.0.2.1]']),
+      cc_addresses: JSON.stringify(['"copy@desk"@example.net']),
+      reply_to_addresses: '[]',
+      direction: 'inbound',
+      folder: 'inbox',
+    }, ['me@example.com'], true)).toEqual({
+      to: ['"team,desk"@example.net', 'user@[192.0.2.1]'],
+      cc: ['"copy@desk"@example.net'],
+    });
+  });
+
   it('offers Reply all when a Bcc delivery has a visible non-self recipient', () => {
     expect(replyAllAddsRecipients({
       from_address: 'sender@example.net',

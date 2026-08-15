@@ -106,6 +106,19 @@ describe('disabled mailbox access boundaries', () => {
     expectActiveMailboxFilter(captured.queries[0]);
   });
 
+  it('includes sender and participant display metadata when searching assigned mail', async () => {
+    const captured = capturedDatabase();
+    await (listMessages as any)({
+      locals: locals(),
+      platform: platform(captured.db),
+      url: new URL('https://mail.example.com/mail?q=alex'),
+    });
+    expect(captured.queries[0]).toMatch(/m\.from_name LIKE/);
+    expect(captured.queries[0]).toMatch(/m\.to_participants LIKE/);
+    expect(captured.queries[0]).toMatch(/m\.cc_participants LIKE/);
+    expect(captured.queries[0]).toMatch(/m\.reply_to_participants LIKE/);
+  });
+
   it('repairs a stale message return context to the mailbox that owns the message', async () => {
     const message = {
       id: 'message-1',

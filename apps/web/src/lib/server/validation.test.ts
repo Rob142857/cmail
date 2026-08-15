@@ -15,7 +15,10 @@ import {
 describe('email and domain validation', () => {
   it('normalizes valid addresses and rejects malformed values', () => {
     expect(normalizeEmail('  Person+tag@Example.COM ')).toBe('person+tag@example.com');
+    expect(normalizeEmail('"Team, Desk"@Example.COM')).toBe('"team, desk"@example.com');
+    expect(normalizeEmail('user@[192.0.2.1]')).toBe('user@[192.0.2.1]');
     expect(normalizeEmail('person@example')).toBeNull();
+    expect(normalizeEmail('person..name@example.com')).toBeNull();
     expect(normalizeEmail('person\r\n@example.com')).toBeNull();
   });
 
@@ -32,6 +35,12 @@ describe('email and domain validation', () => {
     });
     expect(parseRecipientList('a@example.com,b@example.com', 1).error).toContain('at most 1');
     expect(parseRecipientList('valid@example.com,invalid', 5).error).toContain('Invalid email');
+  });
+
+  it('does not split separators inside quoted local-parts or domain literals', () => {
+    expect(parseRecipientList('"team,one"@example.com; user@[192.0.2.1]', 3)).toEqual({
+      recipients: ['"team,one"@example.com', 'user@[192.0.2.1]'],
+    });
   });
 });
 

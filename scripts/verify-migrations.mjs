@@ -235,6 +235,67 @@ function verifyUpgradeFixture() {
     `],
     'Upgrade personal mailbox owner-assignment move prohibition',
   );
+
+  // Exercise the 0008 historical-data path independently of the fresh schema:
+  // 0007 retained an authoritative outbound sender name, while inbound names
+  // did not exist in storage and must not be guessed during migration.
+  copyFileSync(
+    join(root, 'packages', 'shared', 'migrations', '0007_outbound_sender_display_name.sql'),
+    join(upgradeMigrationsDirectory, '0007_outbound_sender_display_name.sql'),
+  );
+  runWrangler(['d1', 'migrations', 'apply', ...upgradeArguments]);
+  runWrangler(['d1', 'execute', ...upgradeArguments, '--command', `
+    INSERT INTO outbound_send_journal
+      (id, user_id, mailbox_id, idempotency_key, payload_hash, html_sha256,
+       text_sha256, state, provider, from_address, from_name, to_addresses,
+       cc_addresses, envelope_recipients, subject, snippet, importance,
+       proposed_message_id_header, html_r2_key, text_r2_key, persisted_bytes,
+       provider_payload_bytes)
+    VALUES
+      ('upgrade-display-journal', 'upgrade-good', 'upgrade-good-personal',
+       'upgrade-display-key', '${'a'.repeat(64)}', '${'b'.repeat(64)}',
+       '${'c'.repeat(64)}', 'pending', 'cloudflare', 'good@example.test',
+       'Good Owner', '["recipient@example.test"]', '[]',
+       '["recipient@example.test"]', 'Historic outbound', 'Historic',
+       'normal', '<upgrade-display@example.test>',
+       'outbound-journal/upgrade-display/body.html',
+       'outbound-journal/upgrade-display/body.txt', 8, 8);
+    INSERT INTO messages
+      (id, mailbox_id, message_id_header, direction, from_address, to_addresses,
+       cc_addresses, subject, snippet, folder, is_read)
+    VALUES
+      ('upgrade-display-message', 'upgrade-good-personal',
+       '<upgrade-display@example.test>', 'outbound', 'good@example.test',
+       '["recipient@example.test"]', '[]', 'Historic outbound', 'Historic',
+       'sent', 1),
+      ('upgrade-inbound-message', 'upgrade-good-personal',
+       '<upgrade-inbound@example.test>', 'inbound', 'sender@example.test',
+       '["good@example.test"]', '[]', 'Historic inbound', 'Historic',
+       'inbox', 0);
+    INSERT INTO outbound_send_targets
+      (id, journal_id, ordinal, message_id, mailbox_id, direction, folder,
+       body_r2_key, attachment_ids)
+    VALUES
+      ('upgrade-display-target', 'upgrade-display-journal', 0,
+       'upgrade-display-message', 'upgrade-good-personal', 'outbound', 'sent',
+       'messages/upgrade-display/body', '[]');
+  `]);
+  copyFileSync(
+    join(root, 'packages', 'shared', 'migrations', '0008_messages_display_metadata.sql'),
+    join(upgradeMigrationsDirectory, '0008_messages_display_metadata.sql'),
+  );
+  runWrangler(['d1', 'migrations', 'apply', ...upgradeArguments]);
+
+  const [displayRow] = executeJson(upgradeArguments, `
+    SELECT
+      (SELECT from_name FROM messages WHERE id = 'upgrade-display-message') AS outbound_name,
+      (SELECT from_name FROM messages WHERE id = 'upgrade-inbound-message') AS inbound_name,
+      (SELECT to_participants FROM messages WHERE id = 'upgrade-display-message') AS participant_default;
+  `);
+  if (!displayRow) throw new Error('Display-metadata upgrade fixture returned no verification row.');
+  assertEqual(displayRow.outbound_name, 'Good Owner', 'Upgrade outbound sender-name recovery');
+  assertEqual(displayRow.inbound_name, '', 'Upgrade inbound sender name remains unguessed');
+  assertEqual(displayRow.participant_default, '[]', 'Upgrade participant metadata default');
 }
 
 try {
@@ -328,6 +389,12 @@ try {
           AND dflt_value = '''[]''') AS reply_to_column_count,
       (SELECT COUNT(*) FROM pragma_table_info('messages')
         WHERE name IN ('provider_message_ids', 'failed_recipients')) AS message_delivery_column_count,
+      (SELECT COUNT(*) FROM pragma_table_info('messages')
+        WHERE name = 'from_name' AND "notnull" = 1
+          AND dflt_value = '''''') AS message_from_name_column_count,
+      (SELECT COUNT(*) FROM pragma_table_info('messages')
+        WHERE name IN ('to_participants', 'cc_participants', 'reply_to_participants')
+          AND "notnull" = 1 AND dflt_value = '''[]''') AS message_participant_column_count,
       (SELECT COUNT(*) FROM pragma_table_info('attachments')
         WHERE name IN ('content_id', 'disposition')) AS attachment_mime_column_count,
       (SELECT COUNT(*) FROM pragma_table_info('mail_trace')
@@ -373,6 +440,8 @@ try {
   assertEqual(Number(row.references_column_count), 1, 'Message References column');
   assertEqual(Number(row.reply_to_column_count), 1, 'Message Reply-To column');
   assertEqual(Number(row.message_delivery_column_count), 2, 'Message provider delivery columns');
+  assertEqual(Number(row.message_from_name_column_count), 1, 'Message sender display-name column');
+  assertEqual(Number(row.message_participant_column_count), 3, 'Message participant metadata columns');
   assertEqual(Number(row.attachment_mime_column_count), 2, 'Attachment MIME metadata columns');
   assertEqual(Number(row.trace_delivery_column_count), 2, 'Trace provider delivery columns');
   assertEqual(Number(row.outbound_digest_column_count), 3, 'Outbound journal digest columns');

@@ -184,6 +184,12 @@ function validStringArray(value: string, max = 256): string[] {
   }
 }
 
+/** Outbound journals retain bare routing addresses; materialized messages also
+ * carry the equivalent display-only participant shape. */
+function addressOnlyParticipants(value: string): string {
+  return JSON.stringify(validStringArray(value, 100).map((address) => ({ address, name: '' })));
+}
+
 async function sha256(value: Uint8Array | string): Promise<string> {
   const bytes = typeof value === 'string' ? ENCODER.encode(value) : value;
   const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
@@ -742,14 +748,16 @@ async function materializeTarget(
 
   const providerIds = target.direction === 'outbound' ? journal.provider_message_ids : '[]';
   const failedRecipients = target.direction === 'outbound' ? journal.failed_recipients : '[]';
+  const toParticipants = addressOnlyParticipants(journal.to_addresses);
+  const ccParticipants = addressOnlyParticipants(journal.cc_addresses);
   const statements = [
     db.prepare(
       `INSERT INTO messages
        (id, mailbox_id, message_id_header, provider_message_ids, failed_recipients,
-        direction, from_address, to_addresses, cc_addresses, subject, snippet,
+        direction, from_address, from_name, to_addresses, cc_addresses, to_participants, cc_participants, subject, snippet,
         body_r2_key, has_attachments, size_bytes, folder, is_read, importance,
         received_at, created_at, in_reply_to, references_header, thread_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
          COALESCE(?, datetime('now')), COALESCE(?, datetime('now')), ?, ?, ?)`,
     ).bind(
       target.message_id,
@@ -759,8 +767,11 @@ async function materializeTarget(
       failedRecipients,
       target.direction,
       journal.from_address,
+      journal.from_name,
       journal.to_addresses,
       journal.cc_addresses,
+      toParticipants,
+      ccParticipants,
       journal.subject,
       journal.snippet,
       target.body_r2_key,

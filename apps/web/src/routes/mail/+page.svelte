@@ -2,6 +2,7 @@
   import { afterNavigate, invalidateAll } from '$app/navigation';
   import { onMount, tick } from 'svelte';
   import { dateTimeAttribute, formatDate } from '$lib/dates';
+  import { sanitizeParticipantName } from '@cmail/shared/message-participants';
   import type { PageData } from './$types';
 
   type MessageItem = PageData['messages'][number];
@@ -127,6 +128,39 @@
     return address.includes('@') ? address.split('@')[0] : address;
   }
 
+  function senderName(message: MessageItem): string {
+    const name = sanitizeParticipantName(message.from_name);
+    return name || extractName(message.from_address);
+  }
+
+  type Participant = { address: string; name?: string };
+
+  function parseParticipants(value: string, fallback: string): Participant[] {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (Array.isArray(parsed)) {
+        const participants = parsed.flatMap((entry): Participant[] => {
+          if (!entry || typeof entry !== 'object') return [];
+          const candidate = entry as { address?: unknown; name?: unknown };
+          if (typeof candidate.address !== 'string' || !candidate.address.trim()) return [];
+          const name = sanitizeParticipantName(candidate.name);
+          return [{
+            address: candidate.address,
+            ...(name ? { name } : {}),
+          }];
+        });
+        if (participants.length) return participants;
+      }
+    } catch {
+      // Fall back to the historic address array during rolling upgrades.
+    }
+    return parseAddresses(fallback).map((address) => ({ address }));
+  }
+
+  function participantLabel(participant: Participant): string {
+    return participant.name || extractName(participant.address);
+  }
+
   function parseAddresses(value: string): string[] {
     try {
       const parsed = JSON.parse(value) as unknown;
@@ -139,17 +173,22 @@
   }
 
   function participantText(message: MessageItem): string {
-    if (message.direction !== 'outbound' && message.folder !== 'drafts') return extractName(message.from_address);
-    const recipients = parseAddresses(message.to_addresses).map(extractName);
+    if (message.direction !== 'outbound' && message.folder !== 'drafts') return senderName(message);
+    const recipients = parseParticipants(message.to_participants, message.to_addresses).map(participantLabel);
     if (recipients.length === 0) return 'To: No recipients';
     const visible = recipients.slice(0, 2).join(', ');
     return `To: ${visible}${recipients.length > 2 ? ` +${recipients.length - 2}` : ''}`;
   }
 
   function participantTitle(message: MessageItem): string {
-    if (message.direction !== 'outbound' && message.folder !== 'drafts') return message.from_address;
-    const recipients = parseAddresses(message.to_addresses);
-    return recipients.length > 0 ? `To: ${recipients.join(', ')}` : 'No recipients';
+    if (message.direction !== 'outbound' && message.folder !== 'drafts') {
+      const name = sanitizeParticipantName(message.from_name);
+      return name ? `${name} <${message.from_address}>` : message.from_address;
+    }
+    const recipients = parseParticipants(message.to_participants, message.to_addresses);
+    return recipients.length > 0
+      ? `To: ${recipients.map((participant) => participant.name ? `${participant.name} <${participant.address}>` : participant.address).join(', ')}`
+      : 'No recipients';
   }
 
   function shortMailboxLabel(address: string): string {

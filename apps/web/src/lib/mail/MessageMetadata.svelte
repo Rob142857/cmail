@@ -1,7 +1,10 @@
 <script>
   import { dateTimeAttribute, formatDateTime } from '$lib/dates';
+  import { sanitizeParticipantName } from '@cmail/shared/message-participants';
 
   let { message, locale, timeZone, mailboxHref } = $props();
+
+  /** @typedef {{ address: string, name?: string }} Participant */
 
   /** @param {string} value */
   function parseAddresses(value) {
@@ -13,9 +16,34 @@
     }
   }
 
-  const toList = $derived(parseAddresses(message.to_addresses).join(', '));
-  const ccList = $derived(parseAddresses(message.cc_addresses).join(', '));
-  const replyToList = $derived(parseAddresses(message.reply_to_addresses).join(', '));
+  /** @param {string} value @param {string} fallback */
+  function parseParticipants(value, fallback) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        const participants = parsed.flatMap((entry) => {
+          if (!entry || typeof entry !== 'object' || typeof entry.address !== 'string' || !entry.address.trim()) return [];
+          const name = sanitizeParticipantName(entry.name);
+          return [{ address: entry.address, ...(name ? { name } : {}) }];
+        });
+        if (participants.length) return participants;
+      }
+    } catch {
+      // Old messages have only JSON address arrays.
+    }
+    return parseAddresses(fallback).map((address) => ({ address }));
+  }
+
+  /** @param {Participant} participant */
+  function renderParticipant(participant) {
+    return participant.name ? `${participant.name} <${participant.address}>` : participant.address;
+  }
+
+  const fromName = $derived(sanitizeParticipantName(message.from_name));
+  const fromLabel = $derived(fromName ? `${fromName} <${message.from_address}>` : message.from_address);
+  const toList = $derived(parseParticipants(message.to_participants, message.to_addresses).map(renderParticipant).join(', '));
+  const ccList = $derived(parseParticipants(message.cc_participants, message.cc_addresses).map(renderParticipant).join(', '));
+  const replyToList = $derived(parseParticipants(message.reply_to_participants, message.reply_to_addresses).map(renderParticipant).join(', '));
   const failedRecipientList = $derived(parseAddresses(message.failed_recipients).join(', '));
   const mailboxPermission = $derived({
     read: 'Read only',
@@ -25,7 +53,7 @@
 </script>
 
 <dl class="message-meta">
-  <div><dt>From</dt><dd>{message.from_address}</dd></div>
+  <div><dt>From</dt><dd>{fromLabel}</dd></div>
   {#if replyToList}<div><dt>Reply to</dt><dd>{replyToList}</dd></div>{/if}
   <div><dt>To</dt><dd>{toList}</dd></div>
   {#if ccList}<div><dt>Cc</dt><dd>{ccList}</dd></div>{/if}

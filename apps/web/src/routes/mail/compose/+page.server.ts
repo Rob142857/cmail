@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import type { Attachment, Mailbox, Message, MessageImportance } from '@cmail/shared/types';
 import { sendNewMailNotifications } from '@cmail/shared/push';
 import { normalizeMessageImportance } from '@cmail/shared/message-importance';
+import { sanitizeParticipantName } from '@cmail/shared/message-participants';
 import { buildReplyRecipients } from '$lib/server/reply-recipients';
 import {
   releaseMailboxStorageReservations,
@@ -144,13 +145,44 @@ async function loadBody(storage: R2Bucket, key: string | null): Promise<string> 
   return object.text();
 }
 
-function displayAddresses(value: string): string {
+type AddressParticipant = { address: string; name?: string };
+
+function addressParticipants(value: string): AddressParticipant[] {
   try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string').join(', ') : '';
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed)
+      ? parsed.flatMap((item): AddressParticipant[] => typeof item === 'string' && item.trim()
+        ? [{ address: item }]
+        : [])
+      : [];
   } catch {
-    return '';
+    return [];
   }
+}
+
+function displayParticipants(value: string, fallback: string): string {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed)) {
+      const labels = parsed.flatMap((item): string[] => {
+        if (!item || typeof item !== 'object') return [];
+        const participant = item as { address?: unknown; name?: unknown };
+        if (typeof participant.address !== 'string' || !participant.address.trim()) return [];
+        const address = participant.address.trim();
+        const name = sanitizeParticipantName(participant.name);
+        return [name ? `${name} <${address}>` : address];
+      });
+      if (labels.length) return labels.join(', ');
+    }
+  } catch {
+    // Historic rows store only the address array.
+  }
+  return addressParticipants(fallback).map((participant) => participant.address).join(', ');
+}
+
+function displaySender(name: string | undefined, address: string): string {
+  const safeName = sanitizeParticipantName(name);
+  return safeName ? `${safeName} <${address}>` : address;
 }
 
 function validTraceRecipients(value: string): string {
@@ -312,11 +344,11 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
           await loadBody(env.STORAGE, replyTo.body_r2_key),
           {
             kind: forwardId ? 'forward' : 'reply',
-            from: replyTo.from_address,
+            from: displaySender(replyTo.from_name, replyTo.from_address),
             date: formatQuoteDate(replyTo.received_at, runtime.locale, runtime.timeZone),
             subject: replyTo.subject,
-            to: displayAddresses(replyTo.to_addresses),
-            cc: displayAddresses(replyTo.cc_addresses),
+            to: displayParticipants(replyTo.to_participants, replyTo.to_addresses),
+            cc: displayParticipants(replyTo.cc_participants, replyTo.cc_addresses),
           },
         );
         if (builtQuote.ok) replyQuoteHtml = builtQuote.html;
@@ -1076,11 +1108,12 @@ export const actions: Actions = {
     }
 
     const mailbox = await env.DB.prepare(
-      `SELECT m.id FROM mailboxes m
+      `SELECT m.id, m.display_name FROM mailboxes m
        INNER JOIN mailbox_assignments ma ON m.id = ma.mailbox_id
        WHERE m.address = ? AND ma.user_id = ? AND ma.permissions IN ('send-as', 'full') AND m.status = 'active'`,
-    ).bind(from, locals.user.id).first<{ id: string }>();
+    ).bind(from, locals.user.id).first<{ id: string; display_name: string }>();
     if (!mailbox) return fail(403, { error: 'You do not have permission to draft from this address' });
+    const fromName = sanitizeSenderDisplayName(mailbox.display_name.trim() || locals.user.display_name.trim());
 
     if (!existingDraftId) {
       const recovered = await env.DB.prepare(
@@ -1113,6 +1146,12 @@ export const actions: Actions = {
 
     const toRecipients = to.split(/[;,]/).map((address) => address.trim()).filter(Boolean).slice(0, 200);
     const ccRecipients = cc.split(/[;,]/).map((address) => address.trim()).filter(Boolean).slice(0, 200);
+    // Draft entry is deliberately address-only. The authoritative send path
+    // still validates and normalizes these values before any delivery.
+    const toParticipantJson = JSON.stringify(toRecipients.map((address) => ({ address, name: '' })));
+    const ccParticipantJson = JSON.stringify(ccRecipients.map((address) => ({ address, name: '' })));
+    const toAddressesJson = JSON.stringify(toRecipients);
+    const ccAddressesJson = JSON.stringify(ccRecipients);
     const snippet = preparedBody.snippet;
     const htmlBody = preparedBody.html;
     const htmlBodyBytes = new TextEncoder().encode(htmlBody).byteLength;
@@ -1183,15 +1222,19 @@ export const actions: Actions = {
         await env.STORAGE.put(key, htmlBody);
         databaseWriteAttempted = true;
         const updated = await env.DB.prepare(
-          `UPDATE messages SET mailbox_id = ?, from_address = ?, to_addresses = ?, cc_addresses = ?,
+          `UPDATE messages SET mailbox_id = ?, from_address = ?, from_name = ?, to_addresses = ?, cc_addresses = ?,
+           to_participants = ?, cc_participants = ?,
            subject = ?, snippet = ?, body_r2_key = ?, size_bytes = ?, importance = ?, in_reply_to = ?, references_header = ?, received_at = ?,
            draft_version = draft_version + 1
            WHERE id = ? AND folder = 'drafts' AND draft_owner_id = ? AND draft_version = ?`,
         ).bind(
           mailbox.id,
           from,
-          JSON.stringify(toRecipients),
-          JSON.stringify(ccRecipients),
+          fromName,
+          toAddressesJson,
+          ccAddressesJson,
+          toParticipantJson,
+          ccParticipantJson,
           subject,
           snippet,
            key,
@@ -1302,11 +1345,11 @@ export const actions: Actions = {
       databaseWriteAttempted = true;
       await env.DB.prepare(
         `INSERT INTO messages
-         (id, mailbox_id, message_id_header, direction, from_address, to_addresses, cc_addresses, subject, snippet, body_r2_key, size_bytes, folder, draft_owner_id, draft_version, is_read, importance, received_at, created_at, in_reply_to, references_header)
-         VALUES (?, ?, ?, 'outbound', ?, ?, ?, ?, ?, ?, ?, 'drafts', ?, 1, 1, ?, ?, datetime('now'), ?, ?)`,
+         (id, mailbox_id, message_id_header, direction, from_address, from_name, to_addresses, cc_addresses, to_participants, cc_participants, subject, snippet, body_r2_key, size_bytes, folder, draft_owner_id, draft_version, is_read, importance, received_at, created_at, in_reply_to, references_header)
+         VALUES (?, ?, ?, 'outbound', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'drafts', ?, 1, 1, ?, ?, datetime('now'), ?, ?)`,
       ).bind(
-        draftId, mailbox.id, `<${draftId}@${domain}>`, from, JSON.stringify(toRecipients),
-        JSON.stringify(ccRecipients), subject, snippet, key, htmlBodyBytes, locals.user.id, importance, savedAtDb, inReplyTo, referencesHeader,
+        draftId, mailbox.id, `<${draftId}@${domain}>`, from, fromName, toAddressesJson,
+        ccAddressesJson, toParticipantJson, ccParticipantJson, subject, snippet, key, htmlBodyBytes, locals.user.id, importance, savedAtDb, inReplyTo, referencesHeader,
       ).run();
     } catch {
       if (!databaseWriteAttempted) {

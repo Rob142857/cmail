@@ -7,6 +7,13 @@ import { sendNewMailNotifications, type PushEnvironment } from '@cmail/shared/pu
 import { sanitizeBoundedEmailHtml } from '@cmail/shared/sanitize-email';
 import { parseMessageImportance } from '@cmail/shared/message-importance';
 import {
+  normalizeParticipantAddress,
+  normalizeParticipants,
+  sanitizeParticipantName,
+  serializeParticipants,
+  type MessageParticipant,
+} from '@cmail/shared/message-participants';
+import {
   readSpamScore,
   shouldQuarantine,
   spamQuarantineThreshold,
@@ -314,12 +321,27 @@ function normalizeStoredAddress(value: unknown): string {
   return cleanHeaderValue(value, MAX_ADDRESS_CHARS).toLowerCase();
 }
 
-function flattenParsedAddresses(
-  values: ReadonlyArray<{ address?: string; group?: ReadonlyArray<{ address: string }> }> | undefined,
-): string[] {
-  return (values || []).flatMap((entry) => entry.group?.length
-    ? entry.group.map((mailbox) => normalizeStoredAddress(mailbox.address)).filter(Boolean)
-    : [normalizeStoredAddress(entry.address)].filter(Boolean));
+type ParsedMailbox = { address?: string; name?: string; group?: ReadonlyArray<{ address?: string; name?: string }> };
+
+/** Flatten PostalMime groups after parsing, retaining decoded names only as
+ * display metadata and accepting only valid addr-specs for routing. */
+export function flattenParsedParticipants(values: ReadonlyArray<ParsedMailbox> | undefined): MessageParticipant[] {
+  const flattened: MessageParticipant[] = [];
+  for (const entry of values || []) {
+    const members = entry.group?.length ? entry.group : [entry];
+    for (const mailbox of members) {
+      const address = normalizeParticipantAddress(mailbox.address);
+      if (address) flattened.push({ address, name: sanitizeParticipantName(mailbox.name) });
+    }
+  }
+  return normalizeParticipants(flattened);
+}
+
+export function inboundFromParticipant(value: Pick<ParsedMailbox, 'address' | 'name'> | undefined, envelopeFrom: string): MessageParticipant {
+  const address = normalizeParticipantAddress(value?.address);
+  return address
+    ? { address, name: sanitizeParticipantName(value?.name) }
+    : { address: envelopeFrom, name: '' };
 }
 
 function sanitizeFilename(value: unknown): string {
@@ -872,9 +894,12 @@ export default {
       return;
     }
 
-    const toAddresses = flattenParsedAddresses(parsed.to);
-    const ccAddresses = flattenParsedAddresses(parsed.cc);
-    const replyToAddresses = flattenParsedAddresses(parsed.replyTo);
+    const toParticipants = flattenParsedParticipants(parsed.to);
+    const ccParticipants = flattenParsedParticipants(parsed.cc);
+    const replyToParticipants = flattenParsedParticipants(parsed.replyTo);
+    const toAddresses = toParticipants.map((entry) => entry.address);
+    const ccAddresses = ccParticipants.map((entry) => entry.address);
+    const replyToAddresses = replyToParticipants.map((entry) => entry.address);
     if (toAddresses.length + ccAddresses.length + replyToAddresses.length > MAX_ADDRESSES) {
       message.setReject('Message exceeds the recipient metadata limit');
       await logTrace(env.DB, {
@@ -889,8 +914,17 @@ export default {
       return;
     }
 
-    if (toAddresses.length === 0) toAddresses.push(recipientAddress);
-    const headerFrom = normalizeStoredAddress(parsed.from?.address) || senderAddress;
+    if (toAddresses.length === 0) {
+      // Bcc-only and malformed To headers still need a useful delivery
+      // context. Keep the routing and display metadata arrays in lockstep.
+      toAddresses.push(recipientAddress);
+      toParticipants.push({ address: recipientAddress, name: '' });
+    }
+    // A syntactically malformed From must not suppress the verified envelope
+    // fallback. Its display name is meaningful only alongside a valid address.
+    const parsedFrom = inboundFromParticipant(parsed.from, senderAddress);
+    const headerFrom = parsedFrom.address;
+    const fromName = parsedFrom.name;
     const subject = cleanHeaderValue(parsed.subject, MAX_SUBJECT_CHARS) || '(no subject)';
     const rawInReplyTo = parsed.headers?.find((header) => header.key.toLowerCase() === 'in-reply-to')?.value;
     const rawReferences = parsed.headers?.find((header) => header.key.toLowerCase() === 'references')?.value;
@@ -928,16 +962,20 @@ export default {
     }
 
     const messageInsert = env.DB.prepare(
-      `INSERT INTO messages (id, mailbox_id, message_id_header, direction, from_address, to_addresses, cc_addresses, reply_to_addresses, subject, snippet, body_r2_key, has_attachments, size_bytes, folder, is_read, is_starred, importance, in_reply_to, references_header, thread_id, spam_score, sender_first_contact, received_at, created_at)
-       VALUES (?, ?, ?, 'inbound', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+      `INSERT INTO messages (id, mailbox_id, message_id_header, direction, from_address, from_name, to_addresses, cc_addresses, reply_to_addresses, to_participants, cc_participants, reply_to_participants, subject, snippet, body_r2_key, has_attachments, size_bytes, folder, is_read, is_starred, importance, in_reply_to, references_header, thread_id, spam_score, sender_first_contact, received_at, created_at)
+       VALUES (?, ?, ?, 'inbound', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
     ).bind(
       messageId,
       mailbox.id,
       messageIdHeader,
       headerFrom,
+      fromName,
       JSON.stringify(toAddresses),
       JSON.stringify(ccAddresses),
       JSON.stringify(replyToAddresses),
+      serializeParticipants(toParticipants),
+      serializeParticipants(ccParticipants),
+      serializeParticipants(replyToParticipants),
       subject,
       extractInboundSnippet(parsed.text, preparedBody.html),
       bodyKey,

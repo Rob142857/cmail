@@ -403,6 +403,9 @@ describe('outbound journal failure and recovery boundaries', () => {
       targetAttachmentKey(target.message_id, 'attachment-1'),
     ]);
     expect(messageWrites).toHaveLength(1);
+    expect(messageWrites[0]?.[7]).toBe('Sender Example');
+    expect(messageWrites[0]?.[10]).toBe(JSON.stringify([{ address: 'person@example.net', name: '' }]));
+    expect(messageWrites[0]?.[11]).toBe('[]');
     expect(attachmentWrites).toHaveLength(1);
     expect(objects.has(targetBodyKey(target.mailbox_id, target.message_id))).toBe(true);
     expect(objects.has(targetAttachmentKey(target.message_id, 'attachment-1'))).toBe(true);
