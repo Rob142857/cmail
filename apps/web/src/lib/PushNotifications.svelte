@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getPushPreference, setPushPreference } from '$lib/push-client';
+  import { getPushPreference, pushDeviceId, setPushPreference } from '$lib/push-client';
+  import { applicationServerKey, subscriptionUsesCurrentVapidKey } from '$lib/push-subscription';
 
   let { publicKey, appName = 'cmail' } = $props<{ publicKey: string; appName?: string }>();
   let supported = $state(false);
@@ -10,19 +11,16 @@
   let denied = $state(false);
   let message = $state('');
 
-  function applicationServerKey(value: string): Uint8Array<ArrayBuffer> {
-    const padded = value + '='.repeat((4 - value.length % 4) % 4);
-    const binary = atob(padded.replace(/-/g, '+').replace(/_/g, '/'));
-    const bytes = new Uint8Array(new ArrayBuffer(binary.length));
-    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-    return bytes;
+  function subscriptionUsesCurrentKey(subscription: PushSubscription): boolean {
+    return subscriptionUsesCurrentVapidKey(subscription.options.applicationServerKey, publicKey);
   }
 
-  async function save(subscription: PushSubscription): Promise<void> {
+  async function save(subscription: PushSubscription, explicitEnable = false): Promise<void> {
+    const deviceId = await pushDeviceId();
     const response = await fetch('/api/push/subscriptions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(subscription.toJSON()),
+      body: JSON.stringify({ ...subscription.toJSON(), device_id: deviceId, ...(explicitEnable ? { enable: true } : {}) }),
     });
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
@@ -32,12 +30,13 @@
     }
   }
 
-  async function removeFromServer(endpoint: string): Promise<boolean> {
+  async function removeFromServer(endpoint: string, disable = false): Promise<boolean> {
     try {
+      const deviceId = await pushDeviceId();
       const response = await fetch('/api/push/subscriptions', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ endpoint }),
+        body: JSON.stringify({ ...(endpoint ? { endpoint } : {}), device_id: deviceId, ...(disable ? { disable: true } : {}) }),
       });
       return response.ok;
     } catch {
@@ -45,27 +44,47 @@
     }
   }
 
+  async function currentSubscription(registration: ServiceWorkerRegistration): Promise<PushSubscription> {
+    let subscription = await registration.pushManager.getSubscription();
+    if (subscription && !subscriptionUsesCurrentKey(subscription)) {
+      // A VAPID public-key rotation makes the existing browser capability
+      // unusable. Remove it server-side first where possible, then require a
+      // successful local unsubscribe before creating its replacement.
+      if (!await removeFromServer(subscription.endpoint)) {
+        throw new Error('New-mail alerts could not refresh their secure server registration. Try again.');
+      }
+      if (!await subscription.unsubscribe().catch(() => false)) {
+        throw new Error('New-mail alerts could not refresh their secure browser registration. Try again.');
+      }
+      subscription = null;
+    }
+    return subscription || registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: applicationServerKey(publicKey),
+    });
+  }
+
   async function refreshSubscription(): Promise<void> {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
-    if (getPushPreference() === 'off') {
-      if (!subscription) {
-        enabled = false;
-        return;
-      }
+    const preference = getPushPreference();
+    if (preference === 'off') {
       // A previous cleanup may have been interrupted. Retry both independent
       // stop paths, but never re-register after an explicit device opt-out.
-      const serverRemoved = await removeFromServer(subscription.endpoint);
-      const browserRemoved = await subscription.unsubscribe().catch(() => false);
+      const serverRemoved = await removeFromServer(subscription?.endpoint || '', true);
+      const browserRemoved = subscription ? await subscription.unsubscribe().catch(() => false) : true;
       enabled = !serverRemoved && !browserRemoved;
       if (enabled) message = 'New-mail alerts could not be fully disabled. Choose Turn off to retry.';
       return;
     }
-    enabled = Boolean(subscription && Notification.permission === 'granted');
-    if (enabled && subscription) {
-      await save(subscription);
-      setPushPreference('on');
+    if (Notification.permission === 'granted' && (subscription || preference === 'on')) {
+      const current = await currentSubscription(registration);
+      await save(current);
+      await setPushPreference('on');
+      enabled = true;
+      return;
     }
+    enabled = false;
   }
 
   onMount(() => {
@@ -120,15 +139,9 @@
         return;
       }
       const registration = await navigator.serviceWorker.ready;
-      created = await registration.pushManager.getSubscription();
-      if (!created) {
-        created = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: applicationServerKey(publicKey),
-        });
-      }
-      await save(created);
-      setPushPreference('on');
+      created = await currentSubscription(registration);
+      await save(created, true);
+      await setPushPreference('on');
       enabled = true;
       message = `New-mail alerts are enabled for ${appName} on this browser.`;
     } catch (error) {
@@ -144,12 +157,12 @@
     if (busy) return;
     busy = true;
     message = '';
-    setPushPreference('off');
+    await setPushPreference('off');
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
       if (subscription) {
-        const serverRemoved = await removeFromServer(subscription.endpoint);
+        const serverRemoved = await removeFromServer(subscription.endpoint, true);
         const browserRemoved = await subscription.unsubscribe().catch(() => false);
         if (!serverRemoved && !browserRemoved) throw new Error('subscription-cleanup');
         enabled = false;
@@ -160,10 +173,42 @@
             : 'New-mail alerts are off on this browser.';
         return;
       }
+      const serverRemoved = await removeFromServer('', true);
       enabled = false;
-      message = 'New-mail alerts are off on this browser.';
+      message = serverRemoved ? 'New-mail alerts are off on this browser.' : 'New-mail alerts could not be fully disabled. Choose Turn off to retry.';
     } catch {
       message = 'New-mail alerts could not be disabled. Try again.';
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function sendTestAlert(): Promise<void> {
+    if (busy || !enabled) return;
+    busy = true;
+    message = '';
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (!subscription) throw new Error('no-subscription');
+      const response = await fetch('/api/push/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: subscription.endpoint, device_id: await pushDeviceId() }),
+      });
+      const result = await response.json().catch(() => ({})) as { result?: string };
+      const messages: Record<string, string> = {
+        accepted: 'Test alert accepted by your notification service. It may take a moment to appear.',
+        configuration: 'The notification service rejected this server configuration. Ask an operator to check VAPID keys.',
+        transient: 'The notification service is temporarily unavailable. Try again shortly.',
+        expired: 'This browser registration expired. Turn alerts off and on again.',
+        rejected: 'This browser registration was rejected. Turn alerts off and on again.',
+        no_subscription: 'No active browser registration was found. Turn alerts off and on again.',
+        rate_limited: 'Too many test alerts were requested. Try again later.',
+      };
+      message = messages[result.result || ''] || 'Test alert could not be sent.';
+    } catch {
+      message = 'Test alert could not be sent. Check your connection and try again.';
     } finally {
       busy = false;
     }
@@ -187,12 +232,15 @@
     <button type="button" class="btn btn-sm" disabled={busy || denied} onclick={enabled ? disable : enable}>
       {busy ? 'Working…' : enabled ? 'Turn off' : 'Turn on'}
     </button>
+    {#if enabled}
+      <button type="button" class="btn btn-sm btn-secondary" disabled={busy} onclick={sendTestAlert}>Send test alert</button>
+    {/if}
     {#if message}<p role="status">{message}</p>{/if}
   </section>
 {/if}
 
 <style>
-  .push-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; padding: 10px 8px; border-top: 1px solid var(--border); }
+  .push-control { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 7px; padding: 10px 8px; border-top: 1px solid var(--border); }
   .push-control > div { min-width: 0; display: flex; flex-direction: column; }
   .push-control strong { font-size: 12px; }
   .push-control span, .push-control p { color: var(--text-muted); font-size: 10px; }

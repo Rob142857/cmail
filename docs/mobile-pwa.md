@@ -76,7 +76,10 @@ Chrome site permissions and Android app notifications both need to allow the
 alert. Chrome documents current site controls in its
 [Android notification guide](https://support.google.com/chrome/answer/3220216?co=GENIE.Platform%3DAndroid&hl=en-GB).
 Battery optimisation, data saving, Do Not Disturb, and vendor-specific
-background restrictions can delay notifications.
+background restrictions can delay notifications. If alerts do not appear, check
+both Chrome's site permission and Android's app notification permission, then
+allow background activity for Chrome/the installed web app where the device
+vendor offers that control.
 
 ## Turn alerts off
 
@@ -92,10 +95,14 @@ organisation's device-loss process; do not rely only on hiding notifications.
 
 ## Updates and recovery
 
-cmail checks for updated application files while it is open. Reopen the app or
-refresh the page to receive a new release; there is no separate app-store
-update process. If the installed app will not load, check the network, reopen
-or refresh it, and then ask support if the problem continues.
+cmail checks for a new deployment when it opens, returns to the foreground,
+regains focus or network access, and when the page is restored. It does not run
+a background polling timer. When a new version is found, a banner asks you to
+save or complete work, then close and reopen the installed app. In a browser
+tab, refresh after saving. cmail never reloads an open page automatically.
+There is no separate app-store update process. If the installed app will not
+load, check the network, reopen or refresh it, and then ask support if the
+problem continues.
 
 Removing a Home Screen icon does not close the account or revoke an existing
 session. Return to the organisation's cmail URL and repeat the relevant install
@@ -120,10 +127,14 @@ reopen cmail. Repeatedly selecting **Turn on** cannot override a system block.
 
 ### The control says On but no alert appears
 
-1. Keep a network connection and send a controlled test message to an active
-   mailbox assigned to you.
-2. Check Focus, Do Not Disturb, notification summaries, battery restrictions,
-   and system notification settings.
+1. Select **Send test alert** beside the enabled control. It is limited to three
+   requests per account each hour and tests the current browser/device
+   registration, scoped server-side to your signed-in account.
+   “Accepted” means the push service accepted cmail's request; it does not
+   prove the device displayed an alert.
+2. Check Chrome site permission, Android app notification permission, Focus,
+   Do Not Disturb, notification summaries, battery/data restrictions, and any
+   vendor background-app control.
 3. Open cmail and use **Refresh**. If the message is present, the problem is the
    notification path rather than mail delivery.
 4. If the message is absent, ask a manager to check Mail trace and mailbox

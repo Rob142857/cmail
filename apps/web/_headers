@@ -1,0 +1,7 @@
+# The service-worker update algorithm must never be delayed by an edge cache.
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# SvelteKit's explicit updated.check() reads this deployment version.
+/_app/version.json
+  Cache-Control: no-cache, no-store, must-revalidate

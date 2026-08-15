@@ -17,6 +17,7 @@ const activeUser = {
 
 const subscription = {
   endpoint: 'https://fcm.googleapis.com/fcm/send/device-1',
+  device_id: '3f1263cc-7ba2-4d7a-bc3f-e83f2b744a89',
   keys: {
     p256dh: 'A'.repeat(65),
     auth: 'B'.repeat(22),
@@ -31,7 +32,7 @@ function request(method: 'POST' | 'DELETE', body: unknown): Request {
   });
 }
 
-function database(options: { failInsert?: boolean } = {}) {
+function database(options: { failInsert?: boolean; blocked?: boolean } = {}) {
   const calls: Array<{ sql: string; values: unknown[] }> = [];
   const prepare = vi.fn((sql: string) => ({
     bind(...values: unknown[]) {
@@ -39,12 +40,12 @@ function database(options: { failInsert?: boolean } = {}) {
       return {
         run: async () => {
           if (options.failInsert && /INSERT INTO push_subscriptions/.test(sql)) throw new Error('D1 unavailable');
-          return { success: true, meta: { changes: 1 } };
+          return { success: true, meta: { changes: options.blocked && /WHERE NOT EXISTS/.test(sql) ? 0 : 1 } };
         },
       };
     },
   }));
-  return { DB: { prepare }, calls };
+  return { DB: { prepare, batch: async () => ({ success: true }) }, calls };
 }
 
 describe('push subscription API', () => {
@@ -84,9 +85,11 @@ describe('push subscription API', () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ enabled: true });
     expect(db.calls).toHaveLength(2);
-    expect(db.calls[0].sql).toMatch(/ON CONFLICT\(endpoint\) DO UPDATE SET/);
-    expect(db.calls[0].values.slice(1)).toEqual([
+    expect(db.calls[0].sql).toMatch(/WHERE NOT EXISTS/);
+    expect(db.calls[0].sql).toMatch(/device_id/);
+    expect(db.calls[0].values.slice(1, 6)).toEqual([
       activeUser.id,
+      subscription.device_id,
       subscription.endpoint,
       subscription.keys.p256dh,
       subscription.keys.auth,
@@ -107,6 +110,52 @@ describe('push subscription API', () => {
     expect(db.calls).toEqual([]);
   });
 
+  it('does not let a background subscription POST revive a disabled device', async () => {
+    const db = database({ blocked: true });
+    const response = await POST({
+      request: request('POST', subscription),
+      locals: { user: activeUser },
+      platform: { env: { DB: db.DB, ...pushEnvironment } },
+    } as never);
+    expect(response.status).toBe(409);
+    expect(db.calls[0].sql).toMatch(/INSERT INTO push_subscriptions/);
+    expect(db.calls[0].sql).toMatch(/WHERE NOT EXISTS/);
+    expect(db.calls.map((call) => call.sql)).toContain('DELETE FROM push_subscriptions WHERE user_id = ? AND device_id = ?');
+  });
+
+  it('clears a device block only on an explicit Turn on and removes both legacy and current device rows on opt-out', async () => {
+    const enableDb = database({ blocked: true });
+    const enabled = await POST({
+      request: request('POST', { ...subscription, enable: true }),
+      locals: { user: activeUser },
+      platform: { env: { DB: enableDb.DB, ...pushEnvironment } },
+    } as never);
+    expect(enabled.status).toBe(200);
+    expect(enableDb.calls[0].sql).toBe('DELETE FROM push_device_preferences WHERE user_id = ? AND device_id = ?');
+
+    const disableDb = database();
+    const disabled = await DELETE({
+      request: request('DELETE', { endpoint: subscription.endpoint, device_id: subscription.device_id, disable: true }),
+      locals: { user: activeUser },
+      platform: { env: { DB: disableDb.DB } },
+    } as never);
+    expect(disabled.status).toBe(200);
+    expect(disableDb.calls.map((call) => call.sql).join('\n')).toContain('INSERT INTO push_device_preferences');
+    expect(disableDb.calls.map((call) => call.sql)).toContain('DELETE FROM push_subscriptions WHERE user_id = ? AND device_id = ?');
+    expect(disableDb.calls.map((call) => call.sql)).toContain('DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?');
+    expect(disableDb.calls.find((call) => call.sql === 'DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?')?.values)
+      .toEqual([activeUser.id, subscription.endpoint]);
+
+    const noEndpointDb = database();
+    const disabledWithoutEndpoint = await DELETE({
+      request: request('DELETE', { device_id: subscription.device_id, disable: true }),
+      locals: { user: activeUser },
+      platform: { env: { DB: noEndpointDb.DB } },
+    } as never);
+    expect(disabledWithoutEndpoint.status).toBe(200);
+    expect(noEndpointDb.calls.map((call) => call.sql)).not.toContain('DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?');
+  });
+
   it('reports a retryable save failure and scopes deletion to the signed-in user and endpoint', async () => {
     const failing = database({ failInsert: true });
     const failedSave = await POST({
@@ -118,7 +167,7 @@ describe('push subscription API', () => {
 
     const db = database();
     const removed = await DELETE({
-      request: request('DELETE', { endpoint: subscription.endpoint }),
+      request: request('DELETE', { endpoint: subscription.endpoint, device_id: subscription.device_id }),
       locals: { user: activeUser },
       platform: { env: { DB: db.DB } },
     } as never);

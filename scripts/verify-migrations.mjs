@@ -296,6 +296,47 @@ function verifyUpgradeFixture() {
   assertEqual(displayRow.outbound_name, 'Good Owner', 'Upgrade outbound sender-name recovery');
   assertEqual(displayRow.inbound_name, '', 'Upgrade inbound sender name remains unguessed');
   assertEqual(displayRow.participant_default, '[]', 'Upgrade participant metadata default');
+
+  // An existing subscription predates per-device identity. The 0009 upgrade
+  // must preserve it with a NULL device ID so a later explicit device opt-out
+  // can remove the known legacy endpoint without guessing its device.
+  runWrangler(['d1', 'execute', ...upgradeArguments, '--command', `
+    INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth)
+    VALUES ('upgrade-legacy-push', 'upgrade-good',
+      'https://push.example.test/upgrade-legacy-endpoint', '${'p'.repeat(40)}', '12345678');
+  `]);
+  copyFileSync(
+    join(root, 'packages', 'shared', 'migrations', '0009_push_device_preferences.sql'),
+    join(upgradeMigrationsDirectory, '0009_push_device_preferences.sql'),
+  );
+  runWrangler(['d1', 'migrations', 'apply', ...upgradeArguments]);
+  const [pushUpgradeRow] = executeJson(upgradeArguments, `
+    SELECT
+      (SELECT device_id FROM push_subscriptions WHERE id = 'upgrade-legacy-push') AS legacy_device_id,
+      (SELECT COUNT(*) FROM sqlite_master WHERE type = 'index'
+        AND name = 'idx_push_subscriptions_user_device') AS device_index_count,
+      (SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'
+        AND name = 'push_device_preferences') AS preference_table_count;
+  `);
+  if (!pushUpgradeRow) throw new Error('Push-device upgrade fixture returned no verification row.');
+  assertEqual(pushUpgradeRow.legacy_device_id, null, 'Legacy subscription retains null device ID');
+  assertEqual(Number(pushUpgradeRow.device_index_count), 1, 'Upgrade push-device index');
+  assertEqual(Number(pushUpgradeRow.preference_table_count), 1, 'Upgrade push-device preference table');
+  runWrangler(['d1', 'execute', ...upgradeArguments, '--command', `
+    INSERT INTO push_device_preferences (user_id, device_id)
+    VALUES ('upgrade-good', '3f1263cc-7ba2-4d7a-bc3f-e83f2b744a89');
+    DELETE FROM push_subscriptions
+    WHERE user_id = 'upgrade-good'
+      AND endpoint = 'https://push.example.test/upgrade-legacy-endpoint';
+    DELETE FROM push_subscriptions
+    WHERE user_id = 'upgrade-good'
+      AND device_id = '3f1263cc-7ba2-4d7a-bc3f-e83f2b744a89';
+  `]);
+  const [pushDisableRow] = executeJson(upgradeArguments, `
+    SELECT COUNT(*) AS legacy_remaining FROM push_subscriptions
+    WHERE id = 'upgrade-legacy-push';
+  `);
+  assertEqual(Number(pushDisableRow?.legacy_remaining), 0, 'Legacy endpoint explicit disable cleanup');
 }
 
 try {
@@ -326,13 +367,14 @@ try {
           'mailbox_reservations', 'send_idempotency', 'retention_config', 'org_settings',
           'organization_directory_settings', 'organization_layers',
           'organization_units', 'organization_roles', 'organization_positions',
-          'push_subscriptions', 'outbound_send_journal',
+          'push_subscriptions', 'push_device_preferences', 'outbound_send_journal',
           'outbound_send_targets', 'outbound_send_attachments'
         )) AS application_table_count,
       (SELECT COUNT(*) FROM sqlite_master
         WHERE type = 'index' AND name IN (
           'idx_messages_inbound_idempotency', 'idx_signatures_user_policy',
           'idx_organization_units_root_name', 'idx_push_subscriptions_user',
+          'idx_push_subscriptions_user_device',
           'idx_messages_draft_owner',
           'idx_mailbox_reservations_mailbox_time',
           'idx_mailbox_reservations_sender_time',
@@ -411,6 +453,8 @@ try {
         WHERE name IN ('user_id', 'html_body', 'plain_text_body', 'is_locked', 'updated_at', 'updated_by')) AS personal_signature_column_count,
       (SELECT COUNT(*) FROM pragma_table_info('mailboxes')
         WHERE name = 'owner_user_id') AS personal_mailbox_owner_column_count,
+      (SELECT COUNT(*) FROM pragma_table_info('push_subscriptions')
+        WHERE name = 'device_id') AS push_device_id_column_count,
       (SELECT COUNT(*) FROM pragma_foreign_key_check) AS foreign_key_violation_count;
   `;
 
@@ -427,8 +471,8 @@ try {
 
   assertEqual(Number(row.migration_count), expectedMigrations.length, 'Applied migration count');
   assertArrayEqual(appliedMigrations, expectedMigrations, 'Applied migration names');
-  assertEqual(Number(row.application_table_count), 26, 'Application table count');
-  assertEqual(Number(row.essential_index_count), 9, 'Essential index count');
+  assertEqual(Number(row.application_table_count), 27, 'Application table count');
+  assertEqual(Number(row.essential_index_count), 10, 'Essential index count');
   assertEqual(Number(row.organization_trigger_count), 2, 'Organisation cycle-trigger count');
   assertEqual(Number(row.inbound_guard_trigger_count), 5, 'Delivery reservation-trigger count');
   assertEqual(Number(row.outbound_journal_trigger_count), 11, 'Outbound journal-trigger count');
@@ -449,6 +493,7 @@ try {
   assertEqual(Number(row.organisation_signature_enabled_column_count), 1, 'Organisation signature enabled column');
   assertEqual(Number(row.personal_signature_column_count), 6, 'Personal signature columns');
   assertEqual(Number(row.personal_mailbox_owner_column_count), 1, 'Personal mailbox owner column');
+  assertEqual(Number(row.push_device_id_column_count), 1, 'Push device identifier column');
   assertEqual(Number(row.foreign_key_violation_count), 0, 'Foreign-key violation count');
 
   verifyUpgradeFixture();
@@ -949,10 +994,31 @@ try {
     'Personal mailbox owner immutability guard',
   );
 
+  assertWranglerFailure(
+    ['d1', 'execute', ...baseArguments, '--command', `
+      INSERT INTO push_subscriptions (id, user_id, device_id, endpoint, p256dh, auth)
+      VALUES ('invalid-push-device', 'guard-user', 'short',
+        'https://push.example.test/invalid-device', '${'p'.repeat(40)}', '12345678');
+    `],
+    'Push device identifier length guard',
+  );
+  runWrangler(['d1', 'execute', ...baseArguments, '--command', `
+    INSERT INTO users (id, email, display_name, status)
+    VALUES ('push-preference-user', 'push-preference@example.test', 'Push Preference', 'active');
+    INSERT INTO push_device_preferences (user_id, device_id)
+    VALUES ('push-preference-user', '3f1263cc-7ba2-4d7a-bc3f-e83f2b744a89');
+    DELETE FROM users WHERE id = 'push-preference-user';
+  `]);
+  const [pushPreferenceRow] = executeJson(baseArguments, `
+    SELECT COUNT(*) AS preference_count FROM push_device_preferences
+    WHERE user_id = 'push-preference-user';
+  `);
+  assertEqual(Number(pushPreferenceRow?.preference_count), 0, 'Push device preference cascade cleanup');
+
   const migrationLabel = expectedMigrations.length === 1 ? 'migration' : 'migrations';
   console.log(
     `Fresh D1 migration verified: ${expectedMigrations.length} ${migrationLabel}, ` +
-      '26 application tables, required indexes, atomic delivery guards, triggers, and defaults.',
+      '27 application tables, required indexes, atomic delivery guards, triggers, and defaults.',
   );
 } finally {
   rmSync(persistenceDirectory, {

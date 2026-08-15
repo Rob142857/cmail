@@ -7,6 +7,7 @@ import {
   publicPushKey,
   pushConfiguration,
   sendNewMailNotifications,
+  sendTestPushNotification,
 } from '@cmail/shared/push';
 
 const encoder = new TextEncoder();
@@ -75,6 +76,8 @@ async function notificationDeliveryFixture(responseStatus = 201) {
   ) as CryptoKeyPair;
   const subscriberPublic = new Uint8Array(await crypto.subtle.exportKey('raw', subscriberKeys.publicKey));
   const subscription = {
+    id: 'subscription-1',
+    user_id: 'user-1',
     endpoint: 'https://fcm.googleapis.com/fcm/send/shared-mailbox-test',
     p256dh: encodeBase64Url(subscriberPublic),
     auth: encodeBase64Url(crypto.getRandomValues(new Uint8Array(16))),
@@ -86,7 +89,7 @@ async function notificationDeliveryFixture(responseStatus = 201) {
   const DB = {
     prepare(sql: string) {
       queries.push(sql);
-      if (/SELECT DISTINCT ps\.endpoint/.test(sql)) {
+      if (/SELECT DISTINCT ps\.id, ps\.user_id, ps\.endpoint/.test(sql) || /SELECT id, user_id, endpoint, p256dh, auth\s+FROM push_subscriptions/.test(sql)) {
         return {
           bind(...values: unknown[]) {
             selectedMailboxIds.push(values);
@@ -94,7 +97,7 @@ async function notificationDeliveryFixture(responseStatus = 201) {
           },
         };
       }
-      if (/DELETE FROM push_subscriptions WHERE endpoint/.test(sql)) {
+      if (/DELETE FROM push_subscriptions WHERE id = \? AND user_id = \? AND endpoint = \?/.test(sql)) {
         return {
           bind(...values: unknown[]) {
             removedEndpoints.push(values);
@@ -193,12 +196,42 @@ describe('Web Push configuration', () => {
     const fixture = await notificationDeliveryFixture(410);
 
     await sendNewMailNotifications(fixture.env as never, 'shared-mailbox-1', 'message-1');
-    expect(fixture.removedEndpoints).toEqual([[fixture.subscription.endpoint]]);
+    expect(fixture.removedEndpoints).toEqual([['subscription-1', 'user-1', fixture.subscription.endpoint]]);
 
     const queryCount = fixture.queries.length;
     await sendNewMailNotifications(fixture.env as never, 'shared mailbox', 'message-2');
     expect(fixture.queries).toHaveLength(queryCount);
     expect(fixture.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [201, 'accepted', false],
+    [410, 'expired', true],
+    [401, 'configuration', false],
+    [403, 'configuration', false],
+    [429, 'retryable', false],
+    [503, 'retryable', false],
+    [400, 'rejected', false],
+  ])('classifies provider status %s as %s without logging capability data', async (status, result, removed) => {
+    const fixture = await notificationDeliveryFixture(status);
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const summary = await sendNewMailNotifications(fixture.env as never, 'shared-mailbox-1', 'message-1');
+
+    expect(summary).toMatchObject({ attempted: 1, [result]: 1 });
+    expect(fixture.removedEndpoints).toHaveLength(removed ? 1 : 0);
+    expect(warning).not.toHaveBeenCalled();
+  });
+
+  it('sends a bounded generic test alert only to the requesting user subscriptions', async () => {
+    const fixture = await notificationDeliveryFixture();
+    const queries = fixture.queries;
+    const summary = await sendTestPushNotification(fixture.env as never, 'user-1', 'device-1', fixture.subscription.endpoint);
+
+    expect(queries[0]).toMatch(/WHERE user_id = \? AND device_id = \? AND endpoint = \?/);
+    expect(fixture.fetch).toHaveBeenCalledOnce();
+    const request = fixture.fetch.mock.calls[0][1] as RequestInit;
+    expect(new TextDecoder().decode(request.body as Uint8Array)).not.toContain('user-1');
+    expect(summary.accepted).toBe(1);
   });
 
   it('creates an authenticated request whose RFC 8291 payload decrypts for the subscriber', async () => {
@@ -237,8 +270,8 @@ describe('Web Push configuration', () => {
     expect(request.headers).toMatchObject({
       'Content-Encoding': 'aes128gcm',
       'Content-Type': 'application/octet-stream',
-      TTL: '300',
-      Urgency: 'normal',
+      TTL: '900',
+      Urgency: 'high',
     });
     expect(request.headers).not.toHaveProperty('Topic');
     expect(request.body.byteLength).toBeLessThanOrEqual(4096);

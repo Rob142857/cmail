@@ -60,7 +60,7 @@
 
   <section>
     <h2>Updates, recovery and offline use</h2>
-    <p>{page.data?.appName || 'cmail'} checks for updated application files while it is open. Reopen the app or refresh the page to receive a new release; there is no separate app-store update process.</p>
+    <p>{page.data?.appName || 'cmail'} checks for a new deployment when it opens, returns to the foreground, regains focus or network access, and when the page is restored. It does not use a background polling timer. When an update is ready, save or complete work, then close and reopen the installed app. In a browser tab, refresh after saving. cmail never reloads an open page automatically.</p>
     <ul>
       <li>Mail, search, compose and sending require a network connection. The app does not keep mailbox pages or message content for offline use.</li>
       <li>If the icon was removed, return to this site and install it again. Removing an icon does not close the account or revoke an existing session.</li>
@@ -73,7 +73,8 @@
     <div class="troubleshooting">
       <div><strong>No Install option</strong><p>On iPhone or iPad, use Safari and make sure Open as Web App is enabled. On Android, look for Install app or Add to home screen in Chrome. Confirm the site uses HTTPS, then ask the operator to verify the web manifest and icons.</p></div>
       <div><strong>No notification control</strong><p>The operator may not have configured VAPID keys, the browser may not support Web Push, or an iPhone/iPad site may not be running from its Home Screen icon.</p></div>
-      <div><strong>Notifications blocked</strong><p>Open the device's notification or site settings, allow notifications for this app/site, reopen it, and check the control again.</p></div>
+      <div><strong>Notifications blocked</strong><p>Open Chrome's site settings and Android's app notification settings, allow notifications for this app/site, reopen it, and check the control again. Focus, Do Not Disturb, battery/data saving and vendor background-app controls can still delay an allowed alert.</p></div>
+      <div><strong>Test an alert</strong><p>When New-mail alerts are on, select Send test alert. “Accepted” means the push service accepted the request, not that Android displayed it. Check permissions and battery/Do Not Disturb controls before treating this as a mail-delivery issue.</p></div>
       <div><strong>Mail unavailable offline</strong><p>This is expected. cmail deliberately does not cache mailbox pages or message content for offline use. Reconnect and refresh.</p></div>
     </div>
   </section>

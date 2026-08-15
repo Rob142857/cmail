@@ -125,6 +125,11 @@ Even when the deployment is configured, a signed-in user must deliberately
 enable notifications and approve the browser permission. Payloads are generic:
 they contain no sender, subject, mailbox name, address, body, or attachment
 data. Push delivery is best-effort and is never a substitute for mailbox state.
+The in-product **Send test alert** control is rate-limited to three requests per
+active account each hour and targets the current browser/device registration,
+scoped server-side to the signed-in user. An `accepted` result means the browser push service accepted the
+request; device presentation can still be delayed or suppressed by operating
+system, browser, network, battery or Do Not Disturb controls.
 On iPhone and iPad, [standards-based Web Push is available to web apps added to
 the Home Screen](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/);
 the user must launch that installed app and use its **Turn on** control. Other
@@ -133,6 +138,11 @@ the control stays hidden where Push, Notifications, or service workers are not
 available.
 Rotating the VAPID pair invalidates existing subscriptions, so communicate the
 change and have users opt in again.
+
+The current notification path is direct and best-effort. It is not a durable
+queue; see the non-implemented [push notification reliability
+blueprint](push-notification-reliability.md) before designing a higher-assurance
+delivery path.
 
 ## Outbound delivery
 

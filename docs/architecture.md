@@ -157,6 +157,16 @@ payloads contain only generic new-mail copy plus an authenticated in-app route;
 message and mailbox metadata are excluded. Push endpoints are restricted to a
 built-in service-host allowlist plus operator-reviewed additions.
 
+Notification fan-out is currently best-effort: inbound storage completes first,
+then the runtime attempts delivery to active assigned subscribers without a
+durable per-attempt queue, retry record or device-display receipt. A successful
+push-service response means only that service accepted the request. The mailbox
+and mail trace remain the authoritative delivery record. Any future durable
+Queue design must persist an attempt before asynchronous fan-out and define
+bounded retry, expiry/dead-letter handling and operator-visible outcomes before
+it is described as reliable delivery. See the non-implemented [push
+notification reliability blueprint](push-notification-reliability.md).
+
 ## Trust boundaries
 
 - Treat browser input, routed email, provider responses, message HTML,

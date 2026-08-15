@@ -11,6 +11,9 @@ const config = {
         exclude: ['<all>'],
       },
     }),
+    // Lifecycle-triggered updated.check() calls in the root layout perform
+    // deployment detection; disable SvelteKit's background polling timer.
+    version: { pollInterval: 0 },
     // CSP — SvelteKit auto-injects sha256 hashes for its own hydration scripts
     // and inline styles when mode is 'hash'. We can therefore stay on a strict
     // policy WITHOUT 'unsafe-inline' for scripts.

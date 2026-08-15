@@ -1,8 +1,54 @@
-// cmail service worker — minimal, network-first, auto-updating.
-// We do NOT cache responses — the goal is just PWA installability and
-// guaranteeing that a new deployment reaches every installed client immediately.
+// cmail service worker — minimal and network-only. Deployment lifecycle checks
+// discover new versions without caching mailbox or application responses.
 
 const VERSION = 'cmail-2026-08-15-1';
+const PUSH_PREFERENCE_DB = 'cmail-push-preferences';
+const PUSH_PREFERENCE_STORE = 'settings';
+const PUSH_PREFERENCE_KEY = 'cmail_push_preference';
+const PUSH_DEVICE_KEY = 'cmail_push_device_id';
+let pushPreferenceOverride = '';
+
+function openPushPreferenceDatabase() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(PUSH_PREFERENCE_DB, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(PUSH_PREFERENCE_STORE);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function pushSettings() {
+  if (pushPreferenceOverride === 'off') return { preference: 'off', deviceId: '' };
+  try {
+    const database = await openPushPreferenceDatabase();
+    try {
+      return await new Promise((resolve, reject) => {
+        const transaction = database.transaction(PUSH_PREFERENCE_STORE, 'readonly');
+        const store = transaction.objectStore(PUSH_PREFERENCE_STORE);
+        const preference = store.get(PUSH_PREFERENCE_KEY);
+        const device = store.get(PUSH_DEVICE_KEY);
+        let remaining = 2;
+        const finish = () => {
+          remaining -= 1;
+          if (!remaining) resolve({
+            preference: preference.result === 'on' ? 'on' : 'off',
+            deviceId: typeof device.result === 'string' ? device.result : '',
+          });
+        };
+        preference.onsuccess = finish;
+        device.onsuccess = finish;
+        preference.onerror = () => reject(preference.error);
+        device.onerror = () => reject(device.error);
+      });
+    } finally {
+      database.close();
+    }
+  } catch {
+    // Fail closed: a background worker must never revive an alert after an
+    // explicit opt-out simply because it cannot read durable preference state.
+    return { preference: 'off', deviceId: '' };
+  }
+}
 
 self.addEventListener('install', (event) => {
   // Take over straight away on first install or version bump.
@@ -26,6 +72,9 @@ self.addEventListener('fetch', (event) => {
 // Allow page to manually trigger an update.
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting();
+  if (event.data?.type === 'PUSH_PREFERENCE' && (event.data.preference === 'on' || event.data.preference === 'off')) {
+    pushPreferenceOverride = event.data.preference;
+  }
 });
 
 // Notification payloads are intentionally privacy-minimal. The server sends
@@ -56,6 +105,13 @@ self.addEventListener('push', (event) => {
 // endpoint. A foreground refresh is retained as the fail-safe path.
 self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil((async () => {
+    const settings = await pushSettings();
+    if (settings.preference !== 'on' || !settings.deviceId) {
+      // Some browsers can supply a replacement subscription before a stale
+      // worker wakes. Do not persist it, and remove it locally where possible.
+      await event.newSubscription?.unsubscribe?.().catch(() => undefined);
+      return;
+    }
     let subscription = event.newSubscription;
     if (!subscription && event.oldSubscription?.options?.applicationServerKey) {
       try {
@@ -73,7 +129,7 @@ self.addEventListener('pushsubscriptionchange', (event) => {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(subscription.toJSON()),
+        body: JSON.stringify({ ...subscription.toJSON(), device_id: settings.deviceId }),
       }).catch(() => undefined);
     }
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });

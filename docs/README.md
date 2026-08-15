@@ -10,6 +10,8 @@ real mail to it.
   folders, safety, and support.
 - [Mobile app and notification guide](mobile-pwa.md) — installation and Web
   Push on iPhone, iPad, and Android, including permission troubleshooting.
+- [Push notification reliability blueprint](push-notification-reliability.md)
+  — non-implemented design for a durable future notification pipeline.
 - [Mail client connectivity architecture](mail-client-connectivity.md) — the
   current PWA boundary and the staged JMAP/optional IMAP compatibility path.
 - [Shared mailboxes](shared-mailboxes.md) — delegation, Send as, Full access,

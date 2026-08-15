@@ -19,10 +19,27 @@ export interface WebPushSubscription {
   auth: string;
 }
 
+interface StoredPushSubscription extends WebPushSubscription {
+  id: string;
+  user_id: string;
+}
+
 export interface WebPushRequest {
   endpoint: string;
   headers: Record<string, string>;
   body: Uint8Array<ArrayBuffer>;
+}
+
+export type PushDeliveryResult = 'accepted' | 'expired' | 'configuration' | 'retryable' | 'rejected' | 'invalid';
+
+export interface PushDeliverySummary {
+  attempted: number;
+  accepted: number;
+  expired: number;
+  configuration: number;
+  retryable: number;
+  rejected: number;
+  invalid: number;
 }
 
 interface NewMailNotificationPayload {
@@ -43,6 +60,7 @@ const encoder = new TextEncoder();
 const PUSH_RECORD_SIZE = 4096;
 const PUSH_HEADER_SIZE = 86;
 const MAX_PUSH_PLAINTEXT = PUSH_RECORD_SIZE - PUSH_HEADER_SIZE - 16 - 1;
+const PUSH_TTL_SECONDS = 15 * 60;
 
 class InvalidPushSubscriptionError extends Error {
   constructor(message: string) {
@@ -334,26 +352,37 @@ export async function createWebPushRequest(
       Authorization: authorization,
       'Content-Encoding': 'aes128gcm',
       'Content-Type': 'application/octet-stream',
-      TTL: '300',
-      Urgency: 'normal',
+      TTL: String(PUSH_TTL_SECONDS),
+      Urgency: 'high',
     },
     body,
   };
 }
 
-async function removeSubscription(db: D1Database, endpoint: string): Promise<void> {
-  await db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(endpoint).run().catch(() => undefined);
+async function removeSubscription(db: D1Database, subscription: StoredPushSubscription): Promise<void> {
+  await db.prepare(
+    'DELETE FROM push_subscriptions WHERE id = ? AND user_id = ? AND endpoint = ?',
+  ).bind(subscription.id, subscription.user_id, subscription.endpoint).run().catch(() => undefined);
+}
+
+function emptyDeliverySummary(): PushDeliverySummary {
+  return { attempted: 0, accepted: 0, expired: 0, configuration: 0, retryable: 0, rejected: 0, invalid: 0 };
+}
+
+function addDeliveryResult(summary: PushDeliverySummary, result: PushDeliveryResult): void {
+  summary.attempted += 1;
+  summary[result] += 1;
 }
 
 async function deliver(
   env: PushEnvironment,
   configuration: PushConfiguration,
-  subscription: WebPushSubscription,
+  subscription: StoredPushSubscription,
   payload: string,
-): Promise<void> {
+): Promise<PushDeliveryResult> {
   if (!isAllowedPushEndpoint(subscription.endpoint, env)) {
-    await removeSubscription(env.DB, subscription.endpoint);
-    return;
+    await removeSubscription(env.DB, subscription);
+    return 'invalid';
   }
 
   let request: WebPushRequest;
@@ -361,9 +390,9 @@ async function deliver(
     request = await createWebPushRequest(configuration, subscription, payload);
   } catch (error) {
     if (error instanceof InvalidPushSubscriptionError) {
-      await removeSubscription(env.DB, subscription.endpoint);
+      await removeSubscription(env.DB, subscription);
     }
-    return;
+    return 'invalid';
   }
 
   try {
@@ -373,28 +402,54 @@ async function deliver(
       body: request.body,
       redirect: 'error',
     });
+    if (response.status >= 200 && response.status < 300) return 'accepted';
     if (response.status === 404 || response.status === 410) {
-      await removeSubscription(env.DB, subscription.endpoint);
+      await removeSubscription(env.DB, subscription);
+      return 'expired';
     }
+    if (response.status === 401 || response.status === 403) return 'configuration';
+    if (response.status === 429 || response.status >= 500) return 'retryable';
+    return 'rejected';
   } catch {
     // Push is best-effort. Network failures must never reject mail delivery.
+    return 'retryable';
   }
+}
+
+async function deliverSubscriptions(
+  env: PushEnvironment,
+  configuration: PushConfiguration,
+  subscriptions: StoredPushSubscription[],
+  payload: string,
+): Promise<PushDeliverySummary> {
+  const summary = emptyDeliverySummary();
+  for (let index = 0; index < subscriptions.length; index += 8) {
+    const results = await Promise.all(subscriptions.slice(index, index + 8).map((subscription) =>
+      deliver(env, configuration, subscription, payload)));
+    for (const result of results) addDeliveryResult(summary, result);
+  }
+  return summary;
+}
+
+function testNotificationPayload(appName: string | undefined): NewMailNotificationPayload {
+  const title = text(appName).replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 72) || 'cmail';
+  return { title, body: 'Test alert: notifications are working.', url: '/mail', tag: 'cmail:test:alert' };
 }
 
 export async function sendNewMailNotifications(
   env: PushEnvironment,
   mailboxId: string,
   messageId: string,
-): Promise<void> {
+): Promise<PushDeliverySummary> {
   const configuration = pushConfiguration(env);
-  if (!configuration) return;
+  if (!configuration) return { ...emptyDeliverySummary(), configuration: 1 };
   const notification = newMailNotificationPayload(env.APP_NAME, mailboxId, messageId);
-  if (!notification) return;
+  if (!notification) return emptyDeliverySummary();
 
-  let subscriptions: WebPushSubscription[] = [];
+  let subscriptions: StoredPushSubscription[] = [];
   try {
     const result = await env.DB.prepare(
-      `SELECT DISTINCT ps.endpoint, ps.p256dh, ps.auth
+      `SELECT DISTINCT ps.id, ps.user_id, ps.endpoint, ps.p256dh, ps.auth
        FROM push_subscriptions ps
        INNER JOIN users u ON u.id = ps.user_id AND u.status = 'active'
        INNER JOIN mailbox_assignments ma ON ma.user_id = ps.user_id
@@ -402,7 +457,7 @@ export async function sendNewMailNotifications(
        WHERE ma.mailbox_id = ?
        ORDER BY ps.updated_at DESC
        LIMIT 500`,
-    ).bind(mailboxId).all<WebPushSubscription>();
+    ).bind(mailboxId).all<StoredPushSubscription>();
     // DISTINCT is enforced in D1 as the primary guard. The second bounded
     // dedupe keeps a malformed adapter/mock/result set from sending the same
     // browser endpoint twice for one delivery.
@@ -412,15 +467,37 @@ export async function sendNewMailNotifications(
     ])).values()];
   } catch {
     // A deployment that has not applied the optional migration fails closed.
-    return;
+    return emptyDeliverySummary();
   }
 
   const payload = JSON.stringify(notification);
 
   // Bound concurrent external requests so a heavily shared mailbox cannot
   // turn one inbound delivery into an unbounded fan-out burst.
-  for (let index = 0; index < subscriptions.length; index += 8) {
-    await Promise.all(subscriptions.slice(index, index + 8).map((subscription) =>
-      deliver(env, configuration, subscription, payload)));
+  return deliverSubscriptions(env, configuration, subscriptions, payload);
+}
+
+/** Send a generic alert to the signed-in user's own browser subscriptions. */
+export async function sendTestPushNotification(
+  env: PushEnvironment,
+  userId: string,
+  deviceId: string,
+  endpoint: string,
+): Promise<PushDeliverySummary> {
+  const configuration = pushConfiguration(env);
+  if (!configuration) return { ...emptyDeliverySummary(), configuration: 1 };
+
+  let subscriptions: StoredPushSubscription[] = [];
+  try {
+    const result = await env.DB.prepare(
+      `SELECT id, user_id, endpoint, p256dh, auth
+       FROM push_subscriptions
+       WHERE user_id = ? AND device_id = ? AND endpoint = ?
+       LIMIT 1`,
+    ).bind(userId, deviceId, endpoint).all<StoredPushSubscription>();
+    subscriptions = result.results || [];
+  } catch {
+    return { ...emptyDeliverySummary(), retryable: 1 };
   }
+  return deliverSubscriptions(env, configuration, subscriptions, JSON.stringify(testNotificationPayload(env.APP_NAME)));
 }
