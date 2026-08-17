@@ -10,6 +10,7 @@
   let busy = $state(false);
   let denied = $state(false);
   let message = $state('');
+  let diagnostic = $state('');
 
   function subscriptionUsesCurrentKey(subscription: PushSubscription): boolean {
     return subscriptionUsesCurrentVapidKey(subscription.options.applicationServerKey, publicKey);
@@ -130,6 +131,7 @@
     if (busy) return;
     busy = true;
     message = '';
+    diagnostic = '';
     let created: PushSubscription | null = null;
     try {
       const permission = await Notification.requestPermission();
@@ -157,6 +159,7 @@
     if (busy) return;
     busy = true;
     message = '';
+    diagnostic = '';
     await setPushPreference('off');
     try {
       const registration = await navigator.serviceWorker.ready;
@@ -187,6 +190,7 @@
     if (busy || !enabled) return;
     busy = true;
     message = '';
+    diagnostic = '';
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
@@ -196,7 +200,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ endpoint: subscription.endpoint, device_id: await pushDeviceId() }),
       });
-      const result = await response.json().catch(() => ({})) as { result?: string };
+      const result = await response.json().catch(() => ({})) as { result?: string; diagnostic?: string };
       const messages: Record<string, string> = {
         accepted: 'Test alert accepted by your notification service. It may take a moment to appear.',
         configuration: 'The notification service rejected this server configuration. Ask an operator to check VAPID keys.',
@@ -207,6 +211,9 @@
         rate_limited: 'Too many test alerts were requested. Try again later.',
       };
       message = messages[result.result || ''] || 'Test alert could not be sent.';
+      diagnostic = typeof result.diagnostic === 'string' && /^[a-z_]{3,64}$/.test(result.diagnostic)
+        ? result.diagnostic
+        : '';
     } catch {
       message = 'Test alert could not be sent. Check your connection and try again.';
     } finally {
@@ -236,6 +243,7 @@
       <button type="button" class="btn btn-sm btn-secondary" disabled={busy} onclick={sendTestAlert}>Send test alert</button>
     {/if}
     {#if message}<p role="status">{message}</p>{/if}
+    {#if diagnostic}<p class="push-diagnostic">Diagnostic: <code>{diagnostic}</code>. Share this code with your operator; it contains no notification credentials.</p>{/if}
   </section>
 {/if}
 

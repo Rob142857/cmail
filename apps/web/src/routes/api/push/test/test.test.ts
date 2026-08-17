@@ -3,6 +3,7 @@ import { POST } from './+server';
 
 vi.mock('@cmail/shared/push', () => ({
   isAllowedPushEndpoint: vi.fn().mockReturnValue(true),
+  pushConfigurationDiagnostic: vi.fn().mockReturnValue('ready'),
   sendTestPushNotification: vi.fn(),
 }));
 import { sendTestPushNotification } from '@cmail/shared/push';
@@ -55,15 +56,25 @@ describe('push test alert API', () => {
   });
 
   it.each([
-    [{ attempted: 1, accepted: 1, expired: 0, configuration: 0, retryable: 0, rejected: 0, invalid: 0 }, 'accepted', 200],
-    [{ attempted: 1, accepted: 0, expired: 0, configuration: 1, retryable: 0, rejected: 0, invalid: 0 }, 'configuration', 503],
-    [{ attempted: 1, accepted: 0, expired: 0, configuration: 0, retryable: 1, rejected: 0, invalid: 0 }, 'transient', 503],
-    [{ attempted: 0, accepted: 0, expired: 0, configuration: 0, retryable: 0, rejected: 0, invalid: 0 }, 'no_subscription', 409],
-  ])('reports %s without disclosing subscription data', async (summary, result, status) => {
+    [{ attempted: 1, accepted: 1, expired: 0, configuration: 0, retryable: 0, rejected: 0, invalid: 0 }, 'accepted', 200, undefined],
+    [{ attempted: 1, accepted: 0, expired: 0, configuration: 1, retryable: 0, rejected: 0, invalid: 0 }, 'configuration', 503, 'push_configuration_rejected'],
+    [{ attempted: 1, accepted: 0, expired: 0, configuration: 0, retryable: 1, rejected: 0, invalid: 0 }, 'transient', 503, 'push_service_unavailable'],
+    [{ attempted: 0, accepted: 0, expired: 0, configuration: 0, retryable: 0, rejected: 0, invalid: 0 }, 'no_subscription', 409, undefined],
+  ])('reports %s without disclosing subscription data', async (summary, result, status, diagnostic) => {
     vi.mocked(sendTestPushNotification).mockResolvedValueOnce(summary as never);
     const response = await POST(event());
     expect(response.status).toBe(status);
-    await expect(response.json()).resolves.toEqual({ result });
+    await expect(response.json()).resolves.toEqual({ result, ...(diagnostic ? { diagnostic } : {}) });
     expect(sendTestPushNotification).toHaveBeenCalledWith(expect.anything(), user.id, target.device_id, target.endpoint);
+  });
+
+  it('reports a safe configuration diagnostic before spending a test-send allowance', async () => {
+    const { pushConfigurationDiagnostic } = await import('@cmail/shared/push');
+    vi.mocked(sendTestPushNotification).mockClear();
+    vi.mocked(pushConfigurationDiagnostic).mockReturnValueOnce('vapid_not_configured');
+    const response = await POST(event());
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ result: 'configuration', diagnostic: 'vapid_not_configured' });
+    expect(sendTestPushNotification).not.toHaveBeenCalled();
   });
 });

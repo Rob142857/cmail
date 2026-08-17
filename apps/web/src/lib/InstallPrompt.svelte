@@ -14,18 +14,21 @@
   let wasDismissed = $state(false);
 
   // Check if already in standalone mode (already installed)
-  const isStandalone = Boolean(browser && (window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && navigator.standalone)));
-  const isIos = Boolean(browser && (
-    /iPad|iPhone|iPod/i.test(navigator.userAgent)
-    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  ));
-  const isIosSafari = Boolean(browser && isIos
-    && /Safari/i.test(navigator.userAgent)
-    && !/(CriOS|FxiOS|EdgiOS|OPiOS)/i.test(navigator.userAgent));
+  // These are deliberately initialised server-safe and populated after mount.
+  // Reading browser state during hydration made standalone installs disagree
+  // with their server-rendered markup.
+  let isStandalone = $state(false);
+  let isIosSafari = $state(false);
 
   // Session-dismiss key (sessionStorage so it resets each session)
   const DISMISS_KEY = 'cmail_pwa_dismissed';
   onMount(() => {
+    isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || ('standalone' in navigator && Boolean(navigator.standalone));
+    const isIos = /iPad|iPhone|iPod/i.test(navigator.userAgent)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    isIosSafari = isIos && /Safari/i.test(navigator.userAgent)
+      && !/(CriOS|FxiOS|EdgiOS|OPiOS)/i.test(navigator.userAgent);
     try {
       wasDismissed = sessionStorage.getItem(DISMISS_KEY) === '1';
     } catch {
@@ -33,6 +36,9 @@
     }
     if (isStandalone || wasDismissed) return;
     const beforeInstall = (e) => {
+      // This intentionally replaces Chrome's default mini-infobar with the
+      // explicit Install button below. The browser console notice is expected:
+      // prompt() is called only after the person's click.
       e.preventDefault();
       deferredPrompt = e;
     };

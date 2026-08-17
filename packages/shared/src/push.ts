@@ -13,6 +13,9 @@ export interface PushConfiguration {
   subject: string;
 }
 
+/** Safe operator-facing state only; never return key material or endpoint data. */
+export type PushConfigurationDiagnostic = 'ready' | 'vapid_not_configured' | 'vapid_invalid';
+
 export interface WebPushSubscription {
   endpoint: string;
   p256dh: string;
@@ -163,6 +166,14 @@ export function pushConfiguration(env: Partial<PushEnvironment>): PushConfigurat
   if (!validVapidKeyShape(publicKey, privateKey)) return null;
   if (!validVapidSubject(subject)) return null;
   return { publicKey, privateKey, subject };
+}
+
+export function pushConfigurationDiagnostic(env: Partial<PushEnvironment>): PushConfigurationDiagnostic {
+  const publicKey = text(env.VAPID_PUBLIC_KEY);
+  const privateKey = text(env.VAPID_PRIVATE_KEY);
+  const subject = text(env.VAPID_SUBJECT);
+  if (!publicKey || !privateKey || !subject) return 'vapid_not_configured';
+  return pushConfiguration(env) ? 'ready' : 'vapid_invalid';
 }
 
 export function publicPushKey(env: Partial<PushEnvironment>): string {

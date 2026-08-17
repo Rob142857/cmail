@@ -1,7 +1,7 @@
 // cmail service worker — minimal and network-only. Deployment lifecycle checks
 // discover new versions without caching mailbox or application responses.
 
-const VERSION = 'cmail-2026-08-15-1';
+const VERSION = 'cmail-2026-08-17-1';
 const PUSH_PREFERENCE_DB = 'cmail-push-preferences';
 const PUSH_PREFERENCE_STORE = 'settings';
 const PUSH_PREFERENCE_KEY = 'cmail_push_preference';
@@ -62,11 +62,6 @@ self.addEventListener('activate', (event) => {
     await Promise.all(keys.map((k) => caches.delete(k)));
     await self.clients.claim();
   })());
-});
-
-// Pass-through: never serve from cache, always fetch fresh from network.
-self.addEventListener('fetch', (event) => {
-  // Don't intercept; let the browser handle it normally.
 });
 
 // Allow page to manually trigger an update.
