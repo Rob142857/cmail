@@ -1346,7 +1346,7 @@ export const actions: Actions = {
       await env.DB.prepare(
         `INSERT INTO messages
          (id, mailbox_id, message_id_header, direction, from_address, from_name, to_addresses, cc_addresses, to_participants, cc_participants, subject, snippet, body_r2_key, size_bytes, folder, draft_owner_id, draft_version, is_read, importance, received_at, created_at, in_reply_to, references_header)
-         VALUES (?, ?, ?, 'outbound', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'drafts', ?, 1, 1, ?, ?, datetime('now'), ?, ?)`,
+         VALUES (?, ?, ?, 'outbound', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'drafts', ?, 1, 1, ?, ?, datetime('now'), ?, ?)`,
       ).bind(
         draftId, mailbox.id, `<${draftId}@${domain}>`, from, fromName, toAddressesJson,
         ccAddressesJson, toParticipantJson, ccParticipantJson, subject, snippet, key, htmlBodyBytes, locals.user.id, importance, savedAtDb, inReplyTo, referencesHeader,
