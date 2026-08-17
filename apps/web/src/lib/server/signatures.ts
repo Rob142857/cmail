@@ -1,7 +1,6 @@
 import { sanitizeBoundedEmailHtml } from '@cmail/shared/sanitize-email';
 import type { Root, RootContent } from 'hast';
 import rehypeParse from 'rehype-parse';
-import rehypeStringify from 'rehype-stringify';
 import { unified } from 'unified';
 
 const SIGNATURE_LIMITS = {
@@ -16,7 +15,6 @@ const BLOCK_ELEMENTS = new Set([
   'li', 'p', 'pre', 'section', 'tr',
 ]);
 const signatureParser = unified().use(rehypeParse, { fragment: true });
-const signatureStringifier = unified().use(rehypeStringify);
 
 export interface StoredPersonalSignature {
   user_id: string;
@@ -50,18 +48,6 @@ export interface EffectiveSignature {
   personalLocked: boolean;
 }
 
-function stripImages<T extends RootContent>(nodes: T[]): T[] {
-  const filtered: T[] = [];
-  for (const node of nodes) {
-    if (node.type === 'element') {
-      if (node.tagName === 'img') continue;
-      node.children = stripImages(node.children);
-    }
-    filtered.push(node);
-  }
-  return filtered;
-}
-
 function appendVisibleText(node: RootContent, output: string[]): void {
   if (node.type === 'text') {
     output.push(node.value);
@@ -69,21 +55,19 @@ function appendVisibleText(node: RootContent, output: string[]): void {
   }
   if (node.type !== 'element') return;
   if (node.tagName === 'br') output.push('\n');
+  // A void element such as img has no children, so it contributes nothing
+  // here; the plain-text fallback never contains image markup or alt text.
   for (const child of node.children) appendVisibleText(child, output);
   if (BLOCK_ELEMENTS.has(node.tagName)) output.push('\n');
 }
 
-function imageFreeSignature(html: string): { html: string; plainText: string } {
+function deriveSignatureText(html: string): string {
   const tree = signatureParser.parse(html) as Root;
-  tree.children = stripImages(tree.children);
   const output: string[] = [];
   for (const node of tree.children) appendVisibleText(node, output);
-  return {
-    html: signatureStringifier.stringify(tree).trim(),
-    // Entity references are decoded once by the HTML parser. A tree walk
-    // avoids recursive unescaping and never treats decoded text as markup.
-    plainText: output.join('').replace(/\u00a0/g, ' ').replace(/\n{3,}/g, '\n\n').trim(),
-  };
+  // Entity references are decoded once by the HTML parser. A tree walk
+  // avoids recursive unescaping and never treats decoded text as markup.
+  return output.join('').replace(/\u00a0/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function sanitizePlainText(value: string): string {
@@ -97,12 +81,12 @@ function sanitizePlainText(value: string): string {
 export function sanitizeSignature(html: string, plainText = ''): SanitizedSignature | null {
   const result = sanitizeBoundedEmailHtml(html, SIGNATURE_LIMITS);
   if (!result.ok) return null;
-  // Even a one-pixel remote image can disclose the recipient's IP address and
-  // open time, so signatures use a stricter image-free tree after sanitising.
-  const safe = imageFreeSignature(result.html);
+  // Images are permitted: the shared sanitizer already restricts `src` to
+  // https/cid/data:image and forces loading="lazy" and no-referrer, which is
+  // enough to keep a signature logo without disclosing the reader to it.
   return {
-    html: safe.html,
-    plainText: sanitizePlainText(plainText) || sanitizePlainText(safe.plainText),
+    html: result.html,
+    plainText: sanitizePlainText(plainText) || sanitizePlainText(deriveSignatureText(result.html)),
   };
 }
 

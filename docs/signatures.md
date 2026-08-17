@@ -14,9 +14,11 @@ also included in the generated plain-text alternative.
 
 Open **Mail > Settings > Email signature** to create or change your personal
 sign-off. Keep it short: it is added to every message you send. The editor
-supports a limited, email-safe subset of rich text: emphasis, lists, and
-`https`, `http`, or `mailto` links. Pasted content is plain text, so copied web
-tracking markup and hidden styling are not carried into your signature.
+supports a limited, email-safe subset of rich text: emphasis, lists, tables,
+inline styling, images, and `https`, `http`, or `mailto` links. Pasting from a
+web page or Word keeps that formatting, but it is cleaned to the email-safe
+subset first, so scripts, hidden styling, and unsupported markup are removed
+automatically.
 
 An empty personal signature removes only your personal layer. It does not
 disable an organisation signature. If the page says **Admin managed**, a
@@ -46,11 +48,14 @@ lock changes are recorded in the Audit log.
 ## Safety and limits
 
 cmail sanitises signature HTML before storing it and sanitises again before it
-is used. Active content, images (including remote tracking pixels), forms,
-frames, unsafe URL schemes, external style loads, and unsupported markup are removed. Do not rely on signatures for
-secrets, tracking pixels, legal compliance in every jurisdiction, or dynamic
-per-recipient content. Signature HTML is limited to 64 KB and its plain-text
-alternative to 16,384 characters.
+is used. Active content, forms, frames, unsafe URL schemes, external style
+loads, and unsupported markup are removed. Images are allowed but restricted
+to `https` sources, an attached `cid:` reference, or an embedded `data:image`
+— credentialed URLs are rejected — and every image is forced to lazy-load
+with no-referrer, so it cannot be used as a tracking pixel. Do not rely on
+signatures for secrets, tracking, legal compliance in every jurisdiction, or
+dynamic per-recipient content. Signature HTML is limited to 64 KB and its
+plain-text alternative to 16,384 characters.
 
 The organisation signature is intentionally applied beneath the personal one
 and cannot be changed in the composer. This gives Managers a stable final

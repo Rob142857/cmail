@@ -7,14 +7,42 @@ import {
 } from './signatures';
 
 describe('signature helpers', () => {
-  it('sanitizes active content and derives a safe plain-text fallback', () => {
+  it('sanitizes active content, keeps a safe image, and derives an image-free plain-text fallback', () => {
     const signature = sanitizeSignature(
-      '<p style="color:#123456; background-image:url(https://bad.example/a)">Regards <a href="javascript:alert(1)" onclick="x()">me</a><img src="https://tracker.example/pixel.png" alt="tracker"></p><script>alert(1)</script>',
+      '<p style="color:#123456; background-image:url(https://bad.example/a)">Regards <a href="javascript:alert(1)" onclick="x()">me</a><img src="https://images.example/logo.png" alt="Logo"></p><script>alert(1)</script>',
     );
     expect(signature).not.toBeNull();
     expect(signature?.html).toContain('color:#123456');
-    expect(signature?.html).not.toMatch(/script|onclick|javascript:|url\s*\(|<img\b|tracker\.example/i);
+    expect(signature?.html).not.toMatch(/script|onclick|javascript:|url\s*\(/i);
+    expect(signature?.html).toContain('src="https://images.example/logo.png"');
+    expect(signature?.html).toContain('loading="lazy"');
+    expect(signature?.html).toContain('referrerpolicy="no-referrer"');
     expect(signature?.plainText).toContain('Regards me');
+    expect(signature?.plainText).not.toMatch(/<img\b|logo\.png/i);
+  });
+
+  it('keeps an Outlook-style signature table with its image and link, stripping only mso- noise', () => {
+    const signature = sanitizeSignature(`
+      <table style="mso-table-lspace:0pt;border-collapse:collapse" cellpadding="0" cellspacing="0">
+        <tr><td style="mso-padding-alt:0;color:#111111;font-family:Arial">
+          <table style="border-collapse:collapse"><tr><td style="padding:4px">
+            <img src="https://images.example/logo.png" alt="Acme logo" width="120">
+          </td></tr></table>
+          <p style="mso-line-height-rule:exactly">Jane Doe<br>Acme Co<br><a href="mailto:jane@example.test">jane@example.test</a></p>
+        </td></tr>
+      </table>
+    `);
+    expect(signature).not.toBeNull();
+    expect(signature?.html).toContain('<table');
+    expect(signature?.html).toContain('color:#111111');
+    expect(signature?.html).not.toMatch(/mso-/i);
+    expect(signature?.html).toContain('src="https://images.example/logo.png"');
+    expect(signature?.html).toContain('loading="lazy"');
+    expect(signature?.html).toContain('href="mailto:jane@example.test"');
+    expect(signature?.plainText).toContain('Jane Doe');
+    expect(signature?.plainText).toContain('Acme Co');
+    expect(signature?.plainText).toContain('jane@example.test');
+    expect(signature?.plainText).not.toMatch(/<img\b|logo\.png/i);
   });
 
   it('decodes entities once without turning recursively encoded text into markup', () => {

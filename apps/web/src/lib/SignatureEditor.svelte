@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { cleanPastedHtml } from './paste-html';
 
   let {
     id,
@@ -61,13 +62,18 @@
   }
 
   function handlePaste(event: ClipboardEvent) {
-    // Signatures are deliberately small, safe documents. Plain-text paste
-    // prevents copied tracking markup and hidden website styles entering the
-    // editor; users can add intentional formatting with the toolbar. The
-    // server additionally strips every image, including remote tracking pixels.
+    // The server sanitizes on save and again on every read, so this cleanup
+    // is only about keeping obvious junk — scripts, Word cruft, tracking
+    // markup — out of the editing surface itself.
     event.preventDefault();
-    const text = event.clipboardData?.getData('text/plain') || '';
-    document.execCommand('insertText', false, text);
+    const rawHtml = event.clipboardData?.getData('text/html') || '';
+    const cleaned = rawHtml ? cleanPastedHtml(rawHtml) : '';
+    if (cleaned) {
+      document.execCommand('insertHTML', false, cleaned);
+    } else {
+      const text = event.clipboardData?.getData('text/plain') || '';
+      document.execCommand('insertText', false, text);
+    }
     handleInput();
   }
 
