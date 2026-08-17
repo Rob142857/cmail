@@ -404,7 +404,14 @@ export async function insertOutboundJournal(db: D1Database, input: CreateJournal
         proposed_message_id_header, message_id_header, html_r2_key, text_r2_key,
         persisted_bytes, provider_payload_bytes, draft_id, claimed_draft_version,
         draft_body_r2_key, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+       VALUES (
+        ?, ?, ?, ?, ?, ?, ?, 'pending', ?,
+        ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, datetime('now'), datetime('now')
+       )`,
     ).bind(
       input.id,
       input.userId,

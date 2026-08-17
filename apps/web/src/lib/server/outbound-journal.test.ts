@@ -3,6 +3,7 @@ import {
   claimOutboundDispatch,
   findDraftOutboundJournal,
   fingerprintJournalPayload,
+  insertOutboundJournal,
   journalProviderResultKey,
   journalStateResponse,
   stageJournalPayload,
@@ -41,6 +42,96 @@ function payload(overrides: Record<string, unknown> = {}) {
 }
 
 describe('durable outbound journal', () => {
+  it('inserts the sender display name with one D1 placeholder per bound value', async () => {
+    interface CapturedStatement {
+      query: string;
+      values: unknown[];
+      bind: (...values: unknown[]) => CapturedStatement;
+    }
+    const statements: CapturedStatement[] = [];
+    const db = {
+      prepare(query: string) {
+        const statement: CapturedStatement = {
+          query,
+          values: [],
+          bind(...values: unknown[]) {
+            statement.values = values;
+            return statement;
+          },
+        };
+        statements.push(statement);
+        return statement;
+      },
+      async batch(rawStatements: D1PreparedStatement[]) {
+        const batch = rawStatements as unknown as CapturedStatement[];
+        for (const statement of batch) {
+          const placeholderCount = (statement.query.match(/\?/g) || []).length;
+          if (placeholderCount !== statement.values.length) {
+            throw new Error(`D1 bind arity mismatch: ${placeholderCount} placeholders for ${statement.values.length} values`);
+          }
+        }
+        return batch.map(() => ({ success: true, meta: { changes: 1 } }));
+      },
+    } as unknown as D1Database;
+
+    await insertOutboundJournal(db, {
+      id: 'journal-1',
+      userId: 'user-1',
+      mailboxId: 'mailbox-1',
+      idempotencyKey: 'send-claim-1',
+      fingerprint: {
+        payloadHash: 'a'.repeat(64),
+        htmlHash: 'b'.repeat(64),
+        textHash: 'c'.repeat(64),
+        attachmentHashes: [],
+      },
+      staged: {
+        htmlKey: 'outbound-journal/journal-1/body.html',
+        textKey: 'outbound-journal/journal-1/body.txt',
+        attachmentKeys: [],
+        stagedKeys: [
+          'outbound-journal/journal-1/body.html',
+          'outbound-journal/journal-1/body.txt',
+        ],
+      },
+      provider: 'cloudflare',
+      from: 'sender@example.com',
+      fromName: 'Sender Example',
+      to: ['person@example.net'],
+      cc: [],
+      envelopeRecipients: ['person@example.net'],
+      subject: 'Journal insertion regression',
+      snippet: 'Hello',
+      importance: 'normal',
+      inReplyTo: null,
+      referencesHeader: null,
+      threadId: '<journal-1@example.com>',
+      proposedMessageIdHeader: '<journal-1@example.com>',
+      persistedBytes: 12,
+      providerPayloadBytes: 18,
+      draftId: 'draft-1',
+      claimedDraftVersion: 2,
+      draftBodyR2Key: 'messages/mailbox-1/draft-1/body.html',
+      targets: [{
+        id: 'target-1',
+        messageId: 'message-1',
+        mailboxId: 'mailbox-1',
+        direction: 'outbound',
+        folder: 'sent',
+        attachmentIds: [],
+      }],
+      attachments: [],
+      reservations: [{ reservationId: 'reservation-1', deliveryKey: 'message-1' }],
+    });
+
+    const journalInsert = statements.find(({ query }) => query.includes('INSERT INTO outbound_send_journal'));
+    expect(journalInsert).toBeDefined();
+    expect((journalInsert!.query.match(/\?/g) || [])).toHaveLength(28);
+    expect(journalInsert!.values).toHaveLength(28);
+    expect(journalInsert!.values[9]).toBe('Sender Example');
+    expect(journalInsert!.query).toMatch(/'pending',\s*\?,\s*\?,\s*\?,\s*\?/);
+  });
+
   it('fingerprints the complete immutable delivery plan deterministically', async () => {
     const first = await fingerprintJournalPayload(payload());
     const second = await fingerprintJournalPayload(payload());
