@@ -22,13 +22,13 @@
     {
       eyebrow: 'Interoperability',
       title: 'Message format',
-      intro: 'Mail leaves and arrives in the shapes every other mail system expects, so threads stay intact on the far side.',
+      intro: 'Mail matches the formats other systems expect, so threads stay intact on the far side.',
       rows: [
         {
           standard: 'Internet Message Format',
           rfc: 'RFC 5322',
           status: 'met',
-          detail: 'Message-IDs are validated as an addr-spec inside angle brackets. Message-ID, In-Reply-To and References are held within the 998-octet line limit, and a References chain that would overflow keeps its root plus the newest ancestors so threading survives.',
+          detail: 'Message-IDs are validated as an addr-spec inside angle brackets. Message-ID, In-Reply-To and References stay within the 998-octet line limit; an overflowing References chain keeps its root plus the newest ancestors so threading survives.',
         },
         {
           standard: 'MIME',
@@ -47,7 +47,7 @@
     {
       eyebrow: 'Authentication',
       title: 'Proving who sent the message',
-      intro: 'Outbound authentication is published by you at the DNS layer and applied by the sending transport. Inbound results are handled conservatively — see the gap register.',
+      intro: 'You publish outbound authentication in DNS; the sending transport applies it. Inbound results are handled conservatively — see the gap register.',
       rows: [
         {
           standard: 'SPF',
@@ -84,7 +84,7 @@
     {
       eyebrow: 'Transport',
       title: 'Protecting the connection',
-      intro: 'SMTP transport security is published in your DNS. Web transport is enforced by the application on every response.',
+      intro: 'SMTP transport security is published in your DNS; web transport is enforced on every response.',
       rows: [
         {
           standard: 'MTA-STS',
@@ -130,7 +130,7 @@
     {
       eyebrow: 'Access',
       title: 'Identity and session control',
-      intro: 'There is no password to steal, and access is enforced on the server for every request.',
+      intro: 'There is no password to steal, and access is enforced server-side on every request.',
       rows: [
         {
           standard: 'OAuth 2.0 / OpenID Connect',
@@ -284,22 +284,21 @@
     <h1>Standards &amp; assurance</h1>
     <p class="document-meta">Public operational guide · reviewed 14 August 2026 · verify against the exact deployed commit and configuration</p>
     <p class="lede">
-      {appName} implements the open standards that make email interoperable and the controls an
-      organisation is expected to evidence. Every row marked <em>Implemented</em> was checked
-      against the source you are running. Where something is not done, it is listed in the gap
-      register at the end rather than left unsaid.
+      {appName} implements the open standards that make email interoperable, plus the controls an
+      organisation must evidence. Every row marked <em>Implemented</em> was checked against the
+      source you are running. Anything not done is listed in the gap register at the end.
     </p>
     <p class="note">
-      Standards, receiver policy and legal duty are three different things. Passing SPF, DKIM and
-      DMARC does not prove a message was solicited or lawful. This page is operational
-      documentation, not legal advice.
+      Standards, receiver policy and legal duty are different things: passing SPF, DKIM and DMARC
+      does not prove a message was solicited or lawful. This page is operational documentation,
+      not legal advice.
     </p>
   </header>
 
   <section class="responsibility" aria-labelledby="responsibility-heading">
     <p class="eyebrow">Scope and responsibility</p>
     <h2 id="responsibility-heading">Capability is not deployment assurance</h2>
-    <p class="section-intro">This self-hosted application supplies some controls, while the organisation operating it configures and evidences others. Cloudflare, identity and outbound-mail providers operate their own services. Review each layer together.</p>
+    <p class="section-intro">cmail supplies some controls; the organisation operating it configures and evidences others. Cloudflare, identity and outbound-mail providers operate their own services — review each layer together.</p>
     <div class="responsibility-grid">
       <div><strong>cmail product</strong><span>Source-checked application behavior such as server-side mailbox checks, sessions, content handling, trace and policy records.</span></div>
       <div><strong>Deployment operator</strong><span>DNS, SPF/DMARC/MTA-STS, identity-provider MFA, provider accounts, retention activation, backups, privacy, legal hold and evidence protection.</span></div>
@@ -352,7 +351,7 @@
   <section class="evidence-checklist" aria-labelledby="evidence-heading">
     <p class="eyebrow">Deployment evidence</p>
     <h2 id="evidence-heading">What to retain for an assurance review</h2>
-    <p class="section-intro">Complete these items for the specific deployment. They are not generated or attested by cmail.</p>
+    <p class="section-intro">Complete these for the specific deployment — cmail does not generate or attest them.</p>
     <ul>
       <li>Deployed version or commit, review owner and review date.</li>
       <li>Approved provider list, data handling/privacy decisions and Cloudflare Email Preview decision.</li>
@@ -367,8 +366,8 @@
     <div>
       <strong>Deploying or operating this yourself?</strong>
       <p>
-        Use this page's print action to save a dated review copy, then retain the deployment-specific
-        evidence named above. Review the versioned <a href="https://github.com/Rob142857/cmail/blob/main/docs/assurance.md">assurance guide</a>, <a href="https://github.com/Rob142857/cmail/blob/main/docs/standards-alignment.md">ISO and ITIL alignment map</a>, and <a href="https://github.com/Rob142857/cmail/blob/main/docs/privacy-and-data-handling.md">privacy and data-handling guide</a> for source and operator detail. The acceptable use policy for this deployment is published in the app.
+        Print this page to save a dated review copy, then retain the evidence listed above. See the
+        versioned <a href="https://github.com/Rob142857/cmail/blob/main/docs/assurance.md">assurance guide</a>, <a href="https://github.com/Rob142857/cmail/blob/main/docs/standards-alignment.md">ISO and ITIL alignment map</a>, and <a href="https://github.com/Rob142857/cmail/blob/main/docs/privacy-and-data-handling.md">privacy and data-handling guide</a> for full detail. The usage policy for this deployment is published in the app.
       </p>
     </div>
     <div class="closing-actions"><a class="btn" href="/policy">Read the usage policy</a><a class="btn" href="https://github.com/Rob142857/cmail">Review source</a></div>

@@ -12,7 +12,7 @@
     <img src={data.brandLogoUrl || '/logo.svg'} alt="" class="brand-logo" width="220" height="75" />
     <p class="eyebrow">One-time setup</p>
     <h1 id="bootstrap-heading">Authorise the first manager</h1>
-    <p class="intro">Enter the strong token configured as <code>BOOTSTRAP_ADMIN_TOKEN</code>. A short-lived proof will let the configured administrator complete sign-in with Google or Microsoft.</p>
+    <p class="intro">Enter the token set as <code>BOOTSTRAP_ADMIN_TOKEN</code>. It lets the administrator sign in with Google or Microsoft.</p>
 
     {#if form?.error}<div class="notice" role="alert">{form.error}</div>{/if}
 
@@ -28,11 +28,11 @@
         spellcheck="false"
         required
       />
-      <small>The token is submitted only to this same-origin form and is never placed in a URL or log.</small>
-      <button type="submit" class="btn btn-primary">Continue to identity sign-in</button>
+      <small>Never placed in a URL or log.</small>
+      <button type="submit" class="btn btn-primary">Continue</button>
     </form>
 
-    <p class="safety-note">After the first manager signs in successfully, delete both bootstrap values from every environment.</p>
+    <p class="safety-note">After the first manager signs in, delete both bootstrap values from every environment.</p>
     <a href="/" class="cancel-link">Cancel</a>
   </section>
 </main>

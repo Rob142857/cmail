@@ -1,6 +1,6 @@
 # Getting started
 
-This guide takes a new cmail deployment from an empty Cloudflare account to local development. Use [deployment.md](deployment.md) for the production rollout and verification sequence.
+This guide takes a new cmail deployment from an empty Cloudflare account to local development. See [deployment.md](deployment.md) for the production rollout.
 
 ## Prerequisites
 
@@ -10,9 +10,9 @@ This guide takes a new cmail deployment from an empty Cloudflare account to loca
 - A Google OAuth client, Microsoft Entra application, or both
 - Cloudflare Email Service (recommended) or Postmark only when external outbound delivery is required
 
-Provider accounts and interfaces change over time. Use this guide for cmail's
-expected values and confirm the account-side steps in each provider's current
-official documentation.
+Provider account setup changes over time. Use this guide for cmail's expected
+values, but confirm the exact steps in each provider's own current
+documentation.
 
 ## Decide the deployment shape
 
@@ -28,7 +28,7 @@ Choose these values before creating resources:
 | `MAIL_DOMAIN` | `example.org` | Domain used for mailbox addresses |
 | `OUTBOUND_PROVIDER` | `cloudflare` | Selects Cloudflare Email Service; `postmark`, `auto`, and non-sending `none` are alternatives |
 
-`APP_URL` and `MAIL_DOMAIN` can refer to different hostnames. OAuth callbacks always use `APP_URL`; email addresses use `MAIL_DOMAIN`.
+`APP_URL` and `MAIL_DOMAIN` can be different hostnames. OAuth callbacks always use `APP_URL`; email addresses use `MAIL_DOMAIN`.
 
 ## Install
 
@@ -39,10 +39,10 @@ pnpm install
 pnpm setup
 ```
 
-The setup script copies each `wrangler.toml.example` file to `wrangler.toml`,
-creates `apps/web/.dev.vars`, and creates `apps/email-worker/.dev.vars` with a
-fresh development-only `INBOUND_SENDER_HASH_KEY` if the targets are absent.
-The secret is never printed. Keep all generated configuration local.
+The setup script copies each `wrangler.toml.example` to `wrangler.toml`, and
+creates `apps/web/.dev.vars` and `apps/email-worker/.dev.vars` (with a fresh,
+development-only `INBOUND_SENDER_HASH_KEY`) if they don't already exist. This
+secret is never printed. Keep all generated configuration local.
 
 ## Create Cloudflare resources
 
@@ -54,21 +54,22 @@ pnpm d1:create
 pnpm r2:create
 ```
 
-Paste the returned D1 ID into both generated Wrangler files. Both applications
-share `DB` and `STORAGE`. Pages additionally uses the `EMAIL_SERVICE` service
-binding and the Worker owns the native `EMAIL` send binding; preserve all four
-binding names unless the application code is updated with them.
+Paste the returned D1 ID into both generated Wrangler files. Both apps share
+the `DB` and `STORAGE` bindings. Pages also uses the `EMAIL_SERVICE` binding,
+and the Worker owns the native `EMAIL` send binding — keep all four binding
+names unless you also update the application code that references them.
 
 ## Create local secret configuration
 
-Edit the ignored `apps/web/.dev.vars` created by `pnpm setup` and use development-only OAuth credentials. Set:
+Edit the ignored `apps/web/.dev.vars` file (created by `pnpm setup`) with
+development-only OAuth credentials. Set:
 
-- `APP_URL` to the origin printed by the local development server;
-- `MAIL_DOMAIN` to a test domain or domain reserved for this deployment;
+- `APP_URL` to the origin printed by the local dev server;
+- `MAIL_DOMAIN` to a test domain, or one reserved for this deployment;
 - a unique `SESSION_SECRET`;
 - one complete OAuth provider configuration; and
-- a development-only `BOOTSTRAP_ADMIN_EMAIL` and strong
-  `BOOTSTRAP_ADMIN_TOKEN` for the first manager.
+- a development-only `BOOTSTRAP_ADMIN_EMAIL` and strong `BOOTSTRAP_ADMIN_TOKEN`,
+  for the first manager.
 
 Generate a session secret with Node.js:
 
@@ -78,23 +79,22 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 
 Do not commit the output.
 
-Outbound delivery is optional during local setup. The committed
-`OUTBOUND_PROVIDER=cloudflare` default is recommended. Use `none` for a
-deliberately non-sending local or preview environment. Set `postmark` for the
-alternative, or `auto` to select the first complete provider configuration in
-Cloudflare then Postmark order. An explicitly selected but incomplete provider
-fails closed. Production Cloudflare deployment uses the committed Worker's
-native `EMAIL` binding plus the Pages application's private `EMAIL_SERVICE`
-service binding and needs no outbound API token. To exercise the REST fallback
-locally, put `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_EMAIL_API_TOKEN` only in the
+Outbound delivery is optional for local setup. The default,
+`OUTBOUND_PROVIDER=cloudflare`, is recommended. Use `none` for a deliberately
+non-sending local or preview environment, `postmark` for that alternative, or
+`auto` to pick the first complete configuration (Cloudflare, then Postmark).
+If you set a provider explicitly but its configuration is incomplete, it
+fails closed rather than sending anyway. Production needs no outbound API
+token — it uses the Worker's native `EMAIL` binding plus the Pages app's
+private `EMAIL_SERVICE` binding. To test the REST fallback locally instead,
+put `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_EMAIL_API_TOKEN` only in the
 ignored `.dev.vars`.
 
-Sender limiting is enabled by default. The generated Worker key is therefore
-required for local inbound processing; deleting or corrupting it makes the
-Worker fail closed with a generic permanent SMTP rejection controlled by
-Cloudflare. Production needs a
-different 32-byte key in the Worker secret store. Do not reuse session, OAuth,
-VAPID, or provider secrets.
+Sender limiting is on by default, so the generated Worker key is required for
+local inbound processing — deleting or corrupting it makes the Worker fail
+closed and reject mail with a generic, permanent SMTP error. Production needs
+its own, different 32-byte key in the Worker secret store. Never reuse
+session, OAuth, VAPID, or provider secrets across environments.
 
 ## Initialise local storage
 
@@ -105,7 +105,7 @@ pnpm db:migrate:local
 pnpm dev
 ```
 
-`--local` does not modify the remote D1 database. Apply the same reviewed
+`--local` never touches the remote D1 database. Apply the same, reviewed
 migrations remotely during deployment with `pnpm db:migrate`.
 
 ## Register OAuth callbacks
@@ -117,79 +117,80 @@ For each enabled provider, register exactly one callback per environment:
 <APP_URL>/auth/callback/microsoft
 ```
 
-OAuth providers reject callback mismatches, including differences in scheme, hostname, port, path, and sometimes trailing slash.
+OAuth providers reject a callback that doesn't match exactly, including the
+scheme, hostname, port, path, and sometimes a trailing slash.
 
-For Microsoft sign-in, `MICROSOFT_TENANT_ID=common` is the portable setting for
-Microsoft 365 and personal Outlook, Hotmail, or Live identities, but the app
-registration must support both organisational and personal Microsoft accounts.
-Use a tenant GUID instead when only one Entra tenant should be accepted.
+For Microsoft sign-in, `MICROSOFT_TENANT_ID=common` works for both Microsoft
+365 and personal Outlook/Hotmail/Live accounts, but your app registration
+must support both account types. Use a tenant GUID instead if only one Entra
+tenant should be allowed.
 
-Both providers use only `openid email profile`. cmail calls UserInfo with the
-access token—Microsoft uses `https://graph.microsoft.com/oidc/userinfo`—and
-stores the provider plus immutable `sub` as the durable account identity. It
-does not resolve returning users from email, UPN, or ID-token claims.
+Both providers use only the `openid email profile` scope. cmail calls
+UserInfo with the access token (Microsoft's endpoint is
+`https://graph.microsoft.com/oidc/userinfo`), and stores the provider plus
+its permanent `sub` ID as the account's real identity — not email, UPN, or
+ID-token claims.
 
 Except for the first manager, first sign-in starts from a manager-generated
-`<APP_URL>/enroll/google#token=...` or
-`<APP_URL>/enroll/microsoft#token=...` link. The fragment is excluded from the
-HTTP request, referrer, and server logs, and the page removes it from browser
-history before a same-origin POST. The hashed database token is single-use and
-expires after 72 hours. Its first-party route replaces the raw token with a
-15-minute `HttpOnly`, `SameSite=Lax` enrolment cookie. Google must then return
-the matching UserInfo email with `email_verified=true`; Microsoft must return
-the matching non-empty email from access-token-backed OIDC UserInfo, which does
-not expose `email_verified`. Resending an invitation
-rotates the token and revokes the old link.
+link: `<APP_URL>/enroll/google#token=...` or
+`<APP_URL>/enroll/microsoft#token=...`. The `#token=...` fragment never
+reaches the server — not in the HTTP request, referrer, or logs — and the
+page clears it from browser history before submitting. The token is stored
+hashed, single-use, and expires after 72 hours; a valid one is exchanged for
+a 15-minute, `HttpOnly`, `SameSite=Lax` enrolment cookie. Google must then
+return a verified UserInfo email (`email_verified=true`) that matches;
+Microsoft must return a matching, non-empty email, since its UserInfo does
+not expose that verified flag. Resending an invitation rotates the token and
+revokes the old link.
 
 ## Bootstrap local administration
 
 Start the app, open `<APP_URL>/bootstrap` directly, and submit the
-development-only bootstrap token through the form. Do not append it to a URL.
-The same-origin POST creates a signed `cmail_bootstrap_proof` cookie valid for
-10 minutes before provider sign-in. Use the provider identity whose verified
-email exactly matches `BOOTSTRAP_ADMIN_EMAIL`.
+development-only bootstrap token through the form — never append it to a
+URL. This creates a signed `cmail_bootstrap_proof` cookie, valid for 10
+minutes, before you sign in with a provider. Use the provider identity whose
+verified email exactly matches `BOOTSTRAP_ADMIN_EMAIL`.
 
-After the manager exists, remove both bootstrap values from
-`apps/web/.dev.vars` and restart the local server. If a token is exposed or an
-attempt conflicts, generate a new token, clear the browser state, and begin
-again; do not weaken the email or identity checks.
+Once the manager account exists, remove both bootstrap values from
+`apps/web/.dev.vars` and restart the local server. If a token is exposed, or
+you hit a conflict, generate a new token, clear your browser state, and
+start again — never weaken the email or identity checks.
 
 ## Optional browser notifications
 
-Notifications are not required for mail flow. To make the opt-in control
-available, generate one VAPID pair with `pnpm push:keys`, then configure the
-same public key, private key, and subject for the Pages application and inbound
-email Worker. Store each private-key copy as a secret. See
-[Optional Web Push](configuration.md#optional-web-push) for the complete setup.
+Notifications aren't required for mail to work. To offer the opt-in control,
+generate one VAPID pair with `pnpm push:keys`, then set the same public key,
+private key, and subject on both the Pages application and the inbound email
+Worker. Store each private-key copy as a secret. See
+[Optional Web Push](configuration.md#optional-web-push) for the full setup.
 
-Configuration does not grant browser permission. Each user must enable
-notifications through an explicit application gesture and approve the browser
-prompt.
+Configuration alone does not grant browser permission — each user must turn
+on notifications in the app and approve the browser prompt themselves.
 
 ## Optional external outbound delivery
 
-Cloudflare Email Service is the recommended option. Email Sending is currently
-public beta on the Workers Paid plan. Use a domain on Cloudflare DNS, onboard it
-under **Compute → Email Service → Email Sending**, deploy the email Worker with
-its native `EMAIL` binding, then deploy Pages with the private `EMAIL_SERVICE`
-service binding. No outbound API token is required for this path. Keep test
-messages within 50 combined recipients and 5 MiB including attachments.
+Cloudflare Email Service is the recommended option (Email Sending is
+currently public beta, on the Workers Paid plan). Use a domain on Cloudflare
+DNS, onboard it under **Compute → Email Service → Email Sending**, deploy the
+email Worker with its native `EMAIL` binding, then deploy Pages with the
+private `EMAIL_SERVICE` binding. This path needs no outbound API token. Keep
+test messages within 50 combined recipients and 5 MiB including attachments.
 
-Review the sending domain's **Email preview** setting before using real content.
-Cloudflare enables preview for new sending domains, and while enabled the
-dashboard may retain rendered content, headers, attachments, and raw source for
-about seven days. Disable it if your development data or privacy policy does not
-permit that retention.
+Check the sending domain's **Email preview** setting before using real
+content. Cloudflare turns preview on by default for new sending domains, and
+while it's on, the dashboard may keep rendered content, headers, attachments,
+and raw source for about seven days. Turn it off if your data or privacy
+policy doesn't allow that.
 
 See [Outbound delivery](configuration.md#outbound-delivery) for provider
-selection, binding setup, provider-versus-wire identifier handling,
-mixed-recipient delivery, and official Cloudflare references. Email Routing
-remains a separate inbound configuration and does not change with the outbound
+selection, binding setup, and mixed-recipient delivery. Email Routing is a
+separate, inbound configuration — it does not change based on your outbound
 choice.
 
-Before enabling branch previews, create the isolated preview D1, R2, and Worker
-resources described in [Deployment and verification](deployment.md#isolate-preview-deployments).
-The committed preview shape is non-sending by default and must never inherit
+Before enabling branch previews, create the isolated preview D1, R2, and
+Worker resources described in
+[Deployment and verification](deployment.md#isolate-preview-deployments). The
+committed preview setup is non-sending by default, and must never inherit
 production mail data, routing, or secrets.
 
 ## Start the applications
@@ -204,7 +205,9 @@ To work on the email Worker's inbound and native-outbound paths separately:
 pnpm dev:worker
 ```
 
-An HTTP development server cannot reproduce Cloudflare Email Routing by itself. Test inbound delivery in an isolated Cloudflare environment before enabling a production catch-all rule.
+A local HTTP dev server cannot reproduce Cloudflare Email Routing by itself —
+test inbound delivery in an isolated Cloudflare environment before you enable
+a production catch-all rule.
 
 ## First useful checks
 
@@ -220,6 +223,7 @@ Before moving to production:
 8. Exercise internal delivery, drafts, folder actions, and attachments.
 9. Follow the full [deployment verification](deployment.md#verification).
 
-Automated tests do not replace staging mail-flow checks, so record manual results for your deployment.
+Automated tests do not replace staging mail-flow checks — record your manual
+results for this deployment.
 
 [← Documentation home](README.md)

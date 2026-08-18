@@ -21,7 +21,7 @@
 
 <section class="audit-page" aria-labelledby="audit-heading">
   <header class="page-heading">
-    <div><p class="eyebrow">Governance</p><h1 id="audit-heading">Audit log</h1><p>Review security-sensitive, administrative, and lifecycle events.</p></div>
+    <div><p class="eyebrow">Governance</p><h1 id="audit-heading">Audit log</h1><p>Review security, administrative, and account events.</p></div>
     <form method="GET" class="filters">
       <label for="event-filter">Event type</label>
       <div><select id="event-filter" name="event_type">

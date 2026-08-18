@@ -17,7 +17,7 @@
     <p>
       {notFound
         ? 'The address may be incorrect, or the page may have moved.'
-        : 'The request could not be completed. Try again, and contact your support team if the problem continues.'}
+        : 'The request failed. Try again, or contact support if the problem continues.'}
     </p>
 
     {#if reference}

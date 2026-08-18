@@ -5,8 +5,8 @@
 
   const explanation = $derived(
     data.risk === 'punycode'
-      ? 'This address uses internationalised characters. Those can be chosen to look almost identical to a familiar brand — a Cyrillic "а" in place of a Latin "a", for example.'
-      : 'The text of this link named one website, but the link points somewhere else. That is the most common way a phishing message disguises its destination.',
+      ? 'This address uses international characters that can look identical to a familiar brand — a Cyrillic "а" instead of a Latin "a", for example.'
+      : 'The link text names one website, but the link points somewhere else — a common phishing trick.',
   );
 </script>
 
@@ -19,18 +19,18 @@
   <section class="card link-card" aria-labelledby="link-heading">
     <div class="risk-mark" aria-hidden="true"><Icon name="warning" size={22} /></div>
     <p class="eyebrow">Link check</p>
-    <h1 id="link-heading">Check this link before you continue</h1>
+    <h1 id="link-heading">Check this link before continuing</h1>
     <p class="intro">{explanation}</p>
 
     <div class="destination">
-      <p class="destination-label" id="destination-host-label">This link actually goes to</p>
+      <p class="destination-label" id="destination-host-label">This link goes to</p>
       <p class="destination-host" aria-labelledby="destination-host-label">{data.host}</p>
       <p class="destination-full">{data.href}</p>
     </div>
 
     {#if data.insecure}
       <p class="notice" role="note">
-        This link is not encrypted (<code>http://</code>). Anything you type on that page can be
+        This link isn't encrypted (<code>http://</code>). Anything typed on that page can be
         read in transit.
       </p>
     {/if}
@@ -47,7 +47,7 @@
 
     <p class="safety-note">
       cmail never asks for your password by email. If this link claims to be a sign-in page for a
-      service you use, open that service directly instead of following it.
+      service you use, open that service directly instead.
     </p>
   </section>
 </main>

@@ -70,9 +70,9 @@
     assignmentCount: number,
   ): boolean {
     const message = currentStatus === 'active'
-      ? `Disable ${address}? It will disappear from users' mailbox lists, sending will stop, and new mail will not be delivered until it is enabled again.`
+      ? `Disable ${address}? It won't show in mailbox lists, can't send, and won't receive mail until re-enabled.`
       : type === 'shared' && assignmentCount === 0
-        ? `Enable ${address} without mailbox delegation? It will accept mail, but no one will be able to open or send from it.`
+        ? `Enable ${address} without delegation? It will accept mail, but no one can open or send from it.`
         : '';
     return !message || window.confirm(message);
   }
@@ -85,7 +85,7 @@
   ): boolean {
     const nextPermission = formData.get('permissions');
     if (nextPermission === 'full' && currentPermission !== 'full') {
-      const message = `Grant Full access to ${email} for ${address}? This includes Send as and permission to organise or move messages.`;
+      const message = `Grant Full access to ${email} for ${address}? Includes Send as, plus organising and moving messages.`;
       return window.confirm(message);
     }
     return true;
@@ -96,7 +96,7 @@
     address: string,
     permission: MailboxPermission,
   ): boolean {
-    const message = `Remove ${mailboxPermissionLabel(permission)} for ${email} from ${address}? They will lose this mailbox access immediately.`;
+    const message = `Remove ${mailboxPermissionLabel(permission)} for ${email} from ${address}? Access ends immediately.`;
     return window.confirm(message);
   }
 
@@ -114,14 +114,14 @@
     <div>
       <p class="eyebrow">Mail</p>
       <h1 id="mailboxes-heading">Mailbox management</h1>
-      <p>Create shared mailboxes, control delivery state, and manage mailbox delegation.</p>
+      <p>Create shared mailboxes and manage their status and delegation.</p>
     </div>
   </header>
 
   {#if data.configurationUnavailable}
     <div class="notice notice-error" role="alert">
       <strong>Mailbox data is unavailable.</strong>
-      <span>Confirm the Cloudflare D1 binding and apply the current migrations.</span>
+      <span>Check the D1 binding and run pending migrations.</span>
     </div>
   {/if}
   {#if form?.error}
@@ -139,7 +139,7 @@
           <div class="panel-heading">
             <div>
               <h2>Create shared mailbox</h2>
-              <p>The mailbox becomes active immediately. Add an initial delegate now or configure delegation after creation.</p>
+              <p>The mailbox is active immediately. Add a delegate now or later.</p>
             </div>
             <span class="step-label">New resource</span>
           </div>
@@ -181,7 +181,7 @@
                   />
                   <span aria-hidden="true">@{data.mailDomain}</span>
                 </div>
-                <small id="new-mailbox-hint">The full address will end in @{data.mailDomain}. Letters, numbers, dots, underscores, and hyphens are supported.</small>
+                <small id="new-mailbox-hint">Ends in @{data.mailDomain}. Letters, numbers, dots, underscores, and hyphens allowed.</small>
               </div>
               <div class="field">
                 <label for="initial-delegate">Initial delegate <span>(optional)</span></label>
@@ -191,7 +191,7 @@
                   placeholder="Start typing a name or email"
                   required={false}
                 />
-                <small>Choose the person's provisioned personal mailbox. Paused and offboarded people are excluded.</small>
+                <small>Choose their personal mailbox. Paused or offboarded people are excluded.</small>
               </div>
               <div class="field">
                 <label for="initial-permission">Initial access level</label>
@@ -206,12 +206,12 @@
                 <button type="submit" class="btn btn-primary" disabled={Boolean(submitting)}>
                   {submitting === 'create' ? 'Creating…' : 'Create mailbox'}
                 </button>
-                <span>Personal mailboxes are provisioned with their owner from People.</span>
+                <span>Personal mailboxes are created with an owner from People.</span>
               </div>
             </form>
           {:else}
             <div class="inline-warning" role="status">
-              Configure <code>MAIL_DOMAIN</code> before creating a mailbox. Review the deployment values in
+              Set <code>MAIL_DOMAIN</code> before creating a mailbox — see deployment values in
               <a href="/admin/settings">Settings</a>.
             </div>
           {/if}
@@ -223,18 +223,18 @@
         <dl>
           <div>
             <dt>Read access</dt>
-            <dd>Open messages and mark them read or unread. It does not allow sending or organising mail.</dd>
+            <dd>View and mark messages read or unread — no sending or organising.</dd>
           </div>
           <div>
             <dt>Send as</dt>
-            <dd>Bundles Read access and allows composing or replying from the mailbox address.</dd>
+            <dd>Read access, plus sending and replying as this mailbox.</dd>
           </div>
           <div>
             <dt>Full access</dt>
-            <dd>Bundles Send as and adds shared folder, star, archive, Trash, restore, and permanent-delete control.</dd>
+            <dd>Send as, plus folders, star, archive, Trash, and permanent delete.</dd>
           </div>
         </dl>
-        <p>These bundles describe the access cmail enforces within this application. <a href="/help/shared-mailboxes">Read the shared mailbox guide</a>.</p>
+        <p>Details in the <a href="/help/shared-mailboxes">shared mailbox guide</a>.</p>
       </details>
     </div>
 
@@ -242,7 +242,7 @@
       <div class="section-heading">
         <div>
           <p class="eyebrow">Overview</p>
-          <h2 id="estate-heading">Mailbox estate</h2>
+          <h2 id="estate-heading">Mailbox summary</h2>
         </div>
         <span>Current configuration</span>
       </div>
@@ -369,7 +369,7 @@
 
                   {#if mailbox.status === 'disabled'}
                     <div class="state-note state-note-info">
-                      This mailbox is disabled. It is hidden from users, cannot be used as a sender, and does not accept new mail.
+                      Disabled: hidden from users, can't send, and can't receive mail.
                     </div>
                     {#if mailbox.type === 'personal' && !hasEligibleOwner(mailbox)}
                       <div class="state-note state-note-warning" role="status">
@@ -378,7 +378,7 @@
                     {/if}
                   {:else if mailbox.type === 'shared' && mailbox.assignments.length === 0}
                     <div class="state-note state-note-warning" role="status">
-                      No mailbox delegation is configured. Mail can arrive, but no one can open or send from this mailbox.
+                      No delegation set — mail can arrive, but no one can open or send from it.
                     </div>
                   {/if}
 
@@ -421,8 +421,8 @@
                       <h3 id={`delegation-${mailbox.id}`}>Mailbox delegation</h3>
                       <p>
                         {mailbox.type === 'shared'
-                          ? 'Add people and choose the bundled permission level they need.'
-                          : 'Personal mailbox owners require Full access. Lifecycle changes are managed from People.'}
+                          ? 'Add people and choose the access level they need.'
+                          : 'Personal mailbox owners need Full access, managed from People.'}
                       </p>
                     </div>
                     <span>{mailbox.assignments.length} {mailbox.assignments.length === 1 ? 'assignment' : 'assignments'}</span>

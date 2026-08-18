@@ -31,7 +31,7 @@
   <header class="page-heading">
     <p class="eyebrow">Governance</p>
     <h1 id="policy-heading">Usage policy</h1>
-    <p>Publish versioned plain-text policy content and monitor acknowledgement. Publishing immediately makes the new version the enforced policy.</p>
+    <p>Publish policy versions and track acceptance. New versions take effect immediately.</p>
   </header>
 
   {#if form?.error}<div class="notice notice-error" role="alert">{form.error}</div>{/if}
@@ -55,7 +55,7 @@
     <div class="section-heading">
       <div>
         <h2 id="publish-heading">Publish a new version</h2>
-        <p>Review the exact text before the final publication step.</p>
+        <p>Review the text before publishing.</p>
       </div>
       <span class="impact">Affects {data.affectedUsers} active or pending {data.affectedUsers === 1 ? 'account' : 'accounts'}</span>
     </div>
@@ -68,7 +68,7 @@
         </div>
         <div class="field">
           <label for="policy-body">Policy text</label>
-          <textarea id="policy-body" bind:value={bodyText} required rows="14" maxlength="100000" placeholder="Write the policy in plain text. Blank lines are preserved."></textarea>
+          <textarea id="policy-body" bind:value={bodyText} required rows="14" maxlength="100000" placeholder="Plain text; blank lines are kept."></textarea>
           <small>{bodyText.length.toLocaleString(data.locale || 'en')} of 100,000 characters</small>
         </div>
         <div class="form-actions">
@@ -85,7 +85,7 @@
         <div class="policy-preview" role="region" aria-label="Policy preview" tabindex="0">{bodyText}</div>
         <div class="publication-warning">
           <strong>This takes effect immediately.</strong>
-          <span>Every active or pending user must accept this version before returning to mail or management.</span>
+          <span>Every active or pending user must accept it before using mail or management.</span>
         </div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">Publish and enforce</button>
@@ -96,7 +96,7 @@
 
   <section aria-labelledby="history-heading">
     <div class="history-heading">
-      <div><h2 id="history-heading">Version history</h2><p>Up to the 50 most recent immutable versions.</p></div>
+      <div><h2 id="history-heading">Version history</h2><p>The 50 most recent versions. Once published, a version can't be changed.</p></div>
       <span>{data.policies.length} {data.policies.length === 1 ? 'version' : 'versions'}</span>
     </div>
 
@@ -114,7 +114,7 @@
         {/each}
       </div>
     {:else}
-      <div class="card empty-state"><h3>No policy versions yet</h3><p>Use the review flow above to publish the first version.</p></div>
+      <div class="card empty-state"><h3>No policy versions yet</h3><p>Publish your first version above.</p></div>
     {/if}
   </section>
 </section>

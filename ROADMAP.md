@@ -1,8 +1,8 @@
 # Roadmap
 
-cmail is in its pre-1.0 stage. This roadmap communicates direction, not a
-delivery promise or compatibility guarantee. Priorities are refined through
-real deployment evidence, security reports, and focused community proposals.
+cmail is pre-1.0. This roadmap shows direction, not a delivery promise or
+compatibility guarantee. Priorities shift based on real deployment evidence,
+security reports, and focused community proposals.
 
 ## Current priorities
 

@@ -9,7 +9,7 @@
   <header class="page-heading">
     <p class="eyebrow">Configuration</p>
     <h1 id="settings-heading">Organisation settings</h1>
-    <p>Manage public organisation details and system-email identity. Deployment bindings, OAuth credentials, and secrets remain environment-controlled.</p>
+    <p>Manage organisation details and system email. Security settings are set outside this app.</p>
   </header>
 
   {#if form?.error}<div class="notice notice-error" role="alert">{form.error}</div>{/if}
@@ -19,12 +19,12 @@
     <form method="POST" action="?/save" class="settings-form">
       <fieldset class="card">
         <legend>System email</legend>
-        <p class="group-intro">These values are used for invitations and other service-generated messages.</p>
+        <p class="group-intro">Used for invitations and other system messages.</p>
 
         <div class="field">
           <label for="system-email">System mailbox <span>From address</span></label>
           <input id="system-email" type="email" name="system_email" value={settings.systemEmail} maxlength="200" placeholder="noreply@{data.mailDomain || 'example.org'}" autocomplete="email" aria-describedby="system-email-hint" />
-          <small id="system-email-hint">Use a sender verified by the configured Cloudflare Email Service or Postmark account.</small>
+          <small id="system-email-hint">Must be verified with your Cloudflare Email or Postmark account.</small>
         </div>
 
         <div class="field">
@@ -36,13 +36,13 @@
         <div class="field">
           <label for="support-email">Support email</label>
           <input id="support-email" type="email" name="support_email" value={settings.supportEmail} maxlength="200" placeholder="support@{data.mailDomain || 'example.org'}" autocomplete="email" aria-describedby="support-email-hint" />
-          <small id="support-email-hint">Shown to users when they need help. The system mailbox is used when this is blank.</small>
+          <small id="support-email-hint">Shown to users needing help; uses the system mailbox if blank.</small>
         </div>
       </fieldset>
 
       <fieldset class="card">
         <legend>Organisation identity</legend>
-        <p class="group-intro">Neutral defaults keep new deployments usable; replace them with the organisation operating this instance.</p>
+        <p class="group-intro">Replace the defaults with your organisation's real details.</p>
 
         <div class="field">
           <label for="org-name">Organisation name</label>
@@ -63,7 +63,7 @@
 
       <fieldset class="card">
         <legend>Application</legend>
-        <p class="group-intro">Runtime labels can be updated here. Security-sensitive deployment configuration remains read-only.</p>
+        <p class="group-intro">Update labels here. Security settings stay read-only.</p>
 
         <div class="field">
           <label for="app-name">Application name</label>
@@ -73,7 +73,7 @@
         <div class="field deployment-value">
           <span id="app-url-label">Application URL</span>
           <code aria-labelledby="app-url-label">{settings.appUrl || 'Not configured'}</code>
-          <small>Set APP_URL at deployment level. OAuth callbacks and invitation links are derived from this origin.</small>
+          <small>Set outside this app. Used for sign-in and invitation links.</small>
         </div>
 
         <div class="field">
@@ -96,7 +96,7 @@
   {:else}
     <div class="card empty-state" role="status">
       <h2>Settings are unavailable</h2>
-      <p>Confirm the D1 binding and apply the current migrations.</p>
+      <p>Check the D1 binding and run pending migrations.</p>
     </div>
   {/if}
 </section>

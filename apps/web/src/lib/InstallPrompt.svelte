@@ -79,14 +79,14 @@
 </script>
 
 {#if show}
-  <section class="pwa-banner" aria-label="Install application" aria-live="polite">
+  <section class="pwa-banner" aria-label="Install app" aria-live="polite">
     <div class="pwa-content">
       <img src={page.data?.brandIconUrl || '/icon.svg'} alt="" width="28" height="28" />
       <span>
         {#if isIosSafari}
           Install <strong>{page.data?.appName || 'cmail'}</strong>: Share → Add to Home Screen → Open as Web App
         {:else}
-          Install <strong>{page.data?.appName || 'cmail'}</strong> for quicker access
+          Install <strong>{page.data?.appName || 'cmail'}</strong>
         {/if}
       </span>
     </div>
@@ -96,7 +96,7 @@
       {:else}
         <button class="pwa-install" onclick={install}>Install</button>
       {/if}
-      <button class="pwa-close" onclick={dismiss} aria-label="Dismiss install suggestion">✕</button>
+      <button class="pwa-close" onclick={dismiss} aria-label="Dismiss">✕</button>
     </div>
   </section>
 {/if}

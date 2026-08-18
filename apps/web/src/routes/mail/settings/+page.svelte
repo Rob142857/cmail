@@ -16,7 +16,7 @@
     <div>
       <p class="eyebrow">Mail settings</p>
       <h1 id="signature-heading">Email signature</h1>
-      <p>Create the sign-off cmail adds to new messages, replies, and forwards.</p>
+      <p>The sign-off cmail adds to new messages, replies, and forwards.</p>
     </div>
     <a href="/mail/compose" class="btn"><Icon name="compose" size={15} /> Preview in a message</a>
   </header>
@@ -28,9 +28,9 @@
     <div class="order-copy">
       <p class="eyebrow">Applied automatically</p>
       <h2 id="signature-order-title">One message, two clear layers</h2>
-      <p>Your personal sign-off appears first. If your organisation uses a standard signature or legal notice, cmail places it directly underneath.</p>
+      <p>Your personal sign-off appears first. If your organisation uses a standard signature or legal notice, it goes directly underneath.</p>
     </div>
-    <div class="order-flow" aria-label="Personal signature followed by organisation signature">
+    <div class="order-flow" aria-label="Personal, then organisation signature">
       <div class="order-item personal-mark"><span>1</span><div><strong>Your signature</strong><small>Your details and sign-off</small></div></div>
       <span class="flow-line" aria-hidden="true"></span>
       <div class="order-item org-mark"><span>2</span><div><strong>Organisation signature</strong><small>Managed centrally and optional</small></div></div>
@@ -42,7 +42,7 @@
       <div class="section-head">
         <div>
           <h2>Personal signature</h2>
-          <p>Use only the details you are comfortable including in every email.</p>
+          <p>Use details you're comfortable including in every email.</p>
         </div>
         {#if personal?.locked}
           <span class="lock-badge"><Icon name="lock" size={12} /> Admin managed</span>
@@ -56,7 +56,7 @@
           <Icon name="lock" size={16} />
           <div>
             <strong>This signature is locked by an administrator.</strong>
-            <span>You can see exactly what recipients receive, but only an administrator can change it.</span>
+            <span>You can see what recipients receive, but only an administrator can change it.</span>
           </div>
         </div>
       {/if}
@@ -68,7 +68,7 @@
           value={personal?.html || ''}
           disabled={personal?.locked || false}
           label="Signature content"
-          description="Keep it concise so replies remain easy to read."
+          description="Keep it short so replies stay easy to read."
           onchange={(html) => { previewHtml = html; }}
         />
         <div class="form-actions">
@@ -76,7 +76,7 @@
             <span class="save-hint">Leaving this blank removes your personal signature.</span>
             <button type="submit" class="btn btn-primary">Save signature</button>
           {:else}
-            <span class="save-hint">Ask a manager if these details need to change.</span>
+            <span class="save-hint">Ask a manager to change these details.</span>
           {/if}
         </div>
       </form>
@@ -108,7 +108,7 @@
       </div>
       <div class="privacy-note">
         <Icon name="shieldCheck" size={16} />
-        <p><strong>Consistent by design.</strong> Organisation content is protected from accidental changes in the composer.</p>
+        <p><strong>Consistent by design.</strong> Organisation content can't be changed by accident in the composer.</p>
       </div>
     </aside>
   </div>

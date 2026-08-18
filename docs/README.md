@@ -1,67 +1,40 @@
 # cmail documentation
 
-Use this page as the documentation entry point. cmail is pre-1.0 software, so
-operators should read the deployment and security material before directing
-real mail to it.
+This page is the map for all cmail documentation. cmail is pre-1.0 software: operators should read the deployment and security guides before sending real mail through it.
 
 ## Use cmail
 
-- [User guide](user-guide.md) — first sign-in, navigation, reading, composing,
-  folders, safety, and support.
-- [Mobile app and notification guide](mobile-pwa.md) — installation and Web
-  Push on iPhone, iPad, and Android, including permission troubleshooting.
-- [Push notification reliability blueprint](push-notification-reliability.md)
-  — non-implemented design for a durable future notification pipeline.
-- [Mail client connectivity architecture](mail-client-connectivity.md) — the
-  current PWA boundary and the staged JMAP/optional IMAP compatibility path.
-- [Shared mailboxes](shared-mailboxes.md) — delegation, Send as, Full access,
-  shared folders and read state, lifecycle, and product boundaries.
-- [Email signatures](signatures.md) — personal sign-offs, optional
-  organisation footers, Manager locking, message ordering, and safe formatting.
-- [Manager handbook](manager-handbook.md) — People, Mailboxes, Organisation,
-  Usage policy, Mail trace, Audit log, Settings, and safe operations.
-- [Support process](support-process.md) — L1 intake, safe evidence, L2
-  escalation to RME Solutions Technology, and the boundary between product
-  defects and separately scoped work.
+- [User guide](user-guide.md) — for anyone reading and sending mail. First sign-in, navigation, reading, composing, folders, safety, and support.
+- [Mobile app and notifications](mobile-pwa.md) — for anyone on iPhone, iPad, or Android. Installing cmail and turning on new-mail alerts, plus troubleshooting.
+- [Push notification reliability blueprint](push-notification-reliability.md) — for engineers planning ahead. A design, not yet built, for a more durable notification pipeline.
+- [Mail client connectivity architecture](mail-client-connectivity.md) — for anyone asking "can I use Outlook or Gmail instead?". The current PWA-only boundary and the staged plan for JMAP and optional IMAP support.
+- [Shared mailboxes](shared-mailboxes.md) — for anyone using a team address. Delegation, Send as, Full access, shared folders and read state, and lifecycle.
+- [Email signatures](signatures.md) — for anyone who sends mail, and for Managers. Personal sign-offs, the optional organisation footer, locking, and safe formatting.
+- [Manager handbook](manager-handbook.md) — for the Manager role. People, Mailboxes, Organisation, Usage policy, Mail trace, Audit log, Settings, and safe operating practice.
+- [Support process](support-process.md) — for Managers and internal support staff. L1 triage, safe evidence handling, and when to escalate to RME Solutions Technology.
 
 ## Deploy cmail
 
-1. Read [Getting started](getting-started.md) to choose resource names, install
-   dependencies, create Cloudflare storage, and start local development.
-2. Use the [Configuration reference](configuration.md) to set the deployment
-   origin, mail domain, OAuth providers, safety limits, and organisation
-   defaults.
-3. Read [Email authentication and sender requirements](email-authentication.md)
-   before changing mail DNS or enabling external delivery.
-4. Review [Architecture and trust boundaries](architecture.md) before changing
-   authentication, authorization, mail flow, public data, or storage.
-5. Follow [Deployment and verification](deployment.md) for the production
-   sequence, including identity providers, DNS, bootstrap, and controlled mail
-   tests.
-6. Complete the [Security checklist](security-checklist.md) and
-   [Operations checklist](operations-checklist.md) for every environment.
+For engineers and operators setting up a deployment, roughly in this order:
+
+1. [Getting started](getting-started.md) — choose resource names, install dependencies, create Cloudflare storage, and start local development.
+2. [Configuration reference](configuration.md) — set the deployment origin, mail domain, OAuth providers, safety limits, and organisation defaults.
+3. [Email authentication and sender requirements](email-authentication.md) — read before changing mail DNS or enabling external delivery.
+4. [Architecture and trust boundaries](architecture.md) — read before changing authentication, authorisation, mail flow, public data, or storage.
+5. [Deployment and verification](deployment.md) — the production sequence, including identity providers, DNS, bootstrap, and controlled mail tests.
+6. [Security checklist](security-checklist.md) and [Operations checklist](operations-checklist.md) — complete both for every environment.
 
 ## Customisation and governance
 
-- [Security, privacy, and assurance](assurance.md) — public responsibility
-  boundary, control matrix, limitations, and deployment evidence checklist for
-  managers, reviewers, and auditors.
-- [ISO and ITIL alignment](standards-alignment.md) — applicable standards,
-  current editions, service-management practices, scope boundaries, and the
-  evidence an operator or support provider must establish.
-- [Privacy and data-handling guide](privacy-and-data-handling.md) — operator
-  data inventory, provider boundary, public-directory, retention, rights, and
-  privacy-notice checklist.
-- [Branding and first customisation](branding.md)
-- [Downstream and private implementations](downstream-implementations.md) —
-  keep proprietary deployment work separate while tracking public cmail.
-- [Acceptable-use policy template](acceptable-use-policy-template.md)
-- [Project roadmap](../ROADMAP.md)
-- [Maintainer release guide](maintainer-guide.md)
-- [Contributing](../CONTRIBUTING.md)
-- [Support](../SUPPORT.md)
-- [Security policy](../SECURITY.md)
-- [Code of Conduct](../CODE_OF_CONDUCT.md)
+- [Security, privacy, and assurance](assurance.md) — for managers, reviewers, and auditors. The public responsibility boundary, control matrix, limitations, and a deployment evidence checklist.
+- [ISO and ITIL alignment](standards-alignment.md) — for compliance reviewers. Applicable standards, current editions, service-management practices, and the evidence an operator or support provider must establish.
+- [Privacy and data-handling guide](privacy-and-data-handling.md) — for operators and privacy reviewers. Data inventory, provider boundary, public-directory, retention, rights, and a privacy-notice checklist.
+- [Branding and first customisation](branding.md) — for whoever brands the deployment.
+- [Downstream and private implementations](downstream-implementations.md) — for teams maintaining a private fork. Keeping proprietary work separate while tracking public cmail.
+- [Acceptable-use policy template](acceptable-use-policy-template.md) — for Managers publishing a usage policy. A starting point to adapt and have reviewed.
+- [Project roadmap](../ROADMAP.md) — where cmail is headed.
+- [Maintainer release guide](maintainer-guide.md) — for maintainers cutting a release.
+- [Contributing](../CONTRIBUTING.md), [Support](../SUPPORT.md), [Security policy](../SECURITY.md), [Code of Conduct](../CODE_OF_CONDUCT.md) — standard project files, for contributors.
 
 ## Command reference
 
@@ -79,5 +52,4 @@ Run commands from the repository root:
 | `pnpm validate` | Run source, lint, type, test, migration, build, and dependency checks |
 | `pnpm release:check` | Run validation plus the reachable Git-history secret gate |
 
-The [README](../README.md#quick-start) contains the shortest deployment path;
-these guides provide the operational and security context behind it.
+The [README](../README.md#quick-start) has the shortest deployment path. These guides give the operational and security context behind it.

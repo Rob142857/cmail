@@ -19,14 +19,14 @@
     <p>This notice explains the information handled when you use {appName}, the organisational email service operated by {name}.</p>
 
     <h2>Identity and sign-in</h2>
-    <p>{appName} can use Google or Microsoft to authenticate an invited user. It requests the basic <code>openid</code>, <code>email</code> and <code>profile</code> scopes and receives a stable account identifier, an email address and a name. Google may also return a profile-picture claim, but cmail does not store it. Microsoft supplies a provider-asserted email address without a separate <code>email_verified</code> claim.</p>
+    <p>{appName} authenticates invited users via Google or Microsoft. It requests the <code>openid</code>, <code>email</code> and <code>profile</code> scopes and receives a stable account identifier, an email address and a name. Google may also return a profile-picture claim, but cmail does not store it. Microsoft supplies a provider-asserted email address without a separate <code>email_verified</code> claim.</p>
     <p>The service stores the identity provider and stable account identifier needed to bind future sign-ins to the invited account. It may store the email address and name when provisioning or completing that account. OAuth access and refresh tokens are not retained. These identity details are used for authentication and access control, not advertising or sale. The service does not request access to a personal inbox, Drive, contacts, files or search history.</p>
 
     <h2>Mail service information</h2>
     <p>The service handles the mailbox addresses, messages, attachments, contacts and settings needed to provide assigned personal and shared mailboxes. It also records session, security and audit information needed to operate and protect the service.</p>
 
     <h2>Service providers</h2>
-    <p>Google or Microsoft processes the sign-in request. The account binding is stored in the deployment’s configured hosting environment and is shared only with configured service providers where needed to operate the service. The deployment operator selects and configures the hosting, storage, mail-routing and delivery providers. Their own terms and privacy information apply to their services.</p>
+    <p>Google or Microsoft processes the sign-in request. The account binding is stored in the deployment’s hosting environment and shared only with the providers needed to operate the service. The deployment operator selects and configures the hosting, storage, mail-routing and delivery providers. Their own terms and privacy information apply to their services.</p>
 
     <h2>Questions about this deployment</h2>
     {#if supportEmail}

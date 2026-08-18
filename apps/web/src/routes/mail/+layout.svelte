@@ -128,7 +128,7 @@
           id="mailbox-picker"
           class="mailbox-picker"
           value={currentMailboxId}
-          aria-label="Choose mailbox"
+          aria-label="Mailbox"
           onchange={(event) => { void goto(mailboxHref(event.currentTarget.value)); }}
         >
           <option value="">All mailboxes</option>
@@ -247,8 +247,7 @@
         {#if d.supportEmail}<a href={`mailto:${d.supportEmail}`}>Support</a>{/if}
       </nav>
       <span class="product-credit">
-        Enterprise-grade email management, simplified for small organisations and for
-        geographically and managerially dispersed groups.
+        Enterprise-grade email, simplified for small and dispersed organisations.
       </span>
       <span class="product-meta">
         <a href="/help/standards">Standards &amp; assurance</a> · MIT open source

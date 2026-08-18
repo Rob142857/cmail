@@ -137,8 +137,7 @@
         <a href="/help/shared-mailboxes">Shared mailbox guide</a>
       </nav>
       <span class="product-credit">
-        Enterprise-grade email management, simplified for small organisations and for
-        geographically and managerially dispersed groups.
+        Simple email management for small, distributed organisations.
       </span>
       <span class="product-meta">
         <a href="/help/standards">Standards &amp; assurance</a> · MIT open source

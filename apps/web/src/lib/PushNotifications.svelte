@@ -25,7 +25,7 @@
     });
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
-        throw new Error('Your account can no longer receive new-mail alerts. Sign in again after an administrator reactivates it.');
+        throw new Error('Your account can no longer receive alerts. Sign in again after an administrator reactivates it.');
       }
       throw new Error('New-mail alerts could not be saved.');
     }
@@ -52,10 +52,10 @@
       // unusable. Remove it server-side first where possible, then require a
       // successful local unsubscribe before creating its replacement.
       if (!await removeFromServer(subscription.endpoint)) {
-        throw new Error('New-mail alerts could not refresh their secure server registration. Try again.');
+        throw new Error('New-mail alerts could not refresh their server registration. Try again.');
       }
       if (!await subscription.unsubscribe().catch(() => false)) {
-        throw new Error('New-mail alerts could not refresh their secure browser registration. Try again.');
+        throw new Error('New-mail alerts could not refresh their browser registration. Try again.');
       }
       subscription = null;
     }
@@ -75,7 +75,7 @@
       const serverRemoved = await removeFromServer(subscription?.endpoint || '', true);
       const browserRemoved = subscription ? await subscription.unsubscribe().catch(() => false) : true;
       enabled = !serverRemoved && !browserRemoved;
-      if (enabled) message = 'New-mail alerts could not be fully disabled. Choose Turn off to retry.';
+      if (enabled) message = 'New-mail alerts could not be disabled. Choose Turn off to retry.';
       return;
     }
     if (Notification.permission === 'granted' && (subscription || preference === 'on')) {
@@ -109,7 +109,7 @@
       denied = Notification.permission === 'denied';
       try {
         await refreshSubscription();
-        if (denied) message = 'Allow notifications in this site’s browser settings, then reload.';
+        if (denied) message = 'Allow notifications in this site’s settings, then reload.';
       } catch {
         enabled = false;
         message = 'Alert status could not be checked.';
@@ -145,7 +145,7 @@
       await save(created, true);
       await setPushPreference('on');
       enabled = true;
-      message = `New-mail alerts are enabled for ${appName} on this browser.`;
+      message = 'New-mail alerts are on for this browser.';
     } catch (error) {
       if (created && !enabled) await created.unsubscribe().catch(() => false);
       enabled = false;
@@ -170,15 +170,15 @@
         if (!serverRemoved && !browserRemoved) throw new Error('subscription-cleanup');
         enabled = false;
         message = serverRemoved && !browserRemoved
-          ? 'New-mail alerts are off. This browser will retry local cleanup when the app reopens.'
+          ? 'New-mail alerts are off. Cleanup finishes next time you open the app.'
           : !serverRemoved && browserRemoved
-            ? 'New-mail alerts are off. The expired server endpoint will be removed automatically.'
+            ? 'New-mail alerts are off. The server registration clears automatically.'
             : 'New-mail alerts are off on this browser.';
         return;
       }
       const serverRemoved = await removeFromServer('', true);
       enabled = false;
-      message = serverRemoved ? 'New-mail alerts are off on this browser.' : 'New-mail alerts could not be fully disabled. Choose Turn off to retry.';
+      message = serverRemoved ? 'New-mail alerts are off on this browser.' : 'New-mail alerts could not be disabled. Choose Turn off to retry.';
     } catch {
       message = 'New-mail alerts could not be disabled. Try again.';
     } finally {
@@ -202,12 +202,12 @@
       });
       const result = await response.json().catch(() => ({})) as { result?: string; diagnostic?: string };
       const messages: Record<string, string> = {
-        accepted: 'Test alert accepted by your notification service. It may take a moment to appear.',
-        configuration: 'The notification service rejected this server configuration. Ask an operator to check VAPID keys.',
+        accepted: 'Test alert sent. It may take a moment to arrive.',
+        configuration: 'The notification service rejected the server setup. Ask an operator to check VAPID keys.',
         transient: 'The notification service is temporarily unavailable. Try again shortly.',
         expired: 'This browser registration expired. Turn alerts off and on again.',
         rejected: 'This browser registration was rejected. Turn alerts off and on again.',
-        no_subscription: 'No active browser registration was found. Turn alerts off and on again.',
+        no_subscription: 'No active browser registration found. Turn alerts off and on again.',
         rate_limited: 'Too many test alerts were requested. Try again later.',
       };
       message = messages[result.result || ''] || 'Test alert could not be sent.';
@@ -226,7 +226,7 @@
   <section class="push-control" aria-labelledby="push-title">
     <div>
       <strong id="push-title">New-mail alerts</strong>
-      <span>Install this web app first on iPhone or iPad</span>
+      <span>Install this app first on iPhone or iPad</span>
     </div>
     <a class="btn btn-sm" href="/help/mobile">Setup</a>
   </section>
@@ -243,7 +243,7 @@
       <button type="button" class="btn btn-sm btn-secondary" disabled={busy} onclick={sendTestAlert}>Send test alert</button>
     {/if}
     {#if message}<p role="status">{message}</p>{/if}
-    {#if diagnostic}<p class="push-diagnostic">Diagnostic: <code>{diagnostic}</code>. Share this code with your operator; it contains no notification credentials.</p>{/if}
+    {#if diagnostic}<p class="push-diagnostic">Diagnostic: <code>{diagnostic}</code>. Share with your operator — it holds no credentials.</p>{/if}
   </section>
 {/if}
 

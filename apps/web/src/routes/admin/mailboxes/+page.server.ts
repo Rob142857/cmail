@@ -218,7 +218,7 @@ export const load: PageServerLoad = async ({ platform, url }) => {
 export const actions: Actions = {
   create: async ({ request, platform, locals }) => {
     const env = platform?.env;
-    if (!env) return fail(503, { error: 'Service configuration is unavailable' });
+    if (!env) return fail(503, { error: 'Service unavailable' });
     if (!isManager(locals)) return fail(403, { error: 'Manager role required' });
 
     const data = await request.formData();
@@ -232,7 +232,7 @@ export const actions: Actions = {
       : null;
     const mailDomain = normalizeDomain(env.MAIL_DOMAIN);
     if (!mailDomain) {
-      return fail(503, { error: 'MAIL_DOMAIN must be configured before creating mailboxes' });
+      return fail(503, { error: 'Set MAIL_DOMAIN before creating mailboxes' });
     }
     if (!rawAddress) return fail(400, { error: 'Enter a mailbox name or address' });
     if (displayName === null) {
@@ -240,10 +240,10 @@ export const actions: Actions = {
     }
     if (!displayName) return fail(400, { error: 'Enter a display name for the shared mailbox' });
     if (delegateUserId === null) {
-      return fail(400, { error: 'Choose a valid initial delegate from the results list' });
+      return fail(400, { error: 'Choose a delegate from the list' });
     }
     if (delegateUserId && !permissions) {
-      return fail(400, { error: 'Select a valid permission level for the initial delegate' });
+      return fail(400, { error: 'Choose a permission level for the delegate' });
     }
 
     const fullAddress = normalizeEmail(rawAddress);
@@ -324,7 +324,7 @@ export const actions: Actions = {
 
   assign: async ({ request, platform, locals }) => {
     const env = platform?.env;
-    if (!env) return fail(503, { error: 'Service configuration is unavailable' });
+    if (!env) return fail(503, { error: 'Service unavailable' });
     if (!isManager(locals)) return fail(403, { error: 'Manager role required' });
 
     const data = await request.formData();
@@ -406,7 +406,7 @@ export const actions: Actions = {
 
   unassign: async ({ request, platform, locals }) => {
     const env = platform?.env;
-    if (!env) return fail(503, { error: 'Service configuration is unavailable' });
+    if (!env) return fail(503, { error: 'Service unavailable' });
     if (!isManager(locals)) return fail(403, { error: 'Manager role required' });
 
     const data = await request.formData();
@@ -455,7 +455,7 @@ export const actions: Actions = {
 
   updateStatus: async ({ request, platform, locals }) => {
     const env = platform?.env;
-    if (!env) return fail(503, { error: 'Service configuration is unavailable' });
+    if (!env) return fail(503, { error: 'Service unavailable' });
     if (!isManager(locals)) return fail(403, { error: 'Manager role required' });
 
     const data = await request.formData();

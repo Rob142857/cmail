@@ -30,7 +30,7 @@
     const nextRole = new FormData(event.currentTarget as HTMLFormElement).get('role');
     if (typeof nextRole !== 'string' || nextRole === currentRole) return;
     const message = nextRole === 'manager'
-      ? `Grant management access to ${email}? Managers can change accounts, mailboxes, organisation settings, and policy.`
+      ? `Grant management access to ${email}? Managers can edit accounts, mailboxes, settings, and policy.`
       : `Remove management access from ${email}? Their active sessions will be revoked.`;
     if (!window.confirm(message)) event.preventDefault();
   }
@@ -40,7 +40,7 @@
   <header class="page-header">
     <div>
       <h1 id="users-heading">People</h1>
-      <p>Provision accounts, roles, invitations, and account lifecycle.</p>
+      <p>Manage accounts, roles, and invitations.</p>
     </div>
   </header>
 
@@ -86,7 +86,7 @@
 
   {#if data.configurationUnavailable}
     <div class="notice notice-error" role="alert">
-      People data is unavailable. Confirm the Cloudflare D1 binding and apply the current migrations.
+      People data is unavailable. Check the D1 binding and run pending migrations.
     </div>
   {/if}
   {#if form?.error}
@@ -102,7 +102,7 @@
   <details class="card create-card">
     <summary>Add a person</summary>
     <p class="form-intro">
-      Create the account with its organisational personal mailbox. A new account remains pending and unbound until its owner uses a secure invitation.
+      Creates the account with a personal mailbox. It stays pending until the person accepts an invitation.
     </p>
     <form method="POST" action="?/create" class="create-form">
       <div class="field">
@@ -147,7 +147,7 @@
         <small id="mailbox-domain-hint">
           {data.mailDomain
             ? 'Required. Use letters, numbers, dots, underscores, or hyphens.'
-            : 'Configure MAIL_DOMAIN before provisioning personal mailboxes.'}
+            : 'Set MAIL_DOMAIN before creating personal mailboxes.'}
         </small>
       </div>
       <div class="field compact-field">
@@ -168,8 +168,8 @@
           <label for="send-invite">Send invitation now</label>
           <small>
             {data.inviteAvailable
-              ? 'Required for first sign-in. The single-use link expires after 72 hours; resending rotates it.'
-              : 'Configure APP_URL, an identity provider, and an outbound email provider to enable invites.'}
+              ? 'Required for first sign-in. Single-use link expires in 72 hours; resending replaces it.'
+              : 'Set up APP_URL, a sign-in provider, and an email provider to enable invites.'}
           </small>
         </div>
       </div>
@@ -266,7 +266,7 @@
                         value="paused"
                         class="btn btn-sm"
                         onclick={(event) => {
-                          if (!window.confirm(`Pause ${user.email}? This immediately revokes active sessions. Mailbox assignments remain in place until reactivation or offboarding.`)) {
+                          if (!window.confirm(`Pause ${user.email}? This revokes active sessions immediately; mailbox access stays until reactivated or offboarded.`)) {
                             event.preventDefault();
                           }
                         }}
@@ -280,7 +280,7 @@
                         class="btn btn-sm danger-outline"
                         formaction="?/updateStatus"
                         onclick={(event) => {
-                           if (!window.confirm(`Offboard ${user.email}? This revokes sessions, pending invitations, and device notifications; disables the personal mailbox; removes shared access; and makes public positions internal. Stored mail is retained.`)) {
+                           if (!window.confirm(`Offboard ${user.email}? This revokes sessions, invitations, and device notifications; disables their mailbox; removes shared access; and hides public positions. Mail is kept.`)) {
                             event.preventDefault();
                           }
                         }}
@@ -294,7 +294,7 @@
                         type="submit"
                         class="btn btn-sm btn-ghost"
                         disabled={!data.inviteAvailable}
-                        title={data.inviteAvailable ? 'Send a new single-use first-sign-in invitation' : 'Invite delivery is not configured'}
+                        title={data.inviteAvailable ? 'Send a new single-use invitation' : 'Invite delivery is not configured'}
                       >Send invitation</button>
                     </form>
                   {:else if user.identity_bound}

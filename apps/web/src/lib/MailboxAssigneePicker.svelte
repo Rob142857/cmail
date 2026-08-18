@@ -18,7 +18,7 @@
     excludedUserIds = [],
     name = 'user_id',
     id = '',
-    placeholder = 'Start typing a name or mailbox address',
+    placeholder = 'Name or mailbox address',
     required = false,
   }: {
     endpoint?: string;
@@ -70,7 +70,7 @@
   function updateValidity(): void {
     if (!input) return;
     input.setCustomValidity(!selected && query.trim()
-      ? 'Choose a person from the results list.'
+      ? 'Choose a person from the list.'
       : '');
   }
 
@@ -230,14 +230,14 @@
         {/each}
       </ul>
     {:else if open && searchState === 'loading'}
-      <p class="search-status" role="status">Searching personal mailboxes…</p>
+      <p class="search-status" role="status">Searching…</p>
     {:else if open && searchState === 'ready'}
-      <p class="search-status" role="status">No eligible personal mailboxes found.</p>
+      <p class="search-status" role="status">No matches found.</p>
     {:else if open && searchState === 'error'}
       <p class="search-status search-error" role="status">Search is unavailable. Try again.</p>
     {/if}
   </div>
-  <small id={`${id}-hint`}>Search active or pending people by name or their personal mailbox address.</small>
+  <small id={`${id}-hint`}>Search active or pending people by name or personal mailbox address.</small>
 </div>
 
 <style>

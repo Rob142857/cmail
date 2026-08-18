@@ -76,16 +76,15 @@
       <p class="eyebrow">Diagnostics</p>
       <h1 id="investigate-heading">Investigate</h1>
       <p class="intro">
-        Message trace and the audit log on one timeline. Search once across envelope addresses,
-        subjects, Message-IDs, source addresses, administrators and event detail — then follow a
-        Message-ID to see every record that touched it.
+        Search mail trace and the audit log together, by address, subject, Message-ID, IP,
+        or event detail.
       </p>
     </div>
   </header>
 
   {#if d.unavailable}
     <MessageBar tone="danger" title="Records unavailable.">
-      The trace and audit tables could not be read. Check the D1 binding for this deployment.
+      The trace and audit tables could not be read. Check the D1 binding.
     </MessageBar>
   {:else}
     <form method="GET" class="filters" role="search">
@@ -163,7 +162,7 @@
       <div class="tile">
         <span class="tile-head"><Icon name="activity" size={14} /> Records matched</span>
         <span class="tile-value">{d.total.toLocaleString()}</span>
-        <span class="tile-note">{hasFilters ? 'in this filter' : 'all retained records'}</span>
+        <span class="tile-note">{hasFilters ? 'in this filter' : 'all records'}</span>
       </div>
       <div class="tile">
         <span class="tile-head"><Icon name="mail" size={14} /> Message trace</span>
@@ -240,7 +239,7 @@
           {:else}
             <tr>
               <td colspan="7" class="table-empty">
-                {hasFilters ? 'No records match these filters.' : 'No records have been retained yet.'}
+                {hasFilters ? 'No records match these filters.' : 'No records yet.'}
               </td>
             </tr>
           {/each}
@@ -319,9 +318,7 @@
             </div>
           {:else}
             <p class="not-recorded">
-              Not recorded. Inbound results are only stored when a trusted boundary is named in
-              <code>INBOUND_AUTHSERV_ID</code>, because an unverified Authentication-Results header
-              is sender-controlled.
+              Not recorded for this message — results are saved once <code>INBOUND_AUTHSERV_ID</code> is set (see the configuration guide).
             </p>
           {/if}
           {#if selected.spam_score !== null || selected.tls}

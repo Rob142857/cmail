@@ -327,7 +327,7 @@ async function validatePositionReferences(
   if (input.workEmail) {
     const domain = normalizeDomain(mailDomain);
     if (!domain || !isAddressAtDomain(input.workEmail, domain)) {
-      return 'Work email must use the configured MAIL_DOMAIN';
+      return 'Work email must use your organisation\'s mail domain';
     }
     const assignedMailbox = await db.prepare(
       `SELECT m.id
@@ -810,7 +810,7 @@ export const actions: Actions = {
     const domain = normalizeDomain(env.MAIL_DOMAIN);
     if (!domain) return fail(503, { error: 'MAIL_DOMAIN is not configured' });
     const user = await getEligibleMailboxAssignee(env.DB, domain, userId);
-    if (!user) return fail(409, { error: 'Choose an active or pending user with one active owned personal mailbox on the organisation domain' });
+    if (!user) return fail(409, { error: 'Choose an active or pending user with an eligible mailbox on this domain' });
 
     let mailboxToCreate: { id: string; address: string; displayName: string } | null = null;
     if (!mailboxId) {

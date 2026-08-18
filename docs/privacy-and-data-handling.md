@@ -4,14 +4,14 @@
 
 This guide helps a deployment operator prepare its own privacy notice, records
 of processing, provider review, and individual-rights procedure. It is not a
-ready-made legal notice and is not legal advice. The organisation must adapt it
+ready-made legal notice or legal advice. The organisation must adapt it
 to its jurisdiction, contracts, workforce, users, message purposes, and actual
 Cloudflare/identity/outbound-provider configuration.
 
 cmail is self-hosted software. The upstream project does not receive a
 deployment's accounts or mail merely because the software is used. The
 deployment operator normally determines why and how personal information is
-processed and must identify its own legal role. Cloudflare, Google, Microsoft,
+processed. It must identify its own legal role. Cloudflare, Google, Microsoft,
 Postmark, support providers, DNS/reporting services, and backup destinations
 may have separate roles under their agreements and the operator's law.
 
@@ -37,9 +37,13 @@ approved.
 
 ## Storage and disclosures
 
-- D1 stores application records and message metadata. R2 stores message bodies
-  and attachments. Cloudflare account administrators with sufficient access
-  are inside the deployment trust boundary.
+This section lists where cmail stores data and who else can access or
+receive it.
+
+- D1 (Cloudflare's hosted database) stores application records and message
+  metadata. R2 (Cloudflare's object storage) stores message bodies and
+  attachments. Cloudflare account administrators with sufficient access are
+  inside the deployment trust boundary.
 - Cloudflare Email Routing receives inbound mail before invoking the Worker.
   Cloudflare Email Service or Postmark handles external outbound delivery when
   selected. Review current service terms, locations, retention, subprocessor,
@@ -48,8 +52,8 @@ approved.
   enables temporary content preview, document whether it is disabled or
   approved, who can access it, and its current retention behavior.
 - Google or Microsoft receives sign-in requests and returns the configured
-  identity claims. cmail requests identity scopes; it does not thereby gain
-  access to a person's consumer inbox, drive, contacts, or search history.
+  identity claims. cmail requests identity scopes, but does not gain access
+  to a person's consumer inbox, drive, contacts, or search history.
 - Web Push sends a minimal notification through the endpoint's push service.
   Push is optional and should not contain message content.
 - Backups, exports, support artifacts, DMARC/TLS reports, and independent logs
@@ -62,8 +66,8 @@ deployment. Source documentation cannot establish those facts.
 
 The public directory is off unless the global setting is enabled. Positions
 are internal by default and must be explicitly made public. A public position
-may expose only the approved occupant name, work email, and position title;
-account identifiers, sign-in addresses, permissions, reporting details, and
+may expose only the approved occupant name, work email, and position title.
+Account identifiers, sign-in addresses, permissions, reporting details, and
 other personal information remain internal.
 
 Before enabling publication:
@@ -85,11 +89,11 @@ Do not enable destructive cleanup until periods, backup, recovery, privacy,
 records, litigation/preservation, and contractual requirements are approved.
 
 cmail has no legal-hold workflow and its application audit log is not an
-independently immutable archive. If preservation, eDiscovery, WORM storage, or
-protected export is required, implement and test it outside cmail before
-destructive retention is enabled.
+independently immutable archive. If preservation, eDiscovery, WORM
+(write-once, read-many) storage, or protected export is required, implement
+and test it outside cmail before destructive retention is enabled.
 
-Offboarding revokes access and disables the personal mailbox; it does not
+Offboarding revokes access and disables the personal mailbox. It does not
 automatically erase retained mail or every backup. Document the difference
 between access removal, mailbox disablement, ordinary retention, backup expiry,
 and an approved deletion request.
@@ -99,14 +103,14 @@ and an approved deletion request.
 Publish a contact and verified procedure for access, correction, objection,
 restriction, portability, or deletion requests that apply in the operator's
 jurisdiction. A request may involve other people, confidential correspondence,
-records duties, legal privilege, or security evidence; do not provide raw
+records duties, legal privilege, or security evidence. Do not provide raw
 database/R2 exports without review and redaction.
 
 The operator should be able to locate a person's account, owned mailbox,
 policy acknowledgements, public positions, mailbox grants, and relevant audit
 records. Mail content and backups require a separately controlled search and
-review process; cmail does not provide a complete privacy-request or eDiscovery
-workflow.
+review process. cmail does not provide a complete privacy-request or
+eDiscovery workflow.
 
 ## Operator notice checklist
 

@@ -292,12 +292,12 @@
 
   const editorDescription = $derived(
     editorKind === 'layer'
-      ? 'Layers group units into broad levels, regions, or service tiers.'
+      ? 'A broad level or region.'
       : editorKind === 'unit'
-        ? 'Units are teams, departments, branches, or other parts of the organisation.'
+        ? 'A team, branch, or department.'
         : editorKind === 'role'
-          ? 'Role definitions are reusable titles that can be placed in one or more units.'
-          : 'Positions connect a unit and role to an occupant and control public visibility.',
+          ? 'A reusable position title.'
+          : 'Place a role in a unit.',
   );
 
   const editorAction = $derived(
@@ -499,7 +499,7 @@
   <div>
     <p class="eyebrow">Identity & organisation</p>
     <h1>Organisation</h1>
-    <p>Model how your organisation works, then choose which positions can appear in a minimal public directory.</p>
+    <p>Set up your organisation, then choose which positions appear in the public directory.</p>
   </div>
   <details class="add-menu">
     <summary class="btn btn-primary">Add resource <span aria-hidden="true">⌄</span></summary>
@@ -532,9 +532,9 @@
       <span class:live={directoryEnabled} class="state">{directoryEnabled ? 'On' : 'Off'}</span>
     </div>
     {#if directoryEnabled}
-      <p>Only positions marked <strong>Public</strong> are included. The public endpoint returns the person's name, work email, and position title—nothing else.</p>
+      <p>Only positions marked <strong>Public</strong> are shown, with name, work email, and title — nothing else.</p>
     {:else}
-      <p>Public access is off. Every position remains private, including positions already marked Public. Review entries before switching this on.</p>
+      <p>Off: all positions stay private, even ones marked Public. Review them before turning this on.</p>
     {/if}
   </div>
   <form method="POST" action="?/toggleDirectory" onsubmit={confirmDirectoryToggle}>
@@ -561,18 +561,18 @@
     </svg>
   </div>
   <div>
-    <h2 id="privacy-boundary-title">Public directory privacy boundary</h2>
-    <p><strong>Public means exactly three fields:</strong> occupant name, position title, and assigned work email. All other personal information, account data, permissions, reporting structure, and management notes stay internal.</p>
+    <h2 id="privacy-boundary-title">Privacy boundary</h2>
+    <p><strong>Public shows three fields only:</strong> name, title, and work email. Everything else stays internal.</p>
   </div>
   <span class="privacy-lock">Private by default</span>
 </aside>
 
 {#if !directoryEnabled && publicPositions.length > 0}
   <details class="directory-preflight card">
-    <summary>Review publication preflight</summary>
+    <summary>Review before publishing</summary>
     <div class="preflight-summary">
       <strong>{eligiblePublicPositions.length} ready to publish</strong>
-      {#if ineligiblePublicCount > 0}<span>{ineligiblePublicCount} marked public but currently ineligible</span>{/if}
+      {#if ineligiblePublicCount > 0}<span>{ineligiblePublicCount} marked Public but not ready yet</span>{/if}
     </div>
     {#if eligiblePublicPositions.length > 0}
       <ul>
@@ -581,16 +581,16 @@
         {/each}
       </ul>
     {/if}
-    <p>When enabled, the public surface is <code>/organization</code> and the minimal JSON projection is <code>/api/organization</code>. Units, hierarchy, user IDs, and all other personal information remain internal.</p>
+    <p>The public pages are <code>/organization</code> and <code>/api/organization</code> when enabled; everything else stays internal.</p>
   </details>
 {/if}
 
 {#if !hasStructure}
   <section class="first-run" aria-labelledby="first-run-title">
     <div class="first-run-copy">
-      <span class="setup-badge">First-run setup</span>
-      <h2 id="first-run-title">Build the organisation from the outside in</h2>
-      <p>Start privately. Create a broad layer, add the units inside it, define reusable roles, then place those roles into units.</p>
+      <span class="setup-badge">Getting started</span>
+      <h2 id="first-run-title">Build your organisation structure</h2>
+      <p>Everything starts private. Build it up using the steps below.</p>
     </div>
     <ol class="setup-steps">
       <li>
@@ -656,7 +656,7 @@
     <div class="section-heading">
       <div>
         <h2 id="hierarchy-title">Organisation hierarchy</h2>
-        <p>Layers contain nested units; each unit contains its assigned positions. Select a resource to edit it.</p>
+        <p>Layers contain units, which contain positions. Click any item to edit it.</p>
       </div>
       <div class="visibility-legend" aria-label="Position visibility legend">
         <span><i class="legend-dot internal"></i> Internal</span>
@@ -667,7 +667,7 @@
     {#if hierarchy.length === 0}
       <div class="hierarchy-empty card">
         <span class="tree-symbol layer" aria-hidden="true">L</span>
-        <div><h3>Create a layer to start the hierarchy</h3><p>Layers can represent levels, regions, service lines, or any other broad grouping.</p></div>
+        <div><h3>Create a layer to start the hierarchy</h3><p>Layers can be levels, regions, or service lines.</p></div>
         <button type="button" class="btn btn-primary" onclick={() => openCreate('layer')}>Create layer</button>
       </div>
     {:else}
@@ -705,7 +705,7 @@
                 {@render renderUnitNodes(layerTree.roots)}
               {:else}
                 <div class="branch-empty">
-                  <p><strong>No units in this layer</strong><span>Add a team, department, branch, or other organisational unit.</span></p>
+                  <p><strong>No units in this layer</strong><span>Add a team, department, or branch.</span></p>
                   <button type="button" class="btn" onclick={() => openCreate('unit')}>Add unit</button>
                 </div>
               {/if}
@@ -895,7 +895,7 @@
             <option value="">No linked account</option>
             {#if positionUserId && !users.some((user) => user.id === positionUserId)}
               <option value={positionUserId}>
-                {selectedPosition?.occupant_display_name || 'Former or inactive account'} · retained internal link
+                {selectedPosition?.occupant_display_name || 'Former or inactive account'} · kept on record
               </option>
             {/if}
             {#each users as user}<option value={user.id}>{user.display_name || user.personal_mailbox_address} · {user.personal_mailbox_address}</option>{/each}
@@ -929,9 +929,9 @@
             {#if !positionUserId}
               Select a linked user before choosing a work email.
             {:else if eligibleWorkMailboxes.length === 0}
-              This user has no active work mailbox. Add one before making the position public.
+              This user has no active work mailbox. Add one first.
             {:else}
-              Only active work mailboxes assigned to the linked user can be published.
+              Only active mailboxes for this user can be published.
             {/if}
           </small>
         </label>
@@ -941,12 +941,12 @@
           <label class:checked={positionVisibility === 'internal'} class="visibility-option">
             <input type="radio" name="visibility" value="internal" bind:group={positionVisibility} />
             <span class="radio-mark" aria-hidden="true"></span>
-            <span><strong>Internal</strong><small>Private by default; omitted from the public endpoint.</small></span>
+            <span><strong>Internal</strong><small>Private by default; not shown publicly.</small></span>
           </label>
           <label class:checked={positionVisibility === 'public'} class="visibility-option">
             <input type="radio" name="visibility" value="public" bind:group={positionVisibility} />
             <span class="radio-mark" aria-hidden="true"></span>
-            <span><strong>Public</strong><small>Eligible for the public directory when the master switch is on.</small></span>
+            <span><strong>Public</strong><small>Shown publicly once the directory is turned on.</small></span>
           </label>
         </fieldset>
 
@@ -954,8 +954,8 @@
           <strong>{positionVisibility === 'public' ? 'What the public can see' : 'This position stays private'}</strong>
           <p>
             {positionVisibility === 'public'
-              ? 'Only the occupant name, work email, and position title are returned publicly. Unit structure, linked account, permissions, and internal fields are not exposed.'
-              : 'Internal positions are stored for management and are never returned by the public directory endpoint.'}
+              ? 'Only name, work email, and title are shown publicly. Nothing else is exposed.'
+              : 'Internal positions are never shown publicly.'}
           </p>
         </div>
 
@@ -973,7 +973,7 @@
 
     {#if editorMode === 'edit' && selectedResource}
       <div class="danger-zone">
-        <div><strong>Delete resource</strong><p>Deletion can be blocked while another resource depends on this one.</p></div>
+        <div><strong>Delete resource</strong><p>Blocked if something else depends on this.</p></div>
         <form method="POST" action={deleteAction(editorKind)} onsubmit={confirmDelete}>
           <input type="hidden" name={idField(editorKind)} value={itemId(selectedResource)} />
           <button type="submit" class="btn btn-danger">Delete</button>

@@ -1,25 +1,12 @@
-# Mobile app and notification guide
+# Mobile app and notifications
 
-cmail is an installable Progressive Web App (PWA). When the browser offers an
-install flow, it requests an app icon and standalone window. A Home Screen
-shortcut can instead open in the browser; both provide quick access. cmail does
-not download or synchronise mail for offline use. It deliberately keeps mail
-out of browser caches, so reading, searching, composing, and sending require a
-network connection.
+cmail is an installable Progressive Web App (PWA) — a website that behaves like an app once installed, with its own icon and window. A Home Screen shortcut can open in the browser instead; both give you quick access. cmail does not download or store mail for offline use — reading, searching, composing, and sending all need a network connection.
 
-New-mail alerts are optional. They appear only when the operator has configured
-Web Push, the browser and operating system support it, and you grant permission
-on that specific browser or installed app. Repeat the setup on every device
-where you want alerts. Alerts cover active personal and assigned shared
-mailboxes. Tapping one opens the message in its mailbox, where access is
-checked again; the alert itself contains no sender, subject, mailbox address,
-or message text.
+New-mail alerts are optional. They only work when your operator has turned on Web Push, your browser and device support it, and you allow notifications for that browser or app. You need to set this up separately on every device. Alerts cover your active personal and shared mailboxes. Tapping an alert opens the message, and your access is checked again at that point — the alert itself never shows the sender, subject, mailbox, or message text.
 
 ## iPhone and iPad
 
-Web Push requires iOS or iPadOS 16.4 or newer and a Home Screen web app. A cmail
-page open only as a normal browser tab cannot enable push notifications on
-these systems.
+Web Push needs iOS or iPadOS 16.4 or newer, and cmail installed to your Home Screen. A cmail page open as a normal Safari tab cannot receive push notifications on these systems.
 
 ### Install cmail
 
@@ -29,9 +16,7 @@ these systems.
 4. Select **Add**.
 5. Return to the Home Screen and open cmail from its new icon.
 
-These steps follow Apple's current
-[web-app installation guide](https://support.apple.com/en-ca/guide/iphone/iphea86e5236/ios).
-Apple may adjust labels between operating-system releases.
+These steps follow Apple's current [web-app installation guide](https://support.apple.com/en-ca/guide/iphone/iphea86e5236/ios). Apple sometimes changes these labels between iOS releases.
 
 ### Turn on new-mail alerts
 
@@ -40,31 +25,22 @@ Apple may adjust labels between operating-system releases.
 3. Under **New-mail alerts**, select **Turn on**.
 4. Select **Allow** in the system permission prompt.
 
-Apple requires the permission request to follow a direct action such as
-selecting the button. Web Push for Home Screen web apps was introduced in iOS
-and iPadOS 16.4; the platform behavior is documented by
-[WebKit](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/).
+Apple only shows the permission prompt right after you tap the button yourself — it cannot appear on its own. Web Push for Home Screen apps started in iOS and iPadOS 16.4; see [WebKit's write-up](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/) for details.
 
-Manage later permissions in **Settings > Notifications**, then select the name
-used for the installed cmail app. Focus modes, notification summaries, and
-device notification settings can silence or delay an allowed alert.
+To manage permission later, go to **Settings > Notifications** and select the installed cmail app's name. Focus modes, notification summaries, and other device settings can still silence or delay an allowed alert.
 
 ## Android
 
-The following steps use Google Chrome. Other Android browsers can use different
-labels or may offer different PWA and notification support.
+These steps use Google Chrome. Other Android browsers may use different labels, or offer different levels of PWA and notification support.
 
 ### Install cmail
 
 1. Open the organisation's cmail URL in Chrome and sign in.
 2. Open **More** beside the address bar.
-3. Choose **Install app** when Chrome offers it. If it instead offers **Add to
-   home screen**, create the shortcut.
-4. Open cmail from its new icon. An installed web app opens separately from
-   the regular browser; a shortcut can open in Chrome.
+3. Choose **Install app** when Chrome offers it. If it instead offers **Add to home screen**, create the shortcut.
+4. Open cmail from its new icon. An installed app opens in its own window; a shortcut opens inside Chrome.
 
-These steps follow Google's current
-[Android Home Screen guide](https://support.google.com/chrome/answer/15085120?co=GENIE.Platform%3DAndroid&hl=en).
+These steps follow Google's current [Android Home Screen guide](https://support.google.com/chrome/answer/15085120?co=GENIE.Platform%3DAndroid&hl=en).
 
 ### Turn on new-mail alerts
 
@@ -72,84 +48,42 @@ These steps follow Google's current
 2. Under **New-mail alerts**, select **Turn on**.
 3. Allow notifications when Chrome or Android asks.
 
-Chrome site permissions and Android app notifications both need to allow the
-alert. Chrome documents current site controls in its
-[Android notification guide](https://support.google.com/chrome/answer/3220216?co=GENIE.Platform%3DAndroid&hl=en-GB).
-Battery optimisation, data saving, Do Not Disturb, and vendor-specific
-background restrictions can delay notifications. If alerts do not appear, check
-both Chrome's site permission and Android's app notification permission, then
-allow background activity for Chrome/the installed web app where the device
-vendor offers that control.
+Both Chrome's site permission and Android's app notification permission need to allow this; see Chrome's [Android notification guide](https://support.google.com/chrome/answer/3220216?co=GENIE.Platform%3DAndroid&hl=en-GB). Battery optimisation, data saver, Do Not Disturb, and manufacturer-specific background restrictions can all delay notifications. If alerts do not appear, check both permissions, then allow background activity for Chrome (or the installed app) if your device offers that setting.
 
 ## Turn alerts off
 
-Select **Turn off** under **New-mail alerts** on that device. This removes the
-current browser subscription from cmail and unsubscribes it locally. You can
-also revoke notification permission in the operating-system or browser
-settings.
+Select **Turn off** under **New-mail alerts** on that device. This removes the subscription from cmail and cancels it locally. You can also revoke notification permission in your device or browser settings.
 
-Because subscriptions are per browser and device, turning alerts off on one
-device does not change another. If a device is lost or no longer controlled,
-ask a manager or operator to revoke account sessions and follow the
-organisation's device-loss process; do not rely only on hiding notifications.
+Subscriptions are per browser and device, so turning alerts off on one device does not affect another. If a device is lost or no longer under your control, ask a manager or operator to revoke your account sessions and follow your organisation's lost-device process. Do not rely on hiding notifications alone.
 
 ## Updates and recovery
 
-cmail checks for a new deployment when it opens, returns to the foreground,
-regains focus or network access, and when the page is restored. It does not run
-a background polling timer. When a new version is found, a banner asks you to
-save or complete work, then close and reopen the installed app. In a browser
-tab, refresh after saving. cmail never reloads an open page automatically.
-There is no separate app-store update process. If the installed app will not
-load, check the network, reopen or refresh it, and then ask support if the
-problem continues.
+cmail checks for updates when it opens, comes to the foreground, regains focus or network access, and when the page is restored — not on a constant background timer. When it finds a new version, a banner asks you to finish or save your work, then close and reopen the app. In a browser tab, save your work and refresh instead. cmail never reloads an open page on its own, and there is no separate app-store update process. If the installed app will not load, check your network, then reopen or refresh it. Ask support if the problem continues.
 
-Removing a Home Screen icon does not close the account or revoke an existing
-session. Return to the organisation's cmail URL and repeat the relevant install
-steps to restore the icon.
+Removing a Home Screen icon does not sign you out or end your session. To restore it, go back to the organisation's cmail URL and repeat the install steps.
 
 ## Troubleshooting
 
 ### The New-mail alerts control is missing
 
-- On iPhone or iPad, confirm the system is 16.4 or newer and that cmail was
-  launched from its Home Screen icon.
-- Confirm you are signed in and viewing Mail.
-- Try a current browser with Web Push support.
-- Ask the operator to confirm that the same complete VAPID configuration is
-  deployed to the web application and inbound email Worker.
+- On iPhone or iPad, check that the system is 16.4 or newer and that you opened cmail from its Home Screen icon.
+- Check that you are signed in and viewing Mail.
+- Try a current browser that supports Web Push.
+- Ask the operator to confirm the same VAPID setup (the security keys used for push notifications) is in place on both the web app and the inbound email Worker.
 
 ### The control says Blocked by browser
 
-The permission was denied at browser or operating-system level. Re-enable
-notifications for the cmail site or installed app in settings, then reload or
-reopen cmail. Repeatedly selecting **Turn on** cannot override a system block.
+Your browser or device has blocked the permission. Re-enable notifications for the cmail site or app in your settings, then reload or reopen cmail. Selecting **Turn on** again will not override a system block.
 
 ### The control says On but no alert appears
 
-1. Select **Send test alert** beside the enabled control. It is limited to three
-   requests per account each hour and tests the current browser/device
-   registration, scoped server-side to your signed-in account.
-   “Accepted” means the push service accepted cmail's request; it does not
-   prove the device displayed an alert.
-2. Check Chrome site permission, Android app notification permission, Focus,
-   Do Not Disturb, notification summaries, battery/data restrictions, and any
-   vendor background-app control.
-3. Open cmail and use **Refresh**. If the message is present, the problem is the
-   notification path rather than mail delivery.
-4. If the message is absent, ask a manager to check Mail trace and mailbox
-   status. If it is present but alerts still fail, ask the operator to inspect
-   Web Push configuration and endpoint delivery.
+1. Select **Send test alert** next to the enabled control. You can do this up to three times per hour, and it only tests your current browser/device. "Accepted" means the push service accepted cmail's request — it does not prove your device actually showed an alert.
+2. Check Chrome's site permission, Android's app notification permission, Focus, Do Not Disturb, notification summaries, battery/data restrictions, and any manufacturer background-app controls.
+3. Open cmail and select **Refresh**. If the message is there, the problem is with notifications, not mail delivery.
+4. If the message is missing, ask a manager to check Mail trace and mailbox status. If the message is there but alerts still fail, ask the operator to check the Web Push setup and delivery.
 
-Push services can expire or replace subscriptions. Opening cmail lets it check
-the current browser subscription and register that endpoint with the server
-again. Notifications are not a compliance archive, delivery receipt, or
-substitute for checking the mailbox.
+Push services can expire or replace subscriptions over time. Opening cmail re-checks your current subscription and re-registers it with the server. Notifications are a convenience, not an archive, a delivery receipt, or a substitute for checking your mailbox.
 
 ## Privacy on mobile devices
 
-cmail notifications contain only the application name and generic new-mail
-text. The app does not put sender, subject, mailbox, or body content in its push
-payload. The device still reveals that the organisation's mail app received an
-alert, so use device passcodes, supported biometric protection, and appropriate
-lock-screen settings. Avoid enabling alerts on shared devices.
+cmail notifications only show the app name and generic "new mail" text — never the sender, subject, mailbox, or message body. Your device still shows that a mail app received an alert, so use a passcode, biometric lock, and sensible lock-screen settings. Avoid turning on alerts on shared devices.

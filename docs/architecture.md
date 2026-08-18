@@ -1,7 +1,6 @@
 # Architecture and trust boundaries
 
-cmail separates authenticated web and administration traffic from inbound mail
-processing. Both runtimes use the same Cloudflare D1 database and R2 bucket.
+cmail separates authenticated web/admin traffic from inbound mail processing. Both runtimes share the same Cloudflare D1 database and R2 bucket.
 
 ```mermaid
 flowchart LR
@@ -29,10 +28,10 @@ flowchart LR
 | Component | Responsibility | Does not do |
 |---|---|---|
 | Web application | OAuth callbacks, sessions, mailbox UI, administration, internal delivery, and outbound-provider submission | Receive Email Routing events |
-| Email Worker | Validate routed recipients, parse inbound messages, store content, run bounded retention work, and submit Cloudflare outbound mail over a private service binding | Authenticate users or decide mailbox send permission |
-| D1 | Users, immutable provider bindings, hashed enrolment tokens, mailboxes, assignments, message metadata, atomic mailbox reservations, sessions, policy, audit, trace, retention, and organisation records | Store deployment secrets or raw enrolment tokens |
+| Email Worker | Validate routed recipients, parse and store inbound mail, run bounded retention, and submit Cloudflare outbound mail over a private binding | Authenticate users or decide mailbox send permission |
+| D1 | Users, immutable provider bindings, hashed enrolment tokens, mailboxes, assignments, message metadata, atomic reservations, sessions, policy, audit, trace, retention, and organisation records | Store deployment secrets or raw enrolment tokens |
 | R2 | Message bodies and attachment objects | Decide mailbox authorization |
-| Google or Microsoft | Authenticate identities selected by the operator | Automatically authorize or provision ordinary cmail users |
+| Google or Microsoft | Authenticate identities selected by the operator | Auto-authorize or provision ordinary cmail users |
 | Cloudflare Email Service or Postmark | Deliver external outbound messages | Store cmail mailbox permissions |
 | Browser push service | Best-effort delivery of generic, user-enabled new-mail notices | Receive sender, subject, mailbox, body, or attachment data from cmail |
 
@@ -40,175 +39,62 @@ flowchart LR
 
 ### Authentication
 
-The sign-in page exposes only providers whose complete configuration is ready.
-The server uses the OpenID Connect authorization-code flow with PKCE and state
-validation, requests `openid email profile`, and calls UserInfo with the access
-token. Google uses `https://openidconnect.googleapis.com/v1/userinfo` and
-Microsoft uses `https://graph.microsoft.com/oidc/userinfo`. The durable identity
-is the provider plus immutable UserInfo `sub`; returning login never selects a
-user by email, UPN, or an ID-token claim. Application sessions are
-server-validated and remain separate from provider tokens.
+The sign-in page shows only providers with complete configuration. The server uses OpenID Connect (OIDC, a standard sign-in protocol) authorization-code flow with PKCE and state validation: it requests `openid email profile` and calls UserInfo with the access token — Google at `https://openidconnect.googleapis.com/v1/userinfo`, Microsoft at `https://graph.microsoft.com/oidc/userinfo`. Durable identity is provider plus immutable UserInfo `sub`; returning sign-in never uses email, UPN (Microsoft's internal username-like ID), or an ID-token claim. Sessions are server-validated, separate from provider tokens.
 
-For first sign-in, a manager sends a provider-specific first-party enrolment
-link. D1 stores only the token hash. The 72-hour token is single-use; its route
-captures a validated enrolment into a 15-minute protected first-party cookie
-before OIDC. It is `HttpOnly`, `SameSite=Lax`, and `Secure` on production
-HTTPS. Binding also requires a matching access-token-backed UserInfo email:
-Google requires `email_verified=true`; Microsoft requires its non-empty OIDC
-UserInfo `email` claim alongside the invitation because that endpoint omits
-`email_verified`. Resending rotates the token and revokes the old link. Accounts
-created without delivery remain pending and unbound.
+For first sign-in, a manager sends a provider-specific enrolment link; D1 stores only its hash. The 72-hour, single-use token gets captured into a 15-minute `HttpOnly`, `SameSite=Lax` cookie (`Secure` in production) before OIDC starts. Binding also needs a matching UserInfo email — Google's `email_verified=true`, or Microsoft's non-empty `email` claim, since Microsoft UserInfo omits `email_verified`. Resending rotates the token and revokes the old link; invitation-less accounts stay pending and unbound.
 
-The first manager is the only invitation exception. A strong bootstrap token
-and exact bootstrap email must both be present temporarily. A same-origin POST
-to `/bootstrap` exchanges the token for a signed 10-minute `HttpOnly` proof;
-neither credential appears in a URL or log, and the proof remains in the
-protected first-party cookie during the callback. Both deployment secrets are
-removed once the first manager's provider subject is bound.
+The first manager is the only exception: a strong bootstrap token and exact email must both be set temporarily. A same-origin POST to `/bootstrap` exchanges the token for a signed 10-minute `HttpOnly` proof — neither credential appears in a URL or log. Delete both secrets once the first manager's provider subject is bound.
 
 ### Inbound mail
 
-Cloudflare Email Routing invokes the email Worker. The Worker validates message
-size and envelope addresses, accepts only active recipients represented in D1,
-and suppresses established duplicate deliveries. It then uses a single D1
-reservation insert to enforce per-mailbox rolling message/byte limits,
-mailbox-scoped HMAC sender limits, and an approximate retained-storage quota.
-The insert and its SQLite guard triggers are one write transaction, so
-concurrent deliveries cannot all pass a stale counter read. A unique delivery
-key also allows only one concurrent copy of the same message to continue.
+Cloudflare Email Routing invokes the email Worker, which checks message size and envelope addresses, accepts only active D1 recipients, and drops duplicates. One D1 insert then reserves per-mailbox rolling message/byte limits, mailbox-scoped HMAC (cryptographic signing) sender limits, and an approximate storage quota, all in one write transaction — so concurrent deliveries can't pass a stale counter read, and a unique delivery key lets only one concurrent copy continue.
 
-Only after that reservation succeeds does the Worker read and parse the raw
-message, enforce decoded byte/element/depth ceilings, sanitize its HTML,
-validate bounded attachments, and write opaque-keyed R2 objects plus
-D1 message metadata. A successful message insert atomically settles its pending
-storage reservation; rejected or failed processing releases that pending charge
-while retaining the rolling-hour abuse charge. Unknown/inactive recipients and
-guarded deliveries are rejected before R2 persistence.
+Only then does the Worker parse the raw message, enforce decoded byte/element/depth ceilings, sanitize its HTML, validate attachments, and write R2 objects plus D1 metadata. A successful insert settles the pending storage reservation; a rejection releases it but keeps the rolling-hour abuse charge. Unknown or inactive recipients are rejected before anything reaches R2.
 
 ### Outbound mail
 
-The web application checks the authenticated user's mailbox assignment and
-send permission before accepting a compose request. Purely internal recipients
-are written directly to cmail storage. External recipients use the configured
-Cloudflare Email Service or Postmark account. For Cloudflare, Pages normally
-submits a bounded request over its private `EMAIL_SERVICE` service binding to
-the email Worker. The native `send_email` result is an opaque provider tracking
-ID, not the wire RFC `Message-ID`; cmail stores those values separately. The
-Worker has `workers_dev=false`, `preview_urls=false`, explicit empty routes, and
-a private-hostname guard on its fetch handler.
+The web application checks the signed-in user's mailbox assignment and send permission before accepting a compose request. Internal-only recipients go straight to cmail storage; external recipients use the configured Cloudflare Email Service or Postmark account. For Cloudflare, Pages sends a bounded request over its private `EMAIL_SERVICE` binding to the email Worker, which owns the outbound call and keeps `workers_dev=false`, `preview_urls=false`, explicit empty routes, and a private-hostname guard on its fetch handler. Its `send_email` result is an opaque tracking ID, not the wire RFC `Message-ID` — cmail stores the two separately.
 
-When Cloudflare REST credentials are also available, mixed local/external mail
-uses the single-recipient-set `send_raw` endpoint: the MIME copy retains the
-complete visible To/Cc lists, the SMTP envelope contains only external
-recipients, and local copies remain synchronous. Otherwise native Cloudflare or
-Postmark receives one structured all-recipient submission so every recipient
-still sees identical headers; local copies then return asynchronously through
-Email Routing. This fallback depends on working inbound routing and inbound
-quota. The REST API's RFC-style `result.message_id` is validated when present;
-native opaque tracking IDs never substitute for it.
+Mixed local/external mail, when Cloudflare REST credentials are also configured, uses `send_raw` instead: the MIME copy keeps the full To/Cc lists, the SMTP envelope carries only external recipients, and local copies stay synchronous. Otherwise native Cloudflare or Postmark gets one all-recipient submission — every recipient sees identical headers, and local copies return asynchronously through Email Routing, so this path depends on inbound routing and quota working. cmail validates the REST API's RFC-style `result.message_id` when present; opaque tracking IDs never substitute for it.
 
-Per-send ceilings and per-user rate/work limits bound recipient, payload, and
-R2 amplification. Before a provider call or R2 write, D1 reserves bytes for
-every copy this request will persist directly. Provider-looped local copies use
-the inbound path's independent quota reservation when they arrive; the compose
-workload cap still budgets their expected storage. A denial releases the direct
-reservation group.
+Per-send ceilings and per-user rate/work limits bound recipient count, payload size, and R2 amplification. D1 reserves bytes for every copy before any provider call or R2 write; local copies returned via the inbound path use its own reservation on arrival, though the compose workload cap still budgets their expected storage. A denial releases the whole reservation group.
 
-Before provider dispatch, cmail stages immutable HTML, plain text, and
-attachment bytes under a private R2 outbound-journal prefix and commits a D1
-manifest, fixed Sent/local message IDs, fixed attachment IDs, and durable quota
-reservations. Immutable D1 SHA-256 digests are checked against the staged bytes
-before both provider dispatch and local materialisation. It then atomically
-moves the journal from `pending` to
-`dispatching` before contacting the provider.
+Before dispatch, cmail stages immutable HTML, plain text, and attachment bytes under a private R2 outbound-journal prefix, commits a D1 manifest (fixed Sent/local message and attachment IDs, durable quota reservations), and verifies D1 SHA-256 digests against the staged bytes before both dispatch and local materialisation. The journal then moves atomically from `pending` to `dispatching` before cmail calls the provider.
 
-Provider success moves the journal to `accepted`; fixed targets are materialised
-idempotently and only then does the journal become `materialized` and the source
-draft disappear. An accepted send can therefore recover its Sent/internal copies
-without another provider call. A timeout, lost response, or stale `dispatching`
-record is treated as an unknown outcome and is never retried automatically.
-Only a provider response that proves non-acceptance can release the attempt for
-a new send. Cloudflare and Postmark are not assumed to honour cmail's local
-idempotency key.
+Provider success moves it to `accepted`; targets materialise idempotently, the journal becomes `materialized`, and the source draft disappears — so an accepted send can recover its Sent/internal copies without calling the provider again. A timeout, lost response, or stale `dispatching` record counts as unknown and is never auto-retried; only proof of non-acceptance frees the attempt for a new send. Cloudflare and Postmark aren't assumed to honour cmail's idempotency key.
 
-The manager Mail trace blade surfaces unresolved journals. Their staged content
-and quota reservation remain until the state is safely resolved; age-based
-session, rate-limit, and legacy-send cleanup does not remove them.
+The manager Mail trace view surfaces unresolved journals: staged content and quota reservations stay until the state resolves safely, untouched by routine session, rate-limit, or legacy-send cleanup.
 
-Draft autosaves have a separate per-user/mailbox rate. New drafts and mailbox
-moves reserve an atomic owned-draft slot, while growth reserves only its stored
-HTML byte delta. Versioned R2 replacement preserves the prior draft body until
-the D1 update succeeds; the update trigger then settles its reservation.
+Draft autosaves have their own per-user/mailbox rate. New drafts and mailbox moves reserve an atomic owned-draft slot; growth reserves only the stored HTML byte delta. Versioned R2 replacement keeps the prior draft body until the D1 update succeeds, which then settles the reservation.
 
 ### Public organisation directory
 
-Administration records are manager-only. `GET /api/organization` is the single
-intentional public projection and returns an empty array unless its master
-switch is enabled. It selects only explicitly public, active positions and
-returns the occupant display name, work email, and position title. It does not
-return user IDs, login addresses, hierarchy, or other organisation metadata.
+Administration records are manager-only. `GET /api/organization` is the one public endpoint — an empty array unless its master switch is enabled, and even then limited to explicitly public, active positions: occupant display name, work email, and position title. It never returns user IDs, login addresses, hierarchy, or other organisation metadata.
 
 ### Optional browser notifications
 
-Web Push remains disabled unless the Pages app and inbound Worker share a
-complete VAPID public/private key pair and subject. A signed-in user must opt in
-through an explicit gesture. Subscriptions are user-owned and notification
-payloads contain only generic new-mail copy plus an authenticated in-app route;
-message and mailbox metadata are excluded. Push endpoints are restricted to a
-built-in service-host allowlist plus operator-reviewed additions.
+Web Push stays disabled unless the Pages app and inbound Worker share a complete VAPID (keys that authenticate your server to push services) key pair and subject, and a signed-in user opts in with an explicit gesture. Subscriptions are user-owned; payloads carry only generic new-mail copy plus an authenticated in-app route, never message or mailbox metadata. Push endpoints are restricted to a built-in allowlist plus operator-reviewed additions.
 
-Notification fan-out is currently best-effort: inbound storage completes first,
-then the runtime attempts delivery to active assigned subscribers without a
-durable per-attempt queue, retry record or device-display receipt. A successful
-push-service response means only that service accepted the request. The mailbox
-and mail trace remain the authoritative delivery record. Any future durable
-Queue design must persist an attempt before asynchronous fan-out and define
-bounded retry, expiry/dead-letter handling and operator-visible outcomes before
-it is described as reliable delivery. See the non-implemented [push
-notification reliability blueprint](push-notification-reliability.md).
+Fan-out is best-effort: inbound storage completes first, then the runtime tries delivery to active subscribers with no durable per-attempt queue, retry record, or device-display receipt. A successful push-service response only means the service accepted the request — the mailbox and mail trace remain the authoritative record. A future durable Queue design would need to persist each attempt before fan-out, with bounded retry, expiry/dead-letter handling, and operator-visible outcomes, before it could be called reliable. See the non-implemented [push notification reliability blueprint](push-notification-reliability.md).
 
 ## Trust boundaries
 
-- Treat browser input, routed email, provider responses, message HTML,
-  attachments, and configuration values as untrusted.
-- Authorization belongs on server routes and actions; hiding a UI control is
-  not an authorization decision.
-- D1 and R2 bindings grant data-plane access. Limit who can change Pages,
-  Worker, provider, DNS, and Cloudflare account configuration.
-- OAuth client secrets, session keys, outbound API keys, bootstrap token and
-  email, tenant IDs, and resource IDs are deployment-owned values. Keep
-  sensitive values in secret stores and local ignored files. Treat raw
-  enrolment links and bootstrap proofs as short-lived credentials.
-- The inbound sender-HMAC key is a Worker-only secret. It prevents raw sender
-  addresses from entering the short-lived abuse ledger and must not be reused
-  as a session, OAuth, provider, or VAPID key.
-- Email authentication and delivery reputation also depend on operator-managed
-  DNS and provider configuration outside this repository.
-- Configuring Web Push adds browser push services as outbound destinations;
-  protect the VAPID private key and review every endpoint-host extension.
+- Treat browser input, routed email, provider responses, message HTML, attachments, and configuration values as untrusted.
+- Authorization belongs on server routes and actions; hiding a UI control is not an authorization decision.
+- D1 and R2 bindings grant data-plane access — limit who can change Pages, Worker, provider, DNS, and Cloudflare account configuration.
+- OAuth client secrets, session keys, outbound API keys, bootstrap token/email, tenant IDs, and resource IDs are deployment-owned: keep them in secret stores and local ignored files, not source control. Treat raw enrolment links and bootstrap proofs the same way.
+- The inbound sender-HMAC key is a Worker-only secret keeping raw sender addresses out of the short-lived abuse ledger — never reuse it as a session, OAuth, provider, or VAPID key.
+- Email authentication and delivery reputation also depend on operator-managed DNS and provider configuration outside this repository.
+- Configuring Web Push adds browser push services as outbound destinations; protect the VAPID private key and review every endpoint-host extension.
 
 ## Storage-accounting boundary
 
-The shared retained-storage control intentionally uses D1
-`messages.size_bytes` plus active reservations instead of listing R2 on every
-inbound delivery, send, or draft save. It is atomic, inexpensive, and includes trash until purge, but it is
-an estimate of retained message data rather than Cloudflare billing truth.
-Legacy rows with inaccurate sizes and encoding differences can skew it. D1 and
-R2 also have no shared transaction: handled errors clean up opaque objects, but
-an abrupt termination between an R2 write and its D1 row can leave an object
-that requires periodic reconciliation. Operators should monitor D1/R2 growth,
-run retention deliberately, and maintain a recovery/reconciliation procedure.
+The shared storage control uses D1 `messages.size_bytes` plus active reservations instead of listing R2 on every inbound delivery, send, or draft save — atomic and cheap, and it counts trash until purge, but it's an estimate, not Cloudflare billing truth. Legacy rows with inaccurate sizes, and encoding differences, can skew it. D1 and R2 also share no transaction: handled errors clean up opaque objects, but an abrupt termination between an R2 write and its D1 row can leave an orphaned object needing reconciliation. Monitor D1/R2 growth, run retention deliberately, and keep a recovery procedure.
 
 ## Deployment assumptions
 
-cmail currently targets Cloudflare Pages, Workers, D1, R2, and Email Routing.
-It is not a general SMTP or IMAP server and is not a drop-in implementation of
-Exchange protocols. The repository does not create identity-provider
-registrations, mail-provider accounts, DNS records, backups, alerts, or legal
-policies for an operator.
+cmail targets Cloudflare Pages, Workers, D1, R2, and Email Routing. It is not a general SMTP or IMAP server, and not a drop-in Exchange replacement. The repository doesn't create identity-provider registrations, mail-provider accounts, DNS records, backups, alerts, or legal policies for you.
 
-Review the [configuration reference](configuration.md),
-[deployment guide](deployment.md), and [security checklist](security-checklist.md)
-before altering these boundaries.
+Review the [configuration reference](configuration.md), [deployment guide](deployment.md), and [security checklist](security-checklist.md) before changing these boundaries.
 
 [← Documentation home](README.md)

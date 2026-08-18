@@ -16,7 +16,7 @@ After creating or transferring the public GitHub repository:
 - enable private vulnerability reporting and review the contact path in
   [SECURITY.md](../SECURITY.md);
 - enable dependency graph, Dependabot alerts, secret scanning, and push
-  protection where they are available for the repository;
+  protection where available;
 - protect `main` with pull requests, successful CI checks, resolved review
   conversations, and protection from force pushes and deletion;
 - grant write, administration, Pages, DNS, and provider access only to people
@@ -34,8 +34,9 @@ GitHub's current social-preview requirements are documented in
 ## Prepare a release
 
 1. Work from an up-to-date, reviewed branch with no unrelated changes.
-2. Review `git diff`, dependency changes, migrations, documentation, and the
-   full commit list.
+2. Review `git diff`, dependency changes, documentation, and the full commit
+   list. Run `pnpm db:migrate:verify` to apply and inspect migrations in a
+   fresh temporary D1 (Cloudflare's hosted database).
 3. Update [CHANGELOG.md](../CHANGELOG.md) with user-visible, operational,
    migration, security, and compatibility notes.
 4. Run `pnpm release:check`. A source or reachable-history secret finding is a
@@ -47,12 +48,12 @@ GitHub's current social-preview requirements are documented in
 7. Create an annotated version tag only after the release commit is approved.
 
 For identity changes, inspect the complete authorization-code and enrolment
-flow rather than only the sign-in button. Confirm both providers obtain
-identity from access-token UserInfo, returning accounts resolve solely by
-provider plus `sub`, invitation hashes remain single-use and expiring, resend
-revokes older links, and raw invitation/bootstrap credentials do not enter
-provider callbacks or logs. A release must not reintroduce Microsoft `/me`,
-email/UPN lookup, or ID-token claims as an account selector.
+flow, not just the sign-in button. Confirm both providers obtain identity from
+access-token UserInfo, returning accounts resolve solely by provider plus
+`sub`, invitation hashes remain single-use and expiring, resend revokes older
+links, and raw invitation/bootstrap credentials never enter provider callbacks
+or logs. A release must not reintroduce Microsoft `/me`, email/UPN lookup, or
+ID-token claims as an account selector.
 
 ## Release notes
 

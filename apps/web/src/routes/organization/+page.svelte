@@ -22,7 +22,7 @@
       <span>{data.orgName || data.appName || 'Organisation'}</span>
     </a>
     <div class="header-links">
-      {#if data.orgUrl}<a href={data.orgUrl} rel="external">Organisation website</a>{/if}
+      {#if data.orgUrl}<a href={data.orgUrl} rel="external">Website</a>{/if}
       <a class="btn" href="/">Sign in</a>
     </div>
   </header>
@@ -31,23 +31,23 @@
     <div class="heading">
       <p class="eyebrow">Public information</p>
       <h1 id="directory-title">Organisation directory</h1>
-      <p>Only positions deliberately published by the organisation appear here. Internal structure and other personal information are not exposed.</p>
+      <p>Only published positions appear here — no internal structure or personal details.</p>
     </div>
 
     {#if !data.enabled}
       <div class="card empty-state">
         <h2>The public directory is not available</h2>
-        <p>This organisation has not enabled its public position directory.</p>
+        <p>This organisation hasn't enabled its public directory.</p>
       </div>
     {:else if data.entries.length === 0}
       <div class="card empty-state">
         <h2>No public positions are listed</h2>
-        <p>The directory is enabled, but no positions currently meet the publication requirements.</p>
+        <p>No positions currently meet the publication requirements.</p>
       </div>
     {:else}
       <div class="directory-tools">
         <div class="search-control">
-          <label for="directory-search">Search the directory</label>
+          <label for="directory-search">Search</label>
           <input id="directory-search" type="search" bind:value={query} placeholder="Name, position or work email" maxlength="120" />
         </div>
         <p aria-live="polite">{filtered.length} {filtered.length === 1 ? 'position' : 'positions'}</p>
@@ -77,7 +77,7 @@
   </section>
 
   <footer>
-    <span>Public fields: name, position title, and work email only.</span>
+    <span>Public fields: name, position, and work email only.</span>
     <a href="/policy">Usage policy</a>
   </footer>
 </main>

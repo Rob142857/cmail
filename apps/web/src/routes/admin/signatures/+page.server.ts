@@ -80,7 +80,7 @@ export const load: PageServerLoad = async ({ platform }) => {
 export const actions: Actions = {
   updateUserSignature: async ({ request, locals, platform }) => {
     const env = platform?.env;
-    if (!env) return fail(503, { error: 'Service configuration is unavailable' });
+    if (!env) return fail(503, { error: 'Service unavailable' });
     if (!locals.user || locals.user.role !== 'manager') return fail(403, { error: 'Manager role required' });
 
     const form = await request.formData();
@@ -101,7 +101,7 @@ export const actions: Actions = {
       isLocked: locked,
       updatedBy: locals.user.id,
     });
-    if (!saved) return fail(400, { error: 'The signature is too complex or could not be safely processed' });
+    if (!saved) return fail(400, { error: 'This signature is too complex to save safely' });
     await audit(env.DB, {
       event_type: locked ? 'signature.lock' : 'signature.update',
       actor_id: locals.user.id,
@@ -114,7 +114,7 @@ export const actions: Actions = {
 
   updateOrganisationSignature: async ({ request, locals, platform }) => {
     const env = platform?.env;
-    if (!env) return fail(503, { error: 'Service configuration is unavailable' });
+    if (!env) return fail(503, { error: 'Service unavailable' });
     if (!locals.user || locals.user.role !== 'manager') return fail(403, { error: 'Manager role required' });
 
     const form = await request.formData();
@@ -126,7 +126,7 @@ export const actions: Actions = {
       enabled: checked(form.get('enabled')),
       updatedBy: locals.user.id,
     });
-    if (!saved) return fail(400, { error: 'The signature is too complex or could not be safely processed' });
+    if (!saved) return fail(400, { error: 'This signature is too complex to save safely' });
     await audit(env.DB, {
       event_type: 'signature.update',
       actor_id: locals.user.id,

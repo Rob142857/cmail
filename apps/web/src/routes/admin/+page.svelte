@@ -13,14 +13,14 @@
   const checks = $derived.by<ReadinessItem[]>(() => data.readiness ? [
     {
       label: 'Mailbox domain',
-      detail: data.readiness.mailDomain || 'Set MAIL_DOMAIN in the deployment configuration.',
+      detail: data.readiness.mailDomain || 'Set MAIL_DOMAIN in deployment settings.',
       ready: Boolean(data.readiness.mailDomain),
       href: '/admin/settings',
       action: 'Review settings',
     },
     {
       label: 'Public application URL',
-      detail: data.readiness.appUrl || 'Set the HTTPS APP_URL used by OAuth callbacks and invitations.',
+      detail: data.readiness.appUrl || 'Set APP_URL for sign-in links and invitations.',
       ready: Boolean(data.readiness.appUrl),
       href: '/admin/settings',
       action: 'Review settings',
@@ -29,7 +29,7 @@
       label: 'Authentication provider',
       detail: data.readiness.authProviders.length
         ? data.readiness.authProviders.map((provider: string) => provider === 'microsoft' ? 'Microsoft Entra ID' : 'Google').join(' and ')
-        : 'Configure at least one complete OAuth provider in Cloudflare secrets.',
+        : 'Turn on Google or Microsoft sign-in in deployment settings.',
       ready: data.readiness.authProviders.length > 0,
       href: '/admin/settings',
       action: 'Review setup',
@@ -37,15 +37,15 @@
     {
       label: 'Session protection',
       detail: data.readiness.sessionSecretReady
-        ? 'A strong session signing secret is configured.'
-        : 'Replace SESSION_SECRET with a random value of at least 32 characters.',
+        ? 'Session secret is strong.'
+        : 'Set SESSION_SECRET to a random value of 32+ characters.',
       ready: data.readiness.sessionSecretReady,
       href: '/admin/settings',
       action: 'Review guidance',
     },
     {
       label: 'System sender',
-      detail: data.readiness.systemEmail || 'Set the verified sender used for invitations and system messages.',
+      detail: data.readiness.systemEmail || 'Set a verified sender for invitations and system mail.',
       ready: Boolean(data.readiness.systemEmail),
       href: '/admin/settings',
       action: 'Configure sender',
@@ -53,8 +53,8 @@
     {
       label: 'Message storage',
       detail: data.readiness.storageReady
-        ? 'The private object-storage binding is available for message bodies and attachments.'
-        : 'Bind the private R2 bucket before accepting mail.',
+        ? 'Storage is connected for messages and attachments.'
+        : 'Connect the R2 storage bucket before accepting mail.',
       ready: data.readiness.storageReady,
       href: '/admin/settings',
       action: 'Review setup',
@@ -62,7 +62,7 @@
     {
       label: 'External delivery',
       detail: data.readiness.outboundProvider === 'none'
-        ? 'No provider configured; mail can be delivered only between local cmail mailboxes.'
+        ? 'No provider set; mail only sends between cmail mailboxes.'
         : `${data.readiness.outboundLabel} is selected.`,
       ready: data.readiness.outboundProvider !== 'none',
       optional: true,
@@ -72,7 +72,7 @@
     {
       label: 'Usage policy',
       detail: data.readiness.policyPublished
-        ? 'A policy is published and acknowledgement is enforced.'
+        ? 'A policy is published and acceptance is required.'
         : 'Optional: publish a policy before inviting users.',
       ready: data.readiness.policyPublished,
       optional: true,
@@ -90,7 +90,7 @@
     <div>
       <p class="eyebrow">Workspace</p>
       <h1>Management overview</h1>
-      <p>Configure identity, mail flow, organisational structure, and governance from one workspace.</p>
+      <p>Manage people, mail, organisation structure, and governance in one place.</p>
     </div>
     <div class="quick-actions" aria-label="Quick actions">
       <a class="btn btn-primary" href="/admin/users">Add person</a>
@@ -104,7 +104,7 @@
       <span class="summary-mark" aria-hidden="true"></span>
       <div>
         <strong>{readyRequired === requiredChecks.length ? 'Core configuration is ready' : `${readyRequired} of ${requiredChecks.length} core checks complete`}</strong>
-        <span>{readyRequired === requiredChecks.length ? 'Continue with a staged mail-flow test before production use.' : 'Complete the highlighted configuration before inviting people.'}</span>
+        <span>{readyRequired === requiredChecks.length ? 'Test mail flow before going live.' : 'Finish setup before inviting people.'}</span>
       </div>
     </div>
 
@@ -117,14 +117,14 @@
         <article><strong>{data.stats.users}</strong><span>People</span><small>All account states</small></article>
         <article><strong>{data.stats.mailboxes}</strong><span>Active mailboxes</span><small>{data.stats.sharedMailboxes} shared</small></article>
         <article><strong>{data.stats.recentMessages}</strong><span>Recent messages</span><small>{data.stats.messages} stored total</small></article>
-        <article><strong>{data.stats.activeSessions}</strong><span>Active sessions</span><small>Unexpired and not revoked</small></article>
+        <article><strong>{data.stats.activeSessions}</strong><span>Active sessions</span><small>Not expired or revoked</small></article>
       </div>
     </section>
 
     <section aria-labelledby="readiness-heading">
       <div class="section-heading">
-        <div><p class="eyebrow">Configuration</p><h2 id="readiness-heading">Deployment readiness</h2></div>
-        <a href="/admin/settings">Open organisation settings</a>
+        <div><p class="eyebrow">Configuration</p><h2 id="readiness-heading">Setup checklist</h2></div>
+        <a href="/admin/settings">Open settings</a>
       </div>
       <div class="check-list">
         {#each checks as item (item.label)}
@@ -152,7 +152,7 @@
         <span class:enabled={data.readiness.directoryEnabled} class="privacy-icon" aria-hidden="true"></span>
         <div>
           <strong>{data.readiness.directoryEnabled ? 'Public directory is enabled' : 'Public directory is off'}</strong>
-          <p>Positions stay internal by default. When enabled, only positions individually marked public can expose an occupant name, work email, and position title. No other user fields are returned.</p>
+          <p>Only positions marked Public appear there, showing just name, work email, and title.</p>
         </div>
         <a class="btn" href="/admin/orgchart">Review visibility</a>
       </div>
@@ -160,7 +160,7 @@
   {:else}
     <div class="empty" role="alert">
       <h2>Management data is unavailable</h2>
-      <p>Confirm the Cloudflare bindings and apply the current D1 migrations.</p>
+      <p>Check the Cloudflare bindings and run pending D1 migrations.</p>
       <a class="btn" href="/admin">Try again</a>
     </div>
   {/if}

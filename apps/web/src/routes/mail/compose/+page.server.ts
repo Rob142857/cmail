@@ -224,14 +224,14 @@ async function cleanupTerminalJournal(
 
 function composeBodyFailure(reason: ComposeBodyFailureReason): { status: 400 | 413; error: string } {
   if (reason === 'combined_bytes') {
-    return { status: 413, error: 'The message body and quoted email exceed the 1 MB draft limit.' };
+    return { status: 413, error: 'Message and quoted email exceed the 1 MB draft limit.' };
   }
   if (reason === 'input_bytes' || reason === 'output_bytes') {
-    return { status: 413, error: 'The quoted email exceeds the 512 KB safety limit. Remove the quote and try again.' };
+    return { status: 413, error: 'Quoted email exceeds the 512 KB safety limit. Remove the quote and try again.' };
   }
   return {
     status: 400,
-    error: 'The quoted email is too complex to include safely. Remove the quote and try again.',
+    error: 'Quoted email is too complex to include safely. Remove the quote and try again.',
   };
 }
 
@@ -439,10 +439,10 @@ export const actions: Actions = {
       }
       return completed.journal.partial_delivery === 1;
     };
-    if (requestExceedsComposeLimit(request)) return fail(413, { error: 'Compose request exceeds the 24 MB limit' });
+    if (requestExceedsComposeLimit(request)) return fail(413, { error: 'Compose request exceeds 24 MB limit' });
 
     const formData = await request.formData();
-    if (formDataExceedsComposeLimit(formData)) return fail(413, { error: 'Compose request exceeds the 24 MB limit' });
+    if (formDataExceedsComposeLimit(formData)) return fail(413, { error: 'Compose request exceeds 24 MB limit' });
     const from = normalizeEmail(stringValue(formData.get('from')));
     const subjectInput = stringValue(formData.get('subject')).trim();
     const subject = subjectInput || '(no subject)';
@@ -464,19 +464,19 @@ export const actions: Actions = {
     const toSet = new Set(toResult.recipients);
     const ccRecipients = ccResult.recipients.filter((address) => !toSet.has(address));
     const allRecipients = [...toResult.recipients, ...ccRecipients];
-    if (allRecipients.length > recipientLimit) return fail(400, { error: `A message can have at most ${recipientLimit} recipients` });
+    if (allRecipients.length > recipientLimit) return fail(400, { error: `Max ${recipientLimit} recipients per message` });
     if (subject.length > MAX_SUBJECT_LENGTH) return fail(400, { error: `Subject is too long (max ${MAX_SUBJECT_LENGTH} characters)` });
     if (body.length > MAX_BODY_LENGTH) return fail(413, { error: 'Message body is too large' });
     const bodyBytes = new TextEncoder().encode(body).byteLength;
-    if (bodyBytes > MAX_BODY_BYTES) return fail(413, { error: 'Message body exceeds the 1 MB limit' });
+    if (bodyBytes > MAX_BODY_BYTES) return fail(413, { error: 'Message body exceeds 1 MB limit' });
     const preparedBody = prepareComposeBody(body, quotedHtml);
     if (!preparedBody.ok) {
       const failure = composeBodyFailure(preparedBody.reason);
       return fail(failure.status, { error: failure.error });
     }
-    if (!/^[0-9a-f-]{36}$/i.test(composeToken)) return fail(400, { error: 'This compose form expired. Reload it and try again.' });
+    if (!/^[0-9a-f-]{36}$/i.test(composeToken)) return fail(400, { error: 'This compose form expired. Reload and try again.' });
     if (draftId && expectedDraftVersion === null) {
-      return fail(400, { error: 'The draft version is missing. Reload before sending.' });
+      return fail(400, { error: 'Draft version missing. Reload before sending.' });
     }
     const observedDraftVersion = expectedDraftVersion ?? 0;
     let sendClaimId = draftId
@@ -493,7 +493,7 @@ export const actions: Actions = {
         )
         : await findActiveOutboundJournal(env.DB, locals.user.id, sendClaimId);
     } catch {
-      return fail(503, { error: 'The durable send journal is temporarily unavailable. No provider call was made; retry shortly.' });
+      return fail(503, { error: 'The send journal is temporarily unavailable. No provider call was made; retry shortly.' });
     }
     if (existingJournal) sendClaimId = existingJournal.idempotency_key;
     if (existingJournal?.state === 'dispatching' && existingJournal.dispatch_token) {
@@ -519,27 +519,27 @@ export const actions: Actions = {
       } catch (caught) {
         if (caught && typeof caught === 'object' && 'status' in caught && 'location' in caught) throw caught;
         return fail(503, {
-          error: 'The provider accepted this message, but its Sent copy is still being recovered. Retry this draft; cmail will not send it again.',
+          error: 'The provider accepted this message, but its Sent copy is still recovering. Retry this draft — cmail won\'t send it again.',
         });
       }
     }
     if (existingJournal?.state === 'permanent_failure') {
       await cleanupTerminalJournal(env.DB, env.STORAGE, existingJournal);
       return fail(502, {
-        error: existingJournal.last_error || 'The provider rejected this message. It was not delivered; review the draft before trying again.',
+        error: existingJournal.last_error || 'The provider rejected this message. It wasn\'t delivered; review the draft before trying again.',
       });
     }
     if (existingJournal?.state === 'retryable_failure') {
       const cancelled = await cancelRetryableJournal(env.DB, existingJournal.id).catch(() => false);
       if (!cancelled) {
-        return fail(503, { error: 'The previous rejected attempt could not be released safely. Retry after D1 recovers.' });
+        return fail(503, { error: 'The previous rejected attempt couldn\'t be released safely. Retry after the database recovers.' });
       }
       await cleanupTerminalJournal(env.DB, env.STORAGE, { ...existingJournal, state: 'cancelled' });
       existingJournal = null;
     }
     if (existingJournal && ['dispatching', 'ambiguous'].includes(existingJournal.state)) {
       return fail(502, {
-        error: 'Delivery status is unknown. Do not resend this message; ask an administrator to check the outbound journal.',
+        error: 'Delivery status is unknown. Don\'t resend this message — ask an administrator to check the send record.',
       });
     }
 
@@ -548,7 +548,7 @@ export const actions: Actions = {
        INNER JOIN mailbox_assignments ma ON m.id = ma.mailbox_id
        WHERE m.address = ? AND ma.user_id = ? AND ma.permissions IN ('send-as', 'full') AND m.status = 'active'`,
     ).bind(from, locals.user.id).first<{ id: string; address: string; display_name: string }>();
-    if (!mailbox) return fail(403, { error: 'You do not have permission to send from this address' });
+    if (!mailbox) return fail(403, { error: 'You don\'t have permission to send from this address' });
     const fromName = sanitizeSenderDisplayName(
       mailbox.display_name.trim() || locals.user.display_name.trim(),
     );
@@ -582,7 +582,7 @@ export const actions: Actions = {
         );
       if (sourceDraft.draft_version !== expectedDraftVersion && !journalOwnsDraftClaim) {
         return fail(409, {
-          error: 'This draft changed in another tab. Your local copy is safe; reload to compare versions.',
+          error: 'This draft changed in another tab. Your copy is safe; reload to compare versions.',
           draftConflict: true,
         });
       }
@@ -592,13 +592,13 @@ export const actions: Actions = {
     let referencesHeader = safeReferences(sourceDraft?.references_header || '');
     if (!sourceDraft && replySourceId) {
       const threading = await replyThreadingForSource(env.DB, locals.user.id, replySourceId);
-      if (!threading) return fail(404, { error: 'The original message is no longer available for this reply. Reload the message and try again.' });
+      if (!threading) return fail(404, { error: 'The original message is no longer available for this reply. Reload and try again.' });
       inReplyTo = threading.inReplyTo;
       referencesHeader = threading.referencesHeader;
     }
 
     const rawAttachments = formData.getAll('attachments').filter((value): value is File => value instanceof File && value.size > 0);
-    if (rawAttachments.length > MAX_ATTACHMENTS) return fail(413, { error: `A message can have at most ${MAX_ATTACHMENTS} attachments` });
+    if (rawAttachments.length > MAX_ATTACHMENTS) return fail(413, { error: `Max ${MAX_ATTACHMENTS} attachments per message` });
     let totalAttachmentBytes = 0;
     const attachments: Array<{ filename: string; contentType: string; bytes: Uint8Array }> = [];
     for (const file of rawAttachments) {
@@ -606,7 +606,7 @@ export const actions: Actions = {
       const extension = getExtension(filename);
       if (BLOCKED_EXTENSIONS.has(extension)) return fail(400, { error: `Attachment type not allowed: ${extension}` });
       totalAttachmentBytes += file.size;
-      if (totalAttachmentBytes > MAX_ATTACHMENT_BYTES) return fail(413, { error: 'Attachments exceed the 20 MB total limit' });
+      if (totalAttachmentBytes > MAX_ATTACHMENT_BYTES) return fail(413, { error: 'Attachments exceed 20 MB limit' });
       attachments.push({
         filename,
         contentType: file.type.replace(/[\r\n]/g, '').slice(0, 150) || 'application/octet-stream',
@@ -645,7 +645,7 @@ export const actions: Actions = {
     ].filter(Boolean).join('\n\n');
     const mailDomain = normalizeDomain(env.MAIL_DOMAIN);
     if (!mailDomain) {
-      return fail(503, { error: 'MAIL_DOMAIN is not configured' });
+      return fail(503, { error: 'Mail domain is not configured. Contact an administrator.' });
     }
     const messageId = generateId();
     const localMessageIdHeader = `<${messageId}@${mailDomain}>`;
@@ -689,13 +689,13 @@ export const actions: Actions = {
       attachments.length,
     );
     if (workload.deliveryBytes > MAX_DELIVERY_BYTES_PER_SEND) {
-      return fail(413, { error: 'This send exceeds the 250 MB aggregate delivery limit. Reduce recipients or attachment size.' });
+      return fail(413, { error: 'This send exceeds the 250 MB delivery limit. Reduce recipients or attachment size.' });
     }
     if (workload.persistedBytes > MAX_PERSISTED_BYTES_PER_SEND) {
-      return fail(413, { error: 'This send would store more than 100 MB across internal mailboxes. Reduce internal recipients or attachment size.' });
+      return fail(413, { error: 'This send would store more than 100 MB across internal mailboxes. Reduce recipients or attachment size.' });
     }
     if (workload.persistedObjects > MAX_PERSISTED_OBJECTS_PER_SEND) {
-      return fail(413, { error: 'This send would create too many internal attachment copies. Reduce internal recipients or attachment count.' });
+      return fail(413, { error: 'This send would create too many internal attachment copies. Reduce recipients or attachment count.' });
     }
 
     const plannedInternalDeliveries = localRecipients.flatMap((recipient) => {
@@ -749,7 +749,7 @@ export const actions: Actions = {
       const cancelled = await cancelRetryableJournal(env.DB, existingJournal.id).catch(() => false);
       if (!cancelled) {
         return fail(409, {
-          error: 'This message already crossed the delivery boundary. Do not resend it; check Sent or ask an administrator to inspect the outbound journal.',
+          error: 'This message already crossed the delivery boundary. Don\'t resend it — check Sent, or ask an administrator to inspect the send record.',
         });
       }
       await cleanupTerminalJournal(env.DB, env.STORAGE, {
@@ -781,13 +781,13 @@ export const actions: Actions = {
           ).bind(draftId, locals.user.id, expectedDraftVersion).run();
         } catch {
           return fail(503, {
-            error: 'The draft could not be reserved for sending. Your local text is safe; reload to compare the latest draft before retrying.',
+            error: 'The draft couldn\'t be reserved for sending. Your text is safe; reload to compare the latest draft before retrying.',
             draftConflict: true,
           });
         }
         if (!claim.meta.changes) {
           return fail(409, {
-            error: 'This draft changed in another tab. Your local copy is safe; reload to compare versions.',
+            error: 'This draft changed in another tab. Your copy is safe; reload to compare versions.',
             draftConflict: true,
           });
         }
@@ -805,7 +805,7 @@ export const actions: Actions = {
         );
       } catch {
         await releaseDraftClaim();
-        return fail(503, { error: 'Sending limits are temporarily unavailable. Your draft is safe; try again shortly.' });
+        return fail(503, { error: 'Couldn\'t check sending limits right now. Your draft is safe; try again shortly.' });
       }
       if (!sendRate.allowed) {
         await releaseDraftClaim();
@@ -824,11 +824,11 @@ export const actions: Actions = {
         );
       } catch {
         await releaseDraftClaim();
-        return fail(503, { error: 'Sending limits are temporarily unavailable. Your draft is safe; try again shortly.' });
+        return fail(503, { error: 'Couldn\'t check sending limits right now. Your draft is safe; try again shortly.' });
       }
       if (!workRate.allowed) {
         await releaseDraftClaim();
-        return fail(429, { error: `Hourly recipient and attachment workload limit reached. Try again in about ${Math.ceil(workRate.retryAfter / 60)} minutes.` });
+        return fail(429, { error: `Hourly recipient and attachment limit reached. Try again in about ${Math.ceil(workRate.retryAfter / 60)} minutes.` });
       }
 
       const storageResult = await reserveMailboxStorage(
@@ -862,7 +862,7 @@ export const actions: Actions = {
       } catch {
         await releaseMailboxStorageReservations(env.DB, storageReservations).catch(() => undefined);
         await releaseDraftClaim();
-        return fail(503, { error: 'The message could not be staged safely. Your draft is unchanged; try again shortly.' });
+        return fail(503, { error: 'The message couldn\'t be prepared safely. Your draft is unchanged; try again shortly.' });
       }
 
       try {
@@ -908,7 +908,7 @@ export const actions: Actions = {
         }
         if (!recoveryReadSucceeded) {
           return fail(503, {
-            error: 'The durable send reservation could not be confirmed. No provider call was made; retry after D1 recovers so cmail can reconcile it safely.',
+            error: 'The send reservation couldn\'t be confirmed. No provider call was made; retry after the database recovers so cmail can reconcile it safely.',
           });
         }
         if (!recovered || recovered.payload_hash !== fingerprint.payloadHash) {
@@ -917,8 +917,8 @@ export const actions: Actions = {
           await releaseDraftClaim();
           return fail(recovered ? 409 : 503, {
             error: recovered
-              ? 'A different version of this message was already reserved. Reload the draft before continuing.'
-              : 'The durable send record could not be confirmed. Your draft is safe; try again shortly.',
+              ? 'A different version of this message was already reserved. Reload before continuing.'
+              : 'The send record couldn\'t be confirmed. Your draft is safe; try again shortly.',
             ...(recovered ? { draftConflict: true } : {}),
           });
         }
@@ -932,7 +932,7 @@ export const actions: Actions = {
 
     if (!journal) {
       await releaseDraftClaim();
-      return fail(503, { error: 'The durable send record is unavailable. Your draft is safe; try again shortly.' });
+      return fail(503, { error: 'The send record is unavailable. Your draft is safe; try again shortly.' });
     }
 
     if (journal.state === 'pending' || journal.state === 'retryable_failure') {
@@ -940,16 +940,16 @@ export const actions: Actions = {
         try {
           await acceptInternalJournal(env.DB, journal.id);
         } catch {
-          return fail(503, { error: 'Internal delivery is safely staged but could not be completed. Retry this draft.' });
+          return fail(503, { error: 'Internal delivery was safely prepared but couldn\'t be completed. Retry this draft.' });
         }
       } else {
         const parts = await getOutboundJournalParts(env.DB, journal.id).catch(() => null);
-        if (!parts) return fail(503, { error: 'The staged send manifest is temporarily unavailable. Retry shortly.' });
+        if (!parts) return fail(503, { error: 'The prepared message is temporarily unavailable. Retry shortly.' });
         let stagedEmail: OutboundEmail;
         try {
           stagedEmail = await loadJournalOutboundEmail(env.STORAGE, journal, parts.attachments);
         } catch {
-          return fail(503, { error: 'The staged message is incomplete. Do not resend; ask an administrator to inspect the outbound journal.' });
+          return fail(503, { error: 'The prepared message is incomplete. Don\'t resend; ask an administrator to inspect the send record.' });
         }
         const pinnedEnv = { ...envRecord, OUTBOUND_PROVIDER: journal.provider };
         const preflight = preflightEmail(stagedEmail, pinnedEnv);
@@ -960,12 +960,12 @@ export const actions: Actions = {
         try {
           claimed = await claimOutboundDispatch(env.DB, journal.id, dispatchToken);
         } catch {
-          return fail(503, { error: 'The provider dispatch boundary could not be confirmed. No provider call was made; retry shortly.' });
+          return fail(503, { error: 'Couldn\'t confirm dispatch state. No provider call was made; retry shortly.' });
         }
         if (!claimed) {
           journal = await getOutboundJournal(env.DB, journal.id);
           if (!journal || ['dispatching', 'ambiguous'].includes(journal.state)) {
-            return fail(502, { error: 'Delivery is already in progress or its status is unknown. Do not resend; ask an administrator to check the outbound journal.' });
+            return fail(502, { error: 'Delivery is already in progress, or its status is unknown. Don\'t resend; ask an administrator to check the send record.' });
           }
         } else {
           let result: Awaited<ReturnType<typeof sendEmail>>;
@@ -976,7 +976,7 @@ export const actions: Actions = {
               success: false,
               provider: journal.provider,
               ambiguous: true,
-              error: 'The outbound provider result is unknown',
+              error: 'The provider result is unknown',
             };
           }
           await persistProviderResultSnapshot(
@@ -996,7 +996,7 @@ export const actions: Actions = {
               target: journal.id,
               detail: `Provider ${journal.provider} returned, but durable reconciliation could not be confirmed`,
             }).catch(() => undefined);
-            return fail(502, { error: 'Delivery status could not be reconciled. Do not resend; ask an administrator to inspect the outbound journal.' });
+            return fail(502, { error: 'Delivery status couldn\'t be reconciled. Don\'t resend; ask an administrator to inspect the send record.' });
           }
 
           await traceEmail(env.DB, {
@@ -1017,7 +1017,7 @@ export const actions: Actions = {
               : result.error || `via ${result.provider}`,
           }).catch(() => undefined);
           journal = await getOutboundJournal(env.DB, journal.id);
-          if (!journal) return fail(503, { error: 'The provider result was recorded, but the outbound journal is temporarily unavailable.' });
+          if (!journal) return fail(503, { error: 'The provider result was recorded, but the send record is temporarily unavailable.' });
 
           if (resultState === 'ambiguous') {
             await audit(env.DB, {
@@ -1027,14 +1027,14 @@ export const actions: Actions = {
               target: journal.id,
               detail: `Outbound provider ${journal.provider} delivery status is unknown`,
             }).catch(() => undefined);
-            return fail(502, { error: 'Delivery status is unknown. Do not resend this message; ask an administrator to check the outbound journal.' });
+            return fail(502, { error: 'Delivery status is unknown. Don\'t resend this message — ask an administrator to check the send record.' });
           }
           if (resultState === 'permanent_failure') {
             await cleanupTerminalJournal(env.DB, env.STORAGE, journal);
             return fail(result.permanentBounces?.length ? 422 : 502, {
               error: result.permanentBounces?.length
-                ? `The provider permanently rejected: ${result.permanentBounces.join(', ')}. Edit the recipients before sending again.`
-                : 'The outbound provider rejected this message. It was not delivered; review it and try again.',
+                ? `Permanently rejected: ${result.permanentBounces.join(', ')}. Edit the recipients before sending again.`
+                : 'The provider rejected this message. It wasn\'t delivered; review it and try again.',
             });
           }
           if (resultState === 'retryable_failure') {
@@ -1044,8 +1044,8 @@ export const actions: Actions = {
             }
             return fail(502, {
               error: cancelled
-                ? 'The provider did not accept this message. Your draft was kept; review it and try again.'
-                : 'The provider did not accept this message, but cleanup is pending. Retry after D1 recovers.',
+                ? 'The provider didn\'t accept this message. Your draft was kept; review it and try again.'
+                : 'The provider didn\'t accept this message, but cleanup is pending. Retry after the database recovers.',
             });
           }
         }
@@ -1062,26 +1062,26 @@ export const actions: Actions = {
         if (caught && typeof caught === 'object' && 'status' in caught && 'location' in caught) throw caught;
         console.error('Accepted-send materialization failed', caught instanceof Error ? caught.message : String(caught));
         return fail(503, {
-          error: 'The provider accepted this message, but its Sent copy is still being recovered. Retry this draft; cmail will not send it again.',
+          error: 'The provider accepted this message, but its Sent copy is still recovering. Retry this draft — cmail won\'t send it again.',
         });
       }
     }
     if (journalAction === 'unknown') {
-      return fail(502, { error: 'Delivery status is unknown. Do not resend this message; ask an administrator to check the outbound journal.' });
+      return fail(502, { error: 'Delivery status is unknown. Don\'t resend this message — ask an administrator to check the send record.' });
     }
     if (journalAction === 'retryable') {
-      return fail(502, { error: 'The provider did not accept this message. Retry the same staged copy or edit it to start a new attempt.' });
+      return fail(502, { error: 'The provider didn\'t accept this message. Retry the same prepared copy, or edit it to start a new attempt.' });
     }
-    return fail(503, { error: 'The outbound send could not be completed. Your durable draft and send record are intact.' });
+    return fail(503, { error: 'The send couldn\'t be completed. Your draft and send record are intact.' });
   },
 
   save: async ({ request, locals, platform }) => {
     if (!locals.user) throw redirect(303, '/');
     const env = platform?.env;
     if (!env) return fail(503, { error: 'Platform not available' });
-    if (requestExceedsComposeLimit(request)) return fail(413, { error: 'Compose request exceeds the 24 MB limit' });
+    if (requestExceedsComposeLimit(request)) return fail(413, { error: 'Compose request exceeds 24 MB limit' });
     const formData = await request.formData();
-    if (formDataExceedsComposeLimit(formData)) return fail(413, { error: 'Compose request exceeds the 24 MB limit' });
+    if (formDataExceedsComposeLimit(formData)) return fail(413, { error: 'Compose request exceeds 24 MB limit' });
     const from = normalizeEmail(stringValue(formData.get('from')));
     const to = stringValue(formData.get('to')).slice(0, 20_000);
     const cc = stringValue(formData.get('cc')).slice(0, 20_000);
@@ -1100,7 +1100,7 @@ export const actions: Actions = {
       return fail(400, { error: 'This compose recovery token expired. Reload before saving.' });
     }
     if (body.length > MAX_BODY_LENGTH) return fail(413, { error: 'Message body is too large' });
-    if (new TextEncoder().encode(body).byteLength > MAX_BODY_BYTES) return fail(413, { error: 'Message body exceeds the 1 MB limit' });
+    if (new TextEncoder().encode(body).byteLength > MAX_BODY_BYTES) return fail(413, { error: 'Message body exceeds 1 MB limit' });
     const preparedBody = prepareComposeBody(body, quotedHtml);
     if (!preparedBody.ok) {
       const failure = composeBodyFailure(preparedBody.reason);
@@ -1112,7 +1112,7 @@ export const actions: Actions = {
        INNER JOIN mailbox_assignments ma ON m.id = ma.mailbox_id
        WHERE m.address = ? AND ma.user_id = ? AND ma.permissions IN ('send-as', 'full') AND m.status = 'active'`,
     ).bind(from, locals.user.id).first<{ id: string; display_name: string }>();
-    if (!mailbox) return fail(403, { error: 'You do not have permission to draft from this address' });
+    if (!mailbox) return fail(403, { error: 'You don\'t have permission to draft from this address' });
     const fromName = sanitizeSenderDisplayName(mailbox.display_name.trim() || locals.user.display_name.trim());
 
     if (!existingDraftId) {
@@ -1139,7 +1139,7 @@ export const actions: Actions = {
 
     if (!existingDraftId && replySourceId) {
       const threading = await replyThreadingForSource(env.DB, locals.user.id, replySourceId);
-      if (!threading) return fail(404, { error: 'The original message is no longer available for this reply. Reload the message and try again.' });
+      if (!threading) return fail(404, { error: 'The original message is no longer available for this reply. Reload and try again.' });
       inReplyTo = threading.inReplyTo;
       referencesHeader = threading.referencesHeader;
     }
@@ -1183,10 +1183,10 @@ export const actions: Actions = {
          references_header: string | null;
        }>();
       if (!existing) return fail(404, { error: 'Draft not found' });
-      if (expectedDraftVersion === null) return fail(400, { error: 'The draft version is missing. Reload before saving.' });
+      if (expectedDraftVersion === null) return fail(400, { error: 'Draft version missing. Reload before saving.' });
       if (existing.draft_version !== expectedDraftVersion) {
         return fail(409, {
-          error: 'This draft changed in another tab. Your local copy is safe; reload to compare versions.',
+          error: 'This draft changed in another tab. Your copy is safe; reload to compare versions.',
           draftConflict: true,
         });
       }
@@ -1209,8 +1209,8 @@ export const actions: Actions = {
       if (storageResult.status !== 'accepted') {
         return fail(storageResult.status === 'rejected' ? 507 : 503, {
           error: storageResult.status === 'rejected'
-            ? 'Mailbox storage or draft limit reached. Delete old drafts or ask an administrator to raise the configured limit.'
-            : 'Draft storage is temporarily unavailable. Please try again later.',
+            ? 'Mailbox storage or draft limit reached. Delete old drafts, or ask an administrator to raise the limit.'
+            : 'Draft storage is temporarily unavailable. Try again later.',
         });
       }
 
@@ -1251,7 +1251,7 @@ export const actions: Actions = {
           await env.STORAGE.delete(key).catch(() => undefined);
           await releaseMailboxStorageReservations(env.DB, storageResult.reservations).catch(() => undefined);
           return fail(409, {
-            error: 'This draft changed in another tab. Your local copy is safe; reload to compare versions.',
+            error: 'This draft changed in another tab. Your copy is safe; reload to compare versions.',
             draftConflict: true,
           });
         }
@@ -1261,7 +1261,7 @@ export const actions: Actions = {
           // so this unique object is unreferenced and safe to remove.
           await env.STORAGE.delete(key).catch(() => undefined);
           await releaseMailboxStorageReservations(env.DB, storageResult.reservations).catch(() => undefined);
-          return fail(500, { error: 'The draft could not be stored. Please try again.' });
+          return fail(500, { error: 'Couldn\'t store draft. Try again.' });
         }
         let recoveryReadSucceeded = false;
         let recovered: { body_r2_key: string | null; draft_version: number; received_at: string } | null = null;
@@ -1297,14 +1297,14 @@ export const actions: Actions = {
         }
         if (recovered && recovered.draft_version !== expectedDraftVersion) {
           return fail(409, {
-            error: 'This draft changed in another tab. Your local copy is safe; reload to compare versions.',
+            error: 'This draft changed in another tab. Your copy is safe; reload to compare versions.',
             draftConflict: true,
           });
         }
         return fail(recoveryReadSucceeded ? 500 : 503, {
           error: recoveryReadSucceeded
-            ? 'The draft could not be stored. Please try again.'
-            : 'Draft storage could not be confirmed. Your local recovery copy is safe; try again shortly.',
+            ? 'Couldn\'t store draft. Try again.'
+            : 'Couldn\'t confirm draft storage. Your recovery copy is safe; try again shortly.',
         });
       }
 
@@ -1332,8 +1332,8 @@ export const actions: Actions = {
     if (storageResult.status !== 'accepted') {
       return fail(storageResult.status === 'rejected' ? 507 : 503, {
         error: storageResult.status === 'rejected'
-          ? 'Mailbox storage or draft limit reached. Delete old drafts or ask an administrator to raise the configured limit.'
-          : 'Draft storage is temporarily unavailable. Please try again later.',
+          ? 'Mailbox storage or draft limit reached. Delete old drafts, or ask an administrator to raise the limit.'
+          : 'Draft storage is temporarily unavailable. Try again later.',
       });
     }
 
@@ -1357,7 +1357,7 @@ export const actions: Actions = {
         // so this unique object cannot be referenced by the draft row.
         await env.STORAGE.delete(key).catch(() => undefined);
         await releaseMailboxStorageReservations(env.DB, storageResult.reservations).catch(() => undefined);
-        return fail(500, { error: 'The draft could not be stored. Please try again.' });
+        return fail(500, { error: 'Couldn\'t store draft. Try again.' });
       }
       let recoveryReadSucceeded = false;
       let recovered: {
@@ -1395,8 +1395,8 @@ export const actions: Actions = {
       }
       return fail(recoveryReadSucceeded ? 500 : 503, {
         error: recoveryReadSucceeded
-          ? 'The draft could not be stored. Please try again.'
-          : 'Draft storage could not be confirmed. Your local recovery copy is safe; try again shortly.',
+          ? 'Couldn\'t store draft. Try again.'
+          : 'Couldn\'t confirm draft storage. Your recovery copy is safe; try again shortly.',
       });
     }
     return { savedDraftId: draftId, draftVersion: 1, savedAt: savedAt.toISOString() };
@@ -1410,7 +1410,7 @@ export const actions: Actions = {
     const draftId = stringValue(formData.get('draft_id'));
     const expectedDraftVersion = safeDraftVersion(formData.get('draft_version'));
     if (!draftId) return fail(400, { error: 'Draft ID is required' });
-    if (expectedDraftVersion === null) return fail(400, { error: 'The draft version is missing. Reload before discarding.' });
+    if (expectedDraftVersion === null) return fail(400, { error: 'Draft version missing. Reload before discarding.' });
     const draft = await env.DB.prepare(
       `SELECT m.body_r2_key, m.draft_version FROM messages m
        INNER JOIN mailbox_assignments ma ON m.mailbox_id = ma.mailbox_id
@@ -1421,7 +1421,7 @@ export const actions: Actions = {
     if (!draft) return fail(404, { error: 'Draft not found' });
     if (draft.draft_version !== expectedDraftVersion) {
       return fail(409, {
-        error: 'This draft changed in another tab. Reload before discarding it.',
+        error: 'This draft changed in another tab. Reload before discarding.',
         draftConflict: true,
       });
     }
@@ -1431,7 +1431,7 @@ export const actions: Actions = {
     ).bind(draftId, locals.user.id, expectedDraftVersion).run();
     if (!deleted.meta.changes) {
       return fail(409, {
-        error: 'This draft changed in another tab. Reload before discarding it.',
+        error: 'This draft changed in another tab. Reload before discarding.',
         draftConflict: true,
       });
     }

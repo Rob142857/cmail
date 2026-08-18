@@ -9,7 +9,7 @@
     disabled = false,
     label = 'Signature content',
     description = '',
-    placeholder = 'Add your name, role, phone number or preferred sign-off…',
+    placeholder = 'Name, role, phone, or sign-off…',
     onchange,
   }: {
     id: string;
@@ -46,11 +46,11 @@
 
   function addLink() {
     if (disabled) return;
-    const address = window.prompt('Enter a complete https://, http://, or mailto: address');
+    const address = window.prompt('Enter an https://, http://, or mailto: address');
     if (!address) return;
     const url = address.trim();
     if (!/^(?:https?:\/\/|mailto:)/i.test(url)) {
-      window.alert('That link is not supported. Use a complete https://, http://, or mailto: address.');
+      window.alert('Link not supported. Use an https://, http://, or mailto: address.');
       return;
     }
     run('createLink', url);
@@ -126,7 +126,7 @@
     {/if}
   </div>
   <div class="editor-foot">
-    <span>Formatting is cleaned before it is saved and sent.</span>
+    <span>Formatting is cleaned before saving.</span>
     <span>{characterCount.toLocaleString()} characters</span>
   </div>
 </div>

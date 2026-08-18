@@ -1,14 +1,13 @@
 # Manager handbook
 
-This handbook covers the management functions available inside cmail. It is
-for accounts with the **Manager** role. Deployment bindings, secrets, DNS,
-identity-provider registration, backups, and Cloudflare operations remain
-operator responsibilities; use the [deployment guide](deployment.md) for those
-tasks.
+This handbook covers cmail's management functions, for the **Manager** role.
+Deployment bindings, secrets, DNS, identity-provider registration, backups,
+and Cloudflare operations are the operator's job — see the
+[deployment guide](deployment.md) for those.
 
-cmail's management centre uses familiar enterprise-mail concepts and a
-section-and-blade workflow. It is not Microsoft Exchange, is not affiliated
-with Microsoft, and does not claim exact feature or protocol parity.
+cmail's management centre uses concepts familiar from enterprise mail systems,
+but it is not Microsoft Exchange, is not affiliated with Microsoft, and does
+not match it feature-for-feature.
 
 ## Three separate access concepts
 
@@ -20,78 +19,77 @@ Keep these models separate when granting access:
 | Mailbox permission | Read, Send as, Full access | Actions in one assigned mailbox |
 | Organisation role definition | A reusable title such as Service manager | Structure and optional directory display only |
 
-Linking a user to an organisation position does not grant mailbox access or the
-Manager role. Promoting an account to Manager does not grant access to every
-mailbox. Apply least privilege in each model independently.
+Linking someone to an organisation position does not grant mailbox access or
+the Manager role. Making someone a Manager does not grant access to every
+mailbox. Grant only what's needed in each model, independently.
 
 ## Recommended first-run order
 
 1. Open **Overview** and note incomplete deployment-readiness checks.
-2. In **Settings**, confirm system-mail identity, support address,
-   organisation names and URLs, and the application name.
-3. In **People**, provision at least two trusted managers, then create standard
-   accounts and their required personal mailboxes.
+2. In **Settings**, confirm the system-mail identity, support address,
+   organisation name and URLs, and the app name.
+3. In **People**, provision at least two trusted managers, then create
+   standard accounts and their required personal mailboxes.
 4. In **Mailboxes**, create shared addresses and assign explicit permissions.
 5. In **Organisation**, build layers, units, role definitions, and positions.
    Keep the public directory off until its publication preflight is clean.
 6. In **Usage policy**, preview and publish the approved text.
-7. Perform controlled inbound, internal, and external message tests. Confirm
+7. Run controlled inbound, internal, and external message tests. Confirm
    results in **Mail trace** and changes in **Audit log**.
 
-Use a staging deployment first. Do not make identity, routing, DNS, or broad
-access changes for the first time during a production incident.
+Test in a staging deployment first. Never make identity, routing, DNS, or
+broad access changes for the first time during a live incident.
 
 ## Overview
 
-**Management > Overview** provides activity totals, deployment readiness, quick
-links, and the public-directory privacy state. Treat it as a starting signal,
-not as complete monitoring: provider consoles, Cloudflare telemetry, backups,
-and external alerting still require separate operational checks.
+**Management > Overview** shows activity totals, deployment readiness, quick
+links, and the public-directory privacy state. Treat it as a starting point,
+not complete monitoring — you still need provider consoles, Cloudflare
+telemetry, backups, and external alerting.
 
 ## People
 
-**Management > People** controls account provisioning, invitation delivery,
-account roles, and lifecycle. Creating a database row is not enough for first
-sign-in: the person must complete a current manager-issued enrolment invitation.
+**Management > People** controls account creation, invitation delivery,
+account roles, and lifecycle. Creating the account is not enough for
+someone's first sign-in — they must also complete a current, manager-issued
+invitation.
 
 ### Provision an account
 
 1. Select **Add a person**.
-2. Enter the exact verified Google or Microsoft UserInfo email and a display name.
-3. Create the required personal mailbox local part on the configured mail
-   domain. It is created active with an immutable owner link and retained Full
-   owner assignment for the new account.
+2. Enter the exact verified Google or Microsoft email and a display name.
+3. Create their personal mailbox address on your configured mail domain.
+   cmail creates it active, with Full access permanently linked to that
+   person's account.
 4. Choose Standard or Manager.
-5. Send an invitation now when delivery is configured, or deliberately leave
-   the person pending and use **Resend invitation** later.
+5. Send the invitation now if delivery is configured, or leave the person
+   pending and use **Resend invitation** later.
 
-The account begins as **Pending** and unbound. The invitation contains an
-enrolment link for each configured provider; the selected provider must return
-the same recorded email from access-token-backed UserInfo. Google additionally
-requires `email_verified=true`; Microsoft UserInfo does not expose that flag, so
-its non-empty `email` claim is accepted only alongside the invitation. The link token is stored
-hashed, expires after 72 hours, and can be used once. A validated link creates
-a 15-minute protected first-party enrolment cookie before provider sign-in. On
-success, the account becomes **Active** and is bound to that provider's
-immutable UserInfo subject. A different provider or subject cannot be
-substituted later through the UI, and a later provider-email change does not
-change the binding.
+The account starts **Pending**, with no sign-in linked yet. The invitation
+includes a link for each configured provider; whichever the person uses must
+return the same email you entered. Google also confirms the email is
+verified; Microsoft does not provide that confirmation, so its email is
+trusted only because it arrives through the invitation. The link expires
+after 72 hours and works once. On success, the account becomes **Active**,
+permanently linked to that provider sign-in — nobody can switch it to a
+different provider or account later, even if the email address changes
+afterward.
 
-Invitations depend on a safe application URL, at least one configured sign-in
-provider, and an outbound email provider. Account creation can succeed even if
-invitation delivery fails. In that case the account remains pending and cannot
-sign in: read the result banner, check outbound operations, then use **Resend
-invitation**. Resending issues a new token and immediately revokes the previous
-link, so tell the recipient to use only the newest message.
+Invitations need a valid application URL, at least one sign-in provider, and
+a working outbound email setup. Creating the account can succeed even if the
+invitation email fails to send — the account stays pending and cannot sign
+in. Check the result banner and your outbound email status, then use
+**Resend invitation**. This issues a new link and immediately cancels the old
+one, so tell the recipient to use only the newest email.
 
-Treat invitation links as credentials. Send them only to the intended address,
-do not paste them into tickets or chat, and ask the recipient to report an
-unexpected or forwarded invitation. An expired, used, or superseded link can be
-replaced with **Resend invitation**. A provider-email mismatch, a subject
-already bound to another person, or an account already bound differently is an
-identity conflict: stop, verify the person and provider account through a
-separate channel, and investigate audit records. Do not change the pending
-email simply to force the enrolment through.
+Treat invitation links like passwords: send them only to the intended
+address, never paste them into tickets or chat, and ask recipients to report
+an unexpected or forwarded invitation. Replace an expired, used, or
+superseded link with **Resend invitation**. If the email doesn't match, the
+account is already bound to someone else, or you see any other binding
+conflict, stop: verify the person through a separate channel and check the
+audit records. Never change the pending email just to force enrolment
+through.
 
 ### Account lifecycle
 
@@ -99,215 +97,205 @@ email simply to force the enrolment through.
 |---|---|---|
 | Pause | Revokes active sessions and prevents sign-in | Personal mailboxes and shared assignments remain |
 | Reactivate | Allows sign-in again | Disabled personal mailboxes remain disabled; removed access is not restored |
-| Offboard | Revokes every session, pending invitation, and registered notification endpoint; disables owned personal mailboxes; removes shared access; and makes published positions internal | Stored personal-mailbox data and its owner link remain; reactivation does not restore a mailbox, invitation, device notification, public listing, or shared access |
+| Offboard | Revokes every session, pending invitation, and device notification; disables their personal mailbox; removes shared access; and makes published positions internal | Stored personal-mailbox data and its owner link remain; reactivation does not restore a mailbox, invitation, device notification, public listing, or shared access |
 
-The UI prevents you from pausing or offboarding your own account and protects
-the last active manager. Downgrading another manager to Standard revokes that
-person's current sessions. Maintain at least two active managers and use a
-separate emergency recovery process controlled by the operator.
+You cannot pause or offboard your own account, and the system protects the
+last active manager. Downgrading another manager to Standard ends their
+current sessions. Keep at least two active managers, and rely on the
+operator's separate emergency recovery process if needed.
 
 ### Ownership migration follow-up
 
-The ownership migration backfills only a personal mailbox whose sole assignment
-is Full. If a legacy person had more than one otherwise-valid candidate, only
-the earliest is linked; mailboxes with extra or conflicting assignments and any
-additional candidates remain ownerless, disabled, and excluded from delegation.
-Inspect these records in D1 after taking a backup before any retention,
-successor, or address-reuse action. cmail intentionally provides no quick
-delegation shortcut for this repair: preserve the disabled record and its mail,
-then follow a separately reviewed migration or retention procedure.
+An ownership migration (for deployments upgraded from an earlier version)
+only auto-links a personal mailbox that has just one Full-access assignment.
+If a person had more than one valid candidate mailbox, only the oldest gets
+linked — the rest stay ownerless, disabled, and excluded from delegation,
+along with any mailbox that had extra or conflicting assignments. Before any
+retention, successor, or address-reuse decision, back up the database and
+inspect these records directly in D1 (cmail's database). There is no quick
+fix built in for this: keep the disabled record and its mail, and follow a
+separately reviewed migration or retention process.
 
 Before offboarding:
 
-- identify personal and shared mailboxes the person uses;
-- transfer any team responsibilities and unfinished shared drafts;
-- decide how the personal mailbox and retained data must be handled;
-- check organisation positions that name the person, especially public ones;
-- tell the successor or relevant contact owner how correspondence should be
-  redirected before disabling the address; cmail does not send a departure
-  notice on later inbound attempts;
-- perform the offboard action and review Audit log; and
-- test the successor's access without using the former user's session.
+- list the personal and shared mailboxes they use;
+- hand over team responsibilities and unfinished shared drafts;
+- decide what happens to their personal mailbox and its data;
+- check organisation positions that name them, especially public ones;
+- tell the successor or contact owner how correspondence should be
+  redirected — cmail will not send a departure notice to future senders;
+- offboard the account and review the Audit log; and
+- test the successor's access using their own session, not the former
+  user's.
 
 ### Unavailable former addresses
 
-After offboarding, the person's personal mailbox is disabled. Incoming mail to
-that address is rejected during SMTP with the same generic cmail response used
-for an unknown or disabled address. This avoids confirming whether an address
-ever existed and avoids revealing offboarding status.
+After offboarding, mail to the person's old address is rejected during
+delivery, with the same generic response cmail uses for any unknown or
+disabled address, so senders cannot tell it was offboarded rather than never
+existing. cmail sends no bounce, auto-reply, or departure notice of its own;
+whether the original sender sees any notice at all depends on their own
+provider.
 
-The sending mail system normally creates any non-delivery report (NDR) for its
-sender. cmail does **not** send a branded bounce, automatic reply, or departure
-notice itself. That is intentional: cmail sends no outbound mail for a rejected
-attempt, consumes no outbound quota, and cannot be used to generate
-backscatter by sending spam or forged mail to former addresses. An SMTP
-rejection is not a guarantee that the original sender will see a human-facing
-notice; their provider decides whether and how to issue one.
-
-Use Cloudflare Email Routing and Worker metrics/logs to monitor unusual inbound
-rejection rates or abuse. Rejected attempts are not retained as a durable,
-per-address cmail audit or mail-trace record, so do not use Mail trace to
-estimate every attempted delivery to former addresses.
+Use Cloudflare Email Routing and Worker metrics/logs to watch for unusual
+rejection rates or abuse — Mail trace does not keep a lasting, per-address
+record of these rejections.
 
 ## Mailboxes
 
-**Management > Mailboxes** lists personal and shared mailboxes, status, stored
-message counts, and direct user assignments.
+**Management > Mailboxes** lists personal and shared mailboxes, their status,
+stored message counts, and who's assigned to them.
 
-- Personal mailboxes are created with a person. Their owner link and Full
-  owner assignment are retained for audit; personal mailboxes are not a
-  general delegation surface.
-- Shared mailboxes are created independently for a team or function address.
-- Assigning existing access updates its permission bundle.
-- Removing an assignment removes access but does not delete messages.
-- Disabling a mailbox hides it, prevents sending, and rejects new delivery
-  until re-enabled; retained mail remains stored.
+- Personal mailboxes are created together with a person, and keep a
+  permanent owner link with Full access, retained for audit. They are not
+  meant for general delegation.
+- Shared mailboxes are created separately, for a team or function address.
+- Assigning access to someone who already has it just updates their
+  permission.
+- Removing an assignment removes access, but not the messages.
+- Disabling a mailbox hides it, stops it sending, and rejects new mail until
+  it's re-enabled; stored mail is kept.
 
-Use **Read**, **Send as**, and **Full** according to the table in
-[Shared mailboxes](shared-mailboxes.md#permission-bundles). Full access includes
-permanent deletion from Trash, so it is not a routine default.
+Use **Read**, **Send as**, and **Full** as described in
+[Shared mailboxes](shared-mailboxes.md#permission-bundles). Full access
+includes permanently deleting from Trash, so do not hand it out by default.
 
-For a shared mailbox rollout, define who may respond as the function, who owns
-filing and deletion, and what shared read/unread means operationally. Test the
-workflow with at least two delegates before publishing the address.
+Before rolling out a shared mailbox, decide who can respond as the function,
+who owns filing and deletion, and what shared read/unread status means for
+the team in practice. Test the workflow with at least two delegates before
+you publish the address.
 
 ## Email signatures
 
 **Management > Email signatures** controls the optional organisation-wide
-signature and personal signature governance. cmail appends a sender's personal
-signature first, then the enabled organisation signature. Both are placed below
-the sender's new text and above quoted history for new messages, replies, and
-forwards.
+signature, and lets you govern personal signatures. Use **Append to outgoing
+mail** for an approved footer, branding, or legal notice — turning it off
+keeps the saved content but stops using it. Under **Personal signatures**,
+edit a person's layer and use **Lock personal signature** to take control of
+it; saving here replaces only that person's layer, never the organisation
+footer.
 
-Use the organisation layer for approved contact details, branding, or a legal
-notice. **Append to outgoing mail** enables it; disabling it retains its saved
-content but stops using it. People can manage their own personal signature in
-**Mail > Settings** unless you set and select **Lock personal signature** for
-that person. Saving a personal signature in Management replaces only that
-person's layer; it does not alter the organisation footer.
-
-Use concise, approved content and do not put secrets, tracking pixels, or
-unnecessary personal information in a signature. cmail limits and sanitises
-the supported rich HTML before storing and sending it. Review locked personal
-signatures during staff or role changes, and use Audit log to confirm signature
-and lock changes. See [Email signatures](signatures.md) for the operator and
-user procedure.
+Keep signature content concise and approved: no secrets, tracking pixels, or
+unnecessary personal information. Review locked signatures when staff or
+roles change, and check the Audit log for signature and lock changes. See
+[Email signatures](signatures.md) for the full procedure and ordering rules.
 
 ## Organisation and public directory
 
-**Management > Organisation** models structure without assuming a particular
-sector or reporting shape:
+**Management > Organisation** models your structure, without assuming any
+particular shape:
 
-- **Layers** are broad levels, regions, service lines, or other top-level
-  groupings.
-- **Units** are departments, teams, branches, or nested sub-units within a
-  layer.
-- **Role definitions** are reusable position titles and descriptions.
-- **Positions** place a role in a unit and can optionally link an account,
-  display title, occupant name, and assigned work email.
+- **Layers** — broad levels, regions, or service lines.
+- **Units** — departments, teams, branches, or sub-units within a layer.
+- **Role definitions** — reusable position titles and descriptions.
+- **Positions** — a role placed in a unit, optionally linked to an account,
+  with a display title, occupant name, and work email.
 
-Build from layer to unit to role definition to position. Parent resources
-cannot be deleted while dependent resources remain; move or delete the
-dependants first. Use sort order to make the hierarchy predictable.
+Build in order: layer, then unit, then role definition, then position. You
+cannot delete something while it still has dependants — move or delete those
+first. Use sort order to keep the hierarchy predictable.
 
-Positions are **Internal** by default. Marking a position Public requires an
-active linked user, an occupant display name, and an active work mailbox
-already assigned to that user. Even then, nothing is published unless the
-master **Public organisation directory** switch is on.
+Positions are **Internal** by default. To make one Public, it needs an active
+linked user, an occupant display name, and an active work mailbox already
+assigned to that user — and even then, nothing publishes until the master
+**Public organisation directory** switch is on.
 
-The public endpoint returns exactly three fields for qualifying positions:
-occupant name, position title, and work email. Account email, account status,
-mailbox permissions, internal structure, notes, and other personal information
-remain internal. Review the publication preflight and the public directory as
-an unauthenticated visitor after every structural or staffing change.
+The public page shows exactly three fields per qualifying position: occupant
+name, position title, and work email. Account email, account status, mailbox
+permissions, internal structure, notes, and other personal information stay
+internal. After every structural or staffing change, check the publication
+preflight, and view the public directory as an outside visitor would.
 
 ## Usage policy
 
-**Management > Usage policy** publishes immutable, versioned plain text. Always
-use Preview and obtain the organisation's approval before **Publish and
-enforce**.
+**Management > Usage policy** publishes plain text as a fixed, versioned
+record. Always use Preview and get your organisation's approval before you
+select **Publish and enforce**.
 
-Publication immediately makes that version current. Every signed-in user who
-has not accepted it is redirected to the policy before Mail, Management, or
-protected APIs can be used. The history shows acceptance counts for recent
-versions; publishing a correction creates another version rather than editing
-old evidence.
+Publishing makes that version current immediately. Anyone signed in who
+hasn't accepted it gets redirected to the policy before they can use Mail,
+Management, or anything else protected. The history shows acceptance counts
+for past versions — publishing a correction creates a new version, rather
+than editing old evidence.
 
-Do not paste secrets or unnecessary personal information into policy text. Use
-the [acceptable-use template](acceptable-use-policy-template.md) as a starting
-point and have the final policy reviewed for the deploying jurisdiction.
+Do not put secrets or unnecessary personal information in the policy text.
+Use the [acceptable-use template](acceptable-use-policy-template.md) as a
+starting point, and have the final version reviewed for your jurisdiction.
 
 ## Mail trace
 
-**Management > Mail trace** is the first stop for delivery diagnostics. Search
-by address, subject, message identifier, or source IP, and filter by direction
-and status. Detail can include envelope and header addresses, status detail,
-message size, authentication results, spam score, TLS version, source IP, and
-provider relay response where recorded.
+**Management > Mail trace** is the first place to check for delivery
+problems. Search by address, subject, message ID, or source IP, and filter by
+direction and status. Details can include envelope and header addresses,
+status, message size, authentication results, spam score, TLS version, source
+IP, and the provider's relay response where recorded.
 
-Trace is metadata, not a copy of the email body. A **Sent** or **Delivered**
-state describes the stage recorded by cmail; it is not proof that a person read
-the message. When investigating, record the trace identifier and time without
-copying more address or subject data than the support channel needs.
+Trace shows metadata, not a copy of the message body. **Sent** or
+**Delivered** describes the stage cmail recorded — it is not proof someone
+read the message. When investigating, record the trace ID and time, and copy
+only as much address or subject data as your support channel actually needs.
 
 ## Audit log
 
-**Management > Audit log** records security-sensitive, administrative, account,
-policy, mailbox, organisation, and message-state events implemented by the
-application. Filter by event type and review actor, target, time, and detail.
+**Management > Audit log** records security-sensitive, administrative,
+account, policy, mailbox, organisation, and message-state events. Filter by
+event type, and review the actor, target, time, and detail of each.
 
-Use it to verify that a requested change occurred and to reconstruct an
-administrative sequence. It is not a substitute for protected, exported audit
-retention: access to the same deployment and database must be considered in the
-organisation's evidence and backup design.
+Use it to confirm a change happened, or to reconstruct a sequence of admin
+actions. It is not a substitute for protected, exported audit retention —
+anyone with access to the same deployment and database should be factored
+into your evidence and backup design.
 
 ## Settings
 
-**Management > Settings** changes public organisation details, service-generated
-mail identity, support contact, application label, landing URL, and policy URL.
-Changes take effect immediately and are audited.
+**Management > Settings** changes public organisation details, the service's
+mail identity, support contact, app label, landing URL, and policy URL.
+Changes take effect immediately and are recorded in the Audit log.
 
-OAuth credentials, session secrets, Cloudflare bindings, mail domain, outbound
-provider keys, Web Push private keys, and other security-sensitive runtime
-settings intentionally remain environment-controlled. If one of those must
-change, follow the [configuration reference](configuration.md) and the
-organisation's deployment change process.
+OAuth credentials, session secrets, Cloudflare bindings, mail domain,
+outbound provider keys, Web Push private keys, and other security-sensitive
+settings are deliberately kept out of this screen and controlled at the
+deployment level instead. To change one, follow the
+[configuration reference](configuration.md) and your organisation's
+deployment change process.
 
 ## Safe operating routine
 
-- Review Overview, Mail trace, Audit log, provider health, and backup results on
-  a defined schedule.
-- Test sign-in, policy gating, one inbound message, one internal message, and
-  one external send after configuration or deployment changes.
-- Grant Manager and Full access only where needed; review both regularly.
-- Pause an account first when facts are uncertain, then investigate before a
-  final offboard decision.
-- Keep public positions internal during staffing changes until the three
-  published fields have been checked.
-- Never place credentials, exported mail, user lists, production Wrangler
+- Review Overview, Mail trace, Audit log, provider health, and backup results
+  on a set schedule.
+- After any configuration or deployment change, test sign-in, policy gating,
+  one inbound message, one internal message, and one external send.
+- Grant Manager and Full access only where needed, and review both
+  regularly.
+- If the facts are unclear, pause an account first and investigate before
+  deciding to offboard.
+- During staffing changes, keep public positions internal until you've
+  checked the three published fields.
+- Never put credentials, exported mail, user lists, production Wrangler
   files, or incident evidence in the source repository.
-- Treat notification delivery as best-effort. Mail trace and the mailbox itself
-  are the authoritative operational checks.
+- Treat notifications as best-effort only. Mail trace and the mailbox itself
+  are the real operational checks.
 
 ## Support and escalation
 
-Train designated internal people as the first support level (L1). They should
-own user communication, follow approved runbooks, use Mail trace and Audit log
-without copying message content, and apply the organisation's incident and
-privacy processes. Escalate a real, reproducible cmail product defect to RME
-Solutions Technology through the agreed ticket or email channel; include the
-safe reproduction, deployed version, impact, time window, and redacted trace
-or error identifiers.
+Train designated internal people as your first support level (L1): own user
+communication, follow approved runbooks (step-by-step guides for common
+issues), use Mail trace and Audit log without copying message content, and
+apply your organisation's incident and privacy processes. Escalate a real,
+reproducible cmail product defect to RME Solutions Technology through your
+agreed channel, with a safe reproduction, the deployed version, impact, time
+window, and redacted trace or error IDs.
 
-Operational help expressly included in a separate support agreement follows
-that agreement. Detailed design, configuration, provider or DNS work, bespoke
-changes, and non-reproducible troubleshooting outside it are separately scoped
-or quoted work, not an included defect response. Never include credentials, message bodies,
-attachments, raw exports, or unnecessary personal data in a case. Handle a
-suspected vulnerability through [the security policy](../SECURITY.md), and
-follow the organisation's incident process for suspected security or privacy
-incidents. The full [support process](support-process.md) explains the intake,
-scope, and evidence boundaries; it is not an SLA or certification claim.
+Design and configuration work, provider or DNS issues, bespoke changes, and
+problems that cannot be reproduced are separately scoped or quoted work, not
+an included defect response, unless a separate support agreement covers them.
+Never include credentials, message bodies, attachments, raw exports, or
+unnecessary personal data in a case. Handle a suspected vulnerability through
+[the security policy](../SECURITY.md), and follow your organisation's
+incident process for security or privacy incidents. See the full
+[support process](support-process.md) for intake, scope, and evidence in
+detail — this is not a service-level agreement or a certification.
 
-Use the [operations checklist](operations-checklist.md) for recurring controls
-and the [security checklist](security-checklist.md) before production use.
+Use the [operations checklist](operations-checklist.md) for recurring
+controls and the [security checklist](security-checklist.md) before
+production use.

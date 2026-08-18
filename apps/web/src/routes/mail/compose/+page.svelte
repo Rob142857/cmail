@@ -105,7 +105,7 @@
     let total = next.reduce((s, f) => s + f.size, 0);
     for (const f of picked) {
       if (next.length >= 25) {
-        attachmentError = 'A message can have at most 25 attachments';
+        attachmentError = 'Max 25 attachments per message';
         break;
       }
       const ext = getExt(f.name);
@@ -114,7 +114,7 @@
         continue;
       }
       if (total + f.size > MAX_TOTAL) {
-        attachmentError = `Attachments exceed 20 MB total limit`;
+        attachmentError = `Attachments exceed 20 MB limit`;
         continue;
       }
       // de-dupe by name+size
@@ -224,7 +224,7 @@
   }
 
   function reloadForDraftConflict() {
-    if (!writeRecoverySnapshot() && !window.confirm('Browser recovery storage is unavailable. Reloading may lose this tab\'s unsaved text. Reload anyway?')) return;
+    if (!writeRecoverySnapshot() && !window.confirm('Recovery storage unavailable — reloading may lose unsaved text in this tab. Reload anyway?')) return;
     allowNavigation = true;
     window.location.reload();
   }
@@ -278,8 +278,8 @@
   function attachmentLeaveConfirmed() {
     if (attachedFiles.length === 0) return true;
     const message = hasDraftContent()
-      ? 'Save the text draft and leave? Attached files are not stored in drafts yet and will be removed from this compose window.'
-      : 'Leave and remove the attached files? No text draft will be created.';
+      ? 'Save the text draft and leave? Attachments aren\'t saved in drafts and will be removed.'
+      : 'Leave and remove attached files? No draft will be created.';
     return window.confirm(message);
   }
 
@@ -295,7 +295,7 @@
     try {
       const neededSave = dirty && hasDraftContent();
       if (neededSave && !from) {
-        if (!window.confirm('This draft cannot be saved because no sendable mailbox is available. Leave and lose these changes?')) return;
+        if (!window.confirm('Can\'t save this draft — no sendable mailbox available. Leave and lose these changes?')) return;
         dirty = false;
         clearRecovery();
       } else if (neededSave && !(await saveDraft(true))) {
@@ -303,8 +303,8 @@
       }
       allowNavigation = true;
       const message = draftId
-        ? attachedFiles.length ? 'Text draft saved. Attachments were not included.' : 'Draft saved.'
-        : attachedFiles.length ? 'Attachments removed. No draft was created.' : '';
+        ? attachedFiles.length ? 'Draft saved. Attachments weren\'t included.' : 'Draft saved.'
+        : attachedFiles.length ? 'Attachments removed. No draft created.' : '';
       const destination = new URL(String(target), window.location.origin);
       const destinationPath = `${destination.pathname}${destination.search}`;
       const canUseHistoryBack = preferHistoryBack
@@ -325,7 +325,7 @@
         });
         if (window.location.pathname === '/mail/compose') {
           try { sessionStorage.removeItem('cmail:pending-navigation-toast'); } catch { /* optional */ }
-          saveError = 'Could not return through browser history. Use Back again to return safely.';
+          saveError = 'Couldn\'t go back automatically. Press Back again.';
         }
         return;
       }
@@ -365,7 +365,7 @@
 
   /** @param {MouseEvent} event */
   function confirmDiscard(event) {
-    if (!window.confirm('Discard this draft? This cannot be undone.')) {
+    if (!window.confirm('Discard this draft? Can\'t be undone.')) {
       event.preventDefault();
       return;
     }
@@ -435,7 +435,7 @@
       const result = deserialize(await res.text());
       if (!res.ok || result.type !== 'success') {
         if (result.type === 'failure' && result.data?.draftConflict) saveConflict = true;
-        throw new Error(result.type === 'failure' && result.data?.error ? result.data.error : 'Draft could not be saved');
+        throw new Error(result.type === 'failure' && result.data?.error ? result.data.error : 'Couldn\'t save draft');
       }
       const payload = result.data;
       if (payload?.savedDraftId) {
@@ -460,7 +460,7 @@
       savedAt = new Date(knownServerSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       return true;
     } catch (error) {
-      saveError = saveConflict ? '' : error instanceof Error ? error.message : 'Draft could not be saved';
+      saveError = saveConflict ? '' : error instanceof Error ? error.message : 'Couldn\'t save draft';
       dirty = true;
       return false;
     } finally {
@@ -526,7 +526,7 @@
     if (externalRecipients.length) {
       const recipientLabel = externalRecipients.length === 1 ? '1 external recipient' : `${externalRecipients.length} external recipients`;
       const attachmentLabel = attachedFiles.length ? ` with ${attachedFiles.length} ${attachedFiles.length === 1 ? 'attachment' : 'attachments'}` : '';
-      if (!window.confirm(`Send this message${attachmentLabel} to ${recipientLabel}? Check that the content is appropriate to leave your organisation.`)) {
+      if (!window.confirm(`Send this message${attachmentLabel} to ${recipientLabel}? Make sure it's OK to leave your organisation.`)) {
         cancel();
         return;
       }
@@ -591,11 +591,11 @@
       {#if saving}
         Saving…
       {:else if savedAt}
-        Text saved at {savedAt}{dirty ? ' — unsaved changes' : attachedFiles.length ? ' — attachments remain in this tab' : ''}
+        Text saved at {savedAt}{dirty ? ' — unsaved changes' : attachedFiles.length ? ' — attachments stay in this tab' : ''}
       {:else if dirty}
         Unsaved changes
       {:else if attachedFiles.length}
-        Attachments remain only in this tab
+        Attachments stay only in this tab
       {/if}
     </div>
   </header>
@@ -608,7 +608,7 @@
     <div class="recovery-warning" role="alert">
       <div>
         <strong>Draft changed in another tab</strong>
-        <span>Your local text is retained. Reload the server version to compare it with this recovery copy.</span>
+        <span>Your local text is kept. Reload to compare with the server version.</span>
       </div>
       <div class="recovery-actions">
         <button type="button" class="btn btn-sm" onclick={reloadForDraftConflict}>Reload and compare</button>
@@ -618,7 +618,7 @@
   {#if d.quoteWarning}<div class="form-warning" role="status">{d.quoteWarning}</div>{/if}
   {#if d.isForward && d.forwardedAttachmentCount > 0}
     <div class="form-warning" role="alert">
-      <p>The original message has {d.forwardedAttachmentCount} {d.forwardedAttachmentCount === 1 ? 'file or embedded image part' : 'file or embedded image parts'}. They are not forwarded automatically. Download only the parts you intend to resend, then add them below.</p>
+      <p>The original message has {d.forwardedAttachmentCount} {d.forwardedAttachmentCount === 1 ? 'file or embedded image part' : 'file or embedded image parts'}, not forwarded automatically. Download the ones you want to resend, then add them below.</p>
       <ul class="forward-source-list">
         {#each d.forwardedAttachments as attachment}
           <li>
@@ -631,14 +631,14 @@
   {/if}
   {#if !d.isForward && d.omittedReplyInlineImageCount > 0}
     <div class="form-warning" role="status">
-      {d.omittedReplyInlineImageCount === 1 ? 'One embedded image from the original message is' : `${d.omittedReplyInlineImageCount} embedded images from the original message are`} not included in the quoted reply. The original remains available in the message view.
+      {d.omittedReplyInlineImageCount === 1 ? 'One embedded image from the original message is' : `${d.omittedReplyInlineImageCount} embedded images from the original message are`} not in the quoted reply. See the original message to view it.
     </div>
   {/if}
   {#if recoveryConflict}
     <div class="recovery-warning" role="alert">
       <div>
         <strong>Local recovery copy available</strong>
-        <span>Another tab saved a different version. The server draft is open and the local copy has been kept.</span>
+        <span>Another tab saved a different version. This is the server draft; your local copy is kept.</span>
       </div>
       <div class="recovery-actions">
         <button type="button" class="btn btn-sm" onclick={() => applyRecovery(recoveryConflict)} disabled={sending || discarding || navigationInProgress}>Restore local copy</button>
@@ -646,7 +646,7 @@
       </div>
     </div>
   {/if}
-  {#if d.mailboxes.length === 0}<div class="form-error" role="alert">You do not have a mailbox with send permission. Ask an administrator for access.</div>{/if}
+  {#if d.mailboxes.length === 0}<div class="form-error" role="alert">No mailbox with send permission. Ask an administrator for access.</div>{/if}
 
   <form
     method="POST"
@@ -689,7 +689,7 @@
       <div class="external-warning" role="status">
         <strong>{externalRecipients.length} external {externalRecipients.length === 1 ? 'recipient' : 'recipients'}</strong>
         <span>{externalRecipients.join(', ')}</span>
-        <small>You will be asked to confirm before this message leaves {d.mailDomain || 'the organisation'}.</small>
+        <small>You'll be asked to confirm before this leaves {d.mailDomain || 'the organisation'}.</small>
       </div>
     {/if}
 
@@ -702,28 +702,28 @@
       <label for="importance">Importance</label>
       <select name="importance" id="importance" bind:value={importance} oninput={markDirty}>
         <option value="normal">Normal</option>
-        <option value="high">High — important</option>
+        <option value="high">High</option>
         <option value="low">Low</option>
       </select>
-      <small>Signals attention to compatible email clients; it does not speed up delivery.</small>
+      <small>Shown in compatible email clients; doesn't speed up delivery.</small>
     </div>
 
     <div class="field">
       <label for="body">Message</label>
-      <textarea name="body" id="body" bind:value={body} oninput={markDirty} rows="14" maxlength="1000000" placeholder="Write your message in plain text…"></textarea>
+      <textarea name="body" id="body" bind:value={body} oninput={markDirty} rows="14" maxlength="1000000" placeholder="Write in plain text…"></textarea>
     </div>
 
     {#if d.signature}
       <details class="signature-preview">
         <summary>
           <span class="signature-summary-copy">
-            <strong>Automatic email signature</strong>
+            <strong>Email signature</strong>
             <small>Personal first, then organisation</small>
           </span>
           {#if d.effectiveSignature?.personalLocked}<span class="signature-lock">Admin managed</span>{/if}
         </summary>
         <div class="signature-preview-body">
-          <p class="signature-help">cmail adds these protected blocks below your message and above quoted conversation history when you send.</p>
+          <p class="signature-help">Added below your message and above quoted history when you send.</p>
           <div class="signature-layers">
             {#if d.effectiveSignature?.personalHtml}
               <section class="signature-layer">
@@ -739,7 +739,7 @@
             {/if}
           </div>
           <div class="signature-footer">
-            <span>Signature content is kept outside the editable message so it cannot be accidentally changed.</span>
+            <span>Kept outside your message so it can't be changed by accident.</span>
             <a href="/mail/settings">{d.effectiveSignature?.personalLocked ? 'View signature settings' : 'Manage personal signature'}</a>
           </div>
         </div>
@@ -784,10 +784,10 @@
         </ul>
       {/if}
       <p class="att-note">
-        Max 25 files / 20 MB in cmail. Files remain only in this tab until sent and are not included in text draft saves; cmail warns before leaving. Downloads are forced, but files are not malware-scanned.
-        {#if d.outboundProvider === 'cloudflare'} Cloudflare external delivery has a 5 MiB final-message limit including encoded body and attachments.{/if}
-        {#if d.outboundProvider === 'postmark'} Postmark external delivery has a 10 MB final-message limit.{/if}
-        {#if d.outboundProvider === 'none'} External delivery is not configured; attachments can still be sent to internal cmail mailboxes.{/if}
+        Max 25 files / 20 MB. Files stay in this tab until sent and aren't included in draft saves — cmail warns before you leave. Downloads are forced but not malware-scanned.
+        {#if d.outboundProvider === 'cloudflare'} Cloudflare delivery has a 5 MiB limit for the whole encoded message.{/if}
+        {#if d.outboundProvider === 'postmark'} Postmark delivery has a 10 MB message limit.{/if}
+        {#if d.outboundProvider === 'none'} External delivery isn't set up; attachments can still go to internal cmail mailboxes.{/if}
       </p>
     </div>
 

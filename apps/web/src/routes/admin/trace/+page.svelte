@@ -58,10 +58,10 @@
 
   function journalStateLabel(state) {
     if (state === 'accepted') return 'Accepted · storing copies';
-    if (state === 'dispatching') return 'Dispatch outcome pending';
+    if (state === 'dispatching') return 'Delivery outcome pending';
     if (state === 'ambiguous') return 'Delivery unknown · do not retry';
     if (state === 'retryable_failure') return 'Not accepted · safe to retry';
-    return 'Staged · provider not contacted';
+    return 'Queued · provider not contacted';
   }
 </script>
 
@@ -78,7 +78,7 @@
           <p class="eyebrow">Delivery recovery</p>
           <h2 id="journal-alert-heading">{data.outboundJournalTotal} unresolved outbound {data.outboundJournalTotal === 1 ? 'send' : 'sends'}</h2>
         </div>
-        <span>Provider calls are never repeated when the outcome is unknown.</span>
+        <span>These sends won't be retried automatically.</span>
       </div>
       <div class="journal-list">
         {#each data.outboundJournals as journal}
@@ -97,7 +97,7 @@
         {/each}
       </div>
       {#if data.outboundJournalTotal > data.outboundJournals.length}
-        <p class="journal-more">Showing the 20 most recently updated records. Query D1 for the complete recovery queue.</p>
+        <p class="journal-more">Showing the 20 most recent records.</p>
       {/if}
     </section>
   {/if}

@@ -6,7 +6,7 @@
   <header>
     <p class="eyebrow">User guide</p>
     <h1>Start using {page.data?.appName || 'cmail'}</h1>
-    <p>Everything you need for a safe first session, from identity sign-in to sending from the right address.</p>
+    <p>How to sign in, pick a mailbox, and send mail safely.</p>
   </header>
 
   <nav class="on-this-page" aria-label="On this page">
@@ -16,50 +16,50 @@
 
   <section id="sign-in">
     <h2>1. Sign in with the invited account</h2>
-    <p>For your first sign-in, open the newest invitation email within 72 hours and choose the Google or Microsoft button that manages the invited address. The single-use invitation securely connects that identity to your account; an older link stops working when a manager resends it. After enrolment, use that same provider every time. Microsoft sign-in may include a Microsoft 365 work or school identity, or an Outlook, Hotmail, or Live account when the organisation has enabled personal Microsoft accounts.</p>
-    <p>If the link has expired, was already used, or you chose a different address, ask a manager to <strong>Send invitation</strong> again. Do not forward an invitation: it is a temporary sign-in capability intended only for its recipient.</p>
+    <p>Open your invitation email within 72 hours and sign in with the Google or Microsoft button for the invited address. Use the same provider every time after that. Microsoft sign-in accepts a work or school account, or Outlook, Hotmail, or Live where the organisation allows personal Microsoft accounts.</p>
+    <p>If the link expired, was already used, or you chose the wrong address, ask a manager to send a new invitation. Do not forward an invitation — it is only for its recipient.</p>
     <div class="callout"><strong>What sign-in does not do</strong><p>It verifies who you are. It does not grant this application access to your personal inbox, files, contacts, or search history.</p></div>
   </section>
 
   <section id="mailboxes">
     <h2>2. Choose the mailbox you are working in</h2>
-    <p>The navigation separates <strong>Personal</strong> and <strong>Shared</strong> mailboxes. Choose one mailbox to see only its messages, or use <strong>All mailboxes</strong> for a combined view. Always check the mailbox label before taking an action.</p>
+    <p>Navigation separates <strong>Personal</strong> and <strong>Shared</strong> mailboxes. Pick one to see its messages, or use <strong>All mailboxes</strong> for a combined view. Check the mailbox label before acting.</p>
     <ul>
-      <li>A personal mailbox represents your own organisational address.</li>
-      <li>A shared mailbox represents a function or team such as Support, Accounts, or Enquiries.</li>
-      <li>Unread counts are shown per mailbox and across all assigned mailboxes.</li>
+      <li>A personal mailbox is your own organisational address.</li>
+      <li>A shared mailbox is a team address, such as Support or Accounts.</li>
+      <li>Unread counts show per mailbox and across all assigned mailboxes.</li>
     </ul>
   </section>
 
   <section id="compose">
     <h2>3. Check the From address before sending</h2>
-    <p>Compose and reply show only active addresses for which you have Send as or Full access. Select the address that should represent the conversation. Recipients see the selected organisational address—not the Google or Microsoft identity used to sign in.</p>
+    <p>Compose and reply show only addresses you can send from. Pick the one that should represent the conversation — recipients see that address, not the identity you signed in with.</p>
     <ol>
       <li>Select <strong>Compose</strong>.</li>
       <li>Confirm <strong>From</strong>, then add To and optional Cc recipients.</li>
-      <li>Add a clear subject, write the message, and attach only expected files. Leave <strong>Importance</strong> at Normal unless the recipient genuinely needs a High or Low signal.</li>
-      <li>Review recipients and the From address once more before selecting <strong>Send</strong>.</li>
+      <li>Add a subject, write the message, and attach files. Leave <strong>Importance</strong> at Normal unless the recipient genuinely needs High or Low.</li>
+      <li>Check recipients and the From address again, then select <strong>Send</strong>.</li>
     </ol>
-    <p>Draft text is saved shortly after you pause. Reply, Reply all, and Forward preserve the formatted original below your editable text, with remote images removed for privacy. Reply all removes active mailbox addresses assigned to you; review To and Cc before sending, especially from a shared mailbox. <strong>Back to message</strong> waits for the latest save and confirms it after returning. Attachments remain only in the current tab, so cmail warns before leaving with files attached.</p>
-    <p>Importance is saved with the draft and shown by compatible email clients, but it does not accelerate delivery, bypass spam checks, or guarantee attention. New replies and forwards start at Normal.</p>
-    <p>Drafts are private to their creator, including drafts addressed from a shared mailbox. Other delegates see shared operational mail and the Sent copy after delivery, but not your unfinished draft.</p>
-    <p>When forwarding, original files and embedded MIME image parts are not added automatically in this release. cmail counts both because forwarding removes embedded image references; return to the message and reattach only the intended files.</p>
+    <p>Drafts save automatically, even if you navigate back to the message. Reply, Reply all, and Forward keep the formatted original below your text, with remote images removed for privacy. Reply all drops your own address from the recipients — check To and Cc before sending, especially from a shared mailbox. Attachments stay in the current tab only; cmail warns before you leave with files attached.</p>
+    <p>Importance does not speed up delivery, bypass spam checks, or guarantee attention — it is just shown by compatible email clients. New replies and forwards start at Normal.</p>
+    <p>Drafts are private to their creator, even from a shared mailbox. Other delegates see shared mail and the Sent copy after delivery, but not your unfinished draft.</p>
+    <p>Forwarding does not automatically attach original files or embedded images; return to the message and reattach the ones you want.</p>
   </section>
 
   <section id="folders">
-    <h2>4. Use folders and message actions deliberately</h2>
-    <p>Inbox, Sent, Drafts, Archive, Spam, and Trash are mailbox folders. In shared mailboxes, read state, stars, and folder moves are shared operational state: another delegate may see your changes.</p>
+    <h2>4. Folders and message actions</h2>
+    <p>Folders: Inbox, Sent, Drafts, Archive, Spam, and Trash. In shared mailboxes, read state, stars, and folder moves are shared — other delegates may see your changes.</p>
     <div class="term-grid">
-      <div><strong>Read / unread</strong><span>Available with every access level.</span></div>
-      <div><strong>Reply / Reply all / Forward</strong><span>Available when you have an active Send as or Full access identity.</span></div>
-      <div><strong>Star / move / archive</strong><span>Require Full access.</span></div>
-      <div><strong>Trash / restore</strong><span>Require Full access; restore returns mail to its appropriate folder.</span></div>
+      <div><strong>Read / unread</strong><span>Any access level.</span></div>
+      <div><strong>Reply / Reply all / Forward</strong><span>Needs Send as or Full access.</span></div>
+      <div><strong>Star / move / archive</strong><span>Needs Full access.</span></div>
+      <div><strong>Trash / restore</strong><span>Needs Full access; restore returns mail to its folder.</span></div>
     </div>
   </section>
 
   <section id="help">
-    <h2>5. Install, enable alerts, or ask for help</h2>
-    <p>Use the <a href="/help/mobile">mobile guide</a> to install the web app and enable optional new-mail notifications. Use the <a href="/help/shared-mailboxes">shared mailbox guide</a> before working from a team address. If a mailbox or action is missing, ask a manager to check your assignment rather than sharing accounts.</p>
+    <h2>5. Install or get help</h2>
+    <p>See the <a href="/help/mobile">mobile guide</a> to install the app, and the <a href="/help/shared-mailboxes">shared mailbox guide</a> before working from a team address. Missing a mailbox or action? Ask a manager to check your assignment — do not share accounts.</p>
     {#if page.data?.supportEmail}<p><a class="btn btn-primary" href={`mailto:${page.data.supportEmail}`}>Contact {page.data?.orgName || 'organisation'} support</a></p>{/if}
   </section>
 </article>

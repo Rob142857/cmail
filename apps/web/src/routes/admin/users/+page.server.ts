@@ -230,7 +230,7 @@ export const load: PageServerLoad = async ({ platform, url, locals }) => {
 export const actions: Actions = {
   create: async ({ request, platform, locals }) => {
     const env = platform?.env;
-    if (!env) return fail(503, { error: 'Service configuration is unavailable' });
+    if (!env) return fail(503, { error: 'Service unavailable' });
     if (!isManager(locals)) return fail(403, { error: 'Manager role required' });
 
     const data = await request.formData();
@@ -254,10 +254,10 @@ export const actions: Actions = {
       return fail(400, { error: 'Mailbox name must start and end with a letter or number and may contain dots, underscores, or hyphens' });
     }
     if (!mailboxLocal) {
-      return fail(400, { error: 'A personal mailbox name is required for every provisioned account' });
+      return fail(400, { error: 'Every account needs a personal mailbox name' });
     }
     if (!mailDomain) {
-      return fail(503, { error: 'MAIL_DOMAIN must be configured before creating mailboxes' });
+      return fail(503, { error: 'Set MAIL_DOMAIN before creating mailboxes' });
     }
 
     const mailboxAddress = mailboxLocal && mailDomain ? `${mailboxLocal}@${mailDomain}` : '';
@@ -319,7 +319,7 @@ export const actions: Actions = {
     if (!sendInvite) {
       return {
         success: `User ${email} created${mailboxAddress ? ` with ${mailboxAddress}` : ''}`,
-        warning: 'This account is pending and cannot sign in until a manager sends an invitation.',
+        warning: 'This account is pending until a manager sends an invitation.',
       };
     }
 
@@ -330,7 +330,7 @@ export const actions: Actions = {
       logAdminFailure('enrollment token issue', error);
       return {
         success: `User ${email} created`,
-        warning: 'The account is pending, but a secure invitation could not be created. Use Send invitation to retry.',
+        warning: 'Account created, but the invite failed. Use Send invitation to retry.',
       };
     }
     await audit(env.DB, {
@@ -358,8 +358,8 @@ export const actions: Actions = {
 
     if (!invite.ok) {
       const warning = invite.reason === 'configuration'
-        ? 'User created, but invites require a safe APP_URL, an enabled sign-in provider, and an outbound email provider.'
-        : 'User created, but the invite could not be delivered. Check outbound email operations before retrying.';
+        ? 'User created, but invites need APP_URL, a sign-in provider, and an email provider.'
+        : 'User created, but the invite failed to send. Check email delivery and try again.';
       return { success: `User ${email} created`, warning };
     }
 
@@ -368,7 +368,7 @@ export const actions: Actions = {
 
   updateStatus: async ({ request, platform, locals }) => {
     const env = platform?.env;
-    if (!env) return fail(503, { error: 'Service configuration is unavailable' });
+    if (!env) return fail(503, { error: 'Service unavailable' });
     if (!isManager(locals)) return fail(403, { error: 'Manager role required' });
 
     const data = await request.formData();
@@ -439,7 +439,7 @@ export const actions: Actions = {
 
     return {
       success: status === 'offboarded'
-        ? 'Account offboarded; sessions, invitations, and device notifications were revoked; personal mailboxes disabled; shared access removed; and public positions made internal'
+        ? 'Account offboarded — sessions and invites revoked, mailbox disabled, shared access removed, positions hidden'
         : status === 'active'
           ? 'Account reactivated; review any disabled personal mailboxes separately'
           : `Account status updated to ${status}`,
@@ -448,7 +448,7 @@ export const actions: Actions = {
 
   updateRole: async ({ request, platform, locals }) => {
     const env = platform?.env;
-    if (!env) return fail(503, { error: 'Service configuration is unavailable' });
+    if (!env) return fail(503, { error: 'Service unavailable' });
     if (!isManager(locals)) return fail(403, { error: 'Manager role required' });
 
     const data = await request.formData();
@@ -512,7 +512,7 @@ export const actions: Actions = {
 
   resendInvite: async ({ request, platform, locals }) => {
     const env = platform?.env;
-    if (!env) return fail(503, { error: 'Service configuration is unavailable' });
+    if (!env) return fail(503, { error: 'Service unavailable' });
     if (!isManager(locals)) return fail(403, { error: 'Manager role required' });
 
     const data = await request.formData();
@@ -575,8 +575,8 @@ export const actions: Actions = {
     if (!invite.ok) {
       return fail(invite.reason === 'configuration' ? 503 : 502, {
         error: invite.reason === 'configuration'
-          ? 'Invites require a safe APP_URL, an enabled sign-in provider, and an outbound email provider'
-          : 'The invite could not be delivered; check outbound email operations before retrying',
+          ? 'Invites need APP_URL, a sign-in provider, and an email provider'
+          : 'The invite failed to send. Check email delivery and try again',
       });
     }
 

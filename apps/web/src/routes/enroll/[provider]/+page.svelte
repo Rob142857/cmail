@@ -32,7 +32,7 @@
     <img src={data.brandLogoUrl || '/logo.svg'} alt="" class="brand-logo" width="220" height="75" />
     <div class="security-mark" aria-hidden="true">✓</div>
     <h1 id="enrollment-heading">Preparing secure sign-in</h1>
-    <p>We are securely connecting this invitation to your {providerLabel} sign-in. The invitation itself is never placed in a request URL.</p>
+    <p>Connecting this invitation to your {providerLabel} sign-in.</p>
 
     {#if form?.error || missingToken}
       <div class="notice" role="alert">
@@ -42,7 +42,7 @@
     {:else}
       <div class="progress" role="status"><span></span>Checking invitation…</div>
       <noscript>
-        <p class="notice">JavaScript is required to move the invitation securely out of the link. Enable it, then open the invitation again.</p>
+        <p class="notice">Enable JavaScript, then open the invitation again.</p>
       </noscript>
     {/if}
 

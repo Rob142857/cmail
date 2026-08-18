@@ -6,7 +6,7 @@
   <header>
     <p class="eyebrow">Mobile access</p>
     <h1>Use {page.data?.appName || 'cmail'} on your device</h1>
-    <p>{page.data?.appName || 'cmail'} is an installable web app. Add it to your Home Screen for a focused mobile experience and, when the deployment enables it, optional privacy-minimised new-mail notifications.</p>
+    <p>{page.data?.appName || 'cmail'} is an installable web app. Add it to your Home Screen for a focused view and, where enabled, new-mail notifications.</p>
   </header>
 
   <div class="platform-grid">
@@ -20,7 +20,7 @@
         <li>Turn on <strong>Open as Web App</strong>, then tap <strong>Add</strong>.</li>
         <li>Open the new Home Screen icon before enabling notifications.</li>
       </ol>
-      <p class="source-link"><a href="https://support.apple.com/en-ca/guide/iphone/iphea86e5236/ios" rel="external noreferrer">Apple's current Home Screen instructions</a></p>
+      <p class="source-link"><a href="https://support.apple.com/en-ca/guide/iphone/iphea86e5236/ios" rel="external noreferrer">Apple's Home Screen guide</a></p>
     </section>
 
     <section class="platform-card">
@@ -29,59 +29,59 @@
       <ol>
         <li>Open this site in <strong>Chrome</strong> and sign in.</li>
         <li>Tap the three-dot <strong>More</strong> menu.</li>
-        <li>Choose <strong>Install app</strong> when it is offered. If Chrome instead shows <strong>Add to home screen</strong>, create the shortcut.</li>
-        <li>Open the new icon. An installed web app opens separately from the regular browser; a shortcut can open in Chrome.</li>
+        <li>Choose <strong>Install app</strong>, or <strong>Add to home screen</strong> if that is what Chrome offers instead.</li>
+        <li>Open the new icon. An installed app opens on its own; a shortcut may open in Chrome.</li>
       </ol>
-      <p class="source-link"><a href="https://support.google.com/chrome/answer/15085120?co=GENIE.Platform%3DAndroid&amp;hl=en" rel="external noreferrer">Google's current Android Home Screen instructions</a></p>
+      <p class="source-link"><a href="https://support.google.com/chrome/answer/15085120?co=GENIE.Platform%3DAndroid&amp;hl=en" rel="external noreferrer">Google's Android Home Screen guide</a></p>
     </section>
   </div>
 
   <section>
     <h2>Native mail apps and connection settings</h2>
     <div class="connection-status">
-      <div><strong>Web app</strong><span>Available now</span><p>Use this site in a supported browser, or install it from the device instructions above.</p></div>
-      <div><strong>Native mail clients</strong><span>Not available</span><p>The current product does not provide Exchange, Microsoft Graph, IMAP, POP, JMAP or end-user SMTP mailbox access. It does not add mailboxes to Outlook, Apple Mail, Thunderbird, or another native mail client.</p></div>
+      <div><strong>Web app</strong><span>Available now</span><p>Use this site in a supported browser, or install it as above.</p></div>
+      <div><strong>Native mail clients</strong><span>Not available</span><p>No Exchange, Microsoft Graph, IMAP, POP, JMAP, or SMTP mailbox access. cmail cannot be added to Outlook, Apple Mail, Thunderbird, or another native mail client.</p></div>
     </div>
-    <p class="connection-note">No server, port, encryption or protocol settings are currently available. If a future deployment supports a connection method, its exact settings and security requirements will be published here by the operator.</p>
+    <p class="connection-note">No server, port, encryption or protocol settings are available yet. If a future deployment supports a connection method, its settings will be published here by the operator.</p>
   </section>
 
   <section>
     <h2>Turn on new-mail notifications</h2>
-    <p>If your operator configured Web Push, open the mail navigation and choose <strong>Turn on</strong> under New-mail alerts. Approve the browser or operating-system permission when prompted. Permission is requested only after your action.</p>
+    <p>If enabled, open the mail navigation and choose <strong>Turn on</strong> under New-mail alerts, then approve the permission prompt.</p>
     <ul>
-      <li>On iPhone and iPad, Web Push requires iOS/iPadOS 16.4 or newer and the site must be opened as a Home Screen web app.</li>
+      <li>iPhone and iPad need iOS/iPadOS 16.4 or newer, opened as a Home Screen web app.</li>
       <li>Enable alerts separately on every browser or installed device where you want them.</li>
-      <li>Alerts intentionally omit sender, subject, mailbox, recipients, and message content.</li>
-      <li>Personal and assigned shared mailboxes are covered. Tapping an alert opens that message in its mailbox; current access is checked again before anything is shown.</li>
-      <li>Focus, Do Not Disturb, battery controls, and operating-system settings can delay or suppress alerts.</li>
+      <li>Alerts omit sender, subject, mailbox, recipients, and message content.</li>
+      <li>Covers personal and assigned shared mailboxes. Tapping an alert opens that message; access is checked again first.</li>
+      <li>Focus, Do Not Disturb, battery controls, and OS settings can delay or suppress alerts.</li>
     </ul>
-    <p class="source-link"><a href="https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/" rel="external noreferrer">WebKit's iOS and iPadOS Web Push guidance</a></p>
+    <p class="source-link"><a href="https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/" rel="external noreferrer">WebKit's iOS Web Push guidance</a></p>
   </section>
 
   <section>
     <h2>Updates, recovery and offline use</h2>
-    <p>{page.data?.appName || 'cmail'} checks for a new deployment when it opens, returns to the foreground, regains focus or network access, and when the page is restored. It does not use a background polling timer. When an update is ready, save or complete work, then close and reopen the installed app. In a browser tab, refresh after saving. cmail never reloads an open page automatically.</p>
+    <p>{page.data?.appName || 'cmail'} checks for updates when it opens, regains focus or network access, or is restored — no background polling timer. When an update is ready, finish or save your work, then close and reopen the installed app, or refresh a browser tab. cmail never reloads an open page automatically.</p>
     <ul>
-      <li>Mail, search, compose and sending require a network connection. The app does not keep mailbox pages or message content for offline use.</li>
-      <li>If the icon was removed, return to this site and install it again. Removing an icon does not close the account or revoke an existing session.</li>
-      <li>If the installed app will not load, first check the connection, then reopen or refresh it. Ask support if the problem continues.</li>
+      <li>Mail, search, compose and sending need a network connection; nothing is kept for offline use.</li>
+      <li>If the icon was removed, return to this site and install it again. Your account and session stay active.</li>
+      <li>If the installed app will not load, check the connection, then reopen or refresh it. Ask support if the problem continues.</li>
     </ul>
   </section>
 
   <section>
     <h2>Troubleshooting</h2>
     <div class="troubleshooting">
-      <div><strong>No Install option</strong><p>On iPhone or iPad, use Safari and make sure Open as Web App is enabled. On Android, look for Install app or Add to home screen in Chrome. Confirm the site uses HTTPS, then ask the operator to verify the web manifest and icons.</p></div>
-      <div><strong>No notification control</strong><p>The operator may not have configured VAPID keys, the browser may not support Web Push, or an iPhone/iPad site may not be running from its Home Screen icon.</p></div>
-      <div><strong>Notifications blocked</strong><p>Open Chrome's site settings and Android's app notification settings, allow notifications for this app/site, reopen it, and check the control again. Focus, Do Not Disturb, battery/data saving and vendor background-app controls can still delay an allowed alert.</p></div>
-      <div><strong>Test an alert</strong><p>When New-mail alerts are on, select Send test alert. “Accepted” means the push service accepted the request, not that Android displayed it. Check permissions and battery/Do Not Disturb controls before treating this as a mail-delivery issue.</p></div>
-      <div><strong>Mail unavailable offline</strong><p>This is expected. cmail deliberately does not cache mailbox pages or message content for offline use. Reconnect and refresh.</p></div>
+      <div><strong>No Install option</strong><p>On iPhone or iPad, use Safari with Open as Web App enabled. On Android, look for Install app or Add to home screen in Chrome. Needs HTTPS — ask the operator to check the manifest and icons if missing.</p></div>
+      <div><strong>No notification control</strong><p>The operator may not have configured Web Push, the browser may not support it, or an iPhone/iPad site may not be running from its Home Screen icon.</p></div>
+      <div><strong>Notifications blocked</strong><p>Allow notifications in Chrome's site settings and Android's app settings, reopen the app, and check again. Focus, Do Not Disturb, and battery controls can still delay an allowed alert.</p></div>
+      <div><strong>Test an alert</strong><p>Turn on New-mail alerts, then select Send test alert. “Accepted” means the push service took the request, not that it displayed. Check permissions and Do Not Disturb before treating this as a delivery issue.</p></div>
+      <div><strong>Mail unavailable offline</strong><p>Expected — cmail does not cache mail for offline use. Reconnect and refresh.</p></div>
     </div>
   </section>
 
   <section>
     <h2>Shared or managed devices</h2>
-    <p>Do not install or enable notifications on a device you do not control. Sign out when finished; the app also attempts to remove that browser's alert subscription before ending the session. Removing an icon does not necessarily revoke the server session; managers can revoke sessions and every registered alert endpoint by pausing or offboarding the account when a device is lost.</p>
+    <p>Do not install or enable notifications on a device you do not control. Sign out when finished — this also removes that browser's alert subscription. Removing the icon alone does not end the session; if a device is lost, a manager can pause or offboard the account to revoke sessions and alerts.</p>
     {#if page.data?.supportEmail}<p><a class="btn" href={`mailto:${page.data.supportEmail}`}>Ask for device setup help</a></p>{/if}
   </section>
 </article>

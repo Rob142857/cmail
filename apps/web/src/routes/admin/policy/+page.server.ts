@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ platform }) => {
 export const actions: Actions = {
   publish: async ({ request, platform, locals }) => {
     const env = platform?.env;
-    if (!env) return fail(503, { error: 'Platform not available' });
+    if (!env) return fail(503, { error: 'Service unavailable' });
 
     // ✅ Permission check: only managers can publish
     if (!locals.user) return fail(401, { error: 'Not authenticated' });

@@ -28,7 +28,7 @@
   <div class="toast toast-{tone}" role={tone === 'error' ? 'alert' : 'status'} aria-live={tone === 'error' ? 'assertive' : 'polite'}>
     <span class="toast-icon" aria-hidden="true">{tone === 'error' ? '!' : '✓'}</span>
     <span>{message}</span>
-    <button type="button" class="toast-dismiss" onclick={dismiss} aria-label="Dismiss notification">×</button>
+    <button type="button" class="toast-dismiss" onclick={dismiss} aria-label="Dismiss">×</button>
   </div>
 {/if}
 

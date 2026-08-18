@@ -1,12 +1,12 @@
 # Support
 
-cmail is a community-maintained, self-hosted project. There is no hosted-service
-or guaranteed-response support included with the MIT-licensed software.
+cmail is a community-maintained, self-hosted project. The MIT license includes
+no hosted-service or guaranteed-response support.
 
-For an organisation's operational support model, including internal first-line
-triage and an optional RME Solutions Technology escalation path, see the
-[support process](docs/support-process.md). That process does not change the
-community-maintainer scope described here.
+For an organisation's operational support model — internal first-line triage
+plus an optional RME Solutions Technology escalation path — see the [support
+process](docs/support-process.md). That process does not change the
+community-maintainer scope described above.
 
 ## Before asking for help
 
@@ -24,7 +24,7 @@ broadly useful product change. Include the affected commit, component,
 deployment shape, safe reproduction steps, expected result, and actual result.
 
 Deployment-specific design, configuration, troubleshooting, and other work
-outside a reproducible product defect are not included with the project. They
+outside a reproducible product defect are not included with the project and
 may require separately scoped assistance.
 
 ## Keep reports safe

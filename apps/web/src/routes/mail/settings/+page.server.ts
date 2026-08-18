@@ -78,7 +78,7 @@ export const actions: Actions = {
       if (current?.is_locked === 1) {
         return fail(403, { error: 'Your personal signature is managed by an administrator' });
       }
-      return fail(400, { error: 'The signature is too complex or could not be safely processed' });
+      return fail(400, { error: 'The signature is too complex or couldn\'t be processed safely' });
     }
 
     await audit(env.DB, {

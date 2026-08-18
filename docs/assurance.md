@@ -16,19 +16,25 @@ operator enabled, monitored, or retained it correctly.
 
 ## Responsibility boundary
 
+This table shows who is responsible for what, from the cmail codebase to
+your cloud, identity, and mail providers.
+
 | Party | Responsible for |
 |---|---|
 | cmail project | Application code, server-side authorization, mailbox model, message processing, documented defaults, migrations, tests, and published gaps |
 | Deployment operator | Cloudflare account security, domains and DNS, OAuth registrations, manager access, policies, retention, backups, restore tests, monitoring, incident handling, privacy notices, legal duties, and evidence preservation |
-| Cloudflare | The behavior and security of the selected Pages, Workers, D1, R2, Email Routing, Email Service, and related account services under the operator's agreement |
-| Google or Microsoft | Identity verification and any MFA, conditional-access, account-lifecycle, or risk policies configured by the operator |
-| Outbound provider | Delivery transport, signing and bounce behavior for the selected provider; Postmark remains an optional alternative to Cloudflare Email Service |
+| Cloudflare | The behavior and security of the selected Pages, Workers, D1 (hosted database), R2 (object storage), Email Routing, Email Service, and related account services under the operator's agreement |
+| Google or Microsoft | Identity verification and any MFA (multi-factor authentication), conditional-access, account-lifecycle, or risk policies configured by the operator |
+| Outbound provider | Delivery transport, signing and bounce behavior for the selected provider. Postmark remains an optional alternative to Cloudflare Email Service |
 
 ## Control and evidence matrix
 
+For each area, this table lists what cmail already does and what evidence
+you still need to collect.
+
 | Area | Product capability | Deployment evidence required |
 |---|---|---|
-| Identity | Google and Microsoft OIDC; no cmail password database; invited-account enrolment binds the provider subject to a cmail person | OAuth app registrations and callbacks, permitted tenants/accounts, provider MFA or conditional-access policy, emergency access and administrator review |
+| Identity | Google and Microsoft OIDC (OpenID Connect sign-in); no cmail password database; invited-account enrolment binds the provider subject to a cmail person | OAuth app registrations and callbacks, permitted tenants/accounts, provider MFA or conditional-access policy, emergency access and administrator review |
 | Sessions | Signed sessions are stored as hashes; configurable lifetime and concurrency; pause/offboard revokes sessions | Effective settings, sampled revocation test, manager and Cloudflare access review |
 | Authorization | Roles and mailbox delegation are checked server-side; shared mailboxes use Read, Send as, or Full access | Current people/mailbox assignment export or reviewed screenshots, least-privilege review date, offboarding sample |
 | Public directory privacy | Directory output is globally gated and each position is internal by default; public positions expose only approved name, work email, and title | Current directory setting, approved public-position list, privacy owner sign-off, public-page review |
@@ -42,12 +48,15 @@ operator enabled, monitored, or retained it correctly.
 
 ## Important limitations and non-claims
 
+Know these limits before you rely on cmail for compliance or evidence.
+
 - cmail has not been independently certified against ISO 27001, SOC 2, PCI
   DSS, HIPAA, GDPR, the Australian Privacy Act, or another regulatory or
   assurance framework.
 - Application audit rows are append-only through the supported interface, but
   they are not independently immutable, cryptographically sealed, or a WORM
-  archive. Cloudflare/database administrators remain inside the trust boundary.
+  (write-once, read-many) archive. Cloudflare/database administrators remain
+  inside the trust boundary.
 - cmail has no legal-hold, eDiscovery, DLP, malware-sandbox, SIEM export,
   records-disposition approval, or formal evidence-package feature.
 - Retention cleanup is off by default. Enabling a schedule without approved
@@ -58,7 +67,8 @@ operator enabled, monitored, or retained it correctly.
 - SPF, DKIM, DMARC, MTA-STS, and TLS-RPT depend on live DNS, provider behavior,
   and operator monitoring. Documentation cannot make a deployment compliant.
 - Accessibility work targets good keyboard, contrast, motion, and semantic
-  behavior, but no formal WCAG conformance audit has been completed.
+  behavior, but no formal WCAG (Web Content Accessibility Guidelines)
+  conformance audit has been completed.
 - cmail is organisational and transactional email software, not a bulk
   marketing platform. It lacks campaign consent, preference, unsubscribe,
   complaint, suppression, and reputation-management controls.
@@ -97,6 +107,8 @@ endpoints, or unnecessary personal information.
 
 ## Auditor starting points
 
+Start with these documents:
+
 - [Architecture and trust boundaries](architecture.md)
 - [Deployment and verification](deployment.md)
 - [Configuration reference](configuration.md)
@@ -112,7 +124,7 @@ endpoints, or unnecessary personal information.
 
 The running application's public **Help → Standards & assurance** page is the
 manager-friendly companion to this document. Use the page's print action to
-save a dated PDF snapshot, and retain the source URL plus deployed commit with
+save a dated PDF snapshot. Retain the source URL plus deployed commit with
 that snapshot.
 
 [← Documentation home](README.md)

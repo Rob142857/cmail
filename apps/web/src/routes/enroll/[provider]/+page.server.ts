@@ -33,7 +33,7 @@ export const actions: Actions = {
   default: async ({ params, platform, request, cookies, url }) => {
     const env = platform?.env;
     if (!env || !providerReady(params.provider, env)) {
-      return fail(400, { error: 'This sign-in provider is not available.' });
+      return fail(400, { error: 'Sign-in provider not available.' });
     }
 
     const clientIp = request.headers.get('cf-connecting-ip')
@@ -47,15 +47,15 @@ export const actions: Actions = {
       600,
     );
     if (!rate.allowed) {
-      return fail(429, { error: 'Too many invitation attempts. Wait a few minutes, then try again.' });
+      return fail(429, { error: 'Too many attempts. Wait a few minutes, then try again.' });
     }
 
     const contentLength = Number(request.headers.get('content-length') || '0');
-    if (contentLength > 4096) return fail(413, { error: 'This invitation is not valid.' });
+    if (contentLength > 4096) return fail(413, { error: 'Invitation not valid.' });
     const data = await request.formData();
     const token = data.get('token');
     if (!validEnrollmentToken(token)) {
-      return fail(400, { error: 'This invitation link is incomplete or no longer valid.' });
+      return fail(400, { error: 'Invitation link is incomplete or no longer valid.' });
     }
 
     const enrollment = await findEnrollment(env.DB, token);
@@ -65,7 +65,7 @@ export const actions: Actions = {
       enrollment.bound_provider || enrollment.status === 'paused' || enrollment.status === 'offboarded'
     ) {
       return fail(400, {
-        error: 'This invitation is expired or has been replaced. Ask a manager to resend it.',
+        error: 'Invitation expired or replaced. Ask a manager to resend it.',
       });
     }
 

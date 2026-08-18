@@ -19,7 +19,7 @@
     <p>{appName} is an organisational email service operated by {name}.</p>
 
     <h2>Access</h2>
-    <p>Access is provided to people who have been invited and enrolled by the organisation. Each person signs in using their own identity-provider account; shared access is granted through mailbox assignments, not shared passwords.</p>
+    <p>Access is provided to people invited and enrolled by the organisation. Each person signs in using their own identity-provider account; shared access is granted through mailbox assignments, not shared passwords.</p>
 
     <h2>Use of the service</h2>
     <p>Use the service for authorised organisational communication and follow the organisation’s current usage policies and instructions. The organisation may publish an in-service usage policy that users must accept before mailbox access.</p>

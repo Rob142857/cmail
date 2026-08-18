@@ -39,7 +39,7 @@ function isSafeHttpUrl(s: string): boolean {
 export const actions: Actions = {
   save: async ({ request, platform, locals }) => {
     const env = platform?.env;
-    if (!env) return fail(503, { error: 'The platform is not available' });
+    if (!env) return fail(503, { error: 'Service unavailable' });
     if (!locals.user) return fail(401, { error: 'Authentication required' });
     if (locals.user.role !== 'manager') return fail(403, { error: 'Manager role required' });
 
@@ -58,7 +58,7 @@ export const actions: Actions = {
         if (value && !normalizeEmail(value)) return fail(400, { error: `${meta.label} must be a valid email address` });
       }
       if (key === 'org_url' || key === 'landing_url' || key === 'policy_url') {
-        if (!isSafeHttpUrl(value)) return fail(400, { error: `${meta.label} must use HTTPS (HTTP is allowed only on localhost)` });
+        if (!isSafeHttpUrl(value)) return fail(400, { error: `${meta.label} must start with https://` });
       }
       // Reject control characters (CR/LF) anywhere — header injection guard
       if (/[\u0000-\u001f\u007f]/.test(value)) return fail(400, { error: `${meta.label} contains invalid characters` });

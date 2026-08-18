@@ -126,7 +126,7 @@
   <a class="skip-link" href="#main-content">Skip to main content</a>
   {#if updateReady}
     <aside class="update-banner" role="status" aria-live="polite">
-      <span>An update is ready. Save or complete your work, then close and reopen the app (or refresh in a browser).</span>
+      <span>Update ready. Save or complete your work, then close and reopen the app (or refresh in a browser).</span>
     </aside>
   {/if}
   {@render children()}

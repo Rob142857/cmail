@@ -44,36 +44,35 @@
     <p class="eyebrow">Welcome</p>
     <h2 id="welcome-title">Your mail is ready in {appName}</h2>
     <p class="welcome-copy">
-      {orgName ? `${orgName} uses` : 'Your organisation uses'} personal and shared mailboxes with familiar,
-      Exchange-style delegation and a privacy-first web experience.
+      {orgName ? `${orgName} uses` : 'Your organisation uses'} personal and shared mailboxes.
     </p>
 
     <ol class="welcome-steps">
       <li>
         <span aria-hidden="true">1</span>
-        <div><strong>Choose a mailbox</strong><p>Personal and shared mailboxes appear separately in the navigation.</p></div>
+        <div><strong>Choose a mailbox</strong><p>Personal and shared mailboxes appear separately in navigation.</p></div>
       </li>
       <li>
         <span aria-hidden="true">2</span>
-        <div><strong>Check the From address</strong><p>Compose and reply only offer addresses you are authorised to use.</p></div>
+        <div><strong>Check the From address</strong><p>Compose and reply only show addresses you're allowed to use.</p></div>
       </li>
       <li>
         <span aria-hidden="true">3</span>
-        <div><strong>Set up this device</strong><p>Install the web app and, when offered, opt in to privacy-minimised new-mail alerts.</p></div>
+        <div><strong>Set up this device</strong><p>Install the web app, then turn on new-mail alerts if offered.</p></div>
       </li>
     </ol>
 
     {#if isManager}
       <aside class="manager-note">
-        <strong>You have the Manager role.</strong>
-        <span>The Management centre includes setup checks, people, shared mailbox delegation, mail trace, policy, audit, and organisation controls.</span>
-        <a href="/help/managers" onclick={rememberWelcome}>Open the manager handbook</a>
+        <strong>You're a Manager.</strong>
+        <span>The Management centre includes setup, people, shared mailboxes, mail trace, policy, audit, and organisation controls.</span>
+        <a href="/help/managers" onclick={rememberWelcome}>Manager handbook</a>
       </aside>
     {/if}
 
     <div class="welcome-actions">
-      <a class="btn" href="/help/getting-started" onclick={rememberWelcome}>Read the user guide</a>
-      <button type="button" class="btn btn-primary" onclick={closeWelcome}>Go to my mail</button>
+      <a class="btn" href="/help/getting-started" onclick={rememberWelcome}>User guide</a>
+      <button type="button" class="btn btn-primary" onclick={closeWelcome}>Go to mail</button>
     </div>
   </div>
 </dialog>

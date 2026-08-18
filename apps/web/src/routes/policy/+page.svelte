@@ -38,11 +38,11 @@
       {#if !data.user}
         <!-- Public / unauthenticated visitor — read-only -->
         <div class="policy-info">
-          <p>You're viewing this policy as a guest. <a href="/">Sign in</a> to accept and access your mailbox.</p>
+          <p>Viewing as a guest. <a href="/">Sign in</a> to accept and access your mailbox.</p>
         </div>
       {:else if data.alreadySigned}
         <div class="policy-info signed">
-          <p>✓ You have already accepted this policy version. <a href="/mail">Go to mailbox</a></p>
+          <p>✓ You've accepted this policy version. <a href="/mail">Go to mailbox</a></p>
         </div>
       {:else}
         {#if form?.error}
@@ -50,7 +50,7 @@
         {/if}
 
         <p class="policy-lede">
-          You must read and accept the current policy before accessing your mailbox.
+          Read and accept the policy to access your mailbox.
         </p>
 
         <form method="POST" class="policy-form">
@@ -66,7 +66,7 @@
       {/if}
     {:else}
       <div class="policy-info" class:unavailable={data.policyUnavailable} role={data.policyUnavailable ? 'status' : undefined}>
-        <p>{data.policyUnavailable ? 'The policy service is not configured or is temporarily unavailable.' : 'No policy has been published yet.'} {#if !data.user}<a href="/">Return to sign in</a>{/if}</p>
+        <p>{data.policyUnavailable ? "The policy service isn't configured or is temporarily unavailable." : 'No policy published yet.'} {#if !data.user}<a href="/">Return to sign in</a>{/if}</p>
       </div>
     {/if}
   </div>

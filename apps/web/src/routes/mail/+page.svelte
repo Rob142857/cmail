@@ -52,8 +52,8 @@
   );
   const fullActionTitle = $derived(
     selectedCount === 0
-      ? 'Select one or more messages'
-      : selectionHasFullControl ? '' : 'Full mailbox permission is required for this action',
+      ? 'Select messages'
+      : selectionHasFullControl ? '' : 'Requires full mailbox permission',
   );
 
   const canChangeReadState = $derived(!['sent', 'drafts', 'trash'].includes(d.folder));
@@ -86,7 +86,7 @@
       else if (hasNewFirstMessage) refreshStatus = 'New mail loaded.';
     } catch {
       if (announce) {
-        refreshStatus = 'Messages could not be refreshed. Try again.';
+        refreshStatus = 'Couldn\'t refresh messages. Try again.';
         refreshFailed = true;
       }
     } finally {
@@ -244,7 +244,7 @@
   async function bulkMutate(action: BulkAction, folder?: MoveFolder): Promise<void> {
     if (selectedCount === 0 || busyAction) return;
     if ((action === 'star' || action === 'unstar' || action === 'move' || action === 'restore') && !selectionHasFullControl) {
-      bulkError = 'Full mailbox permission is required to star, move or restore every selected message.';
+      bulkError = 'Star, move and restore need full permission for every selected message.';
       return;
     }
 
@@ -261,7 +261,7 @@
       });
       const payload = await response.json().catch(() => ({})) as { message?: unknown; updated?: unknown };
       if (!response.ok) {
-        throw new Error(typeof payload.message === 'string' ? payload.message : 'The selected messages could not be updated');
+        throw new Error(typeof payload.message === 'string' ? payload.message : 'Couldn\'t update selected messages');
       }
 
       const updated = typeof payload.updated === 'number' ? payload.updated : ids.length;
@@ -269,7 +269,7 @@
       bulkStatus = actionResult(action, folder, updated);
       await invalidateAll();
     } catch (caught) {
-      bulkError = caught instanceof Error ? caught.message : 'The selected messages could not be updated';
+      bulkError = caught instanceof Error ? caught.message : 'Couldn\'t update selected messages';
     } finally {
       busyAction = '';
     }
@@ -291,7 +291,7 @@
           {d.currentMailbox.display_name || d.currentMailbox.address}
           <span>&lt;{d.currentMailbox.address}&gt;</span>
         {:else}
-          All assigned mailboxes
+          All mailboxes
         {/if}
       </p>
     </div>
@@ -310,13 +310,13 @@
 
   {#if d.partialDelivery}
     <p class="bulk-feedback error" role="alert">
-      The provider delivered or queued this message for some recipients, but permanently bounced at least one. Do not resend to the whole list; review provider activity and contact failed recipients separately.
+      Delivered or queued for some recipients, but at least one bounced permanently. Don't resend to the whole list — check provider activity and contact failed recipients separately.
     </p>
   {/if}
 
   {#if d.mailboxUnavailable}
     <p class="bulk-feedback error" role="alert">
-      This mailbox is no longer available to you. Choose an assigned mailbox from the account picker.
+      This mailbox is no longer available. Choose an assigned mailbox from the account picker.
     </p>
   {/if}
 
@@ -333,7 +333,7 @@
   {#if d.messages.length === 0}
     <div class="card empty-state">
       <h2>{d.search ? 'No matching messages' : `No messages in ${folderLabel.toLowerCase()}`}</h2>
-      <p>{d.search ? 'Try another term or clear the search.' : 'Messages in this folder will appear here.'}</p>
+      <p>{d.search ? 'Try another term or clear search.' : 'Messages in this folder appear here.'}</p>
       {#if d.search}
         <a class="btn" href={queryFor(1, false) ? `?${queryFor(1, false)}` : '/mail'}>Clear search</a>
       {/if}
@@ -355,7 +355,7 @@
           {selectedCount === 0 ? `${d.messages.length} visible` : `${selectedCount} selected`}
         </div>
 
-        <div class="bulk-commands" role="group" aria-label="Actions for selected messages">
+        <div class="bulk-commands" role="group" aria-label="Selected message actions">
           {#if canChangeReadState}
             <button class="btn btn-sm" type="button" disabled={selectedCount === 0 || Boolean(busyAction)} onclick={() => bulkMutate('read')}>Read</button>
             <button class="btn btn-sm" type="button" disabled={selectedCount === 0 || Boolean(busyAction)} onclick={() => bulkMutate('unread')}>Unread</button>

@@ -77,12 +77,12 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, folder: targetFolder || undefined }),
       });
-      if (!response.ok) throw new Error('The message could not be updated');
+      if (!response.ok) throw new Error('Couldn\'t update message');
       if (action === 'star') starred = !starred;
       if (action === 'read') await invalidateAll();
       if (action === 'unread' || action === 'move' || action === 'restore') await goto(returnHref, { invalidateAll: true });
     } catch (error) {
-      actionError = error instanceof Error ? error.message : 'The message could not be updated';
+      actionError = error instanceof Error ? error.message : 'Couldn\'t update message';
     } finally {
       busy = '';
     }
@@ -90,15 +90,15 @@
 
   async function removeMessage() {
     const permanent = folder === 'trash';
-    if (permanent && !confirm('Permanently delete this message and its attachments? This cannot be undone.')) return;
+    if (permanent && !confirm('Permanently delete this message and its attachments? Can\'t be undone.')) return;
     busy = 'delete';
     actionError = '';
     try {
       const response = await fetch(`/api/messages/${data.message.id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('The message could not be deleted');
+      if (!response.ok) throw new Error('Couldn\'t delete message');
       await goto(returnHref, { invalidateAll: true });
     } catch (error) {
-      actionError = error instanceof Error ? error.message : 'The message could not be deleted';
+      actionError = error instanceof Error ? error.message : 'Couldn\'t delete message';
       busy = '';
     }
   }

@@ -13,20 +13,20 @@
   };
 
   const errorMessages = {
-    configuration: 'This deployment is not fully configured yet. Ask the operator to check the runtime settings.',
-    provider_not_configured: 'That sign-in provider is not available for this deployment.',
-    invalid_state: 'The sign-in attempt expired or could not be verified. Please try again.',
-    oauth_failed: 'The identity provider could not complete sign-in. Please try again.',
-    unverified_email: 'Google did not confirm this address, or Microsoft OIDC UserInfo did not return an email. Use the invited account and try again.',
-    not_registered: 'This account has not been invited to this organisation.',
-    enrollment_required: 'First sign-in requires the secure link in your newest invitation. Ask a manager to send or resend it.',
-    enrollment_expired: 'That invitation has expired, was already used, or was replaced. Ask a manager to resend it.',
-    enrollment_email_mismatch: 'Use the same Google or Microsoft UserInfo address that received the invitation, or ask a manager to correct the account.',
-    identity_conflict: 'That identity or invitation is already connected to another account. Contact a manager; it cannot be reassigned during sign-in.',
-    bootstrap_invalid: 'The one-time setup authorisation expired or did not match the configured administrator. Start initial setup again.',
-    account_suspended: 'This account is paused or has been offboarded.',
-    provider_mismatch: 'Use the identity provider connected during first sign-in.',
-    rate_limited: 'Too many sign-in attempts were started. Wait a few minutes, then try again.',
+    configuration: 'This deployment isn\'t fully set up. Ask the operator to check the settings.',
+    provider_not_configured: 'That sign-in method isn\'t available here.',
+    invalid_state: 'Sign-in expired or couldn\'t be verified. Try again.',
+    oauth_failed: 'Sign-in didn\'t complete. Try again.',
+    unverified_email: 'Google or Microsoft didn\'t confirm an email address for this account. Use the invited account and try again.',
+    not_registered: 'This account hasn\'t been invited to this organisation.',
+    enrollment_required: 'First sign-in needs the link in your latest invitation. Ask a manager to send or resend it.',
+    enrollment_expired: 'That invitation expired, was already used, or was replaced. Ask a manager to resend it.',
+    enrollment_email_mismatch: 'Sign in with the Google or Microsoft account that received the invitation, or ask a manager to fix the account.',
+    identity_conflict: 'That identity or invitation is already linked to another account. Contact a manager — it can\'t be reassigned during sign-in.',
+    bootstrap_invalid: 'Setup authorisation expired or didn\'t match the administrator account. Start setup again.',
+    account_suspended: 'This account is paused or was offboarded.',
+    provider_mismatch: 'Use the sign-in method connected during your first sign-in.',
+    rate_limited: 'Too many sign-in attempts. Wait a few minutes and try again.',
   };
 
   const errorCode = $derived(page.url.searchParams.get('error'));
@@ -41,8 +41,8 @@
       <p class="subtitle">Organisational email{data.orgName ? ` for ${data.orgName}` : ' for your organisation'}</p>
 
       <div class="welcome-message">
-        <strong>Personal mail and shared team addresses, one familiar workspace.</strong>
-        <span>Use Exchange-style mailbox delegation with your own invited Google or Microsoft identity.</span>
+        <strong>One inbox for your personal and shared team mail.</strong>
+        <span>Sign in with your existing Google or Microsoft account.</span>
       </div>
 
       {#if errorCode && errorMessages[errorCode]}
@@ -60,12 +60,12 @@
       {/if}
 
       <div class="trust-message">
-        <p>Sign-in only verifies your identity. We cannot access your personal inbox, drive, or search history.</p>
+        <p>Sign-in only confirms your identity. It can't access your personal inbox, drive, or search history.</p>
       </div>
 
       <a class="mobile-access" href="/help/mobile">
         <strong>Mobile access</strong>
-        <span>Install {data.appName || 'cmail'} as an app on your phone or tablet, and check the current device guidance.</span>
+        <span>Install {data.appName || 'cmail'} on your phone or tablet.</span>
       </a>
 
       <div class="providers">
@@ -90,13 +90,13 @@
       </div>
 
       {#if data.authProviders.length === 0}
-        <p class="error">No sign-in method is ready. The operator should check APP_URL, SESSION_SECRET, and the provider credentials.</p>
+        <p class="error">No sign-in method is ready. The operator should check APP_URL, SESSION_SECRET, and provider credentials.</p>
       {/if}
 
       {#if data.bootstrapAvailable && !data.bootstrapReady}
         <div class="bootstrap-start">
-          <span>Preparing a new deployment?</span>
-          <a href="/bootstrap">Authorise the first manager</a>
+          <span>New deployment?</span>
+          <a href="/bootstrap">Set up the first manager</a>
         </div>
       {/if}
 
@@ -104,13 +104,13 @@
         <summary>Privacy FAQ</summary>
         <dl>
           <dt>Can the organisation read my personal inbox?</dt>
-          <dd>No. Sign-in verifies identity only — it does not grant access to your personal email, drive, or search history.</dd>
+          <dd>No. It only confirms your identity — not access to your personal email, drive, or search history.</dd>
           <dt>Will people I email see my personal address?</dt>
-          <dd>No. Outbound email uses your assigned service address.</dd>
+          <dd>No. Email you send uses your assigned address, not your personal one.</dd>
           <dt>Why not a separate password?</dt>
-          <dd>Reusing your existing account's security (2FA, phishing protection) is stronger than a new password.</dd>
+          <dd>It reuses the strong protections (like 2FA) already on your Google or Microsoft account.</dd>
           <dt>Which Microsoft accounts work?</dt>
-          <dd>Microsoft 365 work or school accounts are supported. Outlook, Hotmail, and Live accounts are also supported when the deployment's app registration allows personal Microsoft accounts.</dd>
+          <dd>Microsoft 365 work or school accounts always work. Outlook, Hotmail, and Live accounts work if this deployment allows personal Microsoft accounts.</dd>
         </dl>
       </details>
 

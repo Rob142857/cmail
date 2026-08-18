@@ -2,12 +2,12 @@
   import { page } from '$app/state';
 
   const guides = [
-    { href: '/help/mobile', eyebrow: 'Devices', title: 'Mobile access', description: 'Install the current PWA on iPhone, iPad or Android. Native mail clients and protocol settings are not available today.' },
-    { href: '/help/getting-started', eyebrow: 'Everyone', title: 'Use your mailbox', description: 'Sign in, choose a mailbox, compose safely, work with folders, and understand message actions.' },
-    { href: '/help/shared-mailboxes', eyebrow: 'Delegates', title: 'Work from a shared address', description: 'Understand shared state, From identity, Read, Send as, and Full access before handling team mail.' },
-    { href: '/help/managers', eyebrow: 'Managers', title: 'Operate the organisation', description: 'Follow safe workflows for people, mailboxes, delegation, mail trace, policy, audit, and directory privacy.' },
-    { href: '/help/support', eyebrow: 'Support', title: 'Triage and escalate safely', description: 'Understand internal L1 support, safe evidence, security boundaries, and when to escalate a reproducible product defect.' },
-    { href: '/help/standards', eyebrow: 'Assurance', title: 'Standards & assurance', description: 'Product capabilities, operator responsibilities, provider boundaries, deployment evidence, and a candid gap register.' },
+    { href: '/help/mobile', eyebrow: 'Devices', title: 'Mobile access', description: 'Install the app on iPhone, iPad or Android.' },
+    { href: '/help/getting-started', eyebrow: 'Everyone', title: 'Use your mailbox', description: 'Sign in, choose a mailbox, compose, and manage folders.' },
+    { href: '/help/shared-mailboxes', eyebrow: 'Delegates', title: 'Work from a shared address', description: 'Shared state, From identity, and access levels for team mail.' },
+    { href: '/help/managers', eyebrow: 'Managers', title: 'Operate the organisation', description: 'Workflows for people, mailboxes, delegation, mail trace, and policy.' },
+    { href: '/help/support', eyebrow: 'Support', title: 'Triage and escalate safely', description: 'Internal support, safe evidence, and when to escalate.' },
+    { href: '/help/standards', eyebrow: 'Assurance', title: 'Standards & assurance', description: 'Capabilities, responsibilities, and a candid gap register.' },
   ];
 </script>
 
@@ -15,7 +15,7 @@
   <header>
     <p class="eyebrow">{page.data?.appName || 'cmail'} help</p>
     <h1>What do you need to do?</h1>
-    <p>Short, role-aware guidance for everyday mail and administration. Start with the task in front of you.</p>
+    <p>Guidance for everyday mail and administration.</p>
   </header>
 
   <div class="guide-grid">
@@ -31,8 +31,8 @@
 
   <aside class="privacy-note">
     <div>
-      <strong>Sign-in is identity verification only.</strong>
-      <p>{page.data?.appName || 'cmail'} cannot read your personal Google or Microsoft inbox, drive, contacts, or search history. Mail access is limited to mailboxes assigned inside this deployment.</p>
+      <strong>Sign-in verifies identity only.</strong>
+      <p>{page.data?.appName || 'cmail'} cannot read your personal Google or Microsoft inbox, drive, contacts, or search history — only mailboxes assigned here.</p>
     </div>
     {#if page.data?.supportEmail}<a class="btn" href={`mailto:${page.data.supportEmail}`}>Contact support</a>{/if}
   </aside>

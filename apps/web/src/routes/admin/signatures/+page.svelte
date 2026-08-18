@@ -22,7 +22,7 @@
     <div>
       <p class="eyebrow">Mail</p>
       <h1 id="signatures-heading">Email signatures</h1>
-      <p>Apply a consistent organisation footer and manage personal signatures where policy requires it.</p>
+      <p>Set an organisation-wide footer and manage personal signatures.</p>
     </div>
   </header>
 
@@ -33,7 +33,7 @@
     <Icon name="shieldCheck" size={21} />
     <div>
       <h2 id="signature-policy-heading">Reliable signature order</h2>
-      <p>cmail appends the sender’s personal signature first, then the optional organisation signature. Both sit below the new message and above quoted conversation history.</p>
+      <p>Personal signature appears first, then the organisation signature — both above quoted history.</p>
     </div>
     <span class="order-pill">Personal → Organisation</span>
   </section>
@@ -43,7 +43,7 @@
       <div>
         <p class="eyebrow">Organisation-wide</p>
         <h2 id="organisation-signature-heading">Organisation signature</h2>
-        <p>Use this for approved branding, contact details, or a legal notice. Users cannot alter it while composing.</p>
+        <p>For branding, contact details, or legal notices. Users can't edit it.</p>
       </div>
       <span class="state-badge" class:state-on={organisation?.enabled}>
         {organisation?.enabled ? 'Enabled' : 'Not applied'}
@@ -56,14 +56,14 @@
         name="html"
         value={organisation?.html || ''}
         label="Organisation content"
-        description="This content is centrally managed and rendered beneath every personal signature."
+        description="Appears beneath every personal signature."
         placeholder="Add approved organisation details, branding text, or a legal notice…"
       />
       <div class="org-actions">
         <label class="switch-row">
           <input type="checkbox" name="enabled" checked={organisation?.enabled || false} />
           <span class="switch" aria-hidden="true"></span>
-          <span><strong>Append to outgoing mail</strong><small>Turn off to retain this content without sending it.</small></span>
+          <span><strong>Append to outgoing mail</strong><small>Turn off to keep this without sending it.</small></span>
         </label>
         <button type="submit" class="btn btn-primary">Save organisation signature</button>
       </div>
@@ -75,7 +75,7 @@
       <div>
         <p class="eyebrow">Per person</p>
         <h2 id="personal-signatures-heading">Personal signatures</h2>
-        <p>People can manage their own signature unless you set and lock it here.</p>
+        <p>People manage their own signature unless you lock it here.</p>
       </div>
       <div class="search-box">
         <Icon name="search" size={15} />
@@ -109,7 +109,7 @@
             <div class="person-body">
               <div class="management-note">
                 <Icon name="info" size={16} />
-                <p>Saving here replaces this person’s personal signature. Lock it when the exact wording is required by policy; unlock it to return control to the person.</p>
+                <p>Saving replaces their signature. Lock it to require exact wording; unlock to let them edit it.</p>
               </div>
               <form method="POST" action="?/updateUserSignature">
                 <input type="hidden" name="user_id" value={user.id} />
@@ -123,7 +123,7 @@
                 <div class="person-actions">
                   <label class="lock-control">
                     <input type="checkbox" name="is_locked" checked={user.personalSignature?.locked || false} />
-                    <span><strong>Lock personal signature</strong><small>Only managers can make further changes while locked.</small></span>
+                    <span><strong>Lock personal signature</strong><small>Only managers can edit it while locked.</small></span>
                   </label>
                   <button type="submit" class="btn btn-primary">Save for {user.displayName || user.email}</button>
                 </div>

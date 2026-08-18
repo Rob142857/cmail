@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- Upstream landing configuration marker: downstream publishers should review
        the repository URLs and clone command below for their own public project. -->
-  <meta name="description" content="cmail is open-source organisational email on Cloudflare: personal and shared mailboxes, policy acknowledgement, managed signatures, Exchange-style delegation, mail trace, and standards-focused delivery.">
+  <meta name="description" content="cmail is free, open-source email for organisations. Personal and shared mailboxes, easy delegation, and sign-in with Google or Microsoft — running in your own Cloudflare account.">
   <meta name="theme-color" content="#0078d4">
   <meta name="color-scheme" content="light dark">
   <meta property="og:type" content="website">
   <meta property="og:title" content="cmail — organisational email, under your control">
-  <meta property="og:description" content="Personal and shared mailboxes, managed signatures, policy acknowledgement, OAuth sign-in, inbound protection, and accountable administration in your own Cloudflare account.">
+  <meta property="og:description" content="Personal and shared mailboxes, sign-in with Google or Microsoft, and clear control over who can do what — all running in your own Cloudflare account.">
   <title>cmail — organisational email, under your control</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Crect width='64' height='64' rx='15' fill='%230078D4'/%3E%3Cg stroke='%23fff' stroke-width='3.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 25.5v20.2a2.8 2.8 0 0 0 2.8 2.8h32.4a2.8 2.8 0 0 0 2.8-2.8V25.5'/%3E%3Cpath d='M13 25.5 30.3 38a2.9 2.9 0 0 0 3.4 0L51 25.5'/%3E%3Cpath d='M13 25.5 30.3 13a2.9 2.9 0 0 1 3.4 0L51 25.5'/%3E%3C/g%3E%3Ccircle cx='51' cy='13' r='6' fill='%2350E6FF'/%3E%3C/svg%3E">
   <style>
@@ -494,9 +494,7 @@
         <a class="nav-secondary" href="#capabilities">Capabilities</a>
         <a class="nav-secondary" href="#tour">Product tour</a>
         <a class="nav-secondary" href="#delegation">Shared mailboxes</a>
-        <a class="nav-secondary" href="#trust">Security</a>
         <a href="/assurance/">Security &amp; assurance</a>
-        <a class="nav-secondary" href="#architecture">Architecture</a>
         <a class="nav-secondary" href="https://github.com/Rob142857/cmail">Source</a>
         <a class="cta" href="#deploy">Deploy it</a>
       </nav>
@@ -510,10 +508,10 @@
         <p class="eyebrow"><span class="dot" aria-hidden="true"></span> Open source · MIT licensed</p>
         <h1>Organisational email, <span class="accent">under your control</span>.</h1>
         <p class="lede">
-          Personal and shared mailboxes, Exchange-style delegation, and accountable
-          administration — built for small organisations and for teams spread across
-          places and reporting lines. It runs in your own Cloudflare account, on your
-          own domain.
+          Give your organisation real email: personal inboxes for everyone, shared
+          addresses for teams, and clear control over who can access what. It runs in
+          your own Cloudflare account, on your own domain — not a service you rent
+          from us.
         </p>
         <div class="actions">
           <a class="button primary" href="#deploy">Deploy your own</a>
@@ -521,9 +519,9 @@
           <a class="button" href="https://github.com/Rob142857/cmail">View the source</a>
         </div>
         <p class="trust">
-          <span><svg width="15" height="15" aria-hidden="true"><use href="#i-check"/></svg> MIT licensed source</span>
+          <span><svg width="15" height="15" aria-hidden="true"><use href="#i-check"/></svg> MIT licensed</span>
           <span><svg width="15" height="15" aria-hidden="true"><use href="#i-check"/></svg> Your domain, your data</span>
-          <span><svg width="15" height="15" aria-hidden="true"><use href="#i-check"/></svg> Documented mail standards</span>
+          <span><svg width="15" height="15" aria-hidden="true"><use href="#i-check"/></svg> Sign in with Google or Microsoft</span>
         </p>
       </header>
     </div>
@@ -532,15 +530,15 @@
       <section id="tour" aria-labelledby="tour-heading">
         <div class="section-heading">
           <p class="kicker">Product tour</p>
-          <h2 id="tour-heading">A familiar mail experience, with the operating controls visible</h2>
-          <p>These are real cmail surfaces populated with fictional demonstration data. Personal mail, shared work, and administration stay connected without sharing passwords or hiding who can do what.</p>
+          <h2 id="tour-heading">See it before you set it up</h2>
+          <p>Real cmail screens, filled with sample data. Personal mail, shared team mail, and admin tools all live in one place — with no shared passwords and a clear record of who did what.</p>
         </div>
         <div class="tour">
           <figure class="product-shot">
             <img src="screenshots/shared-inbox.png" width="1280" height="720" loading="lazy" alt="cmail shared Community Enquiries inbox showing mailbox navigation, unread messages, importance, attachments, search, and bulk actions">
             <figcaption>
               <strong>Personal and shared mailboxes in one workspace</strong>
-              <span>Move between your own mailbox and delegated team addresses; unread counts, folders, search, importance, attachments, and shared operational state remain visible.</span>
+              <span>Switch between your own inbox and any shared team address. Folders, search, and unread counts work the same in both.</span>
             </figcaption>
           </figure>
           <div class="tour-grid">
@@ -548,28 +546,28 @@
               <img src="screenshots/admin-overview.png" width="1280" height="720" loading="lazy" alt="cmail management overview showing account, mailbox, message, deployment readiness, and directory privacy summaries">
               <figcaption>
                 <strong>Management overview</strong>
-                <span>Identity, mail flow, readiness, policy, directory privacy, and operational activity in an Entra-inspired management workspace.</span>
+                <span>One place to check accounts, mail flow, policy, and recent activity across your organisation.</span>
               </figcaption>
             </figure>
             <figure class="product-shot">
               <img src="screenshots/mailbox-delegation.png" width="1270" height="714" loading="lazy" alt="cmail shared mailbox administration showing named delegates and Read, Send as, and Full access permissions">
               <figcaption>
                 <strong>Shared mailbox delegation</strong>
-                <span>Create functional addresses and grant each person Read, Send as, or Full access—with no shared sign-in.</span>
+                <span>Create an address like support@yourcompany.com, then decide exactly what each person can do with it.</span>
               </figcaption>
             </figure>
             <figure class="product-shot">
               <img src="screenshots/personal-signature.png" width="1280" height="720" loading="lazy" alt="cmail signature settings showing a personal signature layered above a locked organisation signature">
               <figcaption>
                 <strong>Personal and organisation signatures</strong>
-                <span>People can maintain their own signature unless a manager configures and locks it. The optional organisation signature is appended beneath it.</span>
+                <span>Everyone can set their own signature. Managers can lock a standard one and add a company-wide signature underneath.</span>
               </figcaption>
             </figure>
             <figure class="product-shot">
               <img src="screenshots/policy-management.png" width="1280" height="720" loading="lazy" alt="cmail policy management showing a current organisation IT policy and acknowledgement progress">
               <figcaption>
-                <strong>Versioned IT policy acknowledgement</strong>
-                <span>Publish the current organisation policy, require acknowledgement before mail access, and retain the acceptance record.</span>
+                <strong>IT policy sign-off</strong>
+                <span>Publish your IT policy and require people to accept it before they can use mail. cmail keeps a record of who agreed, and when.</span>
               </figcaption>
             </figure>
           </div>
@@ -579,53 +577,49 @@
       <section id="capabilities" aria-labelledby="capabilities-heading">
         <div class="section-heading">
           <p class="kicker">Capabilities</p>
-          <h2 id="capabilities-heading">A focused mail workspace</h2>
-          <p>Everything a small organisation actually needs to run shared addresses accountably — and nothing that only exists to fill a comparison table.</p>
+          <h2 id="capabilities-heading">What you get</h2>
+          <p>The features that matter for running organisational email well.</p>
         </div>
-        <ul class="feature-list" aria-label="cmail features">
-          <li><strong>Personal and shared mailboxes</strong> with Inbox, Sent, Drafts, Archive, Junk, and Deleted folders.</li>
-          <li><strong>Read, Send as, and Full access</strong> delegation using each person’s own identity.</li>
-          <li><strong>Versioned organisation IT policy</strong> acknowledgement enforced before protected mail and management access.</li>
-          <li><strong>Personal signatures</strong> configurable by the user or a manager, with optional manager locking.</li>
-          <li><strong>Optional organisation signature or disclaimer</strong> managed centrally and appended beneath the personal signature.</li>
-          <li><strong>Compose, reply, reply-all, and forward</strong> with autosaved drafts, attachments, rich quoted-message rendering, and importance.</li>
-          <li><strong>Google and Microsoft sign-in</strong> shown only when that provider is configured—including supported Outlook, Hotmail, and Live accounts.</li>
-          <li><strong>Inbound and outbound delivery</strong> through Cloudflare Email Routing and Cloudflare Email Service, with Postmark as an alternative.</li>
-          <li><strong>Mail trace and audit views</strong> for delivery investigation and recorded administrative activity.</li>
-          <li><strong>SPF, DKIM, DMARC, MTA-STS, and TLS reporting guidance</strong> with a published standards gap register.</li>
-          <li><strong>Organisation layers, units, roles, and positions</strong> with internal-by-default directory privacy controls.</li>
-          <li><strong>Installable PWA</strong> with optional new-mail push notifications on supported devices.</li>
-        </ul>
         <div class="grid-3">
           <article class="card">
             <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-people"/></svg></span>
-            <h3>Exchange-style delegation</h3>
-            <p>Shared mailboxes with Read, Send as, and Full access. Every permission check stays on the server.</p>
+            <h3>Shared team addresses</h3>
+            <p>Set up addresses like support@ or sales@, and choose exactly who can read, send as, or fully manage each one.</p>
           </article>
           <article class="card">
             <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-key"/></svg></span>
-            <h3>Google and Microsoft sign-in</h3>
-            <p>Use either identity provider, or both. No separate password database to hold, rotate, or leak.</p>
+            <h3>Sign in with Google or Microsoft</h3>
+            <p>People use the account they already have. No extra password for you to store or for someone else to steal.</p>
           </article>
           <article class="card">
             <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-mail"/></svg></span>
-            <h3>Inbound and outbound flow</h3>
-            <p>Receive through Cloudflare Email Routing; send through the native Cloudflare Email Service or Postmark.</p>
+            <h3>Sends and receives real mail</h3>
+            <p>Mail flows through Cloudflare, or Postmark if you prefer — not a sandbox or a demo.</p>
           </article>
           <article class="card">
             <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-activity"/></svg></span>
-            <h3>Unified mail trace</h3>
-            <p>Delivery diagnostics and administrative audit folded into one investigation pane, the way an admin actually works.</p>
+            <h3>Find out what happened</h3>
+            <p>When someone asks “did my email arrive?”, search delivery history and admin activity in one place.</p>
           </article>
           <article class="card">
             <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-clipboard"/></svg></span>
-            <h3>Policy and signature controls</h3>
-            <p>Gate protected access on the current policy, layer personal and organisation signatures, and let managers lock centrally configured personal details.</p>
+            <h3>Signatures and policy, handled</h3>
+            <p>Require people to accept your IT policy before they get mail access. Layer personal and company signatures automatically.</p>
           </article>
           <article class="card">
             <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-shield"/></svg></span>
-            <h3>Inbound protection</h3>
-            <p>Spam scoring, disguised-link and look-alike-domain detection, and a first-contact notice on unfamiliar senders.</p>
+            <h3>Catches obvious scams</h3>
+            <p>Flags suspicious links, look-alike senders, and messages from people you’ve never heard from before.</p>
+          </article>
+          <article class="card">
+            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-link"/></svg></span>
+            <h3>Your team, organised</h3>
+            <p>Set up teams, roles, and reporting lines. Directory details stay internal by default.</p>
+          </article>
+          <article class="card">
+            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-cloud"/></svg></span>
+            <h3>Works like an app</h3>
+            <p>Install cmail on a phone or desktop, and get notified when new mail arrives.</p>
           </article>
         </div>
       </section>
@@ -636,71 +630,23 @@
             <p class="kicker">Shared mailboxes</p>
             <h2 id="delegation-heading">A team address without a shared password</h2>
             <p>
-              Every delegate signs in with their own invited Google or Microsoft identity.
-              Managers create functional addresses, control delivery state, and grant each
-              person the least access they need — and it is visible afterwards who did what.
+              Everyone signs in with their own Google or Microsoft account — nobody
+              shares a password. A manager creates the shared address and decides
+              exactly what each person can do with it. Afterwards, it’s clear who did
+              what.
             </p>
             <p class="note">
-              Read state, folders, stars, and Sent history are shared operational
-              state, while unfinished drafts stay private to their author. cmail uses familiar
-              Exchange-style terminology in an independent, Cloudflare-native
-              implementation; it is not a Microsoft Exchange server.
+              Folders, read status, and sent mail are shared with everyone who has
+              access. Drafts stay private until sent. (cmail borrows the term
+              “Exchange-style” from Microsoft Exchange for these permission levels —
+              it’s an independent, Cloudflare-native product, not a Microsoft Exchange
+              server.)
             </p>
           </div>
           <div class="rows" aria-label="Mailbox delegation levels">
-            <article><strong>Read</strong><span>Open messages and manage read or unread state.</span></article>
-            <article><strong>Send as</strong><span>Everything in Read, plus composing and replying from the shared address.</span></article>
-            <article><strong>Full access</strong><span>Adds shared folder moves, stars, archive, trash, and restore.</span></article>
-          </div>
-        </div>
-      </section>
-
-      <section id="trust" aria-labelledby="trust-heading">
-        <div class="section-heading">
-          <p class="kicker">Security &amp; assurance</p>
-          <h2 id="trust-heading">Standards-focused, and honest about the gaps</h2>
-          <p>The deployment guide walks SPF, DKIM, DMARC, MTA-STS, and TLS reporting. Where a capability depends on something upstream that does not yet exist, the documentation says so rather than implying coverage.</p>
-        </div>
-        <div class="grid-2">
-          <article class="card">
-            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-shield"/></svg></span>
-            <h3>Authenticated domains, deliberately configured</h3>
-            <p>Deployment guidance covers SPF, provider-managed DKIM, and staged DMARC enforcement. cmail records trusted boundary results for investigation; the receiving provider remains responsible for applying its authentication policy.</p>
-          </article>
-          <article class="card">
-            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-link"/></svg></span>
-            <h3>Link and sender warnings</h3>
-            <p>Anchor text that names one domain but points at another is flagged, as are look-alike internationalised hostnames. Following one shows the real destination first.</p>
-          </article>
-          <article class="card">
-            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-activity"/></svg></span>
-            <h3>Nothing silently deleted</h3>
-            <p>Quarantine files a message into Junk and records why. Retention is destructive, so it stays switched off until an operator deliberately enables it.</p>
-          </article>
-          <article class="card">
-            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-clipboard"/></svg></span>
-            <h3>A public gap register</h3>
-            <p><a href="/assurance/">Review the security and assurance summary</a>, including current limitations and the upstream gap register.</p>
-          </article>
-        </div>
-      </section>
-
-      <section id="architecture" aria-labelledby="architecture-heading">
-        <div class="section-heading">
-          <p class="kicker">Architecture</p>
-          <h2 id="architecture-heading">Cloudflare-native, with responsibilities kept apart</h2>
-          <p>The web application and the inbound Worker share D1 and R2, while interactive and mail-routing duties stay in separate runtimes.</p>
-        </div>
-        <div class="grid-2">
-          <div class="flow">
-            <h3>Inbound</h3>
-            <p>Email Routing invokes the Worker. It validates the recipient, enforces quota and rate guardrails atomically, parses the message, and stores metadata and content.</p>
-            <code>Email Routing → Worker → D1 + R2</code>
-          </div>
-          <div class="flow">
-            <h3>Interactive and outbound</h3>
-            <p>Cloudflare Pages runs the SvelteKit application. Signed-in users read and compose; external delivery goes out through the configured provider.</p>
-            <code>Browser → Pages → D1 + R2 → provider</code>
+            <article><strong>Read</strong><span>Open and read messages, and mark them read or unread.</span></article>
+            <article><strong>Send as</strong><span>Everything in Read, plus writing and replying from the shared address.</span></article>
+            <article><strong>Full access</strong><span>Everything in Send as, plus moving, starring, archiving, and deleting messages.</span></article>
           </div>
         </div>
       </section>
@@ -711,15 +657,16 @@
             <p class="kicker">Deploy</p>
             <h2 id="deploy-heading">Bring your own domain and providers</h2>
             <p>
-              Clone the repository, create D1 and R2, register your OAuth callbacks, store
-              secrets in Cloudflare, and verify mail flow before routing real traffic.
+              Clone the repo, create your Cloudflare database and storage bucket, set
+              up sign-in, and store your secrets — then verify mail flow before you go
+              live.
             </p>
             <div class="note">
               cmail is pre-1.0 software. Work through the deployment and security
-              checklists, define your backups, and test with controlled accounts before
-              production use.
+              checklists, set up backups, and test with real accounts before going
+              live.
             </div>
-            <p><a class="button" href="https://github.com/Rob142857/cmail/blob/main/docs/deployment.md">Read the full deployment and verification guide</a></p>
+            <p><a class="button" href="https://github.com/Rob142857/cmail/blob/main/docs/deployment.md">Read the deployment guide</a></p>
           </div>
           <pre aria-label="Initial setup commands"><span class="c"># clone, configure, and validate</span>
 git clone https://github.com/Rob142857/cmail.git
@@ -752,8 +699,8 @@ pnpm validate</pre>
         </div>
       </div>
       <span class="product-credit">
-        Organisational email under your control, for small organisations and for
-        geographically and managerially dispersed groups.
+        Organisational email under your control — built for small organisations and
+        teams spread across locations.
       </span>
       <span class="product-meta">
         <a href="https://github.com/Rob142857/cmail/blob/main/docs/email-authentication.md">Email standards &amp; sender requirements</a> · MIT open source

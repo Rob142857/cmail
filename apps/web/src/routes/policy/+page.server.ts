@@ -36,14 +36,14 @@ export const actions: Actions = {
   default: async ({ locals, platform, request }) => {
     if (!locals.user) throw redirect(302, '/');
     const env = platform?.env;
-    if (!env?.DB) return fail(503, { error: 'Policy storage is not available' });
+    if (!env?.DB) return fail(503, { error: 'Policy storage unavailable' });
 
     const formData = await request.formData();
     const policyVersionId = formData.get('policy_version_id');
     const accepted = formData.get('accept');
 
     if (!accepted || !policyVersionId) {
-      return fail(400, { error: 'You must accept the policy to continue' });
+      return fail(400, { error: 'Accept the policy to continue' });
     }
 
     const latestPolicy = await env.DB.prepare(
