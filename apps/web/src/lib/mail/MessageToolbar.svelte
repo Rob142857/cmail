@@ -55,7 +55,7 @@
       {:else if folder === 'archive'}
         <button class="btn" type="button" disabled={!!busy} onclick={() => onMutate('move', 'inbox')}>Move to inbox</button>
       {:else if folder === 'spam'}
-        <button class="btn" type="button" disabled={!!busy} onclick={() => onMutate('move', 'inbox')}>Not spam</button>
+        <button class="btn" type="button" disabled={!!busy} onclick={() => onMutate('move', 'inbox')}>Not spam – move to inbox</button>
       {:else if folder === 'trash'}
         <button class="btn" type="button" disabled={!!busy} onclick={() => onMutate('restore')}>Restore</button>
       {/if}

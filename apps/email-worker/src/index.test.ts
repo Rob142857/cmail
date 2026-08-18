@@ -8,6 +8,7 @@ import worker, {
   inboundTransportFacts,
   isInboundSizeAllowed,
   isValidEnvelopeAddress,
+  lookupSenderRule,
   messageBodyR2Key,
   extractInboundSnippet,
   inboundRateLimitActorKey,
@@ -386,6 +387,62 @@ describe('delivery identity and storage keys', () => {
     expect(attachmentR2Key(namespace, objectId)).toBe(`attachments/${namespace}/${objectId}`);
     expect(() => attachmentR2Key(namespace, '../../payload.exe')).toThrow(TypeError);
     expect(() => messageBodyR2Key('filename-controlled', objectId)).toThrow(TypeError);
+  });
+});
+
+describe('lookupSenderRule', () => {
+  function senderRuleDatabase(rows: Array<{ pattern: string; action: string }>, options: { fails?: boolean } = {}) {
+    const queries: string[] = [];
+    const bindings: unknown[][] = [];
+    const database = {
+      prepare(query: string) {
+        queries.push(query);
+        return {
+          bind: (...values: unknown[]) => ({
+            all: async () => {
+              bindings.push(values);
+              if (options.fails) throw new Error('D1 unavailable');
+              return { results: rows };
+            },
+          }),
+        };
+      },
+    };
+    return { database, queries, bindings };
+  }
+
+  it('matches the exact address and its bare domain in one prepared statement', async () => {
+    const db = senderRuleDatabase([]);
+    const result = await lookupSenderRule(db.database as unknown as D1Database, 'person@example.test');
+
+    expect(result).toBeNull();
+    expect(db.queries).toHaveLength(1);
+    expect(db.queries[0]).toContain('FROM sender_rules');
+    expect(db.queries[0]).toContain('?1');
+    expect(db.queries[0]).toContain('?2');
+    expect(db.bindings).toEqual([['person@example.test', 'example.test']]);
+  });
+
+  it('splits on the final @ so a quoted local-part containing @ still resolves the real domain', async () => {
+    // Matches normalizeParticipantAddress: a quoted local-part may itself
+    // contain @, so the domain is whatever follows the *last* @.
+    const db = senderRuleDatabase([]);
+    await lookupSenderRule(db.database as unknown as D1Database, '"team@desk"@example.test');
+
+    expect(db.bindings).toEqual([['"team@desk"@example.test', 'example.test']]);
+  });
+
+  it('returns the rule pickSenderRule resolves as the winner', async () => {
+    const blocked = senderRuleDatabase([{ pattern: 'person@example.test', action: 'block' }]);
+    expect(await lookupSenderRule(blocked.database as unknown as D1Database, 'person@example.test')).toBe('block');
+
+    const allowed = senderRuleDatabase([{ pattern: 'example.test', action: 'allow' }]);
+    expect(await lookupSenderRule(allowed.database as unknown as D1Database, 'person@example.test')).toBe('allow');
+  });
+
+  it('fails open to no rule when the lookup throws, so a management-table fault never blocks delivery', async () => {
+    const db = senderRuleDatabase([], { fails: true });
+    expect(await lookupSenderRule(db.database as unknown as D1Database, 'person@example.test')).toBeNull();
   });
 });
 

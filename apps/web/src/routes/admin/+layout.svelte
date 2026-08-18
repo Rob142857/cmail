@@ -28,6 +28,7 @@
         { href: '/admin/mailboxes', label: 'Mailboxes', description: 'Addresses and permissions', icon: 'mailMultiple' },
         { href: '/admin/signatures', label: 'Signatures', description: 'Personal and organisation', icon: 'compose' },
         { href: '/admin/trace', label: 'Mail trace', description: 'Delivery diagnostics', icon: 'activity' },
+        { href: '/admin/quarantine', label: 'Quarantine', description: 'Spam review and sender rules', icon: 'junk' },
       ],
     },
     {

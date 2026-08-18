@@ -11,8 +11,14 @@
  * A spam score does come through, on `X-CF-SpamH-Score`. Cloudflare does not
  * document its scale, so this module records the score unconditionally but
  * quarantines nothing unless an operator sets an explicit threshold. Silently
- * filing mail into Junk against an undocumented scale would lose real mail,
+ * filing mail into Spam against an undocumented scale would lose real mail,
  * and losing mail is far worse than showing a score.
+ *
+ * A manager can also set organisation-wide sender allow/block rules (the
+ * sender_rules table). decideInboundPlacement is the single place that
+ * combines a resolved rule with the score/threshold pair into one inbound
+ * folder decision; pickSenderRule is the pure helper the Worker uses to pick
+ * a winner when a sender matches at more than one specificity.
  */
 
 /**
@@ -55,7 +61,7 @@ export function readSpamScore(headers: { get(name: string): string | null }): nu
  * Resolves the configured quarantine threshold. Returns null — meaning never
  * quarantine — for anything unset, blank, or unparseable. Requiring a
  * deliberate, valid number is the point: a typo must not start filing mail
- * into Junk.
+ * into Spam.
  */
 export function spamQuarantineThreshold(value: unknown): number | null {
   if (typeof value === 'number') {
@@ -73,4 +79,78 @@ export function spamQuarantineThreshold(value: unknown): number | null {
 export function shouldQuarantine(score: number | null, threshold: number | null): boolean {
   if (score === null || threshold === null) return false;
   return score >= threshold;
+}
+
+export type SenderRuleAction = 'allow' | 'block';
+
+/** One row returned by the Worker's sender_rules lookup query. */
+export interface SenderRuleRow {
+  pattern: string;
+  action: string;
+}
+
+/**
+ * Resolves the winning allow/block rule from every row that matched either
+ * the sender's exact address or its bare domain. The Worker matches both
+ * patterns in one prepared statement (`WHERE pattern = ?1 OR pattern = ?2`);
+ * this is the pure part that picks a winner, so it can be tested without D1.
+ *
+ * An exact-address match always outranks a domain match. sender_rules.pattern
+ * is UNIQUE, so at most one row can match the address and at most one can
+ * match the domain — but a same-level tie is still resolved deliberately:
+ * block wins, because silently delivering mail a manager meant to block is
+ * worse than quarantining mail they meant to allow.
+ */
+export function pickSenderRule(
+  rows: readonly SenderRuleRow[],
+  address: string,
+  domain: string,
+): SenderRuleAction | null {
+  let addressAction: SenderRuleAction | null = null;
+  let domainAction: SenderRuleAction | null = null;
+  for (const row of rows) {
+    if (row.action !== 'allow' && row.action !== 'block') continue;
+    if (row.pattern === address) {
+      if (row.action === 'block' || addressAction === null) addressAction = row.action;
+    } else if (row.pattern === domain) {
+      if (row.action === 'block' || domainAction === null) domainAction = row.action;
+    }
+  }
+  return addressAction ?? domainAction;
+}
+
+export interface InboundPlacementInput {
+  /** From {@link readSpamScore}; null when no header carried a parseable score. */
+  spamScore: number | null;
+  /** From {@link spamQuarantineThreshold}; null when scoring is not acted on. */
+  threshold: number | null;
+  /** From {@link pickSenderRule}; null when no organisation rule matched. */
+  senderRule: SenderRuleAction | null;
+}
+
+export interface InboundPlacementResult {
+  folder: 'inbox' | 'spam';
+  /** Recorded in messages.quarantine_reason. Null when delivered normally. */
+  reason: string | null;
+}
+
+/**
+ * Combines a manager's explicit sender rule with the spam-score threshold
+ * into one inbound folder decision.
+ *
+ * A block rule always wins, ahead of any score: it is a deliberate decision
+ * and a noisy score must not override it. An allow rule beats the score too
+ * — someone explicitly trusted should not be re-filed because of one noisy
+ * message — but loses to a block, so correcting a mistake by blocking a
+ * previously allowed sender takes effect immediately. With no matching rule,
+ * the score decides only when both it and a threshold are present; either
+ * one being absent means deliver to Inbox, matching shouldQuarantine above.
+ */
+export function decideInboundPlacement(input: InboundPlacementInput): InboundPlacementResult {
+  if (input.senderRule === 'block') return { folder: 'spam', reason: 'blocked-sender' };
+  if (input.senderRule === 'allow') return { folder: 'inbox', reason: null };
+  if (input.threshold !== null && input.spamScore !== null && input.spamScore >= input.threshold) {
+    return { folder: 'spam', reason: `spam-score:${input.spamScore}` };
+  }
+  return { folder: 'inbox', reason: null };
 }

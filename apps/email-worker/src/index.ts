@@ -14,8 +14,9 @@ import {
   type MessageParticipant,
 } from '@cmail/shared/message-participants';
 import {
+  decideInboundPlacement,
+  pickSenderRule,
   readSpamScore,
-  shouldQuarantine,
   spamQuarantineThreshold,
 } from '@cmail/shared/inbound-risk';
 import { parseAuthenticationResults } from './authentication-results';
@@ -61,10 +62,12 @@ interface Env extends RetentionEnv, PushEnvironment, InboundGuardEnv {
    */
   INBOUND_AUTHSERV_ID?: string;
   /**
-   * Spam score at or above which inbound mail is filed into Junk instead of
-   * Inbox. Unset means never quarantine, only record — Cloudflare does not
-   * document the scale of the score it reports, so acting on it has to be a
-   * deliberate choice made after watching real scores in the trace.
+   * Spam score at or above which inbound mail is filed into Spam instead of
+   * Inbox. Unset means never quarantine on score, only record — Cloudflare
+   * does not document the scale of the score it reports, so acting on it has
+   * to be a deliberate choice made after watching real scores in the trace.
+   * The organisation-wide sender allow/block list (sender_rules) is evaluated
+   * regardless of this setting; see decideInboundPlacement.
    */
   SPAM_QUARANTINE_SCORE?: string | number;
 }
@@ -488,6 +491,32 @@ async function isFirstContact(
     return !prior;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Resolves the winning organisation-wide sender rule for the header From
+ * address, matching its exact address and its bare domain in one prepared
+ * statement. pickSenderRule (from @cmail/shared/inbound-risk) then applies
+ * the address-beats-domain, block-beats-allow precedence.
+ *
+ * A lookup failure resolves to no rule. sender_rules is a management
+ * convenience, not a delivery guarantee — inbound mail must never be lost or
+ * delayed because that table is temporarily unreachable.
+ */
+export async function lookupSenderRule(db: D1Database, headerFrom: string): Promise<'allow' | 'block' | null> {
+  // The delimiter is the final @ for the same reason normalizeParticipantAddress
+  // (in @cmail/shared/message-participants) uses it: a quoted local-part may
+  // itself contain @.
+  const delimiter = headerFrom.lastIndexOf('@');
+  const domain = delimiter >= 0 ? headerFrom.slice(delimiter + 1) : '';
+  try {
+    const { results } = await db.prepare(
+      'SELECT pattern, action FROM sender_rules WHERE pattern = ?1 OR pattern = ?2',
+    ).bind(headerFrom, domain).all<{ pattern: string; action: string }>();
+    return pickSenderRule(results, headerFrom, domain);
+  } catch {
+    return null;
   }
 }
 
@@ -936,7 +965,13 @@ export default {
     // Risk signals are resolved against the header From, because that is the
     // identity the reader is shown and the one a warning has to be about.
     const spamScore = readSpamScore(message.headers);
-    const quarantined = shouldQuarantine(spamScore, spamQuarantineThreshold(env.SPAM_QUARANTINE_SCORE));
+    const senderRule = await lookupSenderRule(env.DB, headerFrom);
+    const placement = decideInboundPlacement({
+      spamScore,
+      threshold: spamQuarantineThreshold(env.SPAM_QUARANTINE_SCORE),
+      senderRule,
+    });
+    const quarantined = placement.folder === 'spam';
     const firstContact = await isFirstContact(env.DB, mailbox.id, headerFrom);
 
     const storageNamespace = generateId();
@@ -962,8 +997,8 @@ export default {
     }
 
     const messageInsert = env.DB.prepare(
-      `INSERT INTO messages (id, mailbox_id, message_id_header, direction, from_address, from_name, to_addresses, cc_addresses, reply_to_addresses, to_participants, cc_participants, reply_to_participants, subject, snippet, body_r2_key, has_attachments, size_bytes, folder, is_read, is_starred, importance, in_reply_to, references_header, thread_id, spam_score, sender_first_contact, received_at, created_at)
-       VALUES (?, ?, ?, 'inbound', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+      `INSERT INTO messages (id, mailbox_id, message_id_header, direction, from_address, from_name, to_addresses, cc_addresses, reply_to_addresses, to_participants, cc_participants, reply_to_participants, subject, snippet, body_r2_key, has_attachments, size_bytes, folder, is_read, is_starred, importance, in_reply_to, references_header, thread_id, spam_score, sender_first_contact, quarantine_reason, received_at, created_at)
+       VALUES (?, ?, ?, 'inbound', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
     ).bind(
       messageId,
       mailbox.id,
@@ -981,13 +1016,14 @@ export default {
       bodyKey,
       preparedAttachments.some((attachment) => attachment.disposition === 'attachment') ? 1 : 0,
       messageSize,
-      quarantined ? 'spam' : 'inbox',
+      placement.folder,
       importance,
       inReplyTo,
       referencesHeader,
       threadId,
       spamScore,
       firstContact ? 1 : 0,
+      placement.reason,
     );
     const attachmentInserts = storedAttachments.map((attachment) => env.DB.prepare(
       `INSERT INTO attachments (id, message_id, filename, content_type, size_bytes, r2_key, content_id, disposition)
@@ -1043,10 +1079,12 @@ export default {
       header_from: headerFrom,
       subject,
       size_bytes: messageSize,
-      // 'quarantined' still means stored and readable — the message is in Junk,
-      // not discarded. Nothing here ever drops mail.
+      // 'quarantined' still means stored and readable — the message is in
+      // Spam, not discarded. Nothing here ever drops mail.
       status: quarantined ? 'quarantined' : 'delivered',
-      status_detail: quarantined ? 'Filed to Junk by spam score' : 'OK',
+      status_detail: quarantined
+        ? (placement.reason === 'blocked-sender' ? 'Filed to Spam by sender rule' : 'Filed to Spam by spam score')
+        : 'OK',
       spf_result: auth.spf,
       dkim_result: auth.dkim,
       dmarc_result: auth.dmarc,

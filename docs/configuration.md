@@ -245,6 +245,7 @@ Before any D1 lookup, the optional native Cloudflare Rate Limiting bindings in `
 | `INBOUND_SENDER_MESSAGES_PER_HOUR` | 30 | 10,000 | Accepted attempts from one envelope sender to one mailbox in the preceding rolling hour |
 | `MAILBOX_STORAGE_QUOTA_BYTES` | 1 GiB | 1 TiB | Shared approximate retained-message bytes allowed for one mailbox |
 | `INBOUND_SENDER_HASH_KEY` | none | exactly 32 bytes | Required Worker secret, encoded as unpadded base64url, while sender limiting is enabled |
+| `SPAM_QUARANTINE_SCORE` | unset | — | Spam score at or above which a message is filed to Spam instead of Inbox; unset or non-numeric means never quarantine on score alone |
 | `RETENTION_JOBS_ENABLED` | `false` | — | Set to `true` only after reviewing retention policy |
 
 The three inbound hourly limits and the shared storage quota accept an exact numeric `0` to disable that one control. Invalid, negative, non-finite, or sub-one positive values don't disable protection — they fall back to the default. Positive decimals are floored, and values above the hard maximum are clamped. Keep at least one mailbox-wide control enabled in production.
@@ -271,6 +272,8 @@ An inserted message atomically converts its temporary storage reservation into t
 Guardrail denials use a generic plain-text reason for quota and dependency failures; Cloudflare controls the permanent SMTP rejection. They add no sender, recipient, subject, source IP, message ID, or sender hash to audit/trace records, and Worker warnings stay generic so attacker-controlled mail can't enter new telemetry.
 
 The Worker template schedules a daily retention pass that does nothing while `RETENTION_JOBS_ENABLED` is false. Once enabled, it applies the D1 `retention_config` periods in bounded batches: trash messages and their R2 objects, trash attachments, mail trace, and audit records. It runs multiple fair catch-up batches per invocation, stopping at fixed batch, row, and runtime ceilings. Each run writes `retention.completed`, `retention.backlog_remaining`, or `retention.failed` to `audit_log`; a backlog also raises a Worker warning so operators can monitor it. Review legal-hold, backup, and recovery requirements before enabling this destructive retention.
+
+`SPAM_QUARANTINE_SCORE` only controls scoring-based filing. The organisation-wide sender allow/block list a Manager maintains at **Management > Quarantine** is evaluated on every inbound message regardless of this setting, and an explicit block or allow always overrides the score. See [Spam and quarantine](spam-and-quarantine.md) for how scoring, filing, and sender rules fit together, and for guidance on choosing a threshold.
 
 ## Where values belong
 

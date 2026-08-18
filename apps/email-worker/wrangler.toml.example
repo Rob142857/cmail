@@ -74,12 +74,14 @@ MAILBOX_STORAGE_QUOTA_BYTES = "1073741824"
 # retention_config rows and explicitly changes this value to "true".
 RETENTION_JOBS_ENABLED = "false"
 
-# Spam score at or above which inbound mail is filed into Junk instead of the
-# inbox. Cloudflare Email Routing reports a score on X-CF-SpamH-Score but does
-# not document its scale, so leave this blank at first: every score is recorded
-# in mail_trace regardless. Watch real traffic in Management → Mail trace, then
-# set a threshold you have actually seen separate junk from legitimate mail.
-# Blank, or any value that is not a number, means never quarantine.
+# Spam score at or above which inbound mail is filed to Spam instead of the
+# Inbox. Higher = fewer messages quarantined; blank or non-numeric = off.
+# Cloudflare Email Routing reports a score on X-CF-SpamH-Score but does not
+# document its scale, so leave this blank at first: every score is still
+# recorded in mail_trace regardless. Watch real traffic in Management → Mail
+# trace, then set a threshold you have actually seen separate spam from
+# legitimate mail. The organisation-wide sender allow/block list applies
+# either way — see docs/spam-and-quarantine.md.
 SPAM_QUARANTINE_SCORE = ""
 
 # Optional PWA new-mail notifications. Match the Pages VAPID configuration.

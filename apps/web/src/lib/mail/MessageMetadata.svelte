@@ -1,6 +1,7 @@
 <script>
   import { dateTimeAttribute, formatDateTime } from '$lib/dates';
   import { sanitizeParticipantName } from '@cmail/shared/message-participants';
+  import { quarantineReasonPhrase } from '$lib/quarantine-reason';
 
   let { message, locale, timeZone, mailboxHref } = $props();
 
@@ -45,6 +46,7 @@
   const ccList = $derived(parseParticipants(message.cc_participants, message.cc_addresses).map(renderParticipant).join(', '));
   const replyToList = $derived(parseParticipants(message.reply_to_participants, message.reply_to_addresses).map(renderParticipant).join(', '));
   const failedRecipientList = $derived(parseAddresses(message.failed_recipients).join(', '));
+  const quarantineReason = $derived(quarantineReasonPhrase(message.quarantine_reason));
   const mailboxPermission = $derived({
     read: 'Read only',
     'send-as': 'Read and send as',
@@ -57,6 +59,9 @@
   {#if replyToList}<div><dt>Reply to</dt><dd>{replyToList}</dd></div>{/if}
   <div><dt>To</dt><dd>{toList}</dd></div>
   {#if ccList}<div><dt>Cc</dt><dd>{ccList}</dd></div>{/if}
+  {#if message.folder === 'spam'}
+    <div><dt>Status</dt><dd class="quarantine-note">{quarantineReason ? `In Spam: ${quarantineReason}` : 'In Spam'}</dd></div>
+  {/if}
   {#if message.importance !== 'normal'}
     <div>
       <dt>Importance</dt>
@@ -96,4 +101,5 @@
   .importance-label.high { color:var(--danger); }
   .importance-label.low { color:var(--primary); }
   .delivery-failure { color:var(--danger); font-weight:650; }
+  .quarantine-note { color:var(--danger); font-weight:650; }
 </style>

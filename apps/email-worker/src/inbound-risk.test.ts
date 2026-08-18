@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  decideInboundPlacement,
   parseSpamScore,
+  pickSenderRule,
   readSpamScore,
   shouldQuarantine,
   spamQuarantineThreshold,
@@ -86,5 +88,135 @@ describe('shouldQuarantine', () => {
     expect(shouldQuarantine(8, 8)).toBe(true);
     expect(shouldQuarantine(8.1, 8)).toBe(true);
     expect(shouldQuarantine(7.9, 8)).toBe(false);
+  });
+});
+
+describe('pickSenderRule', () => {
+  it('returns null when nothing matches', () => {
+    expect(pickSenderRule([], 'person@example.com', 'example.com')).toBeNull();
+    expect(pickSenderRule(
+      [{ pattern: 'other@example.com', action: 'block' }],
+      'person@example.com',
+      'example.com',
+    )).toBeNull();
+  });
+
+  it('prefers an exact address match over a domain match, either direction', () => {
+    expect(pickSenderRule(
+      [
+        { pattern: 'example.com', action: 'block' },
+        { pattern: 'person@example.com', action: 'allow' },
+      ],
+      'person@example.com',
+      'example.com',
+    )).toBe('allow');
+
+    expect(pickSenderRule(
+      [
+        { pattern: 'example.com', action: 'allow' },
+        { pattern: 'person@example.com', action: 'block' },
+      ],
+      'person@example.com',
+      'example.com',
+    )).toBe('block');
+  });
+
+  it('falls back to the domain rule when no address rule matches', () => {
+    expect(pickSenderRule(
+      [{ pattern: 'example.com', action: 'block' }],
+      'person@example.com',
+      'example.com',
+    )).toBe('block');
+    expect(pickSenderRule(
+      [{ pattern: 'example.com', action: 'allow' }],
+      'person@example.com',
+      'example.com',
+    )).toBe('allow');
+  });
+
+  it('resolves a same-level tie in favour of block, at both the address and domain level', () => {
+    expect(pickSenderRule(
+      [
+        { pattern: 'person@example.com', action: 'allow' },
+        { pattern: 'person@example.com', action: 'block' },
+      ],
+      'person@example.com',
+      'example.com',
+    )).toBe('block');
+    expect(pickSenderRule(
+      [
+        { pattern: 'person@example.com', action: 'block' },
+        { pattern: 'person@example.com', action: 'allow' },
+      ],
+      'person@example.com',
+      'example.com',
+    )).toBe('block');
+    expect(pickSenderRule(
+      [
+        { pattern: 'example.com', action: 'allow' },
+        { pattern: 'example.com', action: 'block' },
+      ],
+      'person@example.com',
+      'example.com',
+    )).toBe('block');
+  });
+
+  it('ignores rows with an unrecognised action instead of throwing', () => {
+    expect(pickSenderRule(
+      [{ pattern: 'person@example.com', action: 'quarantine' }],
+      'person@example.com',
+      'example.com',
+    )).toBeNull();
+  });
+
+  it('is an exact string match, not a substring or case-insensitive match', () => {
+    expect(pickSenderRule(
+      [{ pattern: 'notperson@example.com', action: 'block' }],
+      'person@example.com',
+      'example.com',
+    )).toBeNull();
+    expect(pickSenderRule(
+      [{ pattern: 'PERSON@EXAMPLE.COM', action: 'block' }],
+      'person@example.com',
+      'example.com',
+    )).toBeNull();
+  });
+});
+
+describe('decideInboundPlacement', () => {
+  it('files a blocked sender to Spam regardless of score or threshold', () => {
+    expect(decideInboundPlacement({ spamScore: null, threshold: null, senderRule: 'block' }))
+      .toEqual({ folder: 'spam', reason: 'blocked-sender' });
+    expect(decideInboundPlacement({ spamScore: 0, threshold: 99, senderRule: 'block' }))
+      .toEqual({ folder: 'spam', reason: 'blocked-sender' });
+  });
+
+  it('lets an allowed sender skip the score check entirely', () => {
+    expect(decideInboundPlacement({ spamScore: 100, threshold: 1, senderRule: 'allow' }))
+      .toEqual({ folder: 'inbox', reason: null });
+    expect(decideInboundPlacement({ spamScore: null, threshold: null, senderRule: 'allow' }))
+      .toEqual({ folder: 'inbox', reason: null });
+  });
+
+  it('never quarantines on score when the threshold is unset, even with an extreme score', () => {
+    expect(decideInboundPlacement({ spamScore: 1000, threshold: null, senderRule: null }))
+      .toEqual({ folder: 'inbox', reason: null });
+  });
+
+  it('never quarantines on score when there is no score to compare', () => {
+    expect(decideInboundPlacement({ spamScore: null, threshold: 5, senderRule: null }))
+      .toEqual({ folder: 'inbox', reason: null });
+  });
+
+  it('quarantines by score at or above the threshold and records the score in the reason', () => {
+    expect(decideInboundPlacement({ spamScore: 8, threshold: 8, senderRule: null }))
+      .toEqual({ folder: 'spam', reason: 'spam-score:8' });
+    expect(decideInboundPlacement({ spamScore: 8.5, threshold: 8, senderRule: null }))
+      .toEqual({ folder: 'spam', reason: 'spam-score:8.5' });
+  });
+
+  it('delivers to Inbox when the score is below the threshold', () => {
+    expect(decideInboundPlacement({ spamScore: 7.9, threshold: 8, senderRule: null }))
+      .toEqual({ folder: 'inbox', reason: null });
   });
 });

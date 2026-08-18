@@ -316,6 +316,7 @@ Complete at least these checks:
 - cmail rejects a staged Cloudflare message above either the 50-recipient or 5-MiB general-send limit before provider submission.
 - Provider failures are visible and never appear as successful sends.
 - Unknown inbound recipients are rejected.
+- If `SPAM_QUARANTINE_SCORE` or a sender allow/block rule is configured, a test message confirms filing to Spam, and release back to Inbox, both work — see [Spam and quarantine](spam-and-quarantine.md).
 
 ### Administration and policy
 

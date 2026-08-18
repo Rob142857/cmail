@@ -235,6 +235,23 @@ Trace shows metadata, not a copy of the message body. **Sent** or
 read the message. When investigating, record the trace ID and time, and copy
 only as much address or subject data as your support channel actually needs.
 
+## Spam and quarantine
+
+**Management > Quarantine** lists messages cmail filed to Spam instead of
+Inbox, across every mailbox. For each one you can **Release** it back to
+Inbox, **Delete** it, or **Allow**/**Block** its sender for the whole
+organisation. Allow and block rules take effect on the next message from
+that address or domain; an exact address always beats a rule for its bare
+domain, and block always wins a same-level conflict.
+
+A message only reaches Spam when `SPAM_QUARANTINE_SCORE` is configured and
+the inbound score met it, or a block rule matched — see
+[Spam and quarantine](spam-and-quarantine.md) for the full explanation,
+including how to choose a threshold. Quarantine is filing, not deletion:
+nothing is removed until someone explicitly deletes it, whether from this
+page or from the mailbox's own Spam folder. Review it on the same schedule
+as Mail trace and Audit log.
+
 ## Audit log
 
 **Management > Audit log** records security-sensitive, administrative,

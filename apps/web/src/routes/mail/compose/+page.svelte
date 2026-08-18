@@ -695,7 +695,7 @@
 
     <div class="field">
       <label for="subject">Subject</label>
-      <input type="text" name="subject" id="subject" bind:value={subject} oninput={markDirty} maxlength="500" placeholder="Subject (optional)" />
+      <input type="text" name="subject" id="subject" bind:value={subject} oninput={markDirty} maxlength="500" placeholder="Subject (optional)" spellcheck="true" autocapitalize="sentences" />
     </div>
 
     <div class="field importance-field">
@@ -710,7 +710,7 @@
 
     <div class="field">
       <label for="body">Message</label>
-      <textarea name="body" id="body" bind:value={body} oninput={markDirty} rows="14" maxlength="1000000" placeholder="Write in plain text…"></textarea>
+      <textarea name="body" id="body" bind:value={body} oninput={markDirty} rows="14" maxlength="1000000" placeholder="Write in plain text…" spellcheck="true" autocapitalize="sentences"></textarea>
     </div>
 
     {#if d.signature}

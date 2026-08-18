@@ -11,6 +11,7 @@ This page is the map for all cmail documentation. cmail is pre-1.0 software: ope
 - [Shared mailboxes](shared-mailboxes.md) — for anyone using a team address. Delegation, Send as, Full access, shared folders and read state, and lifecycle.
 - [Email signatures](signatures.md) — for anyone who sends mail, and for Managers. Personal sign-offs, the optional organisation footer, locking, and safe formatting.
 - [Manager handbook](manager-handbook.md) — for the Manager role. People, Mailboxes, Organisation, Usage policy, Mail trace, Audit log, Settings, and safe operating practice.
+- [Spam and quarantine](spam-and-quarantine.md) — for anyone whose mail lands in Spam, and for Managers. How scoring works, what quarantine means, releasing your own mail, and organisation-wide sender allow/block rules.
 - [Support process](support-process.md) — for Managers and internal support staff. L1 triage, safe evidence handling, and when to escalate to RME Solutions Technology.
 
 ## Deploy cmail

@@ -116,6 +116,7 @@
         bind:innerHTML={html}
         class="editor"
         contenteditable="true"
+        spellcheck="true"
         role="textbox"
         aria-labelledby={`${id}-label`}
         aria-multiline="true"
