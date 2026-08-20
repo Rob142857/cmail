@@ -3,7 +3,7 @@
   import { getPushPreference, pushDeviceId, setPushPreference } from '$lib/push-client';
   import { applicationServerKey, subscriptionUsesCurrentVapidKey } from '$lib/push-subscription';
 
-  let { publicKey, appName = 'cmail' } = $props<{ publicKey: string; appName?: string }>();
+  let { publicKey } = $props<{ publicKey: string }>();
   let supported = $state(false);
   let installationRequired = $state(false);
   let enabled = $state(false);

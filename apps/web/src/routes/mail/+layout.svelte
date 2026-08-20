@@ -249,7 +249,7 @@
 
     <div class="nav-pane-bottom">
       {#if d.pushPublicKey}
-        <PushNotifications publicKey={d.pushPublicKey} appName={d.appName || 'cmail'} />
+        <PushNotifications publicKey={d.pushPublicKey} />
       {/if}
       <div class="identity">
         <Persona name={d.user?.display_name} email={d.user?.email} size="sm" />
