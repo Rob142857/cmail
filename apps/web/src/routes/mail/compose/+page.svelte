@@ -5,6 +5,7 @@
   import { afterNavigate, beforeNavigate, goto, replaceState } from '$app/navigation';
   import { onMount, untrack } from 'svelte';
   import EmailAutocomplete from '$lib/EmailAutocomplete.svelte';
+  import { signaturePreviewDocument } from '$lib/signature-preview';
   import EmailHtmlFrame from '$lib/mail/EmailHtmlFrame.svelte';
   let { data, form } = $props();
   /** @type {any} */
@@ -728,13 +729,13 @@
             {#if d.effectiveSignature?.personalHtml}
               <section class="signature-layer">
                 <span>1 · Personal</span>
-                <iframe title="Personal signature preview" sandbox="" srcdoc={d.effectiveSignature.personalHtml}></iframe>
+                <iframe title="Personal signature preview" sandbox="" srcdoc={signaturePreviewDocument(d.effectiveSignature.personalHtml)}></iframe>
               </section>
             {/if}
             {#if d.effectiveSignature?.organisationHtml}
               <section class="signature-layer signature-layer-org">
                 <span>2 · Organisation</span>
-                <iframe title="Organisation signature preview" sandbox="" srcdoc={d.effectiveSignature.organisationHtml}></iframe>
+                <iframe title="Organisation signature preview" sandbox="" srcdoc={signaturePreviewDocument(d.effectiveSignature.organisationHtml)}></iframe>
               </section>
             {/if}
           </div>

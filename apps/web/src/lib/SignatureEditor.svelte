@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { cleanPastedHtml } from './paste-html';
+  import { signaturePreviewDocument } from './signature-preview';
 
   let {
     id,
@@ -107,7 +108,7 @@
         title={`${label} preview`}
         aria-labelledby={`${id}-label`}
         sandbox=""
-        srcdoc={html}
+        srcdoc={signaturePreviewDocument(html)}
       ></iframe>
     {:else}
       <div
@@ -173,20 +174,28 @@
   }
   .toolbar button:hover:not(:disabled) { border-color: var(--border); background: var(--bg-hover); }
   .toolbar-divider { width: 1px; height: 20px; margin: 0 3px; background: var(--border); }
+  /* The editing surface is email paper, not app surface: signatures carry
+     inline colours chosen for a white background (every recipient reads them
+     on one), so the editor stays white in dark mode too or those colours
+     become dark-on-dark. color-scheme keeps the caret/selection light-aware. */
   .editor {
     min-height: 148px;
     padding: 14px 16px;
     outline: none;
-    color: var(--text);
+    color-scheme: light;
+    background: #ffffff;
+    color: #242424;
+    caret-color: #242424;
     font-size: 13px;
     line-height: 1.55;
     overflow-wrap: anywhere;
   }
-  .editor:empty::before { content: attr(data-placeholder); color: var(--text-faint); pointer-events: none; }
+  .editor :global(a) { color: #2563eb; }
+  .editor:empty::before { content: attr(data-placeholder); color: #8a8a8a; pointer-events: none; }
   .editor-readonly-frame { display: block; width: 100%; padding: 0; border: 0; background: #fff; }
   .editor-foot { display: flex; justify-content: space-between; gap: 12px; color: var(--text-faint); font-size: 10.5px; }
   .is-disabled .editor-shell { border-color: var(--border); background: var(--bg-subtle); }
-  .is-disabled .editor { color: var(--text-muted); cursor: not-allowed; }
+  .is-disabled .editor { cursor: not-allowed; }
   .is-disabled .toolbar { opacity: 0.58; }
 
   @media (max-width: 520px) {

@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import Icon from '$lib/ui/Icon.svelte';
   import SignatureEditor from '$lib/SignatureEditor.svelte';
+  import { signaturePreviewDocument } from '$lib/signature-preview';
 
   let { data, form } = $props();
   const personal = $derived(data.personalSignature);
@@ -93,7 +94,7 @@
           <div class="signature-layer">
             <span class="layer-label">Personal</span>
             {#if previewHtml}
-              <iframe title="Personal signature preview" sandbox="" srcdoc={previewHtml}></iframe>
+              <iframe title="Personal signature preview" sandbox="" srcdoc={signaturePreviewDocument(previewHtml)}></iframe>
             {:else}
               <p class="empty-layer">No personal signature yet</p>
             {/if}
@@ -101,7 +102,7 @@
           {#if organisation?.enabled && organisation?.html}
             <div class="signature-layer org-layer">
               <span class="layer-label">Organisation</span>
-              <iframe title="Organisation signature preview" sandbox="" srcdoc={organisation.html}></iframe>
+              <iframe title="Organisation signature preview" sandbox="" srcdoc={signaturePreviewDocument(organisation.html)}></iframe>
             </div>
           {/if}
         </div>
