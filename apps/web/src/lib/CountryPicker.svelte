@@ -5,6 +5,7 @@
   under `name`, so the server reads it with `formData.getAll(name)`.
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { COUNTRIES, countryName } from './countries';
 
   let {
@@ -17,7 +18,10 @@
     selected?: string[];
   } = $props();
 
-  let chosen = $state<string[]>([...selected]);
+  // Deliberately seeds from the initial prop only: this is an editing
+  // session, and a successful save remounts the component with the
+  // server-persisted value — the same convention as SignatureEditor.
+  let chosen = $state<string[]>(untrack(() => [...selected]));
   let query = $state('');
 
   const chosenSet = $derived(new Set(chosen));
