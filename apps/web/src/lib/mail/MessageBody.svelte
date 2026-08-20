@@ -23,8 +23,8 @@
 
 {#if allowRemoteImages && !bodyUnavailable && body && hasRemoteImages}
   <div class="privacy-bar">
-    <span>{remoteImages ? 'Remote images are loaded. They can tell the sender that you opened this message.' : 'Remote images are blocked because loading them can tell the sender that you opened this message.'}</span>
-    <button class="btn btn-sm" type="button" aria-pressed={remoteImages} onclick={() => remoteImages = !remoteImages}>{remoteImages ? 'Block images' : 'Load images'}</button>
+    <span>{remoteImages ? 'Images loaded — the sender may know you opened this.' : 'Images blocked to stop the sender tracking you.'}</span>
+    <button class="btn btn-sm" type="button" aria-pressed={remoteImages} onclick={() => remoteImages = !remoteImages}>{remoteImages ? 'Block' : 'Load images'}</button>
   </div>
 {/if}
 
@@ -35,7 +35,7 @@
     <button class="btn btn-sm" type="button" onclick={() => invalidateAll()}>Try again</button>
   </section>
 {:else if body}
-  <p id="message-link-safety" class="link-safety">Links can lead outside your organisation. Check the destination before opening one.</p>
+  <p id="message-link-safety" class="link-safety">External links: check the address before opening.</p>
   <div class="message-frame">
     <EmailHtmlFrame
       html={body}
@@ -65,6 +65,7 @@
   .empty-body { min-height:180px; display:flex; flex-direction:column; justify-content:center; }
 
   @media (max-width:560px) {
-    .privacy-bar { align-items:flex-start; flex-direction:column; }
+    .privacy-bar { padding:6px 10px; }
+    .privacy-bar .btn { flex:0 0 auto; white-space:nowrap; }
   }
 </style>
