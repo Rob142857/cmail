@@ -277,14 +277,3 @@ If you didn't request this, ignore this email — no further action is needed.`;
 
   return { subject, html, text };
 }
-
-/** Uppercased CF-IPCountry, or 'XX' when absent/malformed (e.g. local dev). */
-export function requestCountry(request: Request): string {
-  const raw = (request.headers.get('cf-ipcountry') || '').trim().toUpperCase();
-  return /^[A-Z]{2}$/.test(raw) ? raw : 'XX';
-}
-
-/** `allowedCountries: null` means no restriction is configured — every country passes. */
-export function countryAllowed(country: string, allowedCountries: string[] | null): boolean {
-  return allowedCountries === null || allowedCountries.includes(country);
-}

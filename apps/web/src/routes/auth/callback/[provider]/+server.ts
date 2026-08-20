@@ -15,8 +15,10 @@ import {
   findBoundUser,
   findEnrollment,
 } from '$lib/server/identity';
+import { loadOrgSettings } from '$lib/server/org-settings';
 import { buildSessionCookie, createSessionToken } from '$lib/server/session';
 import { assertStrongSessionSecret, maxSessionsPerUser, sessionTtlMs } from '$lib/server/config';
+import { recordTravelRequest, requestCountry, signInCountryGate } from '$lib/server/travel';
 import { normalizeDomain, normalizeEmail } from '$lib/server/validation';
 import { audit } from '$lib/server/db';
 
@@ -156,6 +158,10 @@ export const GET: RequestHandler = async ({ params, url, platform, cookies, requ
     });
   }
 
+  // A fresh deployment must never be able to lock out its own first
+  // manager, so bootstrap is exempt from the sign-in-country gate below —
+  // see the gate's call site.
+  let isBootstrap = false;
   if (!user && !enrollmentToken && bootstrapProof) {
     const configuration = bootstrapConfiguration(env as unknown as Record<string, unknown>);
     const proof = configuration
@@ -192,6 +198,7 @@ export const GET: RequestHandler = async ({ params, url, platform, cookies, requ
       });
       return denySignIn(env.DB, 'identity_conflict', provider, clientIp);
     }
+    isBootstrap = true;
     await audit(env.DB, {
       event_type: 'auth.bootstrap_completed',
       actor_id: user.id,
@@ -205,6 +212,24 @@ export const GET: RequestHandler = async ({ params, url, platform, cookies, requ
   if (!user) return denySignIn(env.DB, 'enrollment_required', provider, clientIp);
   if (user.status === 'offboarded' || user.status === 'paused') {
     return denySignIn(env.DB, 'account_suspended', provider, clientIp, user.id);
+  }
+
+  if (!isBootstrap) {
+    const country = requestCountry(request);
+    const settings = await loadOrgSettings(env as unknown as Record<string, unknown>);
+    const gate = await signInCountryGate(env.DB, settings, { userId: user.id, country });
+    if (!gate.allowed) {
+      await recordTravelRequest(env.DB, env, { user, country, appUrl: settings.appUrl || env.APP_URL });
+      await audit(env.DB, {
+        event_type: 'auth.sign_in_denied',
+        actor_id: user.id,
+        actor_role: user.role,
+        target: user.id,
+        detail: `Denied ${provider} sign-in: country_blocked (${country})`,
+        ip_address: clientIp,
+      });
+      throw redirect(303, '/?error=country_pending');
+    }
   }
 
   await env.DB.prepare(

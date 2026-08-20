@@ -13,6 +13,10 @@ const mocks = vi.hoisted(() => ({
   provisionBootstrapManager: vi.fn(),
   createSessionToken: vi.fn(),
   audit: vi.fn(),
+  loadOrgSettings: vi.fn(),
+  requestCountry: vi.fn(),
+  signInCountryGate: vi.fn(),
+  recordTravelRequest: vi.fn(),
 }));
 
 vi.mock('$lib/server/auth', () => ({
@@ -48,6 +52,12 @@ vi.mock('$lib/server/validation', () => ({
   normalizeEmail: vi.fn((value: unknown) => typeof value === 'string' && value.includes('@') ? value.trim().toLowerCase() : null),
 }));
 vi.mock('$lib/server/db', () => ({ audit: mocks.audit }));
+vi.mock('$lib/server/org-settings', () => ({ loadOrgSettings: mocks.loadOrgSettings }));
+vi.mock('$lib/server/travel', () => ({
+  requestCountry: mocks.requestCountry,
+  signInCountryGate: mocks.signInCountryGate,
+  recordTravelRequest: mocks.recordTravelRequest,
+}));
 
 import { GET } from './[provider]/+server';
 
@@ -135,6 +145,10 @@ beforeEach(() => {
     sessionId: 'session-1',
   });
   mocks.audit.mockResolvedValue(undefined);
+  mocks.loadOrgSettings.mockResolvedValue({ appUrl: 'https://mail.example.com', signInCountries: [] });
+  mocks.requestCountry.mockReturnValue('AU');
+  mocks.signInCountryGate.mockResolvedValue({ allowed: true });
+  mocks.recordTravelRequest.mockResolvedValue(undefined);
 });
 
 describe('OAuth callback authorization branches', () => {
@@ -249,5 +263,71 @@ describe('OAuth callback authorization branches', () => {
       location: '/?error=bootstrap_invalid',
     });
     expect(mocks.provisionBootstrapManager).not.toHaveBeenCalled();
+  });
+});
+
+describe('sign-in country gate', () => {
+  it('denies a non-bootstrap sign-in the gate refuses, records a travel request, and never creates a session', async () => {
+    const db = fakeDb();
+    mocks.findBoundUser.mockResolvedValue(returningUser);
+    mocks.signInCountryGate.mockResolvedValue({ allowed: false });
+    const { event } = callbackEvent({}, db);
+
+    await expect(GET(event as never)).rejects.toMatchObject({
+      status: 303,
+      location: '/?error=country_pending',
+    });
+
+    expect(mocks.signInCountryGate).toHaveBeenCalledWith(db, expect.objectContaining({ signInCountries: [] }), {
+      userId: returningUser.id,
+      country: 'AU',
+    });
+    expect(mocks.recordTravelRequest).toHaveBeenCalledWith(db, expect.anything(), expect.objectContaining({
+      user: returningUser,
+      country: 'AU',
+      appUrl: 'https://mail.example.com',
+    }));
+    const audited = JSON.stringify(mocks.audit.mock.calls);
+    expect(audited).toContain('auth.sign_in_denied');
+    expect(audited).toContain('country_blocked');
+    expect(mocks.createSessionToken).not.toHaveBeenCalled();
+  });
+
+  it('exempts the bootstrap sign-in from the gate entirely, even when the gate would otherwise deny', async () => {
+    mocks.signInCountryGate.mockResolvedValue({ allowed: false });
+    const configuration = {
+      email: 'admin@example.com', token: 'strong-token', sessionSecret: 'session-secret',
+    };
+    const manager = { ...returningUser, id: 'manager-1', email: configuration.email, role: 'manager' as const };
+    mocks.fetchUserInfo.mockResolvedValue({
+      subject: 'bootstrap-subject', email: configuration.email, name: 'First Manager',
+      provider: 'google', emailVerified: true,
+    });
+    mocks.bootstrapConfiguration.mockReturnValue(configuration);
+    mocks.verifyBootstrapProof.mockResolvedValue({
+      version: 1, email: configuration.email, expiresAt: 2_000_000_000, nonce: crypto.randomUUID(),
+    });
+    mocks.provisionBootstrapManager.mockResolvedValue(manager);
+    const db = fakeDb({ existingManager: null });
+    const { event } = callbackEvent({ cmail_bootstrap_proof: 'signed-proof' }, db);
+
+    const response = await GET(event as never) as Response;
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get('Location')).toBe('/mail');
+    expect(mocks.signInCountryGate).not.toHaveBeenCalled();
+    expect(mocks.recordTravelRequest).not.toHaveBeenCalled();
+  });
+
+  it('allows a returning sign-in when the gate approves', async () => {
+    const db = fakeDb();
+    mocks.findBoundUser.mockResolvedValue(returningUser);
+    mocks.signInCountryGate.mockResolvedValue({ allowed: true });
+    const { event } = callbackEvent({}, db);
+
+    const response = await GET(event as never) as Response;
+    expect(response.status).toBe(303);
+    expect(response.headers.get('Location')).toBe('/mail');
+    expect(mocks.recordTravelRequest).not.toHaveBeenCalled();
   });
 });

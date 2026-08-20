@@ -123,26 +123,6 @@ export function otpSessionTtlMs(env: Record<string, unknown>): number {
   return Math.min(sessionTtlMs(env), capped);
 }
 
-/**
- * Comma-separated ISO-3166-1 alpha-2 allowlist for email-OTP sign-in and
- * enrolment requests, matched against the CF-IPCountry request header.
- * `null` means unset/blank — no restriction, every country passes. A
- * variable that IS set but contains no recognisable 2-letter code fails
- * closed to an empty allowlist (blocks every country) rather than silently
- * behaving as unset, matching this deployment's fail-closed posture
- * elsewhere (see getEnabledProviders in auth.ts) — a rejected sign-in is
- * loud and immediately reported; a silently-ignored restriction is not.
- */
-export function authOtpAllowedCountries(env: Record<string, unknown>): string[] | null {
-  const raw = envString(env, 'AUTH_OTP_ALLOWED_COUNTRIES');
-  if (!raw) return null;
-  const codes = raw
-    .split(',')
-    .map((entry) => entry.trim().toUpperCase())
-    .filter((entry) => /^[A-Z]{2}$/.test(entry));
-  return [...new Set(codes)];
-}
-
 export function maxRecipientsPerMessage(env: Record<string, unknown>): number {
   return boundedInteger(env.MAX_RECIPIENTS_PER_MESSAGE, 50, 1, 100);
 }

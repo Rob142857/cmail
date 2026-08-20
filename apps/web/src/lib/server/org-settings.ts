@@ -4,6 +4,7 @@
 // display name", org name, support email, landing URL, etc. without redeploy.
 // Values live in the `org_settings` table; this helper merges DB overrides on
 // top of process env defaults and exposes a typed object.
+import { isValidCountryCode } from '$lib/countries';
 import { normalizeEmail } from './validation';
 
 export interface OrgSettings {
@@ -22,6 +23,13 @@ export interface OrgSettings {
   landingUrl: string;
   /** Acceptable-use policy URL. Defaults to `${appUrl}/policy` when blank. */
   policyUrl: string;
+  /**
+   * ISO 3166-1 alpha-2 codes sign-in is allowed from, enforced after
+   * authentication on every sign-in method (Google, Microsoft, email
+   * one-time code). Empty = feature off — every country is allowed. See
+   * lib/server/travel.ts's signInCountryGate.
+   */
+  signInCountries: string[];
 }
 
 export const ORG_SETTINGS_KEYS = [
@@ -34,6 +42,7 @@ export const ORG_SETTINGS_KEYS = [
   'support_email',
   'landing_url',
   'policy_url',
+  'sign_in_countries',
 ] as const;
 
 export type OrgSettingsKey = (typeof ORG_SETTINGS_KEYS)[number];
@@ -47,6 +56,29 @@ function envStr(env: Record<string, unknown>, key: string): string {
 
 function cleanText(value: string, maxLength: number): string {
   return value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, maxLength);
+}
+
+/**
+ * Tolerant JSON-array-of-codes parser: a malformed or pre-migration value
+ * degrades to `[]` (feature off, every country allowed) rather than
+ * throwing, matching this app's "never lock the organisation out" posture
+ * for this particular setting.
+ */
+function parseCountryList(raw: string | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const codes = new Set<string>();
+    for (const entry of parsed) {
+      if (typeof entry !== 'string') continue;
+      const code = entry.trim().toUpperCase();
+      if (isValidCountryCode(code)) codes.add(code);
+    }
+    return [...codes].sort();
+  } catch {
+    return [];
+  }
 }
 
 function cleanHttpUrl(value: string): string {
@@ -104,6 +136,7 @@ export async function loadOrgSettings(env: Record<string, unknown>): Promise<Org
     supportEmail: normalizeEmail(overrides.support_email || envStr(env, 'SUPPORT_EMAIL')) || systemEmail,
     landingUrl: cleanHttpUrl(overrides.landing_url || envStr(env, 'LANDING_URL')),
     policyUrl: cleanHttpUrl(overrides.policy_url || envStr(env, 'POLICY_URL')) || (appUrl ? `${appUrl}/policy` : '/policy'),
+    signInCountries: parseCountryList(overrides.sign_in_countries),
   };
 }
 

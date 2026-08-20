@@ -83,11 +83,9 @@ EMAIL_OTP_ENABLED = "true"
 # never put it here) must be set for the widget to appear; leave both blank
 # to skip it. All production tenants of this app already have both configured.
 TURNSTILE_SITE_KEY = ""
-# Optional comma-separated ISO 3166-1 alpha-2 allowlist (e.g. "AU,NZ"),
-# matched against Cloudflare's CF-IPCountry header. Blank allows every
-# country; a value that's set but unparsable fails closed (blocks every
-# country) rather than silently behaving as unset.
-AUTH_OTP_ALLOWED_COUNTRIES = ""
+# Sign-in countries (across Google, Microsoft, and this email code method
+# alike) are managed in-app, not here: Management > Settings > Sign-in
+# security. Off by default. See docs/travel-approvals.md.
 # Hard cap on an email-OTP session's lifetime in hours, regardless of
 # SESSION_TTL_HOURS — an OTP identity carries none of an OAuth account's
 # ongoing 2FA/revocation guarantees. Default 168 (7 days); range 1-9600.
@@ -171,7 +169,6 @@ MAX_SESSIONS_PER_USER = "5"
 # send while OUTBOUND_PROVIDER is "none" here, by the same preview design.
 EMAIL_OTP_ENABLED = "true"
 TURNSTILE_SITE_KEY = ""
-AUTH_OTP_ALLOWED_COUNTRIES = ""
 OTP_SESSION_TTL_HOURS = "168"
 INBOUND_MAILBOX_MESSAGES_PER_HOUR = "120"
 INBOUND_MAILBOX_BYTES_PER_HOUR = "104857600"

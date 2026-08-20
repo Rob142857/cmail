@@ -13,7 +13,6 @@ import type { Actions, PageServerLoad } from './$types';
 import type { User } from '@cmail/shared/types';
 import {
   assertStrongSessionSecret,
-  authOtpAllowedCountries,
   emailOtpEnabled,
   maxSessionsPerUser,
   otpSessionTtlMs,
@@ -21,13 +20,11 @@ import {
 import { audit } from '$lib/server/db';
 import { detectEmailProvider } from '$lib/server/email-provider';
 import {
-  countryAllowed,
   createOtpProof,
   generateOtpEmail,
   issueOtp,
   OTP_PROOF_COOKIE,
   OTP_PROOF_TTL_SECONDS,
-  requestCountry,
   verifyOtp,
   verifyOtpProof,
   type OtpPurpose,
@@ -43,6 +40,13 @@ import { loadOrgSettings } from '$lib/server/org-settings';
 import { detectProvider, sendEmail } from '$lib/server/outbound';
 import { consumeRateLimit } from '$lib/server/rate-limit';
 import { SESSION_COOKIE, SESSION_COOKIE_MAX_AGE_SECONDS, createSessionToken } from '$lib/server/session';
+import {
+  COUNTRY_PENDING_MESSAGE,
+  countryAllowed,
+  recordTravelRequest,
+  requestCountry,
+  signInCountryGate,
+} from '$lib/server/travel';
 import { turnstileEnabled, turnstileSiteKey, verifyTurnstile } from '$lib/server/turnstile';
 import { normalizeEmail } from '$lib/server/validation';
 
@@ -169,8 +173,13 @@ export const actions: Actions = {
       return respondNeutral();
     }
 
-    const allowedCountries = authOtpAllowedCountries(envRecord);
-    if (!countryAllowed(country, allowedCountries)) {
+    // Sign-in countries are a managed org setting (Admin > Settings), not an
+    // env var — one list shared by every sign-in method. This is the
+    // pre-authentication surface, so it stays neutral like every other
+    // refusal reason here; the equivalent check in `verify` runs after the
+    // code is proven and returns a plain explanation instead.
+    const settings = await loadOrgSettings(envRecord);
+    if (!countryAllowed(country, settings.signInCountries)) {
       await audit(env.DB, {
         event_type: 'otp.geo_refused',
         detail: `purpose=${purpose} country=${country}`,
@@ -204,9 +213,7 @@ export const actions: Actions = {
     const issued = await issueOtp(env.DB, { purpose, address, sessionSecret: env.SESSION_SECRET });
     requestId = issued.requestId;
 
-    const envForOutbound = env as unknown as Record<string, unknown>;
-    const settings = await loadOrgSettings(envForOutbound);
-    const outboundProvider = detectProvider(envForOutbound);
+    const outboundProvider = detectProvider(envRecord);
     if (outboundProvider === 'none' || !settings.systemEmail) {
       // Nothing is actually sent, but this is a deployment misconfiguration
       // an operator needs to see — never surfaced to the (unauthenticated,
@@ -225,7 +232,7 @@ export const actions: Actions = {
     try {
       const result = await sendEmail(
         { from: settings.systemEmail, fromName: settings.systemFromName, to: address, subject, html, text },
-        envForOutbound,
+        envRecord,
       );
       await audit(env.DB, {
         event_type: result.success ? 'otp.sent' : 'email.failed',
@@ -275,17 +282,12 @@ export const actions: Actions = {
       return fail(400, { verifyError: NEUTRAL_VERIFY_MESSAGE });
     }
 
-    const allowedCountries = authOtpAllowedCountries(env as unknown as Record<string, unknown>);
-    if (!countryAllowed(country, allowedCountries)) {
-      clearProof();
-      await audit(env.DB, {
-        event_type: 'otp.geo_refused',
-        detail: `purpose=${proof.purpose} country=${country}`,
-        ip_address: clientIp,
-      });
-      return fail(400, { verifyError: NEUTRAL_VERIFY_MESSAGE });
-    }
-
+    // Deliberately no pre-decode geography check here (unlike the old
+    // env-var-driven version of this action): a per-user exception can only
+    // be evaluated once the code is decoded and a real user is resolved
+    // below, so gating earlier would wrongly block someone with a valid
+    // exception. A wrong-code guess never reaches that point anyway — it
+    // fails at the `result !== 'ok'` branch below regardless of geography.
     const data = await request.formData();
     const rawCode = data.get('code');
     const code = typeof rawCode === 'string' ? rawCode.replace(/\s+/g, '') : '';
@@ -370,6 +372,25 @@ export const actions: Actions = {
         ip_address: clientIp,
       });
       return fail(400, { verifyError: NEUTRAL_VERIFY_MESSAGE });
+    }
+
+    // Post-authentication sign-in-country gate: this person has just proven
+    // who they are (the code was correct), so — unlike every neutral
+    // response above — a denial here says exactly why, rather than hiding
+    // the reason.
+    const settings = await loadOrgSettings(env as unknown as Record<string, unknown>);
+    const gate = await signInCountryGate(env.DB, settings, { userId: user.id, country });
+    if (!gate.allowed) {
+      await recordTravelRequest(env.DB, env, { user, country, appUrl: settings.appUrl || env.APP_URL });
+      await audit(env.DB, {
+        event_type: 'auth.sign_in_denied',
+        actor_id: user.id,
+        actor_role: user.role,
+        target: user.id,
+        detail: `Denied email sign-in: country_blocked (${country})`,
+        ip_address: clientIp,
+      });
+      return fail(400, { verifyError: COUNTRY_PENDING_MESSAGE });
     }
 
     if (user.last_auth_country && user.last_auth_country !== country) {

@@ -1,12 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   constantTimeEqualHex,
-  countryAllowed,
   createOtpProof,
   generateOtpCode,
   hashOtpCode,
   issueOtp,
-  requestCountry,
   verifyOtp,
   verifyOtpProof,
 } from './email-otp';
@@ -244,17 +242,5 @@ describe('OTP proof cookie', () => {
   });
 });
 
-describe('geo helpers', () => {
-  it('reads an uppercased CF-IPCountry header and falls back to XX', () => {
-    expect(requestCountry(new Request('https://mail.example.com', { headers: { 'cf-ipcountry': 'au' } }))).toBe('AU');
-    expect(requestCountry(new Request('https://mail.example.com'))).toBe('XX');
-    expect(requestCountry(new Request('https://mail.example.com', { headers: { 'cf-ipcountry': 'XX' } }))).toBe('XX');
-    expect(requestCountry(new Request('https://mail.example.com', { headers: { 'cf-ipcountry': 'nope' } }))).toBe('XX');
-  });
-
-  it('allows every country when unset, otherwise checks membership', () => {
-    expect(countryAllowed('AU', null)).toBe(true);
-    expect(countryAllowed('AU', ['AU', 'NZ'])).toBe(true);
-    expect(countryAllowed('US', ['AU', 'NZ'])).toBe(false);
-  });
-});
+// requestCountry/countryAllowed moved to travel.ts (see travel.test.ts) —
+// sign-in geography is now a shared cross-provider policy, not OTP-specific.

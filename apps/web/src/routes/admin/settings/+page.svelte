@@ -1,4 +1,6 @@
 <script lang="ts">
+  import CountryPicker from '$lib/CountryPicker.svelte';
+
   let { data, form } = $props();
   const settings = $derived(data.settings);
 </script>
@@ -37,6 +39,17 @@
           <label for="support-email">Support email</label>
           <input id="support-email" type="email" name="support_email" value={settings.supportEmail} maxlength="200" placeholder="support@{data.mailDomain || 'example.org'}" autocomplete="email" aria-describedby="support-email-hint" />
           <small id="support-email-hint">Shown to users needing help; uses the system mailbox if blank.</small>
+        </div>
+      </fieldset>
+
+      <fieldset class="card">
+        <legend>Sign-in security</legend>
+        <p class="group-intro">Restrict sign-in to specific countries, across Google, Microsoft, and email sign-in code alike. Off by default — every country is allowed until at least one is chosen here.</p>
+
+        <div class="field field-wide">
+          <label for="sign-in-countries">Approved sign-in countries</label>
+          <CountryPicker id="sign-in-countries" name="sign_in_countries" selected={settings.signInCountries} />
+          <small>A sign-in attempt from outside this list is held for manager approval, and every active manager is emailed. Grant a temporary exception from <a href="/admin/travel">Travel approvals</a>.</small>
         </div>
       </fieldset>
 

@@ -27,6 +27,11 @@
     account_suspended: 'This account is paused or was offboarded.',
     provider_mismatch: 'Use the sign-in method connected during your first sign-in.',
     rate_limited: 'Too many sign-in attempts. Wait a few minutes and try again.',
+    // Keep this sentence identical to COUNTRY_PENDING_MESSAGE in
+    // lib/server/travel.ts (the OTP verify action's inline error uses that
+    // constant directly; this route can't import server code, so the two
+    // copies are kept in sync by hand).
+    country_pending: 'This sign-in came from outside your organisation\'s approved countries. Your managers have been notified — try again once a manager approves it.',
   };
 
   const errorCode = $derived(page.url.searchParams.get('error'));

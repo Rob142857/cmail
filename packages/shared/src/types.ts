@@ -182,6 +182,7 @@ export interface SignatureTemplate {
 // ─── Audit ────────────────────────────────────────────────
 export type AuditEventType =
   | 'user.onboard' | 'user.offboard' | 'user.pause' | 'user.reactivate' | 'user.role_change'
+  | 'user.travel_approved' | 'user.travel_denied' | 'user.travel_exception_revoked'
   | 'auth.sign_in' | 'auth.sign_in_denied' | 'auth.session_expired'
   | 'auth.identity_bound' | 'auth.bootstrap_completed' | 'auth.enrollment_issued'
   | 'policy.publish' | 'policy.sign' | 'policy.reset'

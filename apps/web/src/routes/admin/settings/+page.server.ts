@@ -1,5 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
+import { isValidCountryCode } from '$lib/countries';
 import { audit } from '$lib/server/db';
 import { loadOrgSettings, ORG_SETTINGS_KEYS, type OrgSettingsKey } from '$lib/server/org-settings';
 import { normalizeDomain, normalizeEmail } from '$lib/server/validation';
@@ -24,6 +25,10 @@ const FIELD_MAP: Record<OrgSettingsKey, { label: string; max: number }> = {
   support_email: { label: 'Support email', max: 200 },
   landing_url: { label: 'Landing page URL', max: 300 },
   policy_url: { label: 'Policy page URL', max: 300 },
+  // Unused: sign_in_countries has its own multi-value branch in the save
+  // loop below and returns before this metadata would apply. Present only
+  // so this Record stays exhaustive over OrgSettingsKey.
+  sign_in_countries: { label: 'Approved sign-in countries', max: 0 },
 };
 
 function isSafeHttpUrl(s: string): boolean {
@@ -47,6 +52,23 @@ export const actions: Actions = {
     const updates: Array<{ key: OrgSettingsKey; value: string }> = [];
 
     for (const key of ORG_SETTINGS_KEYS) {
+      if (key === 'sign_in_countries') {
+        // Multi-value: the picker submits one hidden input per chosen code
+        // (possibly zero), so this reads every value rather than data.get's
+        // single value. Every submitted code is validated against the
+        // countries module — a tampered/unknown code fails the whole save
+        // rather than being silently dropped.
+        const submitted = data.getAll(key).filter((entry): entry is string => typeof entry === 'string');
+        const codes = new Set<string>();
+        for (const entry of submitted) {
+          const code = entry.trim().toUpperCase();
+          if (!isValidCountryCode(code)) return fail(400, { error: 'One or more selected countries are not recognised' });
+          codes.add(code);
+        }
+        updates.push({ key, value: JSON.stringify([...codes].sort()) });
+        continue;
+      }
+
       const raw = data.get(key);
       if (typeof raw !== 'string') continue;
       const value = raw.trim();

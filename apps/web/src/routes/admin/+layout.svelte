@@ -3,12 +3,12 @@
   import AppShell from '$lib/ui/AppShell.svelte';
   import Icon from '$lib/ui/Icon.svelte';
 
-  type NavItem = { href: string; label: string; description: string; icon: string };
+  type NavItem = { href: string; label: string; description: string; icon: string; count?: number };
   type NavGroup = { label: string; items: NavItem[] };
 
   let { data, children } = $props();
 
-  const groups: NavGroup[] = [
+  const groups: NavGroup[] = $derived([
     {
       label: 'Workspace',
       items: [
@@ -20,6 +20,7 @@
       items: [
         { href: '/admin/users', label: 'People', description: 'Accounts and access', icon: 'people' },
         { href: '/admin/orgchart', label: 'Organisation', description: 'Units, roles and directory', icon: 'orgChart' },
+        { href: '/admin/travel', label: 'Travel approvals', description: 'Temporary overseas sign-in', icon: 'globe', count: data.pendingTravelCount || undefined },
       ],
     },
     {
@@ -44,7 +45,7 @@
         { href: '/admin/settings', label: 'Settings', description: 'Brand and system mail', icon: 'settings' },
       ],
     },
-  ];
+  ]);
 
   // Pages that are reachable but deliberately not in the rail — they still need
   // to resolve a breadcrumb and a document title.
@@ -52,7 +53,7 @@
     { href: '/admin/investigate', label: 'Investigate', description: 'Trace and audit timeline', icon: 'activity' },
   ];
 
-  const allItems = groups.flatMap((group) => group.items);
+  const allItems = $derived(groups.flatMap((group) => group.items));
   const currentPath = $derived(page.url.pathname);
   const currentItem = $derived(
     [...unlisted, ...allItems].find((item) => (item.href === '/admin'
@@ -119,6 +120,7 @@
                   {item.label}
                   <span class="nav-desc">{item.description}</span>
                 </span>
+                {#if item.count}<span class="count count-active">{item.count}</span>{/if}
               </a>
             {/each}
           </nav>
