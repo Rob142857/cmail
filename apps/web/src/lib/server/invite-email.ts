@@ -6,7 +6,7 @@ export interface InviteEmailOptions {
   displayName: string;
   appName: string;             // product name (e.g. "cmail") — only used in subtle footer
   appUrl: string;              // sign-in URL base (e.g. https://mail.example.com)
-  authProviders: AuthProvider[];
+  provider: AuthProvider;      // the identity provider that actually hosts `email`
   enrollmentToken: string;     // raw single-use token; placed in a URL fragment, never a request URL
   senderName: string;          // person extending the invite
   systemEmail?: string;
@@ -25,7 +25,7 @@ const escapeHtml = (s: string) =>
 
 export function generateInviteEmail(options: InviteEmailOptions): { subject: string; html: string; text: string } {
   const {
-    email, displayName, appName, appUrl, authProviders, enrollmentToken, senderName, mailboxAddress,
+    email, displayName, appName, appUrl, provider, enrollmentToken, senderName, mailboxAddress,
     orgName, orgShortName, orgUrl, supportEmail, landingUrl, policyUrl,
   } = options;
 
@@ -33,23 +33,15 @@ export function generateInviteEmail(options: InviteEmailOptions): { subject: str
   const orgShort = orgShortName || orgName || 'the organisation';
   const greeting = displayName ? displayName.split(/\s+/)[0] : email;
   const subject = `Welcome to ${org}`;
-  const providers = [...new Set(authProviders)].filter(
-    (provider): provider is AuthProvider => provider === 'google' || provider === 'microsoft',
-  );
-  const providerLabels: Record<AuthProvider, string> = {
-    google: 'Google',
-    microsoft: 'Microsoft',
+  const providerSentences: Record<AuthProvider, string> = {
+    google: "You'll sign in with the Google account this invitation was sent to.",
+    microsoft: "You'll sign in with the Microsoft account this invitation was sent to (work, school, or personal).",
   };
+  const providerSentence = providerSentences[provider];
   const enrollmentFragment = encodeURIComponent(enrollmentToken);
-  const signInButtonsHtml = providers.map((provider) =>
-    `<a href="${escapeHtml(appUrl)}/enroll/${provider}#token=${enrollmentFragment}" class="btn" style="display:inline-block;padding:11px 22px;background:#2563eb;color:#ffffff!important;text-decoration:none;border-radius:8px;font-weight:500;font-size:14px;margin:4px;">Enrol with ${providerLabels[provider]}</a>`,
-  ).join('');
-  const signInLinksText = providers.map((provider) =>
-    `  ${providerLabels[provider]}: ${appUrl}/enroll/${provider}#token=${enrollmentFragment}`,
-  ).join('\n');
-  const providerHint = providers.length > 1
-    ? `Choose the provider that manages this sign-in address (${providers.map((provider) => providerLabels[provider]).join(' or ')}).`
-    : `Continue with ${providers[0] ? providerLabels[providers[0]] : 'your configured identity provider'}.`;
+  const activationHtmlHref = `${escapeHtml(appUrl)}/enroll/${provider}#token=${enrollmentFragment}`;
+  const activationTextHref = `${appUrl}/enroll/${provider}#token=${enrollmentFragment}`;
+  const activationButtonHtml = `<a href="${activationHtmlHref}" class="btn" style="display:inline-block;padding:11px 22px;background:#2563eb;color:#ffffff!important;text-decoration:none;border-radius:8px;font-weight:500;font-size:14px;margin:4px;">Activate your mailbox</a>`;
 
   const policyCtaHtml = policyUrl
     ? `<a href="${escapeHtml(policyUrl)}" class="btn btn-secondary" style="display:inline-block;padding:11px 22px;background:#ffffff;color:#2563eb!important;text-decoration:none;border-radius:8px;font-weight:500;font-size:14px;margin:4px;border:1px solid #d1d5db;" target="_blank" rel="noopener">Review the email usage policy</a>`
@@ -128,10 +120,10 @@ export function generateInviteEmail(options: InviteEmailOptions): { subject: str
       ${mailboxBlockHtml}
 
       <div class="cta-row">
-        ${signInButtonsHtml}
+        ${activationButtonHtml}
       </div>
 
-      <p class="muted small" style="text-align:center;margin-top:0;">Use the same address you received this email at: <strong>${escapeHtml(email)}</strong>.<br>${escapeHtml(providerHint)} This single-use invitation expires in 72 hours; if another invitation is sent, only the newest link works.</p>
+      <p class="muted small" style="text-align:center;margin-top:0;">${escapeHtml(providerSentence)}<br>Use the same address you received this email at: <strong>${escapeHtml(email)}</strong>. This single-use invitation expires in 72 hours; if another invitation is sent, only the newest link works.</p>
 
       ${policyUrl ? `<hr class="divider"><div class="cta-row" style="margin:0;">${policyCtaHtml}</div><p class="muted small" style="text-align:center;">Please review the acceptable-use policy before sending mail.</p>` : ''}
 
@@ -156,11 +148,10 @@ Welcome, ${greeting}.
 
 You've been invited to join ${org}${senderName ? ` by ${senderName}` : ''}. Your organisational email account is ready — sign in below to access it.
 ${mailboxBlockText}
-Sign in:
-${signInLinksText}
+Activate your mailbox: ${activationTextHref}
 
+${providerSentence}
 Use the same address this email was sent to: ${email}
-${providerHint}
 This single-use invitation expires in 72 hours. If another invitation is sent, only the newest link works.
 ${policyCtaText}
 Privacy: ${orgShort} only manages organisational communication sent through this account. Your personal inbox, files, and search history are not accessed.

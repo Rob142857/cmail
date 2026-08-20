@@ -4,6 +4,7 @@ import type { AuthProvider, Env, User, UserRole, UserStatus } from '@cmail/share
 import { audit, generateId } from '$lib/server/db';
 import { detectProvider, sendEmail } from '$lib/server/outbound';
 import { generateInviteEmail } from '$lib/server/invite-email';
+import { detectEmailProvider } from '$lib/server/email-provider';
 import { getEnabledProviders, getProviderConfig } from '$lib/server/auth';
 import { loadOrgSettings } from '$lib/server/org-settings';
 import { publicRuntimeConfig } from '$lib/server/config';
@@ -31,6 +32,10 @@ type InviteDeliveryResult =
   | { ok: true; provider: string }
   | { ok: false; reason: 'configuration' | 'delivery' };
 
+type InviteProviderGuard =
+  | { ok: true; provider: AuthProvider }
+  | { ok: false; status: 400 | 503; error: string };
+
 function isManager(locals: App.Locals): boolean {
   return !!locals.user && locals.user.role === 'manager';
 }
@@ -40,6 +45,45 @@ function logAdminFailure(action: string, error: unknown): void {
   console.error(`Admin user action failed: ${action}`, {
     errorType: error instanceof Error ? error.name : 'UnknownError',
   });
+}
+
+// Managers can only invite addresses cmail can actually authenticate: a
+// Google or Microsoft identity. This resolves which of the two hosts the
+// invitee's mail (well-known consumer domains, then an MX lookup for
+// custom/business domains) and confirms that provider is enabled here
+// before any invitation is built or sent.
+async function guardInviteProvider(
+  email: string,
+  authEnv: Record<string, string | undefined>,
+): Promise<InviteProviderGuard> {
+  const detection = await detectEmailProvider(email);
+
+  if (detection === 'unknown') {
+    return {
+      ok: false,
+      status: 400,
+      error: `${email} doesn't appear to be a Google or Microsoft account. Only Google (Gmail / Google Workspace) and Microsoft (Outlook, Hotmail, Microsoft 365) sign-in is supported — invite an address hosted by one of those.`,
+    };
+  }
+
+  if (detection === 'unverifiable') {
+    return {
+      ok: false,
+      status: 503,
+      error: `Couldn't verify who hosts ${email} just now. Nothing was sent — try again in a minute.`,
+    };
+  }
+
+  if (!getEnabledProviders(authEnv).includes(detection)) {
+    const providerLabel = detection === 'google' ? 'Google' : 'Microsoft';
+    return {
+      ok: false,
+      status: 400,
+      error: `${email} is a ${providerLabel}-hosted account, but ${providerLabel} sign-in isn't enabled on this deployment.`,
+    };
+  }
+
+  return { ok: true, provider: detection };
 }
 
 function formId(value: FormDataEntryValue | null): string | null {
@@ -78,6 +122,7 @@ async function deliverInvite(
   actor: Pick<User, 'email' | 'display_name'>,
   user: Pick<User, 'email' | 'display_name'>,
   enrollmentToken: string,
+  provider: AuthProvider,
   mailboxAddress?: string,
 ): Promise<InviteDeliveryResult> {
   const envRecord = env as unknown as Record<string, unknown>;
@@ -86,12 +131,9 @@ async function deliverInvite(
   const appUrl = absoluteAppUrl(settings.appUrl || runtime.appUrl);
   const mailDomain = normalizeDomain(runtime.mailDomain);
   const authEnv = env as unknown as Record<string, string | undefined>;
-  const authProviders: AuthProvider[] = getEnabledProviders(authEnv).filter(
-    (provider) => !!getProviderConfig(provider, authEnv),
-  );
   const outboundProvider = detectProvider(envRecord);
 
-  if (!appUrl || !mailDomain || authProviders.length === 0 || outboundProvider === 'none') {
+  if (!appUrl || !mailDomain || !getProviderConfig(provider, authEnv) || outboundProvider === 'none') {
     return { ok: false, reason: 'configuration' };
   }
 
@@ -104,7 +146,7 @@ async function deliverInvite(
     displayName: user.display_name || '',
     appName: settings.appName,
     appUrl,
-    authProviders,
+    provider,
     enrollmentToken,
     senderName: actor.display_name || actor.email || 'An administrator',
     systemEmail: fromAddress,
@@ -270,6 +312,16 @@ export const actions: Actions = {
     if (existingUser) return fail(409, { error: 'An account already exists for that sign-in address' });
     if (existingMailbox) return fail(409, { error: 'That mailbox address is already in use' });
 
+    // Resolve the invitee's identity provider before creating anything: an
+    // account left pending because its address can't be invited is a dead
+    // end, since resending would hit the same guard.
+    let inviteProvider: AuthProvider | null = null;
+    if (sendInvite) {
+      const guard = await guardInviteProvider(email, env as unknown as Record<string, string | undefined>);
+      if (!guard.ok) return fail(guard.status, { error: guard.error });
+      inviteProvider = guard.provider;
+    }
+
     const userId = generateId();
     const mailboxId = generateId();
     const statements = [
@@ -346,6 +398,7 @@ export const actions: Actions = {
       locals.user!,
       { email, display_name: displayName },
       enrollmentToken,
+      inviteProvider!,
       mailboxAddress || undefined,
     );
     await audit(env.DB, {
@@ -534,6 +587,9 @@ export const actions: Actions = {
       return fail(409, { error: 'This account already has an enrolled sign-in identity' });
     }
 
+    const guard = await guardInviteProvider(user.email, env as unknown as Record<string, string | undefined>);
+    if (!guard.ok) return fail(guard.status, { error: guard.error });
+
     const mailbox = await env.DB.prepare(
       `SELECT m.address, m.status
        FROM mailboxes m
@@ -562,6 +618,7 @@ export const actions: Actions = {
       locals.user!,
       user,
       enrollmentToken,
+      guard.provider,
       mailbox?.status === 'active' ? mailbox.address : undefined,
     );
     await audit(env.DB, {
