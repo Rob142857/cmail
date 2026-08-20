@@ -92,6 +92,7 @@ export const load: PageServerLoad = async ({ platform, url }) => {
       outcome: 'all' as Outcome, from: '', to: '', page: 1, pageSize: 50,
     },
     unavailable: true,
+    error: undefined as string | undefined,
   };
   if (!env) return empty;
 
@@ -187,7 +188,12 @@ export const load: PageServerLoad = async ({ platform, url }) => {
       filters: { q, source, direction, status, event, outcome, from, to, page, pageSize },
       unavailable: false,
     };
-  } catch {
-    return { ...empty, filters: { q, source, direction, status, event, outcome, from, to, page, pageSize } };
+  } catch (e) {
+    console.error('Failed to load investigation records:', e);
+    return {
+      ...empty,
+      filters: { q, source, direction, status, event, outcome, from, to, page, pageSize },
+      error: e instanceof Error ? e.message : String(e),
+    };
   }
 };

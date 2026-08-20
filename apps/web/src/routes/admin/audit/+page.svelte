@@ -1,5 +1,6 @@
 <script lang="ts">
   import { formatDateTime } from '$lib/dates';
+  import MessageBar from '$lib/ui/MessageBar.svelte';
   let { data } = $props();
 
   function actorLabel(entry: typeof data.entries[number]): string {
@@ -31,32 +32,39 @@
     </form>
   </header>
 
-  <div class="card table-card">
-    <table>
-      <caption class="sr-only">Audit events, newest first</caption>
-      <thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Actor</th><th scope="col">Target and detail</th><th scope="col">Source IP</th></tr></thead>
-      <tbody>
-        {#each data.entries as entry}
-          <tr>
-            <td class="nowrap"><time datetime={entry.timestamp}>{formatDateTime(entry.timestamp, data.locale, data.timeZone)}</time></td>
-            <td><span class="badge badge-info">{entry.event_type}</span></td>
-            <td><strong>{actorLabel(entry)}</strong>{#if entry.actor_email && entry.actor_display_name}<span>{entry.actor_email}</span>{/if}<small>{entry.actor_role}</small></td>
-            <td>{#if entry.target}<code>{entry.target}</code>{/if}<span>{entry.detail || 'No additional detail'}</span></td>
-            <td><code>{entry.ip_address || '—'}</code></td>
-          </tr>
-        {:else}
-          <tr><td colspan="5"><div class="empty-state"><strong>No audit events found</strong><span>{data.eventType ? 'Clear the filter to review all events.' : 'Events will appear after administrative or security activity.'}</span></div></td></tr>
-        {/each}
-      </tbody>
-    </table>
-  </div>
+  {#if data.unavailable}
+    <MessageBar tone="danger" title="Audit log unavailable.">
+      The audit log could not be read. Check the D1 binding.
+      {#if data.error}<span class="mono">{data.error}</span>{/if}
+    </MessageBar>
+  {:else}
+    <div class="card table-card">
+      <table>
+        <caption class="sr-only">Audit events, newest first</caption>
+        <thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Actor</th><th scope="col">Target and detail</th><th scope="col">Source IP</th></tr></thead>
+        <tbody>
+          {#each data.entries as entry}
+            <tr>
+              <td class="nowrap"><time datetime={entry.timestamp}>{formatDateTime(entry.timestamp, data.locale, data.timeZone)}</time></td>
+              <td><span class="badge badge-info">{entry.event_type}</span></td>
+              <td><strong>{actorLabel(entry)}</strong>{#if entry.actor_email && entry.actor_display_name}<span>{entry.actor_email}</span>{/if}<small>{entry.actor_role}</small></td>
+              <td>{#if entry.target}<code>{entry.target}</code>{/if}<span>{entry.detail || 'No additional detail'}</span></td>
+              <td><code>{entry.ip_address || '—'}</code></td>
+            </tr>
+          {:else}
+            <tr><td colspan="5"><div class="empty-state"><strong>No audit events found</strong><span>{data.eventType ? 'Clear the filter to review all events.' : 'Events will appear after administrative or security activity.'}</span></div></td></tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
 
-  {#if data.entries.length >= 100 || data.page > 1}
-    <nav class="pagination" aria-label="Audit log pages">
-      {#if data.page > 1}<a href={pageHref(data.page - 1)} class="btn btn-sm" rel="prev">Newer</a>{/if}
-      <span>Page {data.page}</span>
-      {#if data.entries.length >= 100}<a href={pageHref(data.page + 1)} class="btn btn-sm" rel="next">Older</a>{/if}
-    </nav>
+    {#if data.entries.length >= 100 || data.page > 1}
+      <nav class="pagination" aria-label="Audit log pages">
+        {#if data.page > 1}<a href={pageHref(data.page - 1)} class="btn btn-sm" rel="prev">Newer</a>{/if}
+        <span>Page {data.page}</span>
+        {#if data.entries.length >= 100}<a href={pageHref(data.page + 1)} class="btn btn-sm" rel="next">Older</a>{/if}
+      </nav>
+    {/if}
   {/if}
 </section>
 
