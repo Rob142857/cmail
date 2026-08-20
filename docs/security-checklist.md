@@ -28,6 +28,10 @@ This checklist replaces deployment-specific audit notes. It's a starting point, 
 - [ ] Bootstrap requires both a strong `BOOTSTRAP_ADMIN_TOKEN` and exact `BOOTSTRAP_ADMIN_EMAIL`
 - [ ] `/bootstrap` accepts the token only by same-origin POST and issues only a signed 10-minute `HttpOnly`, `SameSite=Lax`, production-`Secure` proof
 - [ ] Both bootstrap secrets removed after first-manager creation; neither bootstrap credential appears in URLs or logs
+- [ ] If email one-time-code sign-in is enabled (`EMAIL_OTP_ENABLED`), confirmed that request and verify responses stay identical regardless of the failure reason, and that codes are hashed, never stored or logged in the clear
+- [ ] `OTP_SESSION_TTL_HOURS` set deliberately, independent of `SESSION_TTL_HOURS`; Cloudflare Turnstile (`TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY`) configured on the code-request form, or its absence accepted as risk
+- [ ] Manager role confirmed to require a Google or Microsoft identity; an account with only an email-code identity cannot sign in as Manager
+- [ ] If sign-in is restricted to approved countries (Admin → Settings), the manager-notification throttle and the first-manager bootstrap exemption are understood before enabling it
 
 ## Authorization
 

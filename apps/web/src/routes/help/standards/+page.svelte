@@ -135,7 +135,7 @@
         {
           standard: 'OAuth 2.0 / OpenID Connect',
           status: 'met',
-          detail: 'Sign-in delegates to Google or Microsoft Entra ID. No password is set, stored or transmitted. Multi-factor and conditional-access protection is provided when the deployment operator configures it with the identity provider.',
+          detail: 'Sign-in delegates to Google or Microsoft Entra ID, or — for a mailbox hosted elsewhere — an invitation-scoped one-time email code, which carries none of the other two\'s ongoing 2FA or revocation guarantees. No password is set, stored or transmitted by any of the three. Multi-factor and conditional-access protection is provided when the deployment operator configures it with the identity provider.',
         },
         {
           standard: 'Session integrity',

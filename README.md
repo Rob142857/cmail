@@ -52,21 +52,28 @@ by default, with Postmark as an alternative.
   providers, safety limits, and deployment resources are configuration, not
   forks.
 - **Fail-closed sign-in** — Google and Microsoft OpenID Connect, each shown
-  only once fully configured; new users enrol through a manager-issued
-  invitation, and returning users resolve only by their immutable provider
-  subject.
+  only once fully configured, plus an invitation-scoped email one-time code
+  for invitees hosted elsewhere. A manager invitation detects who hosts the
+  address and offers the right path automatically; new users enrol through
+  that manager-issued invitation, and returning users resolve only by their
+  immutable provider subject or bound email identity. Managers can also
+  restrict sign-in to approved countries, with a manager approval flow for
+  legitimate exceptions.
 - **Personal and shared mailboxes** — read, send-as, and full delegation, plus
   internal delivery between cmail mailboxes.
 - **Full mail flow** — inbound via Cloudflare Email Routing; external outbound
-  via Cloudflare Email Service or Postmark; autosaved drafts, attachments,
-  reply/reply all/forward, message importance, standards-compatible
-  threading, search, bulk actions, and folders.
+  via Cloudflare Email Service or Postmark; To/Cc/Bcc, autosaved drafts,
+  attachments, reply/reply all/forward, message importance,
+  standards-compatible threading, search, bulk actions, and folders.
+- **Inbound protection** — a spam score recorded on every message, quarantine
+  only once a Manager sets an explicit threshold, organisation-wide sender
+  allow/block rules, and warnings on disguised or punycode links.
 - **Durable outbound journaling** — prevents a message from resending while
   recovering any missing Sent or internal copy.
 - **Signatures** — personal, with safe rich formatting, optional organisation
   signatures or disclaimers, and manager-controlled locking.
 - **Manager tools** — users, mailboxes, organisation structure, policy
-  versions, audit records, and mail trace.
+  versions, audit records, mail trace, and travel approvals.
 - **Optional organisation directory** — configurable layers, units, roles,
   and positions.
 - **Privacy-first public directory** — only an explicitly public position's

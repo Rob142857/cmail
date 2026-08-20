@@ -45,6 +45,10 @@ For first sign-in, a manager sends a provider-specific enrolment link; D1 stores
 
 The first manager is the only exception: a strong bootstrap token and exact email must both be set temporarily. A same-origin POST to `/bootstrap` exchanges the token for a signed 10-minute `HttpOnly` proof — neither credential appears in a URL or log. Delete both secrets once the first manager's provider subject is bound.
 
+A third method, an invitation-scoped email one-time code, exists for invitees whose mail is hosted by neither Google nor Microsoft. Codes are 8 digits, HMAC-hashed at rest with `SESSION_SECRET`, expire after 5 minutes, and die after 5 attempts; request and verify responses stay identical regardless of the failure reason, so only the audit log reveals what actually happened. Its session lifetime is capped independently of the general session setting, and the Manager role always requires a Google or Microsoft identity — an email-code-only account can never receive a Manager session.
+
+Every successful sign-in, across all three methods, is checked once more before a session is created: an organisation can restrict sign-in to an approved list of countries, off by default. The check runs after identity is confirmed but before a session exists, so a refusal doesn't need to hide anything about who the person is — it creates a pending request, notifies managers (throttled to at most once per person/country pair every six hours), and the person can retry once a manager approves it. The first manager's bootstrap sign-in is exempt, so a deployment can never lock itself out of creating its own first manager.
+
 ### Inbound mail
 
 Cloudflare Email Routing invokes the email Worker, which checks message size and envelope addresses, accepts only active D1 recipients, and drops duplicates. One D1 insert then reserves per-mailbox rolling message/byte limits, mailbox-scoped HMAC (cryptographic signing) sender limits, and an approximate storage quota, all in one write transaction — so concurrent deliveries can't pass a stale counter read, and a unique delivery key lets only one concurrent copy continue.
@@ -82,7 +86,7 @@ Fan-out is best-effort: inbound storage completes first, then the runtime tries 
 - Treat browser input, routed email, provider responses, message HTML, attachments, and configuration values as untrusted.
 - Authorization belongs on server routes and actions; hiding a UI control is not an authorization decision.
 - D1 and R2 bindings grant data-plane access — limit who can change Pages, Worker, provider, DNS, and Cloudflare account configuration.
-- OAuth client secrets, session keys, outbound API keys, bootstrap token/email, tenant IDs, and resource IDs are deployment-owned: keep them in secret stores and local ignored files, not source control. Treat raw enrolment links and bootstrap proofs the same way.
+- OAuth client secrets, session keys, outbound API keys, the Turnstile secret key, bootstrap token/email, tenant IDs, and resource IDs are deployment-owned: keep them in secret stores and local ignored files, not source control. Treat raw enrolment links, bootstrap proofs, and email one-time codes the same way.
 - The inbound sender-HMAC key is a Worker-only secret keeping raw sender addresses out of the short-lived abuse ledger — never reuse it as a session, OAuth, provider, or VAPID key.
 - Email authentication and delivery reputation also depend on operator-managed DNS and provider configuration outside this repository.
 - Configuring Web Push adds browser push services as outbound destinations; protect the VAPID private key and review every endpoint-host extension.

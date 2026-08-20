@@ -57,23 +57,36 @@ invitation.
 ### Provision an account
 
 1. Select **Add a person**.
-2. Enter the exact verified Google or Microsoft email and a display name.
+2. Enter their work email address and a display name. You don't choose a
+   sign-in method yourself — cmail works out who hosts the address and
+   routes the invitation accordingly.
 3. Create their personal mailbox address on your configured mail domain.
    cmail creates it active, with Full access permanently linked to that
    person's account.
-4. Choose Standard or Manager.
+4. Choose Standard or Manager. Choose Manager only for a Google- or
+   Microsoft-hosted address: an email-code identity can never actually sign
+   in as Manager, so inviting one that way is a dead end, not just a
+   restriction you can lift later.
 5. Send the invitation now if delivery is configured, or leave the person
    pending and use **Resend invitation** later.
 
-The account starts **Pending**, with no sign-in linked yet. The invitation
-includes a link for each configured provider; whichever the person uses must
-return the same email you entered. Google also confirms the email is
+The account starts **Pending**, with no sign-in linked yet. cmail checks
+whether the address is hosted by Google, by Microsoft, or by neither. A
+Google or Microsoft address gets a single **Activate your mailbox** button
+that leads straight into that provider's sign-in; whichever the person uses
+must return the same email you entered. Google also confirms the email is
 verified; Microsoft does not provide that confirmation, so its email is
-trusted only because it arrives through the invitation. The link expires
-after 72 hours and works once. On success, the account becomes **Active**,
-permanently linked to that provider sign-in — nobody can switch it to a
-different provider or account later, even if the email address changes
-afterward.
+trusted only because it arrives through the invitation. An address hosted
+elsewhere gets the same **Activate your mailbox** button, but it leads to a
+one-time email code instead — the person requests a code and enters it,
+rather than picking a provider. See the [user guide](user-guide.md#before-you-sign-in)
+for what an invitee sees at each step. If cmail can't confirm who hosts the
+address at all, the invitation is refused up front with a plain error; try
+again shortly, or double-check the address. Either way, the link expires
+after 72 hours and
+works once. On success, the account becomes **Active**, permanently linked to
+that sign-in — nobody can switch it to a different provider, method, or
+account later, even if the email address changes afterward.
 
 Invitations need a valid application URL, at least one sign-in provider, and
 a working outbound email setup. Creating the account can succeed even if the
@@ -266,8 +279,17 @@ into your evidence and backup design.
 ## Settings
 
 **Management > Settings** changes public organisation details, the service's
-mail identity, support contact, app label, landing URL, and policy URL.
-Changes take effect immediately and are recorded in the Audit log.
+mail identity, support contact, app label, landing URL, and policy URL. The
+**Sign-in security** section is where you restrict sign-in — across Google,
+Microsoft, and email-code sign-in alike — to an approved list of countries.
+It's off by default; picking at least one country turns it on, and a
+**Restore default — allow all countries** button turns it back off. Once
+it's on, a sign-in from anywhere else is paused rather than refused outright,
+and the person is told their managers have been notified. Approve, deny, or
+revoke those requests from **Management > Travel approvals**. See
+[Travel approvals](travel-approvals.md) for the full notification and audit
+behaviour. Changes here take effect immediately and are recorded in the
+Audit log.
 
 OAuth credentials, session secrets, Cloudflare bindings, mail domain,
 outbound provider keys, Web Push private keys, and other security-sensitive

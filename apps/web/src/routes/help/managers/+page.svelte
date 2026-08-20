@@ -29,17 +29,18 @@
       <div><strong>Mail trace</strong><span>Inbound and outbound delivery diagnostics.</span></div>
       <div><strong>Usage policy</strong><span>Publish acknowledgement text and track the active version.</span></div>
       <div><strong>Audit log</strong><span>Review security and administrative events.</span></div>
+      <div><strong>Settings</strong><span>Organisation details, plus Sign-in security for restricting sign-in to approved countries.</span></div>
     </div>
   </section>
 
   <section id="people">
     <h2>Onboard a person</h2>
     <ol>
-      <li>Create the person with their exact Google or Microsoft sign-in email.</li>
-      <li>Use Standard unless management access is needed, and add their personal mailbox.</li>
+      <li>Create the person with their work email. cmail works out whether it's hosted by Google, Microsoft, or somewhere else, and invites them accordingly — you don't choose a method yourself.</li>
+      <li>Use Standard unless management access is needed, and add their personal mailbox. Only choose Manager for a Google- or Microsoft-hosted address: an email-code identity can never sign in as Manager.</li>
       <li>Select <strong>Send invitation</strong> now, or send it later. The single-use link expires after 72 hours.</li>
       <li>Grant shared mailbox access separately, using the least access that meets the role.</li>
-      <li>They sign in via the invitation with the matching account, accept any published policy, and verify their mailbox and From addresses.</li>
+      <li>They sign in via the invitation — straight into their provider, or by requesting an email code — accept any published policy, and verify their mailbox and From addresses.</li>
     </ol>
     <p>A pending account has no sign-in identity until its invitation succeeds; email alone never authorises first sign-in. Resending rotates the token immediately, so only the newest link works. An identity already enrolled to another account is rejected, not reassigned. Paused blocks sign-in and revokes sessions but keeps data; Offboarded is the durable end state.</p>
   </section>

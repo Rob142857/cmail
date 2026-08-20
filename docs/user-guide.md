@@ -19,17 +19,25 @@ Use one of the sign-in options shown on the page:
 - **Google** — the Google account matching your sign-in email.
 - **Microsoft** — Microsoft 365 work or school accounts. Outlook, Hotmail, and
   Live personal accounts also work if your organisation has enabled them.
+- **Email code** — for mailboxes hosted somewhere other than Google or
+  Microsoft. Your invitation tells you which method applies to you; you don't
+  choose it yourself. Select **Sign in with an email code**, request a code,
+  and enter the 8-digit code cmail emails you within 5 minutes. This option
+  never appears for the Manager role, which always needs a Google or
+  Microsoft identity.
 
-Sign in with the matching Google or Microsoft button and the exact address
-that received the invitation. cmail then links your account to that sign-in
-permanently, and the invitation stops working. Use the same provider on other
-browsers and devices — once enrolled, just open the organisation's normal
-cmail URL.
+Sign in with the matching button and the exact address that received the
+invitation. cmail then links your account to that sign-in permanently, and the
+invitation stops working. Use the same method on other browsers and devices —
+once enrolled, just open the organisation's normal cmail URL.
 
-If you pick the wrong provider, use a different email, let the link expire, or
+If you pick the wrong method, use a different email, let the link expire, or
 see an "identity already bound" message: stop and contact your manager. Do not
 ask anyone to weaken this check, or forward someone else's invitation — a
-manager can verify your account and send a fresh link.
+manager can verify your account and send a fresh link. If your organisation
+restricts sign-in to specific countries and you're travelling, an unrecognised
+country pauses your sign-in with a plain explanation and notifies your
+managers automatically — try again once one of them approves it.
 
 cmail only requests basic profile information (OpenID) to identify you, never
 access to your personal inbox, files, contacts, or search history. Signing in
@@ -70,8 +78,13 @@ cmail protects you in a few ways:
 - Images hosted elsewhere are blocked by default, since loading them can tell
   the sender you opened the message. Select **Load images** only if you trust
   the sender.
-- Message content is cleaned before it's shown, but links can still lead
-  outside your organisation — check where a link goes before you click it.
+- Message content is cleaned before it's shown. If a link's visible text names
+  one site but actually points somewhere else, or its address uses
+  look-alike international characters, cmail sends you to a warning page
+  first instead of straight to the link — read it before you continue.
+- A banner marks the first message you've ever received from a sender, so you
+  can give a request for payment, credentials, or urgency extra scrutiny
+  before acting on it.
 - Attachments always download as files. cmail does not scan them for malware,
   so open only files you trust and follow your organisation's security
   process. The label under each attachment tells you what kind of file it is.
@@ -101,13 +114,15 @@ your own mailbox addresses. Replying from a Sent item targets the original
 recipients, not yourself. Always check the recipient fields before sending,
 especially from a shared mailbox.
 
-The composer supports To, Cc, a subject, plain-text content, and attachments
-up to the limits shown next to the attachment button. Reply and Forward keep
-the original formatted message in a separate, non-editable preview with
-remote images removed, so an old tracking pixel cannot notify its sender when
-your recipient opens the conversation. cmail asks you to confirm before a
-message leaves the organisation, though provider or organisation rate limits
-can still reject a send.
+The composer supports To, Cc, Bcc, a subject, plain-text content, and
+attachments up to the limits shown next to the attachment button. Select
+**Bcc** next to Cc to add one. Bcc is envelope-only: nobody in To or Cc ever
+sees who you blind-copied, your own Sent copy still shows the full list
+including Bcc, and a reply to your message never carries the original Bcc
+list forward. Reply and Forward keep the original formatted message in a
+separate, non-editable preview with remote images removed, so an old
+tracking pixel cannot notify its sender when your recipient opens the
+conversation. Provider or organisation rate limits can still reject a send.
 
 As you type in **To** or **Cc**, cmail suggests addresses — first from
 everyone the selected **From** mailbox has actually written to or heard from,

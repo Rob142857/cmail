@@ -55,6 +55,7 @@ The normal customisation surface is configuration:
 | Region | `LOCALE`, `TIME_ZONE` |
 | Google sign-in | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
 | Microsoft sign-in | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID` |
+| Email one-time-code sign-in | `EMAIL_OTP_ENABLED`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `OTP_SESSION_TTL_HOURS` |
 | Temporary first-manager bootstrap | `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_TOKEN` |
 | External delivery | `OUTBOUND_PROVIDER`; Cloudflare production uses the Worker's `EMAIL` send binding plus Pages' `EMAIL_SERVICE` service binding; the optional REST fallback needs `CLOUDFLARE_ACCOUNT_ID` plus `CLOUDFLARE_EMAIL_API_TOKEN`; Postmark needs `POSTMARK_API_KEY` |
 | Browser notifications | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_ENDPOINT_HOSTS` |

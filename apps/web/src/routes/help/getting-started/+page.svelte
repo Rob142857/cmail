@@ -16,7 +16,7 @@
 
   <section id="sign-in">
     <h2>1. Sign in with the invited account</h2>
-    <p>Open your invitation email within 72 hours and sign in with the Google or Microsoft button for the invited address. Use the same provider every time after that. Microsoft sign-in accepts a work or school account, or Outlook, Hotmail, or Live where the organisation allows personal Microsoft accounts.</p>
+    <p>Open your invitation email within 72 hours and select its one button. For a Google or Microsoft address, that leads straight into that provider's sign-in — use the same one every time after that. Microsoft sign-in accepts a work or school account, or Outlook, Hotmail, or Live where the organisation allows personal Microsoft accounts. For a mailbox hosted elsewhere, the same button leads to a one-time email code instead: request a code, then enter the 8-digit code cmail emails you within 5 minutes.</p>
     <p>If the link expired, was already used, or you chose the wrong address, ask a manager to send a new invitation. Do not forward an invitation — it is only for its recipient.</p>
     <div class="callout"><strong>What sign-in does not do</strong><p>It verifies who you are. It does not grant this application access to your personal inbox, files, contacts, or search history.</p></div>
   </section>
@@ -36,7 +36,7 @@
     <p>Compose and reply show only addresses you can send from. Pick the one that should represent the conversation — recipients see that address, not the identity you signed in with.</p>
     <ol>
       <li>Select <strong>Compose</strong>.</li>
-      <li>Confirm <strong>From</strong>, then add To and optional Cc recipients.</li>
+      <li>Confirm <strong>From</strong>, then add To and optional Cc recipients. Select <strong>Bcc</strong> next to Cc to blind-copy someone — To and Cc recipients never see who was Bcc'd.</li>
       <li>Add a subject, write the message, and attach files. Leave <strong>Importance</strong> at Normal unless the recipient genuinely needs High or Low.</li>
       <li>Check recipients and the From address again, then select <strong>Send</strong>.</li>
     </ol>

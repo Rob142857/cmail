@@ -53,7 +53,11 @@ access-token UserInfo, returning accounts resolve solely by provider plus
 `sub`, invitation hashes remain single-use and expiring, resend revokes older
 links, and raw invitation/bootstrap credentials never enter provider callbacks
 or logs. A release must not reintroduce Microsoft `/me`, email/UPN lookup, or
-ID-token claims as an account selector.
+ID-token claims as an account selector. A release touching email one-time-code
+sign-in must keep codes hashed and single-use, keep the Manager role refusing
+an email-only identity, and keep Turnstile scoped to the request form only. A
+release touching sign-in countries must keep the first-manager bootstrap
+exemption and the manager-notification throttle intact.
 
 ## Release notes
 

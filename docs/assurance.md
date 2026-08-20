@@ -34,7 +34,7 @@ you still need to collect.
 
 | Area | Product capability | Deployment evidence required |
 |---|---|---|
-| Identity | Google and Microsoft OIDC (OpenID Connect sign-in); no cmail password database; invited-account enrolment binds the provider subject to a cmail person | OAuth app registrations and callbacks, permitted tenants/accounts, provider MFA or conditional-access policy, emergency access and administrator review |
+| Identity | Google and Microsoft OIDC (OpenID Connect sign-in), plus an invitation-scoped email one-time code for invitees hosted elsewhere; no cmail password database; invited-account enrolment binds the provider subject, or a bound email identity, to a cmail person; sign-in can be restricted to approved countries with a manager approval flow for exceptions | OAuth app registrations and callbacks, permitted tenants/accounts, provider MFA or conditional-access policy, email one-time-code and Turnstile configuration where used, approved sign-in countries where used, emergency access and administrator review |
 | Sessions | Signed sessions are stored as hashes; configurable lifetime and concurrency; pause/offboard revokes sessions | Effective settings, sampled revocation test, manager and Cloudflare access review |
 | Authorization | Roles and mailbox delegation are checked server-side; shared mailboxes use Read, Send as, or Full access | Current people/mailbox assignment export or reviewed screenshots, least-privilege review date, offboarding sample |
 | Public directory privacy | Directory output is globally gated and each position is internal by default; public positions expose only approved name, work email, and title | Current directory setting, approved public-position list, privacy owner sign-off, public-page review |
@@ -64,6 +64,10 @@ Know these limits before you rely on cmail for compliance or evidence.
   unsafe.
 - MFA and conditional access are provider/operator controls. Using Google or
   Microsoft sign-in does not prove that either control is enabled.
+- Email one-time-code sign-in carries none of an OAuth account's ongoing
+  multi-factor or revocation guarantees. Its session lifetime is capped
+  independently of the general session setting, and the Manager role always
+  requires a Google or Microsoft identity.
 - SPF, DKIM, DMARC, MTA-STS, and TLS-RPT depend on live DNS, provider behavior,
   and operator monitoring. Documentation cannot make a deployment compliant.
 - Accessibility work targets good keyboard, contrast, motion, and semantic

@@ -131,6 +131,13 @@ UserInfo with the access token (Microsoft's endpoint is
 its permanent `sub` ID as the account's real identity — not email, UPN, or
 ID-token claims.
 
+A third sign-in method, an invitation-scoped email one-time code for
+invitees hosted by neither Google nor Microsoft, needs no callback
+registration and is on by default. Set `EMAIL_OTP_ENABLED=false` in
+`.dev.vars` to turn it off locally, or add `TURNSTILE_SITE_KEY` and
+`TURNSTILE_SECRET_KEY` to try the optional bot check on its request form.
+See [Email one-time-code sign-in](configuration.md#email-one-time-code-sign-in).
+
 Except for the first manager, first sign-in starts from a manager-generated
 link: `<APP_URL>/enroll/google#token=...` or
 `<APP_URL>/enroll/microsoft#token=...`. The `#token=...` fragment never

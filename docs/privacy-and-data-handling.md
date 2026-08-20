@@ -22,13 +22,13 @@ A typical cmail deployment can process:
 
 | Category | Examples | Typical purpose |
 |---|---|---|
-| Account and identity | Name, sign-in email, provider and immutable provider subject, account status, role, sessions | Enrolment, authentication, authorization, support, offboarding |
+| Account and identity | Name, sign-in email, provider and immutable provider subject or bound email identity, hashed one-time codes, account status, role, sessions | Enrolment, authentication, authorization, support, offboarding |
 | Organisation directory | Position title, work email, layer, unit, role, reporting structure, public/internal setting | Internal administration and an optional public directory |
-| Mail content | Sender/recipient fields, subject, plain text, sanitized HTML, attachments, inline images, drafts, signatures | Receiving, composing, storing, finding, and delivering organisational mail |
-| Mail-flow and security metadata | Envelope addresses, message identifiers, size, provider response, authentication results, suspicious-link/risk information | Delivery, investigation, abuse prevention, troubleshooting |
-| Administrative evidence | Manager action, actor, target, timestamp, source address, policy version and acceptance | Security review, accountability, policy administration |
+| Mail content | Sender/recipient fields (including Bcc, kept envelope-only), subject, plain text, sanitized HTML, attachments, inline images, drafts, signatures | Receiving, composing, storing, finding, and delivering organisational mail |
+| Mail-flow and security metadata | Envelope addresses, message identifiers, size, provider response, authentication results, spam score, suspicious-link/risk information | Delivery, investigation, abuse prevention, troubleshooting |
+| Administrative evidence | Manager action, actor, target, timestamp, source address, policy version and acceptance, travel-approval decisions | Security review, accountability, policy administration |
 | Device notification data | Push endpoint, keys, browser/device capability and subscription timestamps | Optional new-mail notification delivery |
-| Operational configuration | Organisation name, domains, support contacts, provider choices, retention and quota settings | Running and supporting the deployment |
+| Operational configuration | Organisation name, domains, support contacts, provider choices, approved sign-in countries, retention and quota settings | Running and supporting the deployment |
 
 Do not collect extra data merely because a field or provider feature is
 available. Do not copy secrets, raw access tokens, message bodies, attachments,

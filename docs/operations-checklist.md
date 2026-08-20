@@ -23,6 +23,8 @@ Use this checklist for each environment. Adapt it to your organisation's change-
 - [ ] Pages health and sign-in page verified
 - [ ] Only intended OAuth providers shown
 - [ ] Manager and standard-user authorization checked
+- [ ] If email one-time-code sign-in is enabled, a test invitee hosted by neither Google nor Microsoft can enrol and sign in, and cannot be made a Manager
+- [ ] If sign-in is restricted to approved countries, a refused sign-in creates a pending request, notifies managers once, and the approve/deny/revoke actions in Travel approvals all work
 - [ ] Known inbound recipient tested
 - [ ] Unknown inbound recipient rejected
 - [ ] A disabled or offboarded address returns the same generic SMTP-time rejection as an unknown address; no cmail outbound auto-reply is sent
@@ -55,6 +57,7 @@ Use this checklist for each environment. Adapt it to your organisation's change-
 
 - [ ] Review active, paused, and offboarded users
 - [ ] Review pending/unbound users and resend only after confirming the intended identity
+- [ ] Review pending travel-approval requests and active country exceptions, if sign-in is restricted to approved countries
 - [ ] Review shared mailbox assignments and send-as/full permissions
 - [ ] Review audit and trace anomalies
 - [ ] Review **Admin → Mail trace → Delivery recovery**; reconcile every `dispatching` or `ambiguous` send with the provider before taking action, and allow `accepted` records to finish idempotent local materialization

@@ -8,6 +8,28 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Added
 
+- Provider-aware manager invitations: a Google- or Microsoft-hosted address
+  gets a one-button "Activate your mailbox" email straight into that
+  provider's sign-in; an address hosted elsewhere gets the same button, but
+  it leads to invitation-scoped email one-time-code enrolment instead; and a
+  host that can't be verified is refused with a plain error rather than
+  silently accepted.
+- Email one-time-code sign-in as a third, invitation-scoped identity method
+  alongside Google and Microsoft: 8-digit hashed codes with a 5-minute
+  expiry and 5 attempts, an identical response regardless of why a request
+  or code failed, optional Cloudflare Turnstile on the request form, and a
+  session-lifetime cap independent of the configured session TTL. The
+  Manager role still always requires a Google or Microsoft identity.
+- Manager travel approvals: an organisation can restrict sign-in to approved
+  countries across every sign-in method, off by default. A refused sign-in
+  creates a pending request, notifies managers by throttled email, and is
+  approved for 24 hours, 7 days, or 30 days, denied, or revoked from a
+  dedicated panel with a full audit trail. The very first manager's
+  bootstrap sign-in is exempt, so a deployment can never lock itself out.
+- Real Bcc support end to end: envelope-only delivery so To/Cc recipients
+  never see who was blind-copied, deduplication against To and Cc, a
+  combined recipient cap, the sender's own sent-copy view of who was
+  Bcc'd, and replies that never inherit the original Bcc list.
 - An in-app and public support process with trained internal Level 1 triage,
   safe evidence handling, RME Solutions Technology Level 2 escalation, and a
   clear boundary between defects, agreed operational support, and quoted work.
@@ -38,6 +60,16 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Changed
 
+- Compose no longer asks for confirmation before a message leaves the
+  organisation. The warning step added friction without a matching safety
+  benefit, so it's gone by design; provider and organisation rate limits can
+  still reject a send.
+- Signature previews in the editor, compose, and settings now render in a
+  pinned light colour scheme, so a signature authored with dark, app-theme
+  text no longer disappears against the app's own dark background.
+- Admin → Mail trace, Investigate, and Audit log now surface the underlying
+  error when a query fails, instead of the same empty state a genuinely
+  empty result would show.
 - Unavailable recipients now return one neutral, cmail-labelled permanent SMTP
   diagnostic for unknown, disabled, and offboarded addresses. The sender's mail
   system may render its own non-delivery report; cmail sends no autoresponder

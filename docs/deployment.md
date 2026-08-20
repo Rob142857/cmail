@@ -156,6 +156,16 @@ A provider's sign-in button appears only once its own credentials, the shared `A
 
 cmail binds an account to the provider plus the immutable `sub` (subject ID) returned by UserInfo. Returning sign-in never selects a user by email, UPN (Microsoft's internal username-like ID), or ID-token claim. Email is checked only when consuming a manager-issued first-sign-in invitation, or during the tightly scoped first-manager bootstrap flow: Google requires a matching UserInfo email with `email_verified=true`; Microsoft requires its matching non-empty access-token-backed OIDC UserInfo `email` claim plus the independent capability, since Microsoft UserInfo omits `email_verified`.
 
+A third sign-in method needs no provider registration at all: an
+invitation-scoped email one-time code, for invitees whose mail isn't hosted
+by Google or Microsoft. It's on by default; set `EMAIL_OTP_ENABLED=false` to
+remove it entirely. To add a bot check on the code-request form, create a
+Cloudflare Turnstile widget for `APP_URL`, set `TURNSTILE_SITE_KEY` as a
+Pages variable, and store `TURNSTILE_SECRET_KEY` as a Pages secret — both
+must be present for the widget to appear. See [Email one-time-code
+sign-in](configuration.md#email-one-time-code-sign-in). The Manager role
+always requires Google or Microsoft, regardless of this setting.
+
 ### Required inbound Worker secret
 
 The default per-sender inbound limit fails closed unless the Worker has an independent 32-byte HMAC (cryptographic signing) key. Generate an unpadded base64url value locally, then paste it into Wrangler's prompt. Never put it in a command argument, Wrangler file, Pages variables, or source control:
@@ -300,6 +310,12 @@ Complete at least these checks:
 - A standard user receives a forbidden response for Admin routes.
 - A user sees only assigned mailboxes.
 - Logout invalidates the browser session.
+- If email one-time-code sign-in is enabled, a test invitee to an address
+  hosted by neither Google nor Microsoft receives and can use a code, and an
+  attempt to make that account a Manager is refused.
+- If sign-in is restricted to approved countries, a sign-in from outside the
+  list creates a pending travel request and notifies managers; approving,
+  denying, and revoking it all work from **Management > Travel approvals**.
 
 ### Mail flow
 

@@ -81,7 +81,7 @@ EMAIL_OTP_ENABLED = "true"
 # Optional Cloudflare Turnstile bot check on the code-request form. Both this
 # public site key and the matching TURNSTILE_SECRET_KEY (a Pages secret —
 # never put it here) must be set for the widget to appear; leave both blank
-# to skip it. All production tenants of this app already have both configured.
+# to skip it.
 TURNSTILE_SITE_KEY = ""
 # Sign-in countries (across Google, Microsoft, and this email code method
 # alike) are managed in-app, not here: Management > Settings > Sign-in
