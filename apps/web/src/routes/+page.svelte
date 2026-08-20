@@ -80,6 +80,16 @@
               </svg>
               <span>Sign in with Google</span>
             </a>
+          {:else if provider === 'microsoft'}
+            <a href="/auth/login/microsoft" class="microsoft-sign-in">
+              <svg viewBox="0 0 21 21" aria-hidden="true" focusable="false">
+                <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+                <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+                <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+                <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+              </svg>
+              <span>Sign in with Microsoft</span>
+            </a>
           {:else}
             <a href="/auth/login/{provider}" class="btn btn-primary provider-btn">
               <strong>Sign in with {providerLabels[provider]}</strong>
@@ -193,6 +203,28 @@
   .google-sign-in:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
   .google-sign-in svg { width: 18px; height: 18px; }
   .google-sign-in span { grid-column: 2; grid-row: 1; min-width: 0; overflow-wrap: anywhere; }
+  .microsoft-sign-in {
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    align-items: center;
+    column-gap: 12px;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid #8c8c8c;
+    border-radius: 4px;
+    background: #ffffff;
+    color: #5e5e5e;
+    font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    text-decoration: none;
+    text-align: left;
+  }
+  .microsoft-sign-in:hover { background: #f3f3f3; border-color: #5e5e5e; color: #5e5e5e; }
+  .microsoft-sign-in:focus-visible { outline: 2px solid #5e5e5e; outline-offset: 2px; }
+  .microsoft-sign-in svg { width: 18px; height: 18px; }
+  .microsoft-sign-in span { grid-column: 2; grid-row: 1; min-width: 0; overflow-wrap: anywhere; }
   .error { color: var(--danger); margin-top: 16px; }
   .login-error {
     margin-bottom: 18px;
