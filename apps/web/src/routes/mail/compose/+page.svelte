@@ -68,20 +68,6 @@
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
-  function enteredAddresses(value) {
-    return value.split(/[;,]/).map((item) => {
-      const trimmed = item.trim().toLowerCase();
-      const bracketed = trimmed.match(/<([^>]+)>/);
-      return (bracketed?.[1] || trimmed).trim();
-    }).filter((item) => item.includes('@'));
-  }
-
-  const externalRecipients = $derived.by(() => {
-    const domain = (d.mailDomain || '').toLowerCase();
-    return [...new Set([...enteredAddresses(to), ...enteredAddresses(cc), ...enteredAddresses(bcc)])]
-      .filter((address) => !domain || !address.endsWith(`@${domain}`));
-  });
-
   /** @type {File[]} */
   let attachedFiles = $state([]);
   /** @type {HTMLInputElement | null} */
@@ -534,14 +520,6 @@
       cancel();
       return;
     }
-    if (externalRecipients.length) {
-      const recipientLabel = externalRecipients.length === 1 ? '1 external recipient' : `${externalRecipients.length} external recipients`;
-      const attachmentLabel = attachedFiles.length ? ` with ${attachedFiles.length} ${attachedFiles.length === 1 ? 'attachment' : 'attachments'}` : '';
-      if (!window.confirm(`Send this message${attachmentLabel} to ${recipientLabel}? Make sure it's OK to leave your organisation.`)) {
-        cancel();
-        return;
-      }
-    }
 
     sending = true;
     cancelAutosaveTimer();
@@ -706,14 +684,6 @@
       <div class="field">
         <label for="bcc">Bcc</label>
         <EmailAutocomplete bind:value={bcc} name="bcc" id="bcc" placeholder="optional" multi mailbox={from} oninput={markDirty} />
-      </div>
-    {/if}
-
-    {#if externalRecipients.length > 0}
-      <div class="external-warning" role="status">
-        <strong>{externalRecipients.length} external {externalRecipients.length === 1 ? 'recipient' : 'recipients'}</strong>
-        <span>{externalRecipients.join(', ')}</span>
-        <small>You'll be asked to confirm before this leaves {d.mailDomain || 'the organisation'}.</small>
       </div>
     {/if}
 
@@ -885,9 +855,6 @@
   .quoted-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:6px; font-size:12px; }
   .quoted-heading strong { color:var(--text); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
   .quoted-heading span { color:var(--text-muted); }
-  .external-warning { display: flex; flex-direction: column; gap: 2px; margin: -2px 0 14px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border)); border-radius: var(--radius); background: var(--warning-soft); color: var(--warning); font-size: 12px; }
-  .external-warning span { overflow-wrap: anywhere; }
-  .external-warning small { color: color-mix(in srgb, var(--warning) 78%, var(--text)); }
 
   .signature-preview { margin: -2px 0 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-subtle); font-size: 12px; }
   .signature-preview > summary { display:flex; align-items:center; gap:12px; min-height:46px; padding:8px 12px; cursor:pointer; list-style:none; }
