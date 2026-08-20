@@ -262,15 +262,22 @@ export const actions: Actions = {
     const clientIp = clientIpOf(request);
     const country = requestCountry(request);
 
+    // The proof cookie must survive a simple typo: the stored code allows
+    // OTP_MAX_ATTEMPTS tries, and clearing the proof on the first mismatch
+    // would silently reduce that to one. It is cleared on every terminal
+    // outcome (success, lock, expiry, unknown request, refusal) — only a
+    // plain mismatch keeps it, so the person can retype the code.
+    const clearProof = () => cookies.delete(OTP_PROOF_COOKIE, { path: '/' });
     const proofCookie = cookies.get(OTP_PROOF_COOKIE);
-    cookies.delete(OTP_PROOF_COOKIE, { path: '/' });
     const proof = await verifyOtpProof(proofCookie, env.SESSION_SECRET);
     if (!proof) {
+      clearProof();
       return fail(400, { verifyError: NEUTRAL_VERIFY_MESSAGE });
     }
 
     const allowedCountries = authOtpAllowedCountries(env as unknown as Record<string, unknown>);
     if (!countryAllowed(country, allowedCountries)) {
+      clearProof();
       await audit(env.DB, {
         event_type: 'otp.geo_refused',
         detail: `purpose=${proof.purpose} country=${country}`,
@@ -291,6 +298,7 @@ export const actions: Actions = {
       : 'mismatch';
 
     if (result !== 'ok') {
+      if (result !== 'mismatch') clearProof();
       await audit(env.DB, {
         event_type: result === 'locked' ? 'otp.locked' : 'otp.verify_failed',
         detail: `purpose=${proof.purpose} country=${country} reason=${result}`,
@@ -298,6 +306,10 @@ export const actions: Actions = {
       });
       return fail(400, { verifyError: NEUTRAL_VERIFY_MESSAGE });
     }
+
+    // From here the code row is already consumed — every outcome, success or
+    // refusal, is terminal for this proof.
+    clearProof();
 
     let user: User | null;
     if (proof.purpose === 'enroll') {
