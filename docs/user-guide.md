@@ -109,6 +109,11 @@ your recipient opens the conversation. cmail asks you to confirm before a
 message leaves the organisation, though provider or organisation rate limits
 can still reject a send.
 
+As you type in **To** or **Cc**, cmail suggests addresses — first from
+everyone the selected **From** mailbox has actually written to or heard from,
+then from the organisation directory. Switching **From** switches the
+suggestions, since each mailbox keeps its own history.
+
 Only use **Importance** when the recipient genuinely needs the High or Low
 signal (a red exclamation mark or downward arrow in cmail, Outlook, and other
 compatible apps). It's saved with the draft, but does not speed up delivery,

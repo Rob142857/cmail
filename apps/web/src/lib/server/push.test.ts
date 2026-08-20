@@ -61,7 +61,13 @@ const validEnvironment = {
   VAPID_SUBJECT: 'mailto:operator@example.com',
 };
 
-async function notificationDeliveryFixture(responseStatus = 201) {
+async function notificationDeliveryFixture(
+  responseStatus = 201,
+  options: {
+    messageRow?: { subject: string; from_name: string; from_address: string } | null;
+    messageLookupFails?: boolean;
+  } = {},
+) {
   const vapidKeys = await crypto.subtle.generateKey(
     { name: 'ECDSA', namedCurve: 'P-256' },
     true,
@@ -86,9 +92,23 @@ async function notificationDeliveryFixture(responseStatus = 201) {
   const queries: string[] = [];
   const selectedMailboxIds: unknown[][] = [];
   const removedEndpoints: unknown[][] = [];
+  const messageLookupBindings: unknown[][] = [];
   const DB = {
     prepare(sql: string) {
       queries.push(sql);
+      if (/SELECT subject, from_name, from_address\s+FROM messages/.test(sql)) {
+        return {
+          bind(...values: unknown[]) {
+            messageLookupBindings.push(values);
+            return {
+              first: async () => {
+                if (options.messageLookupFails) throw new Error('message lookup failed');
+                return options.messageRow ?? null;
+              },
+            };
+          },
+        };
+      }
       if (/SELECT DISTINCT ps\.id, ps\.user_id, ps\.endpoint/.test(sql) || /SELECT id, user_id, endpoint, p256dh, auth\s+FROM push_subscriptions/.test(sql)) {
         return {
           bind(...values: unknown[]) {
@@ -123,6 +143,7 @@ async function notificationDeliveryFixture(responseStatus = 201) {
     queries,
     selectedMailboxIds,
     removedEndpoints,
+    messageLookupBindings,
     fetch,
   };
 }
@@ -175,21 +196,71 @@ describe('Web Push configuration', () => {
     expect(newMailNotificationPayload('cmail', 'mailbox-1', '../message')).toBeNull();
   });
 
+  it('shows the sender and subject on the lock screen when supplied, capped and stripped of control characters', () => {
+    expect(newMailNotificationPayload('Cmail', 'mailbox-1', 'message-1', ' Priya Patel ', ' Quarterly numbers\n')).toEqual({
+      title: 'Priya Patel',
+      body: 'Quarterly numbers',
+      url: '/mail/message-1?mailbox=mailbox-1',
+      tag: 'cmail:mailbox-1:message-1',
+    });
+
+    // Falls back per-field -- not to the fully generic alert -- when the
+    // caller supplied empty strings, e.g. a message with no subject line.
+    expect(newMailNotificationPayload('Cmail', 'mailbox-1', 'message-1', '', '')).toEqual({
+      title: 'Cmail',
+      body: 'New message',
+      url: '/mail/message-1?mailbox=mailbox-1',
+      tag: 'cmail:mailbox-1:message-1',
+    });
+
+    const controlChar = String.fromCharCode(0);
+    const bellChar = String.fromCharCode(7);
+    const longSender = `Attacker${controlChar.repeat(3)}${'A'.repeat(100)}`;
+    const longSubject = `${'S'.repeat(200)}${bellChar}`;
+    expect(newMailNotificationPayload('Cmail', 'mailbox-1', 'message-1', longSender, longSubject)).toEqual({
+      title: `Attacker${'A'.repeat(52)}`,
+      body: 'S'.repeat(120),
+      url: '/mail/message-1?mailbox=mailbox-1',
+      tag: 'cmail:mailbox-1:message-1',
+    });
+  });
+
   it('fans out once per browser for an active assigned shared mailbox', async () => {
     const fixture = await notificationDeliveryFixture();
     fixture.subscriptions.push({ ...fixture.subscription });
 
     await sendNewMailNotifications(fixture.env as never, 'shared-mailbox-1', 'message-1');
 
-    expect(fixture.queries[0]).toMatch(/INNER JOIN users u ON u\.id = ps\.user_id AND u\.status = 'active'/);
-    expect(fixture.queries[0]).toMatch(/INNER JOIN mailbox_assignments ma ON ma\.user_id = ps\.user_id/);
-    expect(fixture.queries[0]).toMatch(/INNER JOIN mailboxes mailbox ON mailbox\.id = ma\.mailbox_id AND mailbox\.status = 'active'/);
+    const subscriptionQuery = fixture.queries.find((sql) => sql.includes('FROM push_subscriptions ps'));
+    expect(subscriptionQuery).toMatch(/INNER JOIN users u ON u\.id = ps\.user_id AND u\.status = 'active'/);
+    expect(subscriptionQuery).toMatch(/INNER JOIN mailbox_assignments ma ON ma\.user_id = ps\.user_id/);
+    expect(subscriptionQuery).toMatch(/INNER JOIN mailboxes mailbox ON mailbox\.id = ma\.mailbox_id AND mailbox\.status = 'active'/);
+    expect(fixture.messageLookupBindings).toEqual([['message-1', 'shared-mailbox-1']]);
     expect(fixture.selectedMailboxIds).toEqual([['shared-mailbox-1']]);
     expect(fixture.fetch).toHaveBeenCalledTimes(1);
     expect(fixture.fetch).toHaveBeenCalledWith(fixture.subscription.endpoint, expect.objectContaining({
       method: 'POST',
       redirect: 'error',
     }));
+  });
+
+  it('looks up the sender and subject for the lock-screen payload, scoped to the message and mailbox', async () => {
+    const fixture = await notificationDeliveryFixture(201, {
+      messageRow: { subject: 'Board packet', from_name: 'Priya Patel', from_address: 'priya@example.test' },
+    });
+
+    const summary = await sendNewMailNotifications(fixture.env as never, 'shared-mailbox-1', 'message-1');
+
+    expect(fixture.messageLookupBindings).toEqual([['message-1', 'shared-mailbox-1']]);
+    expect(summary.accepted).toBe(1);
+  });
+
+  it('still delivers a generic alert when the message row is missing or the lookup errors', async () => {
+    const missing = await notificationDeliveryFixture(201, { messageRow: null });
+    expect((await sendNewMailNotifications(missing.env as never, 'shared-mailbox-1', 'message-1')).accepted).toBe(1);
+
+    const failing = await notificationDeliveryFixture(201, { messageLookupFails: true });
+    expect((await sendNewMailNotifications(failing.env as never, 'shared-mailbox-1', 'message-1')).accepted).toBe(1);
   });
 
   it('purges an expired endpoint and rejects malformed delivery IDs before querying recipients', async () => {

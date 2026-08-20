@@ -118,7 +118,7 @@ describe('push service worker', () => {
     expect(harness.fetch).not.toHaveBeenCalled();
   });
 
-  it('keeps opaque mailbox/message deep links distinct while retaining a generic notification body', async () => {
+  it('keeps opaque mailbox/message deep links distinct while passing through the alert text as sent', async () => {
     const harness = await serviceWorkerHarness();
     let pending: Promise<unknown> | undefined;
     harness.handlers.get('push')?.({
@@ -134,9 +134,55 @@ describe('push service worker', () => {
 
     expect(harness.self.registration.showNotification).toHaveBeenCalledWith('Cmail', expect.objectContaining({
       body: 'A new message arrived.',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
       tag: 'cmail:mailbox-1:message-1',
       data: { url: '/mail/message-1?mailbox=mailbox-1' },
     }));
+  });
+
+  it('shows the sender and subject the server looked up, with the app icon and badge', async () => {
+    const harness = await serviceWorkerHarness();
+    let pending: Promise<unknown> | undefined;
+    harness.handlers.get('push')?.({
+      data: { json: () => ({
+        title: 'Priya Patel',
+        body: 'Quarterly numbers are ready for review',
+        url: '/mail/message-1?mailbox=mailbox-1',
+        tag: 'cmail:mailbox-1:message-1',
+      }) },
+      waitUntil(value: Promise<unknown>) { pending = value; },
+    });
+    await pending;
+
+    expect(harness.self.registration.showNotification).toHaveBeenCalledWith('Priya Patel', {
+      body: 'Quarterly numbers are ready for review',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: 'cmail:mailbox-1:message-1',
+      renotify: true,
+      data: { url: '/mail/message-1?mailbox=mailbox-1' },
+    });
+  });
+
+  it('caps oversized title/body fields to the server-side payload limits and rejects an invalid tag', async () => {
+    const harness = await serviceWorkerHarness();
+    let pending: Promise<unknown> | undefined;
+    harness.handlers.get('push')?.({
+      data: { json: () => ({
+        title: 'T'.repeat(200),
+        body: 'B'.repeat(200),
+        url: '/mail',
+        tag: 'not-a-valid-tag',
+      }) },
+      waitUntil(value: Promise<unknown>) { pending = value; },
+    });
+    await pending;
+
+    const [title, options] = harness.self.registration.showNotification.mock.calls[0];
+    expect(title).toBe('T'.repeat(60));
+    expect(options.body).toBe('B'.repeat(120));
+    expect(options.tag).toBe('cmail-new-mail');
   });
 
   it('opens a shared-mailbox deep link in an existing app window', async () => {

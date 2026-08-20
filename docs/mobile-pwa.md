@@ -2,7 +2,7 @@
 
 cmail is an installable Progressive Web App (PWA) — a website that behaves like an app once installed, with its own icon and window. A Home Screen shortcut can open in the browser instead; both give you quick access. cmail does not download or store mail for offline use — reading, searching, composing, and sending all need a network connection.
 
-New-mail alerts are optional. They only work when your operator has turned on Web Push, your browser and device support it, and you allow notifications for that browser or app. You need to set this up separately on every device. Alerts cover your active personal and shared mailboxes. Tapping an alert opens the message, and your access is checked again at that point — the alert itself never shows the sender, subject, mailbox, or message text.
+New-mail alerts are optional. They only work when your operator has turned on Web Push, your browser and device support it, and you allow notifications for that browser or app. You need to set this up separately on every device. Alerts cover your active personal and shared mailboxes. Tapping an alert opens the message, and your access is checked again at that point.
 
 ## iPhone and iPad
 
@@ -90,4 +90,4 @@ Push services can expire or replace subscriptions over time. Opening cmail re-ch
 
 ## Privacy on mobile devices
 
-cmail notifications only show the app name and generic "new mail" text — never the sender, subject, mailbox, or message body. Your device still shows that a mail app received an alert, so use a passcode, biometric lock, and sensible lock-screen settings. Avoid turning on alerts on shared devices.
+cmail notifications show the message sender and subject on your lock screen, the same as most mail apps. A future setting may let you hide this on the lock screen, but that option does not exist yet. Use a passcode, biometric lock, and sensible lock-screen settings, and avoid turning on alerts on shared devices.

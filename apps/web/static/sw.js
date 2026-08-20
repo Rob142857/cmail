@@ -1,7 +1,7 @@
 // cmail service worker — minimal and network-only. Deployment lifecycle checks
 // discover new versions without caching mailbox or application responses.
 
-const VERSION = 'cmail-2026-08-17-1';
+const VERSION = 'cmail-2026-08-20-1';
 const PUSH_PREFERENCE_DB = 'cmail-push-preferences';
 const PUSH_PREFERENCE_STORE = 'settings';
 const PUSH_PREFERENCE_KEY = 'cmail_push_preference';
@@ -72,14 +72,17 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Notification payloads are intentionally privacy-minimal. The server sends
-// no sender, subject, mailbox address, or message body that could appear on a
-// locked screen.
+// Notification payloads may include the sender and subject the server
+// looked up for this message; if that lookup was unavailable, the server
+// falls back to a generic, content-free alert instead. Every field here is
+// still treated as untrusted: title/body are coerced to strings and capped
+// to match the server-side payload builder's limits, and url/tag are
+// validated against a fixed shape before use.
 self.addEventListener('push', (event) => {
   let payload = {};
   try { payload = event.data ? event.data.json() : {}; } catch { payload = {}; }
-  const title = typeof payload.title === 'string' ? payload.title.slice(0, 80) : 'cmail';
-  const body = typeof payload.body === 'string' ? payload.body.slice(0, 160) : 'A new message arrived.';
+  const title = typeof payload.title === 'string' ? payload.title.slice(0, 60) : 'cmail';
+  const body = typeof payload.body === 'string' ? payload.body.slice(0, 120) : 'A new message arrived.';
   const url = typeof payload.url === 'string' && /^\/mail(?:[/?]|$)/.test(payload.url) ? payload.url : '/mail';
   const tag = typeof payload.tag === 'string' && /^cmail:[A-Za-z0-9_-]{1,128}:[A-Za-z0-9_-]{1,128}$/.test(payload.tag)
     ? payload.tag

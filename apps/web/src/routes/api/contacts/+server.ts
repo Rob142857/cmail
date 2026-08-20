@@ -1,7 +1,9 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ locals, platform }) => {
+const MAX_HISTORY_CONTACTS = 400;
+
+export const GET: RequestHandler = async ({ locals, platform, url }) => {
   if (!locals.user) return json([], { status: 401 });
   const env = platform?.env;
   if (!env) return json([]);
@@ -17,13 +19,46 @@ export const GET: RequestHandler = async ({ locals, platform }) => {
       ORDER BY CASE m.type WHEN 'shared' THEN 0 ELSE 1 END, m.display_name, m.address`,
   ).all<{ address: string; display_name: string; type: string }>();
 
-  const contacts = (mailboxes.results || []).map((mailbox) => ({
+  const directory = (mailboxes.results || []).map((mailbox) => ({
     email: mailbox.address,
     name: mailbox.display_name || '',
     type: mailbox.type === 'shared' ? 'shared' : 'mailbox',
   }));
 
-  return json(contacts, {
+  // Callers without ?mailbox get exactly today's response: a bare directory
+  // array. `url` is optional here only so unit tests can omit it.
+  const mailboxAddress = url?.searchParams?.get('mailbox') || '';
+  if (!mailboxAddress) {
+    return json(directory, {
+      headers: { 'Cache-Control': 'private, max-age=30' },
+    });
+  }
+
+  // Per-mailbox suggestion history is scoped to mailboxes the caller is
+  // assigned to, mirroring the attachment-access join pattern (any
+  // assignment level — read included — grants visibility, same as it does
+  // for that mailbox's stored attachments).
+  const assignedMailbox = await env.DB.prepare(
+    `SELECT m.id FROM mailboxes m
+       INNER JOIN mailbox_assignments ma ON m.id = ma.mailbox_id
+      WHERE m.address = ? AND ma.user_id = ? AND m.status = 'active'`,
+  ).bind(mailboxAddress, locals.user.id).first<{ id: string }>();
+  if (!assignedMailbox) return json({ error: 'Mailbox not found' }, { status: 404 });
+
+  const history = await env.DB.prepare(
+    `SELECT address, display_name, times_used, last_used_at
+       FROM mailbox_contacts
+      WHERE mailbox_id = ?
+      ORDER BY times_used DESC, last_used_at DESC
+      LIMIT ?`,
+  ).bind(assignedMailbox.id, MAX_HISTORY_CONTACTS).all<{
+    address: string; display_name: string; times_used: number; last_used_at: string;
+  }>();
+
+  return json({
+    directory,
+    history: history.results || [],
+  }, {
     headers: { 'Cache-Control': 'private, max-age=30' },
   });
 };

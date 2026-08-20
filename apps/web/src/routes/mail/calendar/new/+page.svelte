@@ -1,5 +1,6 @@
 <script>
   import { enhance } from '$app/forms';
+  import { untrack } from 'svelte';
   import EmailAutocomplete from '$lib/EmailAutocomplete.svelte';
 
   let { data, form } = $props();
@@ -8,6 +9,11 @@
 
   let allDay = $state(false);
   let submitting = $state(false);
+  // Capture the initial preferred mailbox deliberately (same untrack idiom as
+  // the compose page); kept live afterward via bind:value below so
+  // EmailAutocomplete's mailbox-scoped suggestion history follows the From
+  // selection the user actually has selected.
+  let from = $state(untrack(() => d.mailboxes.find((mb) => mb.id === d.preferredMailboxId)?.address || d.mailboxes[0]?.address || ''));
   let attendees = $state('');
   let startTime = $state('');
   let endTime = $state('');
@@ -68,7 +74,7 @@
       <fieldset disabled={submitting}>
         <div class="field">
           <label for="from">From</label>
-          <select name="from" id="from" required>
+          <select name="from" id="from" required bind:value={from}>
             {#each d.mailboxes as mb}
               <option value={mb.address} selected={mb.id === d.preferredMailboxId}>{mb.display_name ? `${mb.display_name} <${mb.address}>` : mb.address}</option>
             {/each}
@@ -111,7 +117,7 @@
 
         <div class="field">
           <label for="attendees">Attendees</label>
-          <EmailAutocomplete bind:value={attendees} name="attendees" id="attendees" placeholder="recipient@example.com, another@example.com" multi required />
+          <EmailAutocomplete bind:value={attendees} name="attendees" id="attendees" placeholder="recipient@example.com, another@example.com" multi required mailbox={from} />
         </div>
 
         <div class="field">

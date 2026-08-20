@@ -1,5 +1,7 @@
 <!--
-  EmailAutocomplete – typeahead for internal email addresses.
+  EmailAutocomplete – typeahead for internal email addresses, optionally
+  augmented with one mailbox's own recipient suggestion history (Outlook-
+  style "who this mailbox has written to or heard from").
   Props:
     value       – bound two-way string value
     name        – form field name
@@ -7,16 +9,27 @@
     placeholder – input placeholder
     required    – HTML required
     multi       – allow comma-separated list (To/CC mode)
-    types       – optional contact types to include (for example ['user'])
+    types       – optional contact types to include (for example ['user']);
+                  applies to the org directory only, not mailbox history
     oninput     – optional callback when value changes
+    mailbox     – optional mailbox address. When set, suggestions merge in
+                  that mailbox's history via /api/contacts?mailbox=<address>
+                  (re-fetched, and cached per address, whenever this changes)
 -->
 <script>
-  /** @type {{ value: string, name?: string, id?: string, placeholder?: string, required?: boolean, multi?: boolean, types?: string[], oninput?: () => void }} */
-  let { value = $bindable(''), name = '', id = '', placeholder = '', required = false, multi = false, types = [], oninput } = $props();
+  import { matchContacts } from './contact-match';
+
+  /** @type {{ value: string, name?: string, id?: string, placeholder?: string, required?: boolean, multi?: boolean, types?: string[], oninput?: () => void, mailbox?: string }} */
+  let { value = $bindable(''), name = '', id = '', placeholder = '', required = false, multi = false, types = [], oninput, mailbox = '' } = $props();
 
   /** @type {Array<{ email: string; name: string; type: string }>} */
-  let contacts = $state([]);
+  let directory = $state([]);
+  /** @type {import('./contact-match').ContactEntry[]} */
+  let history = $state([]);
   let loaded = $state(false);
+  let loadedKey = $state(/** @type {string | null} */ (null));
+  /** @type {Map<string, import('./contact-match').ContactEntry[]>} */
+  const historyCache = new Map();
   let open = $state(false);
   let activeIdx = $state(-1);
 
@@ -25,12 +38,42 @@
   /** @type {HTMLUListElement | null} */
   let listEl = $state(null);
 
+  /** @param {{ address?: unknown; display_name?: unknown; times_used?: unknown; last_used_at?: unknown }} row */
+  function toContactEntry(row) {
+    return {
+      address: String(row?.address || ''),
+      name: String(row?.display_name || ''),
+      timesUsed: Number(row?.times_used) || 0,
+      lastUsedAt: String(row?.last_used_at || ''),
+    };
+  }
+
   async function ensureLoaded() {
-    if (loaded) return;
+    const key = mailbox || '';
+    if (loaded && loadedKey === key) return;
+    if (key && historyCache.has(key)) {
+      // Directory data is org-wide (not mailbox-specific), so the copy from
+      // whichever fetch loaded it last remains valid; only history varies.
+      history = historyCache.get(key) || [];
+      loaded = true;
+      loadedKey = key;
+      return;
+    }
     loaded = true;
+    loadedKey = key;
     try {
-      const res = await fetch('/api/contacts');
-      if (res.ok) contacts = await res.json();
+      const res = await fetch(key ? `/api/contacts?mailbox=${encodeURIComponent(key)}` : '/api/contacts');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        directory = data;
+        history = [];
+      } else {
+        directory = data.directory || [];
+        const entries = (data.history || []).map(toContactEntry);
+        history = entries;
+        if (key) historyCache.set(key, entries);
+      }
     } catch { /* offline – no suggestions */ }
   }
 
@@ -41,27 +84,25 @@
     return (parts[parts.length - 1] || '').trim().toLowerCase();
   }
 
-  /** @type {Array<{ email: string; name: string; type: string }>} */
+  /** @type {import('./contact-match').ContactEntry[]} */
   let filtered = $derived.by(() => {
     const q = currentToken();
     if (!q || q.length < 1) return [];
-    return contacts.filter(c =>
-      (types.length === 0 || types.includes(c.type)) && (
-        c.email.toLowerCase().includes(q) ||
-        c.name.toLowerCase().includes(q)
-      )
-    ).slice(0, 8);
+    const directoryEntries = directory
+      .filter(c => types.length === 0 || types.includes(c.type))
+      .map(c => ({ address: c.email, name: c.name, timesUsed: 0, lastUsedAt: '' }));
+    return matchContacts([...history, ...directoryEntries], q, 8);
   });
 
-  /** @param {{ email: string; name: string; type: string }} contact */
+  /** @param {import('./contact-match').ContactEntry} contact */
   function pick(contact) {
     if (multi) {
       const parts = value.split(',').map(s => s.trim()).filter(Boolean);
       parts.pop(); // remove the partial token
-      parts.push(contact.email);
+      parts.push(contact.address);
       value = parts.join(', ') + ', ';
     } else {
-      value = contact.email;
+      value = contact.address;
     }
     open = false;
     activeIdx = -1;
@@ -144,13 +185,7 @@
           class:active={i === activeIdx}
           onmousedown={() => pick(c)}
         >
-          <span class="ac-email">{c.email}</span>
-          {#if c.name}
-            <span class="ac-name">{c.name}</span>
-          {/if}
-          {#if c.type === 'shared'}
-            <span class="ac-badge">shared</span>
-          {/if}
+          <span class="ac-label">{c.name ? `${c.name} — ${c.address}` : c.address}</span>
         </li>
       {/each}
     </ul>
@@ -184,7 +219,6 @@
   .ac-list li {
     display: flex;
     align-items: center;
-    gap: 8px;
     padding: 7px 12px;
     cursor: pointer;
     font-size: 13px;
@@ -193,22 +227,9 @@
   .ac-list li.active {
     background: var(--bg-hover, #f3f4f6);
   }
-  .ac-email {
-    font-weight: 500;
-  }
-  .ac-name {
-    color: var(--text-muted, #6b7280);
-    font-size: 12px;
-  }
-  .ac-badge {
-    margin-left: auto;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 1px 6px;
-    border-radius: 3px;
-    background: var(--accent-soft, #dbeafe);
-    color: var(--accent, #2563eb);
-    font-weight: 600;
+  .ac-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 </style>

@@ -4,6 +4,7 @@ import type { Attachment, Mailbox, Message, MessageImportance } from '@cmail/sha
 import { sendNewMailNotifications } from '@cmail/shared/push';
 import { normalizeMessageImportance } from '@cmail/shared/message-importance';
 import { sanitizeParticipantName } from '@cmail/shared/message-participants';
+import { contactUpsertStatements } from '@cmail/shared/contacts';
 import { buildReplyRecipients } from '$lib/server/reply-recipients';
 import {
   releaseMailboxStorageReservations,
@@ -1057,6 +1058,17 @@ export const actions: Actions = {
     if (journal && journalAction === 'materialize') {
       try {
         const partial = await completeAcceptedJournal(journal);
+        // Recipient-suggestion history is best-effort: it must never turn an
+        // already-successful send into a failure response, so its own
+        // failure is swallowed here rather than reaching the outer catch.
+        try {
+          const contactStatements = contactUpsertStatements(
+            env.DB,
+            mailbox.id,
+            [...toResult.recipients, ...ccRecipients].map((address) => ({ address, name: '' })),
+          );
+          if (contactStatements.length) await env.DB.batch(contactStatements);
+        } catch { /* non-fatal: suggestions are best-effort */ }
         throw redirect(303, `/mail?folder=sent${partial ? '&delivery=partial' : ''}`);
       } catch (caught) {
         if (caught && typeof caught === 'object' && 'status' in caught && 'location' in caught) throw caught;

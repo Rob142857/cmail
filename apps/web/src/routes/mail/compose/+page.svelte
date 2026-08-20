@@ -678,12 +678,12 @@
 
     <div class="field">
       <label for="to">To</label>
-      <EmailAutocomplete bind:value={to} name="to" id="to" placeholder="recipient@example.com, another@example.com" required multi oninput={markDirty} />
+      <EmailAutocomplete bind:value={to} name="to" id="to" placeholder="recipient@example.com, another@example.com" required multi mailbox={from} oninput={markDirty} />
     </div>
 
     <div class="field">
       <label for="cc">Cc</label>
-      <EmailAutocomplete bind:value={cc} name="cc" id="cc" placeholder="optional" multi oninput={markDirty} />
+      <EmailAutocomplete bind:value={cc} name="cc" id="cc" placeholder="optional" multi mailbox={from} oninput={markDirty} />
     </div>
 
     {#if externalRecipients.length > 0}

@@ -40,11 +40,6 @@
       <h1>Connect to your {data.orgName || 'organisation'} email</h1>
       <p class="subtitle">Organisational email{data.orgName ? ` for ${data.orgName}` : ' for your organisation'}</p>
 
-      <div class="welcome-message">
-        <strong>One inbox for your personal and shared team mail.</strong>
-        <span>Sign in with your existing Google or Microsoft account.</span>
-      </div>
-
       {#if errorCode && errorMessages[errorCode]}
         <div class="login-error" role="alert">
           {errorMessages[errorCode]}
@@ -58,15 +53,6 @@
           <span>Sign in below using the configured administrator address. This proof expires after 10 minutes.</span>
         </div>
       {/if}
-
-      <div class="trust-message">
-        <p>Sign-in only confirms your identity. It can't access your personal inbox, drive, or search history.</p>
-      </div>
-
-      <a class="mobile-access" href="/help/mobile">
-        <strong>Mobile access</strong>
-        <span>Install {data.appName || 'cmail'} on your phone or tablet.</span>
-      </a>
 
       <div class="providers">
         {#each data.authProviders as provider}
@@ -158,25 +144,6 @@
   .brand-logo { display: block; width: min(240px, 100%); height: auto; max-width: 100%; margin: 0 auto 12px; object-fit: contain; }
   h1 { margin: 0; font-size: 22px; }
   .subtitle { color: var(--text-muted); margin-bottom: 24px; }
-  .welcome-message { display: grid; gap: 3px; margin: -8px 0 18px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-subtle); text-align: left; }
-  .welcome-message strong { font-size: 13px; }
-  .welcome-message span { color: var(--text-muted); font-size: 11px; line-height: 1.45; }
-  .trust-message {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    text-align: left;
-    padding: 12px;
-    background: var(--bg-hover);
-    border-radius: var(--radius);
-    margin-bottom: 24px;
-    font-size: 13px;
-    color: var(--text-muted);
-  }
-  .mobile-access { display: grid; gap: 3px; margin: -10px 0 20px; padding: 12px; border: 1px solid var(--primary); border-radius: var(--radius); background: var(--primary-soft); color: var(--text); text-align: left; text-decoration: none; }
-  .mobile-access:hover { background: color-mix(in srgb, var(--primary-soft) 70%, var(--bg-surface)); }
-  .mobile-access strong { color: var(--primary); font-size: 13px; }
-  .mobile-access span { color: var(--text-muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
   .providers { display: flex; min-width: 0; flex-direction: column; gap: 10px; }
   .provider-btn { flex-direction: column; justify-content: center; padding: 11px 12px; }
   .provider-btn strong { font-size: 15px; }

@@ -81,26 +81,56 @@ function opaqueNotificationId(value: string): string | null {
   return /^[A-Za-z0-9_-]{1,128}$/.test(trimmed) ? trimmed : null;
 }
 
+// Strip ASCII control characters (C0 controls 0-31 and DEL/127) from
+// notification text. Built from character codes so the intent stays
+// unambiguous rather than relying on a dense escape-range literal.
+const CONTROL_CHARACTER_PATTERN = new RegExp(
+  '[' + String.fromCharCode(0) + '-' + String.fromCharCode(31) + String.fromCharCode(127) + ']',
+  'g',
+);
+const NOTIFICATION_TITLE_MAX_LENGTH = 60;
+const NOTIFICATION_BODY_MAX_LENGTH = 120;
+
+function sanitizeNotificationText(value: unknown, maxLength: number): string {
+  return text(value).replace(CONTROL_CHARACTER_PATTERN, '').slice(0, maxLength);
+}
+
 /**
- * Keep lock-screen payloads content-free while retaining enough opaque context
- * to take an authorised recipient to the correct personal or shared mailbox.
+ * Build the lock-screen payload for a new-mail alert. When the caller (see
+ * sendNewMailNotifications) supplies the message's sender and subject, they
+ * become the title and body -- each falls back individually (sender -> app
+ * name, subject -> 'New message') if empty. When sender/subject are omitted
+ * entirely, e.g. because the row lookup failed or was skipped, the alert
+ * falls back to the original generic, content-free text so a lookup problem
+ * never blocks the notification itself. url/tag always carry only opaque
+ * IDs, enough to take an authorised recipient to the correct personal or
+ * shared mailbox.
  */
 export function newMailNotificationPayload(
   appName: string | undefined,
   mailboxId: string,
   messageId: string,
+  sender?: string,
+  subject?: string,
 ): NewMailNotificationPayload | null {
   const mailbox = opaqueNotificationId(mailboxId);
   const message = opaqueNotificationId(messageId);
   if (!mailbox || !message) return null;
-  const title = text(appName).replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 80) || 'cmail';
+  const url = `/mail/${encodeURIComponent(message)}?mailbox=${encodeURIComponent(mailbox)}`;
+  // One tag per opaque delivery suppresses retries without collapsing alerts
+  // for different messages or mailboxes shared with the same person.
+  const tag = `cmail:${mailbox}:${message}`;
+  const appTitle = sanitizeNotificationText(appName, NOTIFICATION_TITLE_MAX_LENGTH) || 'cmail';
+  if (sender === undefined && subject === undefined) {
+    return { title: appTitle, body: 'A new message arrived.', url, tag };
+  }
+  const senderTitle = sanitizeNotificationText(sender, NOTIFICATION_TITLE_MAX_LENGTH);
+  const subjectBody = sanitizeNotificationText(subject, NOTIFICATION_BODY_MAX_LENGTH);
   return {
-    title,
-    body: 'A new message arrived.',
-    url: `/mail/${encodeURIComponent(message)}?mailbox=${encodeURIComponent(mailbox)}`,
-    // One tag per opaque delivery suppresses retries without collapsing alerts
-    // for different messages or mailboxes shared with the same person.
-    tag: `cmail:${mailbox}:${message}`,
+    title: senderTitle || appTitle,
+    body: subjectBody || 'New message',
+    url,
+    tag,
   };
 }
 
@@ -443,8 +473,8 @@ async function deliverSubscriptions(
 }
 
 function testNotificationPayload(appName: string | undefined): NewMailNotificationPayload {
-  const title = text(appName).replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 72) || 'cmail';
-  return { title, body: 'Test alert: notifications are working.', url: '/mail', tag: 'cmail:test:alert' };
+  const title = sanitizeNotificationText(appName, NOTIFICATION_TITLE_MAX_LENGTH) || 'cmail';
+  return { title, body: 'Test alert — notifications are working.', url: '/mail', tag: 'cmail:test:alert' };
 }
 
 export async function sendNewMailNotifications(
@@ -454,7 +484,28 @@ export async function sendNewMailNotifications(
 ): Promise<PushDeliverySummary> {
   const configuration = pushConfiguration(env);
   if (!configuration) return { ...emptyDeliverySummary(), configuration: 1 };
-  const notification = newMailNotificationPayload(env.APP_NAME, mailboxId, messageId);
+  if (!opaqueNotificationId(mailboxId) || !opaqueNotificationId(messageId)) return emptyDeliverySummary();
+
+  // Best-effort lookup of the sender/subject to show on the lock screen.
+  // Any failure here -- including a message row that is not yet visible to
+  // this read -- must fall back to the original generic alert rather than
+  // skip sending or reject the (already-delivered) mail.
+  let sender: string | undefined;
+  let subject: string | undefined;
+  try {
+    const row = await env.DB.prepare(
+      'SELECT subject, from_name, from_address FROM messages WHERE id = ? AND mailbox_id = ? LIMIT 1',
+    ).bind(messageId, mailboxId).first<{ subject: string; from_name: string; from_address: string }>();
+    if (row) {
+      subject = row.subject;
+      sender = row.from_name || row.from_address;
+    }
+  } catch {
+    // Leave sender/subject undefined; newMailNotificationPayload falls back
+    // to the generic alert below.
+  }
+
+  const notification = newMailNotificationPayload(env.APP_NAME, mailboxId, messageId, sender, subject);
   if (!notification) return emptyDeliverySummary();
 
   let subscriptions: StoredPushSubscription[] = [];

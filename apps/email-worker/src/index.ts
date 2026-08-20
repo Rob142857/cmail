@@ -6,6 +6,7 @@ import PostalMime from 'postal-mime';
 import { pushConfigurationDiagnostic, sendNewMailNotifications, type PushEnvironment } from '@cmail/shared/push';
 import { sanitizeBoundedEmailHtml } from '@cmail/shared/sanitize-email';
 import { parseMessageImportance } from '@cmail/shared/message-importance';
+import { contactUpsertStatements } from '@cmail/shared/contacts';
 import {
   normalizeParticipantAddress,
   normalizeParticipants,
@@ -1098,6 +1099,23 @@ export default {
       source_ip: sourceIp,
     });
     ctx.waitUntil(sendNewMailNotifications(env, mailbox.id, messageId));
+
+    // Recipient-suggestion history is a bonus feature layered on top of an
+    // already durably stored message: only the sender is recorded (never
+    // co-recipients, which this mailbox did not choose to contact). Building
+    // the statements is wrapped so it can never throw into this handler, and
+    // the D1 upsert itself runs in the background via waitUntil so a bug
+    // here can never delay or fail mail delivery.
+    try {
+      const contactStatements = contactUpsertStatements(env.DB, mailbox.id, [{ address: headerFrom, name: fromName }]);
+      if (contactStatements.length) {
+        ctx.waitUntil(env.DB.batch(contactStatements).catch((error) => {
+          console.error('Contact upsert failed:', error instanceof Error ? error.message : 'unknown error');
+        }));
+      }
+    } catch (contactError) {
+      console.error('Contact upsert failed:', contactError instanceof Error ? contactError.message : 'unknown error');
+    }
 
     // Calendar invites are a bonus feature layered on top of an already
     // durably stored message: detection/parsing runs synchronously (it is
