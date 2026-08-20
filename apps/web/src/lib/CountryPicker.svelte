@@ -67,8 +67,14 @@
         </span>
       {/each}
     </div>
+    <!-- Clears the selection back to the shipped default (empty list = no
+         restriction). Client-side only: the change persists when the form
+         is saved, exactly like removing chips one by one. -->
+    <button type="button" class="btn btn-subtle reset-default" onclick={() => { chosen = []; }}>
+      Restore default — allow all countries
+    </button>
   {:else}
-    <p class="hint">No restriction — sign-in is allowed from every country.</p>
+    <p class="hint">No restriction — sign-in is allowed from every country. This is the default.</p>
   {/if}
 
   {#each chosen as code (code)}
@@ -78,6 +84,7 @@
 
 <style>
   .country-picker { display: grid; gap: 8px; }
+  .reset-default { justify-self: start; }
   .country-list {
     display: grid;
     gap: 1px;
