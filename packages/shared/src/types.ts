@@ -1,7 +1,14 @@
 // ─── User ─────────────────────────────────────────────────
 export type UserRole = 'standard' | 'manager';
 export type UserStatus = 'pending' | 'active' | 'paused' | 'offboarded';
-export type AuthProvider = 'google' | 'microsoft';
+/**
+ * Every identity provider cmail can bind a user_identities row to. 'email'
+ * is the invitation-scoped one-time-code method (see email-otp.ts) — it is
+ * deliberately NOT a valid value of users.auth_provider below; that column
+ * keeps its original narrower CHECK (see migration 0013's comment for why),
+ * so OTP-only accounts simply leave auth_provider at ''.
+ */
+export type AuthProvider = 'google' | 'microsoft' | 'email';
 
 export interface User {
   id: string;
@@ -9,10 +16,13 @@ export interface User {
   display_name: string;
   role: UserRole;
   status: UserStatus;
-  auth_provider: AuthProvider | '';
+  /** Denormalised OAuth display cache only — never 'email'. See AuthProvider. */
+  auth_provider: 'google' | 'microsoft' | '';
   created_at: string;
   updated_at: string;
   last_sign_in: string | null;
+  /** Country (CF-IPCountry) of the most recent successful sign-in, for email-OTP geo-change auditing. */
+  last_auth_country: string | null;
 }
 
 /** Immutable OpenID Connect identity bound to one cmail user. */

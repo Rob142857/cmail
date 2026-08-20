@@ -85,6 +85,10 @@
         {/each}
       </div>
 
+      {#if data.otpEnabled}
+        <p class="otp-link"><a href="/auth/email">Sign in with an email code</a></p>
+      {/if}
+
       {#if data.authProviders.length === 0}
         <p class="error">No sign-in method is ready. The operator should check APP_URL, SESSION_SECRET, and provider credentials.</p>
       {/if}
@@ -192,6 +196,9 @@
   .microsoft-sign-in:focus-visible { outline: 2px solid #5e5e5e; outline-offset: 2px; }
   .microsoft-sign-in svg { width: 18px; height: 18px; }
   .microsoft-sign-in span { grid-column: 2; grid-row: 1; min-width: 0; overflow-wrap: anywhere; }
+  .otp-link { margin-top: 14px; font-size: 12px; text-align: center; }
+  .otp-link a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
+  .otp-link a:hover { color: var(--text); }
   .error { color: var(--danger); margin-top: 16px; }
   .login-error {
     margin-bottom: 18px;

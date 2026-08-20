@@ -32,7 +32,11 @@
     <img src={data.brandLogoUrl || '/logo.svg'} alt="" class="brand-logo" width="220" height="75" />
     <div class="security-mark" aria-hidden="true">✓</div>
     <h1 id="enrollment-heading">Preparing secure sign-in</h1>
-    <p>Connecting this invitation to your {providerLabel} sign-in.</p>
+    {#if data.provider === 'email'}
+      <p>Getting your invitation ready for email sign-in.</p>
+    {:else}
+      <p>Connecting this invitation to your {providerLabel} sign-in.</p>
+    {/if}
 
     {#if form?.error || missingToken}
       <div class="notice" role="alert">

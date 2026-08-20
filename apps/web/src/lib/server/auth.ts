@@ -54,7 +54,10 @@ function configuredValue(value: string | undefined, maxLength = 1000): string | 
   return trimmed && trimmed.length <= maxLength ? trimmed : null;
 }
 
-export function isAuthProvider(value: string): value is AuthProvider {
+// Deliberately narrower than AuthProvider: this gates the OAuth-only
+// [provider] route param (login/callback), which 'email' never uses — it
+// has its own routes under /auth/email. See AuthProvider's doc comment.
+export function isAuthProvider(value: string): value is 'google' | 'microsoft' {
   return value === 'google' || value === 'microsoft';
 }
 

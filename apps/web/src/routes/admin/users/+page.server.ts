@@ -7,7 +7,7 @@ import { generateInviteEmail } from '$lib/server/invite-email';
 import { detectEmailProvider } from '$lib/server/email-provider';
 import { getEnabledProviders, getProviderConfig } from '$lib/server/auth';
 import { loadOrgSettings } from '$lib/server/org-settings';
-import { publicRuntimeConfig } from '$lib/server/config';
+import { emailOtpEnabled, publicRuntimeConfig } from '$lib/server/config';
 import { issueEnrollmentToken } from '$lib/server/identity';
 import { offboardingCleanupStatements } from '$lib/server/offboarding';
 import {
@@ -47,11 +47,12 @@ function logAdminFailure(action: string, error: unknown): void {
   });
 }
 
-// Managers can only invite addresses cmail can actually authenticate: a
-// Google or Microsoft identity. This resolves which of the two hosts the
-// invitee's mail (well-known consumer domains, then an MX lookup for
-// custom/business domains) and confirms that provider is enabled here
-// before any invitation is built or sent.
+// Managers can invite any address cmail can actually authenticate: a Google
+// or Microsoft identity, resolved by well-known consumer domains then an MX
+// lookup for custom/business domains — or, when neither hosts the address
+// and email one-time-code sign-in is enabled on this deployment, the
+// invitation-scoped OTP method (see routes/auth/email). This confirms the
+// chosen method is actually enabled here before any invitation is built.
 async function guardInviteProvider(
   email: string,
   authEnv: Record<string, string | undefined>,
@@ -59,6 +60,7 @@ async function guardInviteProvider(
   const detection = await detectEmailProvider(email);
 
   if (detection === 'unknown') {
+    if (emailOtpEnabled(authEnv)) return { ok: true, provider: 'email' };
     return {
       ok: false,
       status: 400,
@@ -132,8 +134,11 @@ async function deliverInvite(
   const mailDomain = normalizeDomain(runtime.mailDomain);
   const authEnv = env as unknown as Record<string, string | undefined>;
   const outboundProvider = detectProvider(envRecord);
+  // 'email' has no OAuth client config to check — its readiness gate is
+  // simply whether OTP sign-in is enabled on this deployment.
+  const signInMethodReady = provider === 'email' ? emailOtpEnabled(envRecord) : !!getProviderConfig(provider, authEnv);
 
-  if (!appUrl || !mailDomain || !getProviderConfig(provider, authEnv) || outboundProvider === 'none') {
+  if (!appUrl || !mailDomain || !signInMethodReady || outboundProvider === 'none') {
     return { ok: false, reason: 'configuration' };
   }
 
@@ -513,12 +518,22 @@ export const actions: Actions = {
     if (!userId || !role) return fail(400, { error: 'Invalid role request' });
 
     const user = await env.DB.prepare(
-      'SELECT id, role, status FROM users WHERE id = ?',
-    ).bind(userId).first<Pick<User, 'id' | 'role' | 'status'>>();
+      `SELECT u.id, u.role, u.status,
+              EXISTS (SELECT 1 FROM user_identities i WHERE i.user_id = u.id AND i.provider = 'email') AS has_email_identity,
+              EXISTS (SELECT 1 FROM user_identities i WHERE i.user_id = u.id AND i.provider IN ('google', 'microsoft')) AS has_oauth_identity
+       FROM users u WHERE u.id = ?`,
+    ).bind(userId).first<Pick<User, 'id' | 'role' | 'status'> & { has_email_identity: number; has_oauth_identity: number }>();
     if (!user) return fail(404, { error: 'Account not found' });
     if (user.role === role) return { success: `Account already has the ${role} role` };
     if (userId === locals.user!.id && role !== 'manager') {
       return fail(409, { error: 'You cannot remove your own manager role' });
+    }
+    // Manager access always requires an OAuth identity: email-OTP sign-in
+    // carries none of Google/Microsoft's ongoing 2FA/revocation guarantees.
+    if (role === 'manager' && user.has_email_identity && !user.has_oauth_identity) {
+      return fail(400, {
+        error: 'Manager access requires signing in with Google or Microsoft. Invite this person with a Google or Microsoft account first.',
+      });
     }
 
     const statements = [

@@ -140,6 +140,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         env.DB.prepare(`DELETE FROM sessions WHERE revoked = 1 OR expires_at < datetime('now')`).run(),
         env.DB.prepare(`DELETE FROM rate_limits WHERE expires_at < unixepoch('now')`).run(),
         env.DB.prepare(`DELETE FROM enrollment_tokens WHERE consumed_at IS NOT NULL OR expires_at < unixepoch('now')`).run(),
+        env.DB.prepare(`DELETE FROM auth_otp_codes WHERE expires_epoch < unixepoch('now')`).run(),
         env.DB.prepare(`DELETE FROM send_idempotency WHERE created_at < datetime('now', '-7 days')`).run(),
       ]).then(() => undefined).catch(() => undefined),
     );

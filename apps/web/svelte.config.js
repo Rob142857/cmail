@@ -22,15 +22,20 @@ const config = {
       directives: {
         'default-src': ['self'],
         // 'self' covers /_app/* bundles. Cloudflare Web Analytics beacon is
-        // injected by the Pages edge — allow its host explicitly.
-        'script-src': ['self', 'https://static.cloudflareinsights.com'],
-        'script-src-elem': ['self', 'https://static.cloudflareinsights.com'],
+        // injected by the Pages edge — allow its host explicitly. The
+        // Turnstile host is only ever reached from /auth/email, when the
+        // optional bot check is configured (see turnstile.ts) — its widget
+        // script, the iframe it renders, and its own XHR all need it named
+        // here, or the browser blocks them even though the deployment opted in.
+        'script-src': ['self', 'https://static.cloudflareinsights.com', 'https://challenges.cloudflare.com'],
+        'script-src-elem': ['self', 'https://static.cloudflareinsights.com', 'https://challenges.cloudflare.com'],
         'style-src': ['self', 'unsafe-inline'],
         'img-src': ['self', 'data:', 'https:'],
         'font-src': ['self', 'data:'],
-        // Cloudflare Insights beacon posts to cloudflareinsights.com.
-        'connect-src': ['self', 'https://cloudflareinsights.com', 'https://static.cloudflareinsights.com'],
-        'frame-src': ['self'],
+        // Cloudflare Insights beacon posts to cloudflareinsights.com; Turnstile's
+        // widget verifies itself against challenges.cloudflare.com.
+        'connect-src': ['self', 'https://cloudflareinsights.com', 'https://static.cloudflareinsights.com', 'https://challenges.cloudflare.com'],
+        'frame-src': ['self', 'https://challenges.cloudflare.com'],
         'frame-ancestors': ['none'],
         'base-uri': ['self'],
         // The invitation page POSTs to /enroll/<provider>, which 303s to

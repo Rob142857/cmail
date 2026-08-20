@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { getOAuthCallbackUrl, getProviderConfig, isAuthProvider } from '$lib/server/auth';
 import { BOOTSTRAP_PROOF_COOKIE } from '$lib/server/bootstrap';
+import { emailOtpEnabled } from '$lib/server/config';
 import {
   ENROLLMENT_COOKIE,
   ENROLLMENT_COOKIE_TTL_SECONDS,
@@ -10,8 +11,16 @@ import {
 } from '$lib/server/identity';
 import { consumeRateLimit } from '$lib/server/rate-limit';
 
-function providerReady(provider: string, env: App.Platform['env'] | undefined): provider is 'google' | 'microsoft' {
-  if (!env || !isAuthProvider(provider)) return false;
+type EnrollProvider = 'google' | 'microsoft' | 'email';
+
+// 'email' is accepted here — and only here — alongside the two OAuth
+// providers: this route's whole job is moving a token into a cookie before
+// the next hop, and for an email-OTP invitee that next hop is /auth/email
+// rather than an identity provider's consent screen.
+function providerReady(provider: string, env: App.Platform['env'] | undefined): provider is EnrollProvider {
+  if (!env) return false;
+  if (provider === 'email') return emailOtpEnabled(env as unknown as Record<string, unknown>);
+  if (!isAuthProvider(provider)) return false;
   const authEnv = env as unknown as Record<string, string | undefined>;
   return !!getProviderConfig(provider, authEnv) && !!getOAuthCallbackUrl(env.APP_URL, provider);
 }
@@ -77,6 +86,6 @@ export const actions: Actions = {
       secure: url.protocol === 'https:',
       maxAge: ENROLLMENT_COOKIE_TTL_SECONDS,
     });
-    throw redirect(303, `/auth/login/${params.provider}`);
+    throw redirect(303, params.provider === 'email' ? '/auth/email?enroll=1' : `/auth/login/${params.provider}`);
   },
 };

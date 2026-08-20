@@ -13,9 +13,13 @@ const MAX_TOKEN_AGE_MS = 400 * 24 * 60 * 60 * 1000;
 // its remaining lifetime drops within this margin, so continued use extends
 // access by at most one DB write per session roughly every 6 hours.
 const RENEWAL_THRESHOLD_MS = 6 * 60 * 60 * 1000;
-const SESSION_COOKIE_MAX_AGE_SECONDS = MAX_TOKEN_AGE_MS / 1000; // 34,560,000
+// Exported so routes/auth/email's form actions — which must use SvelteKit's
+// cookies.set() rather than a raw Set-Cookie header, since a form action
+// can't return a Response the way the OAuth callback's +server.ts does —
+// can issue an identical cookie without duplicating its name/lifetime here.
+export const SESSION_COOKIE_MAX_AGE_SECONDS = MAX_TOKEN_AGE_MS / 1000; // 34,560,000
 const ENCODER = new TextEncoder();
-const SESSION_COOKIE = 'cmail_session';
+export const SESSION_COOKIE = 'cmail_session';
 
 export async function createSessionToken(
   userId: string,

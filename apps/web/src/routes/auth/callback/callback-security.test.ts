@@ -61,6 +61,7 @@ const returningUser: User = {
   created_at: '2026-08-03 00:00:00',
   updated_at: '2026-08-03 00:00:00',
   last_sign_in: null,
+  last_auth_country: null,
 };
 
 function fakeDb(options: { existingManager?: { id: string } | null; enrolledUser?: User | null } = {}) {

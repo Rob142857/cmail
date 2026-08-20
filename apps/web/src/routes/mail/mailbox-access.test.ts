@@ -59,6 +59,7 @@ function locals(role: 'standard' | 'manager' = 'standard'): App.Locals {
       created_at: '2026-01-01 00:00:00',
       updated_at: '2026-01-01 00:00:00',
       last_sign_in: null,
+      last_auth_country: null,
     },
     sessionId: 'session-1',
   };

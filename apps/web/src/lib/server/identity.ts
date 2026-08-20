@@ -125,13 +125,16 @@ export async function bindEnrolledIdentity(
        SELECT ?, ?, ?, datetime('now') WHERE changes() = 1`,
     ).bind(provider, subject, enrollment.user_id),
     db.prepare(
+      // users.auth_provider's CHECK only allows '', 'google', or 'microsoft'
+      // (see migration 0013's comment) — an 'email' identity leaves it
+      // untouched rather than writing a value the column would reject.
       `UPDATE users
-       SET auth_provider = ?,
+       SET auth_provider = CASE WHEN ? = 'email' THEN auth_provider ELSE ? END,
            display_name = CASE WHEN display_name = '' THEN ? ELSE display_name END,
            status = CASE WHEN status = 'pending' THEN 'active' ELSE status END,
            updated_at = datetime('now')
        WHERE id = ? AND changes() = 1`,
-    ).bind(provider, displayName.slice(0, 200), enrollment.user_id),
+    ).bind(provider, provider, displayName.slice(0, 200), enrollment.user_id),
   ]);
   if (!results[0]?.meta.changes || !results[1]?.meta.changes || !results[2]?.meta.changes) {
     throw new Error('Enrollment identity binding did not complete');

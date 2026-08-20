@@ -51,6 +51,25 @@ describe('generateInviteEmail', () => {
     expect(invite.text).toContain('only the newest link works');
   });
 
+  it('renders a single email-code activation link for an unknown-host invitee', () => {
+    const invite = generateInviteEmail({
+      ...baseInvite,
+      provider: 'email',
+    });
+
+    const expectedLink = 'https://mail.example.com/enroll/email#token=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ';
+    expect(invite.html).toContain(expectedLink);
+    expect(invite.html).toContain('Activate your mailbox');
+    expect(invite.html).toContain("You'll sign in with a one-time code sent to this address — no password needed.");
+    expect(invite.html.match(/\/enroll\/email#token=/g)).toHaveLength(1);
+    expect(invite.html).not.toContain('/enroll/google');
+    expect(invite.html).not.toContain('/enroll/microsoft');
+    expect(invite.html.match(/class="btn"/g)).toHaveLength(1);
+
+    expect(invite.text).toContain(`Activate your mailbox: ${expectedLink}`);
+    expect(invite.text).toContain("You'll sign in with a one-time code sent to this address — no password needed.");
+  });
+
   it('renders exactly one call-to-action button', () => {
     const invite = generateInviteEmail({ ...baseInvite, provider: 'google' });
     expect(invite.html.match(/class="btn"/g)).toHaveLength(1);

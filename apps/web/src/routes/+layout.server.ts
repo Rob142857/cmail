@@ -1,6 +1,6 @@
 import type { LayoutServerLoad } from './$types';
 import { getEnabledProviders } from '$lib/server/auth';
-import { publicRuntimeConfig } from '$lib/server/config';
+import { emailOtpEnabled, publicRuntimeConfig } from '$lib/server/config';
 import { loadOrgSettings } from '$lib/server/org-settings';
 
 export const load: LayoutServerLoad = async ({ locals, platform }) => {
@@ -11,6 +11,7 @@ export const load: LayoutServerLoad = async ({ locals, platform }) => {
       appName: 'cmail',
       appUrl: '',
       authProviders: [],
+      otpEnabled: false,
       supportEmail: '',
       orgName: '',
       orgUrl: '',
@@ -40,5 +41,6 @@ export const load: LayoutServerLoad = async ({ locals, platform }) => {
     landingUrl: settings.landingUrl,
     supportEmail: settings.supportEmail,
     authProviders: getEnabledProviders(env as unknown as Record<string, string | undefined>),
+    otpEnabled: emailOtpEnabled(env as unknown as Record<string, unknown>),
   };
 };

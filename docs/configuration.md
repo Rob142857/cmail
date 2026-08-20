@@ -52,6 +52,26 @@ An ordinary user's first sign-in needs a manager-issued enrolment invitation. Pr
 
 Creating a user without sending an invitation leaves the account pending and unbound on purpose. A manager must use **Resend invitation** before that person can enrol; resending rotates the token and invalidates the previous link. Used or expired links, email mismatches, a subject already bound to another user, or an account already bound to a different identity all fail closed. Investigate the conflict and issue a fresh invitation rather than changing an email just to bypass it.
 
+## Email one-time-code sign-in
+
+A third, invitation-scoped sign-in method for people whose mail is hosted by neither Google nor Microsoft — never self-serve. It's on by default; set `EMAIL_OTP_ENABLED=false` to remove it entirely (the landing-page link disappears and `/auth/email` redirects away).
+
+| Variable | Required | Secret | Description |
+|---|---:|---:|---|
+| `EMAIL_OTP_ENABLED` | No | No | `false` disables the whole method; any other value (including unset) enables it |
+| `TURNSTILE_SITE_KEY` | No | No | Public Cloudflare Turnstile site key for the code-request form's optional bot check |
+| `TURNSTILE_SECRET_KEY` | No | Yes | Matching Turnstile secret; both must be present for the widget to appear |
+| `AUTH_OTP_ALLOWED_COUNTRIES` | No | No | Comma-separated ISO 3166-1 alpha-2 allowlist (e.g. `AU,NZ`) checked against `CF-IPCountry`; blank allows every country |
+| `OTP_SESSION_TTL_HOURS` | No | No | Hard cap, in hours, on an email-OTP session's lifetime regardless of `SESSION_TTL_HOURS`. Default 168 (7 days); accepted range 1-9600 |
+
+When a manager invites an address that `detectEmailProvider` can't resolve to Google or Microsoft (a custom domain hosted elsewhere, or one that fails MX resolution as unknown), the invitation offers this method instead of refusing outright — the single "Activate your mailbox" button leads to `/enroll/email#token=...`, worded to say a one-time code is coming rather than naming a provider. With `EMAIL_OTP_ENABLED=false`, an unresolvable address still can't be invited at all, exactly as before this feature existed.
+
+An address only ever receives a code when it's the invited address of a live, unconsumed invitation (first sign-in) or already has a bound email identity (return sign-in) — every other outcome, including a wrong code, an expired one, a disallowed country, a failed Turnstile check, or simply not being registered, produces the identical response: "If this address is registered for email sign-in, a code is on its way." for a request, "That code didn't work or has expired." for a code that doesn't verify. Nothing in either response, its HTTP status, or its cookies varies by reason — only the audit log (`otp.requested`, `otp.sent`, `otp.verify_ok`, `otp.verify_failed`, `otp.locked`, `otp.geo_refused`, `otp.turnstile_failed`) records what actually happened, and it never records the address itself, matching this deployment's existing audit convention of referencing accounts only by ID.
+
+Codes are 8 random digits, HMAC-hashed at rest with `SESSION_SECRET` (never stored in the clear), expire after 5 minutes, and die after 5 attempts. A signed, `HttpOnly` proof cookie binds one browser's code request to its verification attempt, mirroring the bootstrap proof cookie's mechanics; verification checks that cookie and the stored code agree on a per-request identifier before it will even look at the submitted digits. A successful sign-in from a country different to the account's last one is flagged with an `auth.otp.country_changed` audit entry.
+
+The manager role always requires an OAuth identity: inviting an unresolvable address still lets a manager pick the standard or manager role, but promoting an email-OTP-only account to manager is refused, and — belt and suspenders — the verify step itself will never grant a session to a manager account whose only identity is an email code, auditing `auth.otp.manager_blocked` if that combination is ever seen. An OTP-issued session is also capped to `OTP_SESSION_TTL_HOURS` regardless of the configured `SESSION_TTL_HOURS`, since this identity carries none of an OAuth account's ongoing 2FA or revocation guarantees.
+
 ## Optional Web Push
 
 Browser new-mail notifications stay off unless all three VAPID (keys that authenticate your server to push services) values are valid and present. The deployed app needs HTTPS (localhost is fine for local development). Generate one pair from the repository root:

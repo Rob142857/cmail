@@ -36,6 +36,7 @@ export function generateInviteEmail(options: InviteEmailOptions): { subject: str
   const providerSentences: Record<AuthProvider, string> = {
     google: "You'll sign in with the Google account this invitation was sent to.",
     microsoft: "You'll sign in with the Microsoft account this invitation was sent to (work, school, or personal).",
+    email: "You'll sign in with a one-time code sent to this address — no password needed.",
   };
   const providerSentence = providerSentences[provider];
   const enrollmentFragment = encodeURIComponent(enrollmentToken);
