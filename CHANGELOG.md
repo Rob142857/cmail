@@ -30,6 +30,10 @@ Notable changes to cmail are recorded here. The project follows
   never see who was blind-copied, deduplication against To and Cc, a
   combined recipient cap, the sender's own sent-copy view of who was
   Bcc'd, and replies that never inherit the original Bcc list.
+- Inbound spam scoring and quarantine: the boundary's spam score is recorded
+  on every message and in Mail trace, quarantine engages only at an explicit
+  operator-set threshold, organisation-wide sender allow/block rules always
+  apply, and a Manager release page restores quarantined mail to the inbox.
 - An in-app and public support process with trained internal Level 1 triage,
   safe evidence handling, RME Solutions Technology Level 2 escalation, and a
   clear boundary between defects, agreed operational support, and quoted work.
