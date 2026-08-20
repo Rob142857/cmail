@@ -8,7 +8,7 @@
 <script>
   import Icon from './Icon.svelte';
   import Persona from './Persona.svelte';
-  import { stopPushBeforeSignOut } from '$lib/push-client';
+  import { submitSignOut } from '$lib/sign-out';
 
   /**
    * @type {{
@@ -48,8 +48,10 @@
     event.preventDefault();
     if (signingOut) return;
     signingOut = true;
-    await stopPushBeforeSignOut();
-    /** @type {HTMLFormElement} */ (event.currentTarget).submit();
+    // Captured before the first await: currentTarget is null once the event has
+    // finished dispatching, and reading it then would throw.
+    const form = /** @type {HTMLFormElement} */ (event.currentTarget);
+    await submitSignOut(form);
   }
 </script>
 

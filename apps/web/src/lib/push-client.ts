@@ -96,9 +96,11 @@ export async function setPushPreference(value: 'on' | 'off'): Promise<void> {
  * prevents future alerts, and an expired endpoint is also purged on 404/410.
  */
 export async function stopPushBeforeSignOut(): Promise<void> {
-  const deviceId = await pushDeviceId();
-  await setPushPreference('off');
+  // Device-ID storage and preference writes can both throw when IndexedDB or
+  // localStorage is unavailable, so they sit inside the same guard as the rest.
   try {
+    const deviceId = await pushDeviceId();
+    await setPushPreference('off');
     const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : undefined;
     const subscription = await registration?.pushManager.getSubscription();
 
