@@ -81,8 +81,8 @@
     <strong>{currentItem.label}</strong>
   </span>
   <span class="cmd-spacer"></span>
-  <a href="/help/managers" class="cmd"><span class="cmd-icon"><Icon name="help" /></span>Manager handbook</a>
-  <a href="/help/standards" class="cmd"><span class="cmd-icon"><Icon name="shieldCheck" /></span>Standards &amp; assurance</a>
+  <a href="/help/managers" class="cmd" aria-label="Manager handbook"><span class="cmd-icon"><Icon name="help" /></span><span class="cmd-label">Manager handbook</span></a>
+  <a href="/help/standards" class="cmd" aria-label="Standards and assurance"><span class="cmd-icon"><Icon name="shieldCheck" /></span><span class="cmd-label">Standards &amp; assurance</span></a>
 {/snippet}
 
 <AppShell
@@ -179,7 +179,9 @@
   .nav-item-stacked .nav-label { white-space: normal; }
 
   .return-link { color: var(--text-muted); }
-  .crumb { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; color: var(--text-muted); }
+  .crumb { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; font-size: 13px; color: var(--text-muted); }
+  .crumb > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .crumb :global(svg) { flex: 0 0 auto; }
   .crumb strong { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .crumb :global(svg) { color: var(--text-faint); }
 </style>

@@ -836,6 +836,7 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
 .cmd-spacer { flex: 1 1 auto; }
 .cmd {
   display: inline-flex; align-items: center; gap: 8px;
+  flex: 0 0 auto;
   min-height: 32px; padding: 4px 10px;
   border: 1px solid transparent; border-radius: var(--radius);
   background: transparent; color: var(--text);
@@ -847,6 +848,10 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
 .cmd:active { background: var(--bg-active); }
 .cmd[disabled], .cmd[aria-disabled='true'] { color: var(--text-disabled); pointer-events: none; }
 .cmd-icon { color: var(--primary); flex: 0 0 auto; }
+/* On phones the bar keeps icon-only commands so the breadcrumb stays readable. */
+@media (max-width: 600px) {
+  .cmd .cmd-label { display: none; }
+}
 .cmd:hover .cmd-icon { color: var(--primary-hover); }
 .cmd-danger .cmd-icon { color: var(--danger); }
 .cmd-danger:hover { background: var(--danger-soft); }
