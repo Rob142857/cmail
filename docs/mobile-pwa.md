@@ -62,6 +62,10 @@ cmail checks for updates when it opens, comes to the foreground, regains focus o
 
 Removing a Home Screen icon does not sign you out or end your session. To restore it, go back to the organisation's cmail URL and repeat the install steps.
 
+## Stay signed in
+
+An installed cmail app stays signed in as long as you keep using it — opening it regularly quietly extends your session, so there's no fixed day when it signs you out on its own. It only signs out if you sign out yourself, don't open it for an extended period your operator has configured, or a manager pauses or offboards your account — those end access right away, on every device, no matter how recently you used it.
+
 ## Troubleshooting
 
 ### The New-mail alerts control is missing
@@ -77,7 +81,7 @@ Your browser or device has blocked the permission. Re-enable notifications for t
 
 ### The control says On but no alert appears
 
-1. Select **Send test alert** next to the enabled control. You can do this up to three times per hour, and it only tests your current browser/device. "Accepted" means the push service accepted cmail's request — it does not prove your device actually showed an alert.
+1. Select **Send test alert** next to the enabled control. You can do this up to three times per hour, and it only tests your current browser/device. The test now checks both halves of the setup: your browser subscription ("Accepted" means the push service took cmail's request — it does not prove your device actually showed an alert) and, separately, whether the server side that sends real new-mail alerts is configured. If it reports the test was sent but adds that server-side alerts aren't configured, your browser and account are fine — the mail-delivery Worker specifically is missing its Web Push (VAPID) setup, which is configured independently of the web app. Ask the operator to check that runtime.
 2. Check Chrome's site permission, Android's app notification permission, Focus, Do Not Disturb, notification summaries, battery/data restrictions, and any manufacturer background-app controls.
 3. Open cmail and select **Refresh**. If the message is there, the problem is with notifications, not mail delivery.
 4. If the message is missing, ask a manager to check Mail trace and mailbox status. If the message is there but alerts still fail, ask the operator to check the Web Push setup and delivery.

@@ -5,6 +5,7 @@ This page is the map for all cmail documentation. cmail is pre-1.0 software: ope
 ## Use cmail
 
 - [User guide](user-guide.md) — for anyone reading and sending mail. First sign-in, navigation, reading, composing, folders, safety, and support.
+- [Calendar](calendar.md) — for anyone sending or receiving meeting invitations. Accepting and declining, creating a meeting, cancelling, and what's not included yet.
 - [Mobile app and notifications](mobile-pwa.md) — for anyone on iPhone, iPad, or Android. Installing cmail and turning on new-mail alerts, plus troubleshooting.
 - [Push notification reliability blueprint](push-notification-reliability.md) — for engineers planning ahead. A design, not yet built, for a more durable notification pipeline.
 - [Mail client connectivity architecture](mail-client-connectivity.md) — for anyone asking "can I use Outlook or Gmail instead?". The current PWA-only boundary and the staged plan for JMAP and optional IMAP support.

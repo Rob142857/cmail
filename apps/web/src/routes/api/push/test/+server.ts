@@ -7,14 +7,58 @@ const RESPONSE_HEADERS = { 'Cache-Control': 'private, no-store' };
 const TEST_LIMIT = 3;
 const TEST_WINDOW_SECONDS = 60 * 60;
 const MAX_REQUEST_BYTES = 4_096;
+const WORKER_DIAGNOSTIC_TIMEOUT_MS = 3_000;
+
+type WorkerPushStatus = 'ready' | 'vapid_not_configured' | 'vapid_invalid' | 'unreachable';
 
 function deviceId(value: unknown): value is string {
   return typeof value === 'string'
     && /^[a-f\d]{8}-[a-f\d]{4}-[1-5][a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/i.test(value);
 }
 
-function response(result: string, status: number, diagnostic?: string, extraHeaders: Record<string, string> = {}) {
-  return json({ result, ...(diagnostic ? { diagnostic } : {}) }, { status, headers: { ...RESPONSE_HEADERS, ...extraHeaders } });
+function response(
+  result: string,
+  status: number,
+  diagnostic?: string,
+  extraHeaders: Record<string, string> = {},
+  extraBody: Record<string, unknown> = {},
+) {
+  return json(
+    { result, ...extraBody, ...(diagnostic ? { diagnostic } : {}) },
+    { status, headers: { ...RESPONSE_HEADERS, ...extraHeaders } },
+  );
+}
+
+/**
+ * The web runtime's own VAPID configuration (checked above via
+ * pushConfigurationDiagnostic) only proves this half of push is set up. Real
+ * new-mail alerts are sent by the email Worker runtime, which holds its own,
+ * independently-configured copy of the same VAPID keys. This asks that
+ * runtime for its own three-state diagnostic over the private service
+ * binding, mirroring how lib/server/outbound.ts's sendViaCloudflareService
+ * reaches the same Worker for outbound mail. Best-effort: an unreachable or
+ * slow Worker must never fail the (already-sent) web-side test.
+ */
+async function workerPushDiagnostic(env: App.Platform['env']): Promise<WorkerPushStatus> {
+  const service = env.EMAIL_SERVICE;
+  if (!service || typeof service.fetch !== 'function') return 'unreachable';
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), WORKER_DIAGNOSTIC_TIMEOUT_MS);
+  try {
+    const result = await service.fetch('https://cmail-email-worker.internal/internal/push-diagnostic', {
+      method: 'POST',
+      signal: controller.signal,
+    });
+    if (!result.ok) return 'unreachable';
+    const data = await result.json() as { status?: unknown };
+    return data.status === 'ready' || data.status === 'vapid_not_configured' || data.status === 'vapid_invalid'
+      ? data.status
+      : 'unreachable';
+  } catch {
+    return 'unreachable';
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function readTarget(request: Request): Promise<{ endpoint?: unknown; device_id?: unknown }> {
@@ -53,7 +97,12 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
   if (!rate.allowed) return response('rate_limited', 429, undefined, { 'Retry-After': String(rate.retryAfter) });
 
   const summary = await sendTestPushNotification(env, locals.user.id, payload.device_id, payload.endpoint);
-  if (summary.accepted > 0) return response('accepted', 200);
+  if (summary.accepted > 0) {
+    // Only worth asking once the web half actually sent something — the
+    // client only surfaces this on top of a successful "Accepted" result.
+    const workerPush = await workerPushDiagnostic(env);
+    return response('accepted', 200, undefined, {}, { workerPush });
+  }
   if (summary.configuration > 0) return response('configuration', 503, 'push_configuration_rejected');
   if (summary.retryable > 0) return response('transient', 503, 'push_service_unavailable');
   if (summary.expired > 0) return response('expired', 409);

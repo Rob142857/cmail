@@ -20,8 +20,12 @@ function database(count = 1) {
 
 const target = { endpoint: 'https://fcm.googleapis.com/fcm/send/device-1', device_id: '3f1263cc-7ba2-4d7a-bc3f-e83f2b744a89' };
 
-function event(DB = database()) {
-  return { request: new Request('https://mail.example.test/api/push/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(target) }), locals: { user }, platform: { env: { DB } } } as never;
+function event(DB = database(), EMAIL_SERVICE?: { fetch: typeof fetch }) {
+  return {
+    request: new Request('https://mail.example.test/api/push/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(target) }),
+    locals: { user },
+    platform: { env: { DB, ...(EMAIL_SERVICE ? { EMAIL_SERVICE } : {}) } },
+  } as never;
 }
 
 describe('push test alert API', () => {
@@ -64,7 +68,14 @@ describe('push test alert API', () => {
     vi.mocked(sendTestPushNotification).mockResolvedValueOnce(summary as never);
     const response = await POST(event());
     expect(response.status).toBe(status);
-    await expect(response.json()).resolves.toEqual({ result, ...(diagnostic ? { diagnostic } : {}) });
+    await expect(response.json()).resolves.toEqual({
+      result,
+      ...(diagnostic ? { diagnostic } : {}),
+      // Only the accepted path asks the Worker runtime for its own push
+      // diagnostic; with no EMAIL_SERVICE binding configured in this event,
+      // that ask is unreachable.
+      ...(result === 'accepted' ? { workerPush: 'unreachable' } : {}),
+    });
     expect(sendTestPushNotification).toHaveBeenCalledWith(expect.anything(), user.id, target.device_id, target.endpoint);
   });
 
@@ -76,5 +87,41 @@ describe('push test alert API', () => {
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toEqual({ result: 'configuration', diagnostic: 'vapid_not_configured' });
     expect(sendTestPushNotification).not.toHaveBeenCalled();
+  });
+
+  describe('worker-runtime push diagnostic', () => {
+    const acceptedSummary = { attempted: 1, accepted: 1, expired: 0, configuration: 0, retryable: 0, rejected: 0, invalid: 0 };
+
+    it('reports the Worker runtime status alongside a successfully sent test', async () => {
+      vi.mocked(sendTestPushNotification).mockResolvedValueOnce(acceptedSummary as never);
+      const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: 'vapid_invalid' }), { status: 200 }));
+
+      const response = await POST(event(database(), { fetch }));
+
+      await expect(response.json()).resolves.toEqual({ result: 'accepted', workerPush: 'vapid_invalid' });
+      expect(fetch).toHaveBeenCalledWith(
+        'https://cmail-email-worker.internal/internal/push-diagnostic',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+
+    it('reports unreachable when the service binding throws, times out, or returns nonsense', async () => {
+      vi.mocked(sendTestPushNotification).mockResolvedValueOnce(acceptedSummary as never);
+      const rejecting = vi.fn().mockRejectedValue(new Error('boom'));
+
+      const response = await POST(event(database(), { fetch: rejecting }));
+
+      await expect(response.json()).resolves.toEqual({ result: 'accepted', workerPush: 'unreachable' });
+    });
+
+    it('never lets a Worker-runtime failure downgrade the already-sent web result', async () => {
+      vi.mocked(sendTestPushNotification).mockResolvedValueOnce(acceptedSummary as never);
+      const notOk = vi.fn().mockResolvedValue(new Response('nope', { status: 500 }));
+
+      const response = await POST(event(database(), { fetch: notOk }));
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({ result: 'accepted', workerPush: 'unreachable' });
+    });
   });
 });

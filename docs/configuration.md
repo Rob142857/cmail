@@ -220,10 +220,12 @@ The configuration layer defines bounded values for:
 | `OUTBOUND_WORK_LIMIT_PER_HOUR` | 600 | 1–1000 |
 | `DRAFT_SAVE_RATE_PER_HOUR` | 300 | 1–2000 |
 | `MAX_DRAFTS_PER_MAILBOX_USER` | 100 | 1–1000 |
-| `SESSION_TTL_HOURS` | 8 | 1–168 |
+| `SESSION_TTL_HOURS` | 8 | 1–9600 |
 | `MAX_SESSIONS_PER_USER` | 5 | 1–20 |
 
 Keep limits conservative until workload, provider, abuse, and recovery behavior have been tested.
+
+`SESSION_TTL_HOURS` is an inactivity window, not a fixed sign-in length. Each time a signed-in request is used, its session's expiry silently slides forward by up to this many hours (at most once every roughly six hours per session), so a session only ends on its own after this long with no activity at all. Sign-out, an administrator pausing the account, and offboarding all still end access immediately, regardless of this setting. The 9,600-hour (400-day) ceiling matches the session cookie's own fixed lifetime, which browsers such as Chrome cap at 400 days regardless of what a site requests. A short value (the 8-hour default) forces regular re-authentication; a longer one such as 720 (30 days) gives a "stay signed in" experience that suits most organisations, especially for an installed/PWA device that is used often.
 
 The message-count limit applies to every submitted send, including internal-only mail. The workload limit charges the greatest of recipient count, aggregate recipient-payload MiB, or the number of R2 body/attachment objects created — so a many-recipient or attachment-heavy send costs more than a small one-recipient message.
 

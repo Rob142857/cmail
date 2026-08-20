@@ -11,6 +11,7 @@
   let denied = $state(false);
   let message = $state('');
   let diagnostic = $state('');
+  let workerWarning = $state('');
 
   function subscriptionUsesCurrentKey(subscription: PushSubscription): boolean {
     return subscriptionUsesCurrentVapidKey(subscription.options.applicationServerKey, publicKey);
@@ -132,6 +133,7 @@
     busy = true;
     message = '';
     diagnostic = '';
+    workerWarning = '';
     let created: PushSubscription | null = null;
     try {
       const permission = await Notification.requestPermission();
@@ -160,6 +162,7 @@
     busy = true;
     message = '';
     diagnostic = '';
+    workerWarning = '';
     await setPushPreference('off');
     try {
       const registration = await navigator.serviceWorker.ready;
@@ -191,6 +194,7 @@
     busy = true;
     message = '';
     diagnostic = '';
+    workerWarning = '';
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
@@ -200,7 +204,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ endpoint: subscription.endpoint, device_id: await pushDeviceId() }),
       });
-      const result = await response.json().catch(() => ({})) as { result?: string; diagnostic?: string };
+      const result = await response.json().catch(() => ({})) as { result?: string; diagnostic?: string; workerPush?: string };
       const messages: Record<string, string> = {
         accepted: 'Test alert sent. It may take a moment to arrive.',
         configuration: 'The notification service rejected the server setup. Ask an operator to check VAPID keys.',
@@ -213,6 +217,13 @@
       message = messages[result.result || ''] || 'Test alert could not be sent.';
       diagnostic = typeof result.diagnostic === 'string' && /^[a-z_]{3,64}$/.test(result.diagnostic)
         ? result.diagnostic
+        : '';
+      // Only meaningful once a test was actually sent: real new-mail alerts
+      // come from a second runtime (the mail-delivery Worker) with its own,
+      // separately-configured VAPID keys, so a successful browser test does
+      // not by itself prove that runtime is ready.
+      workerWarning = result.result === 'accepted' && typeof result.workerPush === 'string' && result.workerPush !== 'ready'
+        ? 'Test sent, but new-mail alerts from the server are not configured.'
         : '';
     } catch {
       message = 'Test alert could not be sent. Check your connection and try again.';
@@ -243,7 +254,14 @@
       <button type="button" class="btn btn-sm btn-secondary" disabled={busy} onclick={sendTestAlert}>Send test alert</button>
     {/if}
     {#if message}<p role="status">{message}</p>{/if}
+    {#if workerWarning}<p role="status">{workerWarning}</p>{/if}
     {#if diagnostic}<p class="push-diagnostic">Diagnostic: <code>{diagnostic}</code>. Share with your operator — it holds no credentials.</p>{/if}
+  </section>
+{:else if !publicKey}
+  <section class="push-control" aria-labelledby="push-title">
+    <div>
+      <span id="push-title">Notifications are not set up for this organisation yet.</span>
+    </div>
   </section>
 {/if}
 

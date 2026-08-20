@@ -1,7 +1,7 @@
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import type { User } from '@cmail/shared/types';
-import { assertStrongSessionSecret, publicRuntimeConfig } from '$lib/server/config';
-import { clearSessionCookie, getSessionTokenFromCookie, hashToken, verifySessionToken } from '$lib/server/session';
+import { assertStrongSessionSecret, publicRuntimeConfig, sessionTtlMs } from '$lib/server/config';
+import { clearSessionCookie, getSessionTokenFromCookie, hashToken, shouldRenewSession, verifySessionToken } from '$lib/server/session';
 
 function appendVary(headers: Headers, value: string): void {
   const values = new Set(
@@ -63,9 +63,9 @@ export const handle: Handle = async ({ event, resolve }) => {
       if (verified) {
         const tokenHash = await hashToken(token);
         const session = await env.DB.prepare(
-          `SELECT id, user_id FROM sessions
+          `SELECT id, user_id, expires_at FROM sessions
            WHERE token_hash = ? AND revoked = 0 AND expires_at > datetime('now')`,
-        ).bind(tokenHash).first<{ id: string; user_id: string }>();
+        ).bind(tokenHash).first<{ id: string; user_id: string; expires_at: string }>();
 
         if (session && session.id === verified.sessionId && session.user_id === verified.userId) {
           const user = await env.DB.prepare(
@@ -74,6 +74,26 @@ export const handle: Handle = async ({ event, resolve }) => {
           if (user) {
             event.locals.user = user;
             event.locals.sessionId = session.id;
+
+            // Sliding session: the DB row's expires_at is the only expiry
+            // authority (the token itself carries none). Push it back out to
+            // a fresh TTL once it nears expiry so continued use keeps a
+            // session alive; sign-out, pause, and offboarding still revoke it
+            // immediately elsewhere. Best-effort and isolated from the outer
+            // catch below — a renewal failure must never clear a valid cookie.
+            try {
+              const ttlMs = sessionTtlMs(env as unknown as Record<string, unknown>);
+              if (shouldRenewSession(Date.parse(session.expires_at), Date.now(), ttlMs)) {
+                const ttlHours = Math.max(1, Math.round(ttlMs / (60 * 60 * 1000)));
+                event.platform?.context.waitUntil(
+                  env.DB.prepare(
+                    `UPDATE sessions SET expires_at = datetime('now', '+' || ? || ' hours') WHERE id = ?`,
+                  ).bind(ttlHours, session.id).run().catch(() => undefined),
+                );
+              }
+            } catch {
+              // Renewal is best-effort; never break the request over it.
+            }
           }
         }
       }

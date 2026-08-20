@@ -1,7 +1,19 @@
-// Session management: JWT-like tokens stored in D1
-// Uses Web Crypto for HMAC-SHA256 signing (available in Workers)
+// Session management: JWT-like tokens whose signature is verified locally,
+// backed by a D1 session row that is the sole authority on expiry (sliding
+// TTL — see shouldRenewSession below). Uses Web Crypto for HMAC-SHA256
+// signing (available in Workers).
 
 const DEFAULT_SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
+// The token carries no expiry of its own — the DB row does — but a token
+// claiming to be impossibly old can never match a live, non-expired row
+// anyway. This sanity bound just rejects that shape early, and doubles as the
+// upper edge matching the cookie's own fixed 400-day Max-Age (Chrome's cap).
+const MAX_TOKEN_AGE_MS = 400 * 24 * 60 * 60 * 1000;
+// Sliding-renewal threshold: a session is pushed back out to a fresh TTL once
+// its remaining lifetime drops within this margin, so continued use extends
+// access by at most one DB write per session roughly every 6 hours.
+const RENEWAL_THRESHOLD_MS = 6 * 60 * 60 * 1000;
+const SESSION_COOKIE_MAX_AGE_SECONDS = MAX_TOKEN_AGE_MS / 1000; // 34,560,000
 const ENCODER = new TextEncoder();
 const SESSION_COOKIE = 'cmail_session';
 
@@ -11,8 +23,11 @@ export async function createSessionToken(
   durationMs = DEFAULT_SESSION_DURATION_MS,
 ): Promise<{ token: string; hash: string; expiresAt: Date; sessionId: string }> {
   const sessionId = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + durationMs);
-  const payload = `${sessionId}.${userId}.${expiresAt.getTime()}`;
+  const issuedAt = Date.now();
+  // durationMs seeds the DB row's expires_at (the real expiry authority) but
+  // is intentionally not embedded in the token itself.
+  const expiresAt = new Date(issuedAt + durationMs);
+  const payload = `${sessionId}.${userId}.${issuedAt}`;
 
   const key = await crypto.subtle.importKey(
     'raw',
@@ -32,18 +47,22 @@ export async function createSessionToken(
   return { token, hash, expiresAt, sessionId };
 }
 
-export async function verifySessionToken(token: string, secret: string): Promise<{ sessionId: string; userId: string; expiresAt: Date } | null> {
+/**
+ * Verifies signature and shape only. Expiry is intentionally not this
+ * function's job — the caller must still check the D1 session row's
+ * expires_at, which is the only authority for whether a session is live.
+ */
+export async function verifySessionToken(token: string, secret: string): Promise<{ sessionId: string; userId: string; issuedAt: Date } | null> {
   if (!token || token.length > 1024 || !secret) return null;
   const parts = token.split('.');
   if (parts.length !== 4) return null;
 
-  const [sessionId, userId, expiresStr, sigHex] = parts;
-  if (!sessionId || !userId || !/^\d{10,16}$/.test(expiresStr) || !/^[\da-f]{64}$/i.test(sigHex)) return null;
-  const expiresAt = new Date(Number(expiresStr));
+  const [sessionId, userId, issuedStr, sigHex] = parts;
+  if (!sessionId || !userId || !/^\d{10,16}$/.test(issuedStr) || !/^[\da-f]{64}$/i.test(sigHex)) return null;
+  const issuedAt = new Date(Number(issuedStr));
+  if (isNaN(issuedAt.getTime()) || Date.now() - issuedAt.getTime() > MAX_TOKEN_AGE_MS) return null;
 
-  if (isNaN(expiresAt.getTime()) || expiresAt < new Date()) return null;
-
-  const payload = `${sessionId}.${userId}.${expiresStr}`;
+  const payload = `${sessionId}.${userId}.${issuedStr}`;
   try {
     const key = await crypto.subtle.importKey(
       'raw',
@@ -61,7 +80,18 @@ export async function verifySessionToken(token: string, secret: string): Promise
     return null;
   }
 
-  return { sessionId, userId, expiresAt };
+  return { sessionId, userId, issuedAt };
+}
+
+/**
+ * Pure sliding-renewal decision, extracted so hooks.server.ts's per-request
+ * check is unit-testable without a database. Renew once the remaining time
+ * before expiresAtMs falls within RENEWAL_THRESHOLD_MS of a full fresh TTL.
+ * Non-finite input (e.g. an unparsable expires_at) safely means "don't renew".
+ */
+export function shouldRenewSession(expiresAtMs: number, nowMs: number, ttlMs: number): boolean {
+  if (!Number.isFinite(expiresAtMs) || !Number.isFinite(nowMs) || !Number.isFinite(ttlMs)) return false;
+  return (expiresAtMs - nowMs) < (ttlMs - RENEWAL_THRESHOLD_MS);
 }
 
 export async function hashToken(token: string): Promise<string> {
@@ -69,13 +99,19 @@ export async function hashToken(token: string): Promise<string> {
   return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-export function buildSessionCookie(token: string, maxAgeSeconds: number, secure = true): string {
+/**
+ * Max-Age is always the fixed 400-day ceiling, regardless of the configured
+ * session TTL: the D1 session row's expires_at is what actually governs
+ * access, and sliding renewal (see shouldRenewSession) keeps it current while
+ * a session is used. Sign-out still clears this cookie immediately.
+ */
+export function buildSessionCookie(token: string, secure = true): string {
   const parts = [
     `${SESSION_COOKIE}=${token}`,
     'Path=/',
     'HttpOnly',
     'SameSite=Lax',
-    `Max-Age=${Math.max(1, Math.floor(maxAgeSeconds))}`,
+    `Max-Age=${SESSION_COOKIE_MAX_AGE_SECONDS}`,
     'Priority=High',
   ];
   if (secure) parts.push('Secure');

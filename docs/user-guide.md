@@ -74,7 +74,11 @@ cmail protects you in a few ways:
   outside your organisation — check where a link goes before you click it.
 - Attachments always download as files. cmail does not scan them for malware,
   so open only files you trust and follow your organisation's security
-  process.
+  process. The label under each attachment tells you what kind of file it is.
+  On an Android phone, opening a Word, Excel, or PowerPoint file links you to
+  the free Microsoft app for it if you don't already have one installed.
+  Google Docs, Sheets, and Slides files open in your browser instead of
+  downloading.
 
 What you can do depends on your mailbox permission. Everyone with access can
 view mail and mark it read or unread. You need Full access to star, move,

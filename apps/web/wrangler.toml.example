@@ -64,6 +64,13 @@ OUTBOUND_RATE_LIMIT_PER_HOUR = "60"
 OUTBOUND_WORK_LIMIT_PER_HOUR = "600"
 DRAFT_SAVE_RATE_PER_HOUR = "300"
 MAX_DRAFTS_PER_MAILBOX_USER = "100"
+# Inactivity window, not a fixed sign-in length: a session's expiry slides
+# forward while it keeps being used, and only lapses after this many hours
+# with no activity at all. Sign-out, pause, and offboarding still end a
+# session immediately regardless of this value. 8 is a cautious default;
+# 720 (30 days) suits most organisations that want "stay signed in" behavior
+# on installed/PWA devices. Accepted range is 1-9600 (400 days, matching the
+# session cookie's own fixed Max-Age).
 SESSION_TTL_HOURS = "8"
 MAX_SESSIONS_PER_USER = "5"
 
@@ -138,6 +145,7 @@ OUTBOUND_RATE_LIMIT_PER_HOUR = "60"
 OUTBOUND_WORK_LIMIT_PER_HOUR = "600"
 DRAFT_SAVE_RATE_PER_HOUR = "300"
 MAX_DRAFTS_PER_MAILBOX_USER = "100"
+# Inactivity window — see the SESSION_TTL_HOURS comment in [vars] above.
 SESSION_TTL_HOURS = "8"
 MAX_SESSIONS_PER_USER = "5"
 INBOUND_MAILBOX_MESSAGES_PER_HOUR = "120"

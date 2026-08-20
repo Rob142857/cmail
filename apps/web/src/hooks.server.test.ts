@@ -37,7 +37,7 @@ async function invoke(options: InvokeOptions): Promise<{
   const requestUrl = new URL(options.path, 'https://mail.example.com');
   const headers = new Headers();
   if (session) {
-    headers.set('cookie', buildSessionCookie(session.token, 3600, true).split(';', 1)[0]);
+    headers.set('cookie', buildSessionCookie(session.token, true).split(';', 1)[0]);
   }
   if (options.method && !['GET', 'HEAD', 'OPTIONS'].includes(options.method)) {
     headers.set('origin', requestUrl.origin);

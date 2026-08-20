@@ -223,10 +223,14 @@ export const GET: RequestHandler = async ({ params, url, platform, cookies, requ
      VALUES (?, ?, ?, datetime('now'), ?, ?, 0)`,
   ).bind(sessionId, user.id, hash, expiresAt.toISOString(), clientIp).run();
 
+  // Eviction keeps the most-recently-renewed sessions (sliding TTL), not the
+  // most-recently-issued ones — a long-lived, actively used session should
+  // outlive a newer one that was signed into once and abandoned. issued_at
+  // itself is left untouched for audit purposes.
   await env.DB.prepare(
     `UPDATE sessions SET revoked = 1
      WHERE user_id = ? AND revoked = 0 AND id NOT IN (
-       SELECT id FROM sessions WHERE user_id = ? AND revoked = 0 ORDER BY issued_at DESC, id DESC LIMIT ?
+       SELECT id FROM sessions WHERE user_id = ? AND revoked = 0 ORDER BY expires_at DESC, id DESC LIMIT ?
      )`,
   ).bind(user.id, user.id, maxSessionsPerUser(env as unknown as Record<string, unknown>)).run();
 
@@ -253,7 +257,7 @@ export const GET: RequestHandler = async ({ params, url, platform, cookies, requ
   return new Response(null, {
     status: 303,
     headers: {
-      'Set-Cookie': buildSessionCookie(token, ttlMs / 1000, url.protocol === 'https:'),
+      'Set-Cookie': buildSessionCookie(token, url.protocol === 'https:'),
       Location: location,
       'Cache-Control': 'no-store',
     },

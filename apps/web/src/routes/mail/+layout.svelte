@@ -89,6 +89,15 @@
     return qs ? `/mail/compose?${qs}` : '/mail/compose';
   });
 
+  /** Keep the calendar link scoped to whichever mailbox is currently active. */
+  const calendarHref = $derived.by(() => {
+    const params = new URLSearchParams();
+    if (currentMailboxId) params.set('mailbox', currentMailboxId);
+    const qs = params.toString();
+    return qs ? `/mail/calendar?${qs}` : '/mail/calendar';
+  });
+  const isCalendar = $derived(page.url.pathname.startsWith('/mail/calendar'));
+
   /** Search stays scoped to whatever mailbox and folder are in view. */
   const searchHidden = $derived([
     ...(currentMailboxId ? [{ name: 'mailbox', value: currentMailboxId }] : []),
@@ -157,6 +166,16 @@
               {/if}
             </a>
           {/each}
+        </nav>
+      </div>
+
+      <div class="nav-group">
+        <p class="nav-heading" id="nav-calendar">Calendar</p>
+        <nav class="nav-list" aria-labelledby="nav-calendar">
+          <a href={calendarHref} class="nav-item" aria-current={isCalendar ? 'page' : undefined}>
+            <span class="nav-icon"><Icon name="calendar" size={16} /></span>
+            <span class="nav-label">Meetings</span>
+          </a>
         </nav>
       </div>
 

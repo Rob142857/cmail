@@ -3,7 +3,7 @@
 // Outbound is handled directly by the web app (Cloudflare Email Service or Postmark) —
 // this worker is inbound-only.
 import PostalMime from 'postal-mime';
-import { sendNewMailNotifications, type PushEnvironment } from '@cmail/shared/push';
+import { pushConfigurationDiagnostic, sendNewMailNotifications, type PushEnvironment } from '@cmail/shared/push';
 import { sanitizeBoundedEmailHtml } from '@cmail/shared/sanitize-email';
 import { parseMessageImportance } from '@cmail/shared/message-importance';
 import {
@@ -20,6 +20,7 @@ import {
   spamQuarantineThreshold,
 } from '@cmail/shared/inbound-risk';
 import { parseAuthenticationResults } from './authentication-results';
+import { applyCalendarWrites, extractCalendarText } from './calendar';
 import {
   releaseInboundReservation,
   reserveInboundDelivery,
@@ -664,11 +665,16 @@ async function handleOutboundServiceRequest(request: Request, env: Env): Promise
   // Service-binding callers preserve the URL supplied by Pages. Refuse every
   // public hostname as a second fail-closed layer in case a stale dashboard
   // route is ever attached to this Worker.
-  if (
-    url.hostname !== 'cmail-email-worker.internal'
-    || url.pathname !== '/internal/send'
-    || request.method !== 'POST'
-  ) {
+  if (url.hostname !== 'cmail-email-worker.internal') {
+    return new Response('Not found', { status: 404 });
+  }
+  // Read-only diagnostic so the web runtime's push-test endpoint can report
+  // whether *this* runtime (not just Pages) has a working VAPID configuration
+  // — the two are configured independently. Never returns key material.
+  if (url.pathname === '/internal/push-diagnostic' && (request.method === 'GET' || request.method === 'POST')) {
+    return Response.json({ status: pushConfigurationDiagnostic(env) });
+  }
+  if (url.pathname !== '/internal/send' || request.method !== 'POST') {
     return new Response('Not found', { status: 404 });
   }
   // 424 means no provider call was attempted; callers may safely release their
@@ -1092,6 +1098,24 @@ export default {
       source_ip: sourceIp,
     });
     ctx.waitUntil(sendNewMailNotifications(env, mailbox.id, messageId));
+
+    // Calendar invites are a bonus feature layered on top of an already
+    // durably stored message: detection/parsing runs synchronously (it is
+    // cheap, pure text work) but is wrapped so it can never throw into this
+    // handler, and the D1 upsert itself runs in the background via
+    // waitUntil so a calendar bug can never delay or fail mail delivery.
+    try {
+      const calendarTexts = attachments
+        .map((attachment) => extractCalendarText(attachment))
+        .filter((text): text is string => text !== null);
+      if (calendarTexts.length) {
+        ctx.waitUntil(applyCalendarWrites(env.DB, mailbox.id, messageId, calendarTexts).catch((error) => {
+          console.error('Calendar processing failed:', error instanceof Error ? error.message : 'unknown error');
+        }));
+      }
+    } catch (calendarError) {
+      console.error('Calendar detection failed:', calendarError instanceof Error ? calendarError.message : 'unknown error');
+    }
     } finally {
       if (!reservationSettled) {
         try {

@@ -1,13 +1,14 @@
 <script>
   import { untrack } from 'svelte';
   import { goto, invalidateAll } from '$app/navigation';
+  import CalendarInvite from '$lib/mail/CalendarInvite.svelte';
   import MessageAttachments from '$lib/mail/MessageAttachments.svelte';
   import MessageBody from '$lib/mail/MessageBody.svelte';
   import MessageMetadata from '$lib/mail/MessageMetadata.svelte';
   import MessageSafety from '$lib/mail/MessageSafety.svelte';
   import MessageToolbar from '$lib/mail/MessageToolbar.svelte';
 
-  let { data } = $props();
+  let { data, form } = $props();
   let busy = $state('');
   let actionError = $state('');
   let starred = $state(untrack(() => Boolean(data.message.is_starred)));
@@ -135,6 +136,9 @@
     <MessageMetadata message={data.message} locale={data.locale} timeZone={data.timeZone} {mailboxHref} />
     <MessageSafety message={data.message} riskyLinks={data.riskyLinks} />
     <MessageAttachments attachments={data.attachments} />
+    {#if data.invite}
+      <CalendarInvite invite={data.invite} locale={data.locale} timeZone={data.timeZone} error={form?.error || ''} />
+    {/if}
     <MessageBody messageId={data.message.id} body={data.body} bodyUnavailable={data.bodyUnavailable} allowRemoteImages={!isDraft} inlineImageOrigin={data.inlineImageOrigin} />
   </article>
 </div>

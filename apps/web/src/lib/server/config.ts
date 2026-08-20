@@ -91,8 +91,16 @@ export function publicRuntimeConfig(env: Record<string, unknown>) {
   };
 }
 
+/**
+ * SESSION_TTL_HOURS is an inactivity window, not a fixed sign-in length:
+ * hooks.server.ts slides a session's DB-row expiry back out to a fresh TTL
+ * while it keeps being used (see shouldRenewSession in lib/server/session.ts),
+ * so a session only lapses after this many hours with no activity at all.
+ * The 9600-hour (400-day) ceiling matches the session cookie's own fixed
+ * Max-Age, which is itself capped by Chrome at 400 days.
+ */
 export function sessionTtlMs(env: Record<string, unknown>): number {
-  return boundedInteger(env.SESSION_TTL_HOURS, 8, 1, 168) * 60 * 60 * 1000;
+  return boundedInteger(env.SESSION_TTL_HOURS, 8, 1, 9600) * 60 * 60 * 1000;
 }
 
 export function maxSessionsPerUser(env: Record<string, unknown>): number {

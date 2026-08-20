@@ -46,7 +46,7 @@ describe('runtime configuration', () => {
       LOCALE: 'not_a_locale',
       TIME_ZONE: 'Moon/Base',
       BRAND_PRIMARY_COLOR: 'red',
-      SESSION_TTL_HOURS: '999',
+      SESSION_TTL_HOURS: '99999',
       MAX_SESSIONS_PER_USER: '0',
       MAX_RECIPIENTS_PER_MESSAGE: 'invalid',
       OUTBOUND_RATE_LIMIT_PER_HOUR: '-2',
@@ -59,7 +59,7 @@ describe('runtime configuration', () => {
     expect(config.timeZone).toBe('UTC');
     expect(config.brandPrimaryColor).toBe('#0078d4');
     expect(config.brandOnPrimary).toBe('#ffffff');
-    expect(sessionTtlMs(env)).toBe(168 * 60 * 60 * 1000);
+    expect(sessionTtlMs(env)).toBe(9600 * 60 * 60 * 1000);
     expect(maxSessionsPerUser(env)).toBe(1);
     expect(maxRecipientsPerMessage(env)).toBe(50);
     expect(outboundRateLimitPerHour(env)).toBe(1);
