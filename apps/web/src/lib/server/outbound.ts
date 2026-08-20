@@ -70,6 +70,8 @@ interface CloudflareEmailPayload {
   from: string | { address: string; name: string };
   to: string[];
   cc?: string[];
+  /** Envelope-only recipients, native to the Worker EmailMessageBuilder path (never a MIME header). */
+  bcc?: string[];
   subject: string;
   html: string;
   text?: string;
@@ -316,6 +318,35 @@ function requiresSeparatedEnvelope(email: OutboundEmail): boolean {
   return envelope.length !== visible.length || envelope.some((address) => !visibleSet.has(address));
 }
 
+/**
+ * Envelope recipients present on the wire but absent from every visible
+ * To/Cc header — i.e. true Bcc. A provider with its own native Bcc field
+ * (Postmark, the Cloudflare Worker EmailMessageBuilder binding) can deliver
+ * these directly without raw-MIME envelope separation.
+ */
+function bccExtras(email: OutboundEmail): string[] | null {
+  const visible = normalizedVisibleRecipients(email);
+  const envelope = normalizedEnvelopeRecipients(email);
+  if (!visible || !envelope) return null;
+  const visibleSet = new Set(visible);
+  return envelope.filter((address) => !visibleSet.has(address));
+}
+
+/**
+ * True when a visible To/Cc recipient is deliberately excluded from the wire
+ * envelope (mixed local/external delivery keeping a local address out of the
+ * SMTP conversation). No native Bcc field can express this — it needs the
+ * raw-MIME transport that sends an explicit envelope recipient list, or the
+ * send must fail closed when that transport is unavailable.
+ */
+function envelopeExcludesVisible(email: OutboundEmail): boolean {
+  const visible = normalizedVisibleRecipients(email);
+  const envelope = normalizedEnvelopeRecipients(email);
+  if (!visible || !envelope) return false;
+  const envelopeSet = new Set(envelope);
+  return visible.some((address) => !envelopeSet.has(address));
+}
+
 /** Build the full RFC 5322/MIME copy used when SMTP envelope and headers differ. */
 export function buildRawMimeMessage(email: OutboundEmail): string | null {
   const from = normalizeEmail(email.from);
@@ -482,7 +513,11 @@ function cloudflarePreflight(email: OutboundEmail): OutboundPreflightResult {
 function postmarkPreflight(email: OutboundEmail): OutboundPreflightResult {
   const to = Array.isArray(email.to) ? email.to : [email.to];
   const cc = email.cc || [];
-  if (requiresSeparatedEnvelope(email)) {
+  // A visible recipient deliberately excluded from the envelope (mixed
+  // local/external delivery) has no Postmark equivalent. An envelope-only
+  // Bcc addition is fine — sendViaPostmark() maps it to Postmark's own Bcc
+  // field below, which it delivers without exposing a header.
+  if (envelopeExcludesVisible(email)) {
     return {
       ok: false,
       provider: 'postmark',
@@ -544,10 +579,14 @@ function cloudflarePayload(email: OutboundEmail): CloudflareEmailPayload | null 
 
   const name = sanitizeSenderDisplayName(email.fromName);
   const headers = safeOutboundHeaders(email);
+  // Envelope recipients beyond the visible To/Cc set are Bcc: map them to the
+  // EmailMessageBuilder binding's native bcc field rather than any header.
+  const bcc = bccExtras(email);
   return {
     from: name ? { address: from, name } : from,
     to: to as string[],
     ...(cc.length ? { cc: cc as string[] } : {}),
+    ...(bcc?.length ? { bcc } : {}),
     subject: email.subject,
     html: email.html,
     ...(email.text !== undefined ? { text: email.text } : {}),
@@ -587,7 +626,12 @@ async function sendViaCloudflareService(email: OutboundEmail, service: Fetcher):
   try {
     const preflight = cloudflarePreflight(email);
     if (!preflight.ok) return { success: false, provider: 'cloudflare', error: preflight.error };
-    if (requiresSeparatedEnvelope(email)) {
+    // A visible recipient deliberately excluded from the envelope (mixed
+    // local/external delivery) has no native-field equivalent on this
+    // builder-based binding; only the REST raw-MIME transport can do that.
+    // An envelope-only Bcc addition is fine — cloudflarePayload() maps it to
+    // the binding's own bcc field below.
+    if (envelopeExcludesVisible(email)) {
       return {
         success: false,
         provider: 'cloudflare',
@@ -752,6 +796,7 @@ async function sendViaPostmark(email: OutboundEmail, apiKey: string): Promise<Ou
   try {
     const preflight = postmarkPreflight(email);
     if (!preflight.ok) return { success: false, provider: 'postmark', error: preflight.error };
+    const bcc = bccExtras(email);
     const outboundHeaders = safeOutboundHeaders(email);
     const requestedMessageIdHeader = safeProviderMessageIdHeader(email.messageIdHeader);
     const postmarkHeaders = {
@@ -769,6 +814,7 @@ async function sendViaPostmark(email: OutboundEmail, apiKey: string): Promise<Ou
         From: formattedFrom(email),
         To: Array.isArray(email.to) ? email.to.join(',') : email.to,
         Cc: email.cc?.join(','),
+        Bcc: bcc?.length ? bcc.join(',') : undefined,
         Subject: email.subject,
         HtmlBody: email.html,
         TextBody: email.text,

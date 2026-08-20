@@ -95,9 +95,68 @@ describe('compose draft persistence', () => {
 
     const insert = calls.find(({ sql }) => sql.includes('INSERT INTO messages'));
     expect(insert).toBeDefined();
-    expect((insert!.sql.match(/\?/g) || []).length).toBe(18);
-    expect(insert!.values).toHaveLength(18);
+    expect((insert!.sql.match(/\?/g) || []).length).toBe(20);
+    expect(insert!.values).toHaveLength(20);
     expect(insert!.sql).toMatch(/body_r2_key, size_bytes, folder[\s\S]+\?, \?, 'drafts'/);
-    expect(insert!.values[12]).toEqual(expect.any(Number));
+    expect(insert!.values[14]).toEqual(expect.any(Number));
+  });
+
+  it('round-trips a Bcc address on the draft row, address-only and unvalidated like To/Cc', async () => {
+    const { db, calls } = draftDatabase();
+    const storage = {
+      put: vi.fn(async () => undefined),
+      delete: vi.fn(async () => undefined),
+    } as unknown as R2Bucket;
+    const formData = new FormData();
+    formData.set('from', 'robert.evans@cliomuseum.org');
+    formData.set('to', 'recipient@example.net');
+    formData.set('cc', 'copy@example.net');
+    formData.set('bcc', 'hidden@example.net');
+    formData.set('subject', 'Draft Bcc regression');
+    formData.set('body', 'Hello from the draft-save Bcc regression test.');
+    formData.set('importance', 'normal');
+    formData.set('draft_create_token', '22222222-2222-4222-8222-222222222222');
+
+    const result = await (actions.save as any)({
+      request: new Request('https://mail.cliomuseum.org/mail/compose?/save', {
+        method: 'POST',
+        body: formData,
+      }),
+      locals: {
+        user: {
+          id: 'user-1',
+          email: 'robert.evans@cliomuseum.org',
+          display_name: 'Robert Evans',
+          role: 'manager',
+          status: 'active',
+          auth_provider: 'google',
+          created_at: '2026-08-17 00:00:00',
+          updated_at: '2026-08-17 00:00:00',
+          last_sign_in: null,
+          last_auth_country: null,
+        },
+        sessionId: 'session-1',
+      },
+      platform: {
+        env: {
+          DB: db,
+          STORAGE: storage,
+          MAIL_DOMAIN: 'cliomuseum.org',
+        },
+      },
+    });
+
+    expect(result).toMatchObject({
+      savedDraftId: '22222222-2222-4222-8222-222222222222',
+      draftVersion: 1,
+    });
+
+    const insert = calls.find(({ sql }) => sql.includes('INSERT INTO messages'));
+    expect(insert).toBeDefined();
+    expect(insert!.sql).toContain('bcc_addresses');
+    expect(insert!.sql).toContain('bcc_participants');
+    // bcc_addresses is bound right after cc_addresses; bcc_participants right after cc_participants.
+    expect(insert!.values[7]).toBe(JSON.stringify(['hidden@example.net']));
+    expect(insert!.values[10]).toBe(JSON.stringify([{ address: 'hidden@example.net', name: '' }]));
   });
 });

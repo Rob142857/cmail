@@ -555,6 +555,8 @@ interface OutboundProxyPayload {
   from: string | { address: string; name: string };
   to: string[];
   cc?: string[];
+  /** Envelope-only recipients; mapped straight onto the binding's own bcc field, never a header. */
+  bcc?: string[];
   subject: string;
   html: string;
   text?: string;
@@ -589,7 +591,11 @@ function parseOutboundProxyPayload(value: unknown): EmailMessageBuilder | null {
   const from = proxyAddress(candidate.from);
   const to = Array.isArray(candidate.to) ? candidate.to.map(proxyAddress) : [];
   const cc = Array.isArray(candidate.cc) ? candidate.cc.map(proxyAddress) : [];
-  if (!from || !to.length || to.length + cc.length > 50 || [...to, ...cc].some((address) => !address)) return null;
+  const bcc = Array.isArray(candidate.bcc) ? candidate.bcc.map(proxyAddress) : [];
+  if (
+    !from || !to.length || to.length + cc.length + bcc.length > 50
+    || [...to, ...cc, ...bcc].some((address) => !address)
+  ) return null;
   if (typeof candidate.subject !== 'string' || candidate.subject.length > MAX_SUBJECT_CHARS || /[\r\n]/.test(candidate.subject)) return null;
   if (typeof candidate.html !== 'string' || ENCODER.encode(candidate.html).byteLength > 5 * 1024 * 1024) return null;
   if (candidate.text !== undefined && (typeof candidate.text !== 'string' || ENCODER.encode(candidate.text).byteLength > 5 * 1024 * 1024)) return null;
@@ -637,6 +643,7 @@ function parseOutboundProxyPayload(value: unknown): EmailMessageBuilder | null {
     from,
     to: to as Array<string | EmailAddress>,
     ...(cc.length ? { cc: cc as Array<string | EmailAddress> } : {}),
+    ...(bcc.length ? { bcc: bcc as Array<string | EmailAddress> } : {}),
     subject: candidate.subject,
     html: candidate.html,
     ...(candidate.text !== undefined ? { text: candidate.text } : {}),

@@ -26,6 +26,9 @@
         : ''),
       to: d.draft ? parseList(d.draft.to_addresses) : isNewReply && !d.isForward ? d.replyRecipients.to.join(', ') : '',
       cc: d.draft ? parseList(d.draft.cc_addresses) : isNewReply && !d.isForward ? d.replyRecipients.cc.join(', ') : '',
+      // Replies never inherit Bcc — buildReplyRecipients() deliberately never
+      // returns one, so a reply/forward always starts with an empty Bcc field.
+      bcc: d.draft ? parseList(d.draft.bcc_addresses) : '',
       from: d.draft?.from_address || d.preferredFrom || d.mailboxes[0]?.address || '',
       body: d.draft?.body || '',
       quotedHtml: d.draft?.quoted_html || d.replyQuoteHtml || '',
@@ -44,6 +47,8 @@
   let subject = $state(initial.subject);
   let to = $state(initial.to);
   let cc = $state(initial.cc);
+  let bcc = $state(initial.bcc);
+  let showBcc = $state(Boolean(initial.bcc));
   let from = $state(initial.from);
   let body = $state(initial.body);
   let quotedHtml = $state(initial.quotedHtml);
@@ -52,7 +57,7 @@
   let draftVersion = $state(initial.draftVersion);
   let recoveryKey = $state(initial.recoveryKey);
   let recoveryReady = $state(false);
-  /** @type {{ subject: string, to: string, cc: string, from: string, body: string, importance: 'low' | 'normal' | 'high' } | null} */
+  /** @type {{ subject: string, to: string, cc: string, bcc: string, from: string, body: string, importance: 'low' | 'normal' | 'high' } | null} */
   let recoveryConflict = $state(null);
 
   /** D1 timestamps are UTC but omit the ISO separator and zone. */
@@ -73,7 +78,7 @@
 
   const externalRecipients = $derived.by(() => {
     const domain = (d.mailDomain || '').toLowerCase();
-    return [...new Set([...enteredAddresses(to), ...enteredAddresses(cc)])]
+    return [...new Set([...enteredAddresses(to), ...enteredAddresses(cc), ...enteredAddresses(bcc)])]
       .filter((address) => !domain || !address.endsWith(`@${domain}`));
   });
 
@@ -157,7 +162,7 @@
   });
 
   function hasDraftContent() {
-    return Boolean(draftId || body || subject || to || cc || quotedHtml || importance !== 'normal');
+    return Boolean(draftId || body || subject || to || cc || bcc || quotedHtml || importance !== 'normal');
   }
 
   function clearRecovery() {
@@ -173,7 +178,7 @@
   function normalizeRecovery(value) {
     if (!value || typeof value !== 'object') return null;
     const saved = /** @type {Record<string, unknown>} */ (value);
-    const hasSavedContent = ['subject', 'to', 'cc', 'from', 'body']
+    const hasSavedContent = ['subject', 'to', 'cc', 'bcc', 'from', 'body']
       .some((key) => typeof saved[key] === 'string' && saved[key].length > 0);
     const savedImportance = saved.importance === 'high' || saved.importance === 'low' ? saved.importance : 'normal';
     if (!hasSavedContent && savedImportance === 'normal') return null;
@@ -181,6 +186,7 @@
       subject: typeof saved.subject === 'string' ? saved.subject.slice(0, 500) : '',
       to: typeof saved.to === 'string' ? saved.to.slice(0, 20_000) : '',
       cc: typeof saved.cc === 'string' ? saved.cc.slice(0, 20_000) : '',
+      bcc: typeof saved.bcc === 'string' ? saved.bcc.slice(0, 20_000) : '',
       from: typeof saved.from === 'string' && d.mailboxes.some((mailbox) => mailbox.address === saved.from) ? saved.from : from,
       body: typeof saved.body === 'string' ? saved.body.slice(0, 1_000_000) : '',
       importance: savedImportance,
@@ -188,11 +194,13 @@
     return copy;
   }
 
-  /** @param {{ subject: string, to: string, cc: string, from: string, body: string, importance: 'low' | 'normal' | 'high' }} copy */
+  /** @param {{ subject: string, to: string, cc: string, bcc: string, from: string, body: string, importance: 'low' | 'normal' | 'high' }} copy */
   function applyRecovery(copy) {
     subject = copy.subject;
     to = copy.to;
     cc = copy.cc;
+    bcc = copy.bcc;
+    if (copy.bcc) showBcc = true;
     from = copy.from;
     body = copy.body;
     importance = copy.importance;
@@ -212,6 +220,7 @@
         subject,
         to,
         cc,
+        bcc,
         from,
         body,
         importance,
@@ -262,7 +271,7 @@
   });
 
   $effect(() => {
-    void subject; void to; void cc; void from; void body; void importance; void dirty; void recoveryKey; void recoveryReady; void recoveryConflict; void saveConflict;
+    void subject; void to; void cc; void bcc; void from; void body; void importance; void dirty; void recoveryKey; void recoveryReady; void recoveryConflict; void saveConflict;
     if (!browser || !recoveryReady || !recoveryKey) return;
     // A conflict copy remains byte-for-byte untouched until the user makes an
     // explicit choice in the recovery banner.
@@ -412,12 +421,13 @@
     saving = true;
     saveError = '';
     const savingVersion = editVersion;
-    const snapshot = { from, to, cc, subject, body, quotedHtml, importance };
+    const snapshot = { from, to, cc, bcc, subject, body, quotedHtml, importance };
     try {
       const fd = new FormData();
       fd.set('from', snapshot.from);
       fd.set('to', snapshot.to);
       fd.set('cc', snapshot.cc);
+      fd.set('bcc', snapshot.bcc);
       fd.set('subject', snapshot.subject || '(no subject)');
       fd.set('body', snapshot.body);
       fd.set('quoted_html', snapshot.quotedHtml);
@@ -548,6 +558,7 @@
     formData.set('from', from);
     formData.set('to', to);
     formData.set('cc', cc);
+    formData.set('bcc', bcc);
     formData.set('subject', subject);
     formData.set('body', body);
     formData.set('importance', importance);
@@ -577,7 +588,7 @@
   // Autosave shortly after the user pauses. A second pause is scheduled when
   // an edit lands during an in-flight request; navigation explicitly flushes it.
   $effect(() => {
-    void body; void subject; void to; void cc; void from; void importance; void quotedHtml; void dirty; void sending;
+    void body; void subject; void to; void cc; void bcc; void from; void importance; void quotedHtml; void dirty; void sending;
     scheduleAutosave();
     return cancelAutosaveTimer;
   });
@@ -682,9 +693,21 @@
     </div>
 
     <div class="field">
-      <label for="cc">Cc</label>
+      <div class="field-label-row">
+        <label for="cc">Cc</label>
+        {#if !showBcc}
+          <button type="button" class="bcc-toggle" onclick={() => (showBcc = true)}>Bcc</button>
+        {/if}
+      </div>
       <EmailAutocomplete bind:value={cc} name="cc" id="cc" placeholder="optional" multi mailbox={from} oninput={markDirty} />
     </div>
+
+    {#if showBcc}
+      <div class="field">
+        <label for="bcc">Bcc</label>
+        <EmailAutocomplete bind:value={bcc} name="bcc" id="bcc" placeholder="optional" multi mailbox={from} oninput={markDirty} />
+      </div>
+    {/if}
 
     {#if externalRecipients.length > 0}
       <div class="external-warning" role="status">
@@ -848,6 +871,13 @@
   .compose-fields { min-width: 0; margin: 0; padding: 0; border: 0; }
   .compose-form .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
   .compose-form label { font-size: 12px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .field-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .bcc-toggle {
+    padding: 0; border: 0; background: none;
+    color: var(--primary); font-size: 12px; font-weight: 500;
+    cursor: pointer;
+  }
+  .bcc-toggle:hover { text-decoration: underline; }
   .compose-form textarea { font-family: inherit; resize: vertical; min-height: 240px; }
   .importance-field { max-width:260px; }
   .importance-field small { color:var(--text-muted); font-size:11px; line-height:1.35; }

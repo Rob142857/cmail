@@ -51,8 +51,12 @@
   const fromLabel = $derived(fromName ? `${fromName} <${message.from_address}>` : message.from_address);
   const toParticipants = $derived(parseParticipants(message.to_participants, message.to_addresses));
   const ccParticipants = $derived(parseParticipants(message.cc_participants, message.cc_addresses));
+  // Only the sender's own drafts/sent copy ever has a non-empty bcc_addresses
+  // — a received copy never carries one, so this line only ever appears there.
+  const bccParticipants = $derived(parseParticipants(message.bcc_participants, message.bcc_addresses));
   const toList = $derived(toParticipants.map(renderParticipant).join(', '));
   const ccList = $derived(ccParticipants.map(renderParticipant).join(', '));
+  const bccList = $derived(bccParticipants.map(renderParticipant).join(', '));
   const replyToList = $derived(parseParticipants(message.reply_to_participants, message.reply_to_addresses).map(renderParticipant).join(', '));
   const failedRecipientList = $derived(parseAddresses(message.failed_recipients).join(', '));
   const quarantineReason = $derived(quarantineReasonPhrase(message.quarantine_reason));
@@ -110,6 +114,7 @@
     {#if replyToList}<div><dt>Reply to</dt><dd>{replyToList}</dd></div>{/if}
     <div><dt>To</dt><dd>{toList}</dd></div>
     {#if ccList}<div><dt>Cc</dt><dd>{ccList}</dd></div>{/if}
+    {#if bccList}<div><dt>Bcc</dt><dd>{bccList}</dd></div>{/if}
     {#if message.importance !== 'normal'}
       <div>
         <dt>Importance</dt>

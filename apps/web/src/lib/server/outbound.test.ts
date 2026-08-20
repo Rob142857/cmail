@@ -381,6 +381,33 @@ describe('Cloudflare Email Service REST provider', () => {
     expect(payload.mime_message).not.toMatch(/\r\nBcc:/i);
   });
 
+  it('routes an all-external Bcc through the raw-MIME envelope, absent from every header', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      success: true,
+      result: {
+        delivered: ['one@example.net', 'hidden@example.net'],
+        queued: [],
+        permanent_bounces: [],
+      },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(sendEmail({
+      ...baseEmail,
+      to: ['one@example.net'],
+      envelopeRecipients: ['one@example.net', 'hidden@example.net'],
+    }, env)).resolves.toMatchObject({ success: true, provider: 'cloudflare' });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/email/sending/send_raw`);
+    const payload = JSON.parse(init.body as string);
+    expect(payload.recipients).toEqual(['one@example.net', 'hidden@example.net']);
+    expect(payload.mime_message).toContain('To: <one@example.net>');
+    expect(payload.mime_message).not.toContain('hidden@example.net');
+    expect(payload.mime_message).not.toMatch(/^Cc:/im);
+    expect(payload.mime_message).not.toMatch(/\r\nBcc:/i);
+  });
+
   it('folds raw MIME base64 and all generated lines within Internet message limits', () => {
     const raw = buildRawMimeMessage({
       ...baseEmail,
@@ -528,5 +555,80 @@ describe('Postmark compatibility', () => {
     expect(preflightEmail(email, env)).toMatchObject({ ok: false, provider: 'postmark', status: 400 });
     await expect(sendEmail(email, env)).resolves.toMatchObject({ success: false, provider: 'postmark' });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('maps an envelope-only Bcc to Postmark\'s native Bcc field, never a header', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ MessageID: 'postmark-message-id' }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const email = {
+      ...baseEmail,
+      to: ['one@example.net'],
+      cc: ['two@example.net'],
+      envelopeRecipients: ['one@example.net', 'two@example.net', 'hidden@example.net'],
+    };
+    expect(preflightEmail(email, env)).toMatchObject({ ok: true, provider: 'postmark' });
+    await expect(sendEmail(email, env)).resolves.toMatchObject({ success: true, provider: 'postmark' });
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.To).toBe('one@example.net');
+    expect(body.Cc).toBe('two@example.net');
+    expect(body.Bcc).toBe('hidden@example.net');
+  });
+
+  it('still fails closed for Bcc mixed with an excluded local recipient', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const email = {
+      ...baseEmail,
+      to: ['inside@example.com'],
+      cc: ['outside@example.net'],
+      envelopeRecipients: ['outside@example.net', 'hidden@example.net'],
+    };
+    expect(preflightEmail(email, env)).toMatchObject({ ok: false, provider: 'postmark', status: 400 });
+    await expect(sendEmail(email, env)).resolves.toMatchObject({ success: false, provider: 'postmark' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('Cloudflare private Worker binding Bcc', () => {
+  it('maps an envelope-only Bcc to the EmailMessageBuilder\'s native bcc field', async () => {
+    const serviceFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      success: true,
+      messageId: 'binding-tracking-id',
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    await expect(sendEmail({
+      ...baseEmail,
+      to: ['one@example.net'],
+      envelopeRecipients: ['one@example.net', 'hidden@example.net'],
+    }, {
+      OUTBOUND_PROVIDER: 'cloudflare',
+      EMAIL_SERVICE: { fetch: serviceFetch } as unknown as Fetcher,
+    })).resolves.toMatchObject({ success: true, provider: 'cloudflare' });
+
+    expect(serviceFetch).toHaveBeenCalledOnce();
+    const [, init] = serviceFetch.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    expect(body.to).toEqual(['one@example.net']);
+    expect(body.cc).toBeUndefined();
+    expect(body.bcc).toEqual(['hidden@example.net']);
+  });
+
+  it('still fails closed on this transport for Bcc mixed with an excluded local recipient', async () => {
+    const serviceFetch = vi.fn();
+
+    await expect(sendEmail({
+      ...baseEmail,
+      to: ['inside@example.com'],
+      cc: ['outside@example.net'],
+      envelopeRecipients: ['outside@example.net', 'hidden@example.net'],
+    }, {
+      OUTBOUND_PROVIDER: 'cloudflare',
+      EMAIL_SERVICE: { fetch: serviceFetch } as unknown as Fetcher,
+    })).resolves.toEqual({
+      success: false,
+      provider: 'cloudflare',
+      error: 'Separated SMTP-envelope delivery requires the Cloudflare REST raw-MIME transport',
+    });
+    expect(serviceFetch).not.toHaveBeenCalled();
   });
 });

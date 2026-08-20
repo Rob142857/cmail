@@ -125,6 +125,71 @@ describe('private outbound service binding', () => {
     });
   });
 
+  it('maps an optional bcc list straight onto the native binding field', async () => {
+    const send = vi.fn().mockResolvedValue({ messageId: '<cloudflare-message@example.test>' });
+    const response = await invokeFetch(new Request('https://cmail-email-worker.internal/internal/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: 'desk@example.test',
+        to: ['recipient@example.net'],
+        bcc: ['hidden@example.net'],
+        subject: 'Hello',
+        html: '<p>Hello</p>',
+      }),
+    }), { EMAIL: { send } });
+
+    expect(response.status).toBe(200);
+    expect(send).toHaveBeenCalledWith({
+      from: 'desk@example.test',
+      to: ['recipient@example.net'],
+      bcc: ['hidden@example.net'],
+      subject: 'Hello',
+      html: '<p>Hello</p>',
+    });
+  });
+
+  it('stays backward compatible with an older payload that has no bcc field', async () => {
+    const send = vi.fn().mockResolvedValue({ messageId: '<cloudflare-message@example.test>' });
+    const response = await invokeFetch(new Request('https://cmail-email-worker.internal/internal/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: 'desk@example.test',
+        to: ['recipient@example.net'],
+        subject: 'Hello',
+        html: '<p>Hello</p>',
+      }),
+    }), { EMAIL: { send } });
+
+    expect(response.status).toBe(200);
+    expect(send).toHaveBeenCalledWith({
+      from: 'desk@example.test',
+      to: ['recipient@example.net'],
+      subject: 'Hello',
+      html: '<p>Hello</p>',
+    });
+    expect(send.mock.calls[0][0]).not.toHaveProperty('bcc');
+  });
+
+  it('rejects a bcc list that pushes the combined recipient count over the cap', async () => {
+    const send = vi.fn();
+    const response = await invokeFetch(new Request('https://cmail-email-worker.internal/internal/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: 'desk@example.test',
+        to: ['recipient@example.net'],
+        bcc: Array.from({ length: 50 }, (_, index) => `hidden${index}@example.net`),
+        subject: 'Hello',
+        html: '<p>Hello</p>',
+      }),
+    }), { EMAIL: { send } });
+
+    expect(response.status).toBe(400);
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it('fails closed for public-looking routes, invalid payloads, and absent bindings', async () => {
     expect((await invokeFetch(new Request('https://worker.invalid/'), {})).status).toBe(404);
     expect((await invokeFetch(new Request('https://worker.invalid/internal/send', { method: 'POST', body: '{}' }), { EMAIL: { send: vi.fn() } })).status).toBe(404);

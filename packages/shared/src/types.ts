@@ -98,6 +98,9 @@ export interface Message {
   cc_addresses: string; // JSON array
   to_participants: string; // JSON array of MessageParticipant
   cc_participants: string; // JSON array of MessageParticipant
+  /** Envelope-only recipients. Never populated on a received (internal) copy — only the sender's own drafts/sent row. */
+  bcc_addresses: string; // JSON array
+  bcc_participants: string; // JSON array of MessageParticipant
   subject: string;
   snippet: string;
   body_r2_key: string | null;

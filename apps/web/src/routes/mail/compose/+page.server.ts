@@ -268,6 +268,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
     from_address: string;
     to_addresses: string;
     cc_addresses: string;
+    bcc_addresses: string;
     subject: string;
     body: string;
     quoted_html: string;
@@ -298,6 +299,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
         from_address: existing.from_address,
         to_addresses: existing.to_addresses,
         cc_addresses: existing.cc_addresses,
+        bcc_addresses: existing.bcc_addresses,
         subject: existing.subject,
         body: storedBody.authoredText,
         quoted_html: storedBody.quotedHtml,
@@ -420,6 +422,13 @@ export const actions: Actions = {
     const user = locals.user;
     const env = platform?.env;
     if (!env) return fail(503, { error: 'Platform not available' });
+    // Set once bcc is parsed below, before completeAcceptedJournal can ever
+    // run. Bcc never enters the durable journal/materialize path (it stays
+    // an envelope-only routing detail there); it is applied to the sender's
+    // own sent-copy row as a best-effort follow-up, the same way drafts
+    // persist it directly. A crash between materialize and this follow-up
+    // only risks the sender's own "Bcc:" display label, never delivery.
+    let bccRecipients: string[] = [];
     const completeAcceptedJournal = async (journal: OutboundJournalRow): Promise<boolean> => {
       const completed = await materializeOutboundJournal(env.DB, env.STORAGE, journal.id);
       if (completed.newInternalDeliveries.length) {
@@ -437,6 +446,17 @@ export const actions: Actions = {
           detail: `Durable outbound send materialized; provider ${journal.provider}`,
           session_id: locals.sessionId,
         }).catch(() => undefined);
+      }
+      if (bccRecipients.length) {
+        await env.DB.prepare(
+          `UPDATE messages SET bcc_addresses = ?, bcc_participants = ?
+           WHERE id = ? AND mailbox_id = ? AND folder = 'sent'`,
+        ).bind(
+          JSON.stringify(bccRecipients),
+          JSON.stringify(bccRecipients.map((address) => ({ address, name: '' }))),
+          journal.id,
+          journal.mailbox_id,
+        ).run().catch(() => undefined);
       }
       return completed.journal.partial_delivery === 1;
     };
@@ -458,13 +478,19 @@ export const actions: Actions = {
     const recipientLimit = maxRecipientsPerMessage(envRecord);
     const toResult = parseRecipientList(formData.get('to'), recipientLimit);
     const ccResult = parseRecipientList(formData.get('cc'), recipientLimit);
+    const bccResult = parseRecipientList(formData.get('bcc'), recipientLimit);
 
     if (!from) return fail(400, { error: 'Choose a valid From address' });
     if (toResult.error || !toResult.recipients.length) return fail(400, { error: toResult.error || 'At least one To recipient is required' });
     if (ccResult.error) return fail(400, { error: ccResult.error });
+    if (bccResult.error) return fail(400, { error: bccResult.error });
     const toSet = new Set(toResult.recipients);
     const ccRecipients = ccResult.recipients.filter((address) => !toSet.has(address));
-    const allRecipients = [...toResult.recipients, ...ccRecipients];
+    const toCcSet = new Set([...toResult.recipients, ...ccRecipients]);
+    // Bcc is silently deduped against To/Cc: an address already visible on
+    // the message gains nothing from also being envelope-only.
+    bccRecipients = bccResult.recipients.filter((address) => !toCcSet.has(address));
+    const allRecipients = [...toResult.recipients, ...ccRecipients, ...bccRecipients];
     if (allRecipients.length > recipientLimit) return fail(400, { error: `Max ${recipientLimit} recipients per message` });
     if (subject.length > MAX_SUBJECT_LENGTH) return fail(400, { error: `Subject is too long (max ${MAX_SUBJECT_LENGTH} characters)` });
     if (body.length > MAX_BODY_LENGTH) return fail(413, { error: 'Message body is too large' });
@@ -627,6 +653,7 @@ export const actions: Actions = {
     } = planRecipientDelivery(
       toResult.recipients,
       ccRecipients,
+      bccRecipients,
       new Set(internalMap.keys()),
       supportsSeparatedEnvelope(envRecord),
     );
@@ -1065,7 +1092,7 @@ export const actions: Actions = {
           const contactStatements = contactUpsertStatements(
             env.DB,
             mailbox.id,
-            [...toResult.recipients, ...ccRecipients].map((address) => ({ address, name: '' })),
+            [...toResult.recipients, ...ccRecipients, ...bccRecipients].map((address) => ({ address, name: '' })),
           );
           if (contactStatements.length) await env.DB.batch(contactStatements);
         } catch { /* non-fatal: suggestions are best-effort */ }
@@ -1097,6 +1124,7 @@ export const actions: Actions = {
     const from = normalizeEmail(stringValue(formData.get('from')));
     const to = stringValue(formData.get('to')).slice(0, 20_000);
     const cc = stringValue(formData.get('cc')).slice(0, 20_000);
+    const bcc = stringValue(formData.get('bcc')).slice(0, 20_000);
     const subject = stringValue(formData.get('subject')).slice(0, MAX_SUBJECT_LENGTH) || '(no subject)';
     const body = stringValue(formData.get('body'));
     const quotedHtml = stringValue(formData.get('quoted_html'));
@@ -1158,12 +1186,15 @@ export const actions: Actions = {
 
     const toRecipients = to.split(/[;,]/).map((address) => address.trim()).filter(Boolean).slice(0, 200);
     const ccRecipients = cc.split(/[;,]/).map((address) => address.trim()).filter(Boolean).slice(0, 200);
+    const bccRecipients = bcc.split(/[;,]/).map((address) => address.trim()).filter(Boolean).slice(0, 200);
     // Draft entry is deliberately address-only. The authoritative send path
     // still validates and normalizes these values before any delivery.
     const toParticipantJson = JSON.stringify(toRecipients.map((address) => ({ address, name: '' })));
     const ccParticipantJson = JSON.stringify(ccRecipients.map((address) => ({ address, name: '' })));
+    const bccParticipantJson = JSON.stringify(bccRecipients.map((address) => ({ address, name: '' })));
     const toAddressesJson = JSON.stringify(toRecipients);
     const ccAddressesJson = JSON.stringify(ccRecipients);
+    const bccAddressesJson = JSON.stringify(bccRecipients);
     const snippet = preparedBody.snippet;
     const htmlBody = preparedBody.html;
     const htmlBodyBytes = new TextEncoder().encode(htmlBody).byteLength;
@@ -1234,8 +1265,8 @@ export const actions: Actions = {
         await env.STORAGE.put(key, htmlBody);
         databaseWriteAttempted = true;
         const updated = await env.DB.prepare(
-          `UPDATE messages SET mailbox_id = ?, from_address = ?, from_name = ?, to_addresses = ?, cc_addresses = ?,
-           to_participants = ?, cc_participants = ?,
+          `UPDATE messages SET mailbox_id = ?, from_address = ?, from_name = ?, to_addresses = ?, cc_addresses = ?, bcc_addresses = ?,
+           to_participants = ?, cc_participants = ?, bcc_participants = ?,
            subject = ?, snippet = ?, body_r2_key = ?, size_bytes = ?, importance = ?, in_reply_to = ?, references_header = ?, received_at = ?,
            draft_version = draft_version + 1
            WHERE id = ? AND folder = 'drafts' AND draft_owner_id = ? AND draft_version = ?`,
@@ -1245,8 +1276,10 @@ export const actions: Actions = {
           fromName,
           toAddressesJson,
           ccAddressesJson,
+          bccAddressesJson,
           toParticipantJson,
           ccParticipantJson,
+          bccParticipantJson,
           subject,
           snippet,
            key,
@@ -1357,11 +1390,11 @@ export const actions: Actions = {
       databaseWriteAttempted = true;
       await env.DB.prepare(
         `INSERT INTO messages
-         (id, mailbox_id, message_id_header, direction, from_address, from_name, to_addresses, cc_addresses, to_participants, cc_participants, subject, snippet, body_r2_key, size_bytes, folder, draft_owner_id, draft_version, is_read, importance, received_at, created_at, in_reply_to, references_header)
-         VALUES (?, ?, ?, 'outbound', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'drafts', ?, 1, 1, ?, ?, datetime('now'), ?, ?)`,
+         (id, mailbox_id, message_id_header, direction, from_address, from_name, to_addresses, cc_addresses, bcc_addresses, to_participants, cc_participants, bcc_participants, subject, snippet, body_r2_key, size_bytes, folder, draft_owner_id, draft_version, is_read, importance, received_at, created_at, in_reply_to, references_header)
+         VALUES (?, ?, ?, 'outbound', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'drafts', ?, 1, 1, ?, ?, datetime('now'), ?, ?)`,
       ).bind(
         draftId, mailbox.id, `<${draftId}@${domain}>`, from, fromName, toAddressesJson,
-        ccAddressesJson, toParticipantJson, ccParticipantJson, subject, snippet, key, htmlBodyBytes, locals.user.id, importance, savedAtDb, inReplyTo, referencesHeader,
+        ccAddressesJson, bccAddressesJson, toParticipantJson, ccParticipantJson, bccParticipantJson, subject, snippet, key, htmlBodyBytes, locals.user.id, importance, savedAtDb, inReplyTo, referencesHeader,
       ).run();
     } catch {
       if (!databaseWriteAttempted) {
