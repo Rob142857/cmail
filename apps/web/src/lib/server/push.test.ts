@@ -7,7 +7,6 @@ import {
   publicPushKey,
   pushConfiguration,
   sendNewMailNotifications,
-  sendTestPushNotification,
 } from '@cmail/shared/push';
 
 const encoder = new TextEncoder();
@@ -240,7 +239,7 @@ describe('Web Push configuration', () => {
     expect(fixture.fetch).toHaveBeenCalledTimes(1);
     expect(fixture.fetch).toHaveBeenCalledWith(fixture.subscription.endpoint, expect.objectContaining({
       method: 'POST',
-      redirect: 'error',
+      redirect: 'manual',
     }));
   });
 
@@ -293,16 +292,73 @@ describe('Web Push configuration', () => {
     expect(warning).not.toHaveBeenCalled();
   });
 
-  it('sends a bounded generic test alert only to the requesting user subscriptions', async () => {
+  // RFC 8030 permits a push service to redirect a delivery request (e.g.
+  // during infrastructure migration). redirect:'manual' lets delivery
+  // observe that instead of fetch() throwing an opaque TypeError that was
+  // previously indistinguishable from a genuine transient network failure --
+  // silently collapsing a followable redirect into a false 'retryable'.
+  it('follows a single redirect to an allowlisted push-service host and delivers there', async () => {
     const fixture = await notificationDeliveryFixture();
-    const queries = fixture.queries;
-    const summary = await sendTestPushNotification(fixture.env as never, 'user-1', 'device-1', fixture.subscription.endpoint);
+    const redirectedEndpoint = 'https://fcm.googleapis.com/fcm/send/redirected-target';
+    fixture.fetch.mockReset();
+    fixture.fetch
+      .mockResolvedValueOnce({ status: 302, headers: new Headers({ Location: redirectedEndpoint }) })
+      .mockResolvedValueOnce({ status: 201, headers: new Headers() });
 
-    expect(queries[0]).toMatch(/WHERE user_id = \? AND device_id = \? AND endpoint = \?/);
-    expect(fixture.fetch).toHaveBeenCalledOnce();
-    const request = fixture.fetch.mock.calls[0][1] as RequestInit;
-    expect(new TextDecoder().decode(request.body as Uint8Array)).not.toContain('user-1');
-    expect(summary.accepted).toBe(1);
+    const summary = await sendNewMailNotifications(fixture.env as never, 'shared-mailbox-1', 'message-1');
+
+    expect(summary).toMatchObject({ attempted: 1, accepted: 1 });
+    expect(fixture.fetch).toHaveBeenCalledTimes(2);
+    expect(fixture.fetch.mock.calls[0][0]).toBe(fixture.subscription.endpoint);
+    expect(fixture.fetch.mock.calls[0][1]).toMatchObject({ redirect: 'manual' });
+    expect(fixture.fetch.mock.calls[1][0]).toBe(redirectedEndpoint);
+    // Bounded to exactly one hop: the retry itself cannot be redirected again.
+    expect(fixture.fetch.mock.calls[1][1]).toMatchObject({ redirect: 'error' });
+    expect(fixture.removedEndpoints).toHaveLength(0);
+  });
+
+  it('rejects, without ever fetching it, a redirect to a host outside the push-service allowlist', async () => {
+    const fixture = await notificationDeliveryFixture();
+    fixture.fetch.mockReset();
+    fixture.fetch.mockResolvedValueOnce({
+      status: 302,
+      headers: new Headers({ Location: 'https://attacker.example/steal' }),
+    });
+
+    const summary = await sendNewMailNotifications(fixture.env as never, 'shared-mailbox-1', 'message-1');
+
+    expect(summary).toMatchObject({ attempted: 1, rejected: 1 });
+    expect(fixture.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a redirect response with a missing or unparsable Location instead of throwing', async () => {
+    const fixture = await notificationDeliveryFixture();
+    fixture.fetch.mockReset();
+    fixture.fetch.mockResolvedValueOnce({ status: 302, headers: new Headers() });
+
+    const summary = await sendNewMailNotifications(fixture.env as never, 'shared-mailbox-1', 'message-1');
+
+    expect(summary).toMatchObject({ attempted: 1, rejected: 1 });
+    expect(fixture.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats a second consecutive redirect as a rejection rather than chasing it further', async () => {
+    const fixture = await notificationDeliveryFixture();
+    fixture.fetch.mockReset();
+    fixture.fetch
+      .mockResolvedValueOnce({
+        status: 302,
+        headers: new Headers({ Location: 'https://fcm.googleapis.com/fcm/send/hop-1' }),
+      })
+      .mockResolvedValueOnce({
+        status: 302,
+        headers: new Headers({ Location: 'https://fcm.googleapis.com/fcm/send/hop-2' }),
+      });
+
+    const summary = await sendNewMailNotifications(fixture.env as never, 'shared-mailbox-1', 'message-1');
+
+    expect(summary).toMatchObject({ attempted: 1, rejected: 1 });
+    expect(fixture.fetch).toHaveBeenCalledTimes(2);
   });
 
   it('creates an authenticated request whose RFC 8291 payload decrypts for the subscriber', async () => {

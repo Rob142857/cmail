@@ -415,6 +415,49 @@ function addDeliveryResult(summary: PushDeliverySummary, result: PushDeliveryRes
   summary[result] += 1;
 }
 
+const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
+
+function classifyPushResponseStatus(status: number): PushDeliveryResult | 'redirect' {
+  if (status >= 200 && status < 300) return 'accepted';
+  if (status === 404 || status === 410) return 'expired';
+  if (status === 401 || status === 403) return 'configuration';
+  if (status === 429 || status >= 500) return 'retryable';
+  if (REDIRECT_STATUS_CODES.has(status)) return 'redirect';
+  return 'rejected';
+}
+
+function resolveRedirectTarget(location: string, base: string): string | null {
+  try {
+    return new URL(location, base).href;
+  } catch {
+    return null;
+  }
+}
+
+async function postWebPushRequest(request: WebPushRequest, redirectMode: 'manual' | 'error'): Promise<Response> {
+  return fetch(request.endpoint, {
+    method: 'POST',
+    headers: request.headers,
+    body: request.body,
+    redirect: redirectMode,
+  });
+}
+
+/**
+ * Push services are explicitly permitted (RFC 8030) to redirect a delivery
+ * request -- e.g. during infrastructure migrations -- and a client that
+ * cannot handle that is expected to treat it as a delivery attempt like any
+ * other. redirect:'error' turned that case into an opaque, unlogged
+ * TypeError thrown by fetch() itself, indistinguishable from a genuine
+ * network failure, so a legitimate redirect and a real transient outage both
+ * silently collapsed into the same 'retryable' outcome with no diagnostic
+ * trail. redirect:'manual' lets this code see the redirect instead. The
+ * Location is re-validated against the SAME endpoint-host allowlist used for
+ * the original subscription before it is ever followed -- and followed at
+ * most once, with redirect:'error' on the retry -- so this cannot become an
+ * open redirect / SSRF vector: an unlisted or unparsable target is rejected,
+ * never fetched.
+ */
 async function deliver(
   env: PushEnvironment,
   configuration: PushConfiguration,
@@ -437,20 +480,27 @@ async function deliver(
   }
 
   try {
-    const response = await fetch(request.endpoint, {
-      method: 'POST',
-      headers: request.headers,
-      body: request.body,
-      redirect: 'error',
-    });
-    if (response.status >= 200 && response.status < 300) return 'accepted';
-    if (response.status === 404 || response.status === 410) {
-      await removeSubscription(env.DB, subscription);
-      return 'expired';
+    const response = await postWebPushRequest(request, 'manual');
+    const outcome = classifyPushResponseStatus(response.status);
+    if (outcome !== 'redirect') {
+      if (outcome === 'expired') await removeSubscription(env.DB, subscription);
+      return outcome;
     }
-    if (response.status === 401 || response.status === 403) return 'configuration';
-    if (response.status === 429 || response.status >= 500) return 'retryable';
-    return 'rejected';
+
+    const location = response.headers.get('Location');
+    const target = location && resolveRedirectTarget(location, request.endpoint);
+    if (!target || !isAllowedPushEndpoint(target, env)) return 'rejected';
+
+    const redirected = await createWebPushRequest(
+      configuration,
+      { endpoint: target, p256dh: subscription.p256dh, auth: subscription.auth },
+      payload,
+    );
+    const followUp = await postWebPushRequest(redirected, 'error');
+    // A second consecutive redirect is rejected outright rather than chased.
+    const followOutcome = classifyPushResponseStatus(followUp.status);
+    if (followOutcome === 'expired') await removeSubscription(env.DB, subscription);
+    return followOutcome === 'redirect' ? 'rejected' : followOutcome;
   } catch {
     // Push is best-effort. Network failures must never reject mail delivery.
     return 'retryable';
@@ -470,11 +520,6 @@ async function deliverSubscriptions(
     for (const result of results) addDeliveryResult(summary, result);
   }
   return summary;
-}
-
-function testNotificationPayload(appName: string | undefined): NewMailNotificationPayload {
-  const title = sanitizeNotificationText(appName, NOTIFICATION_TITLE_MAX_LENGTH) || 'cmail';
-  return { title, body: 'Test alert — notifications are working.', url: '/mail', tag: 'cmail:test:alert' };
 }
 
 export async function sendNewMailNotifications(
@@ -537,29 +582,4 @@ export async function sendNewMailNotifications(
   // Bound concurrent external requests so a heavily shared mailbox cannot
   // turn one inbound delivery into an unbounded fan-out burst.
   return deliverSubscriptions(env, configuration, subscriptions, payload);
-}
-
-/** Send a generic alert to the signed-in user's own browser subscriptions. */
-export async function sendTestPushNotification(
-  env: PushEnvironment,
-  userId: string,
-  deviceId: string,
-  endpoint: string,
-): Promise<PushDeliverySummary> {
-  const configuration = pushConfiguration(env);
-  if (!configuration) return { ...emptyDeliverySummary(), configuration: 1 };
-
-  let subscriptions: StoredPushSubscription[] = [];
-  try {
-    const result = await env.DB.prepare(
-      `SELECT id, user_id, endpoint, p256dh, auth
-       FROM push_subscriptions
-       WHERE user_id = ? AND device_id = ? AND endpoint = ?
-       LIMIT 1`,
-    ).bind(userId, deviceId, endpoint).all<StoredPushSubscription>();
-    subscriptions = result.results || [];
-  } catch {
-    return { ...emptyDeliverySummary(), retryable: 1 };
-  }
-  return deliverSubscriptions(env, configuration, subscriptions, JSON.stringify(testNotificationPayload(env.APP_NAME)));
 }

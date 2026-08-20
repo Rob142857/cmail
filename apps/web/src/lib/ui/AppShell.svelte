@@ -243,8 +243,8 @@
       transform: translateY(-50%);
       height: 34px;
       z-index: 2;
-      background: #fff;
-      border-color: #fff;
+      background: var(--bg-surface);
+      border-color: var(--border);
       color: var(--text);
       flex: 1 1 auto;
     }

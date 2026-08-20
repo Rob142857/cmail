@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { page } from '$app/state';
+
   type Visibility = 'internal' | 'public';
   type ResourceKind = 'layer' | 'unit' | 'role' | 'position';
   type FilterKind = 'all' | ResourceKind;
@@ -500,6 +502,12 @@
     <p class="eyebrow">Identity & organisation</p>
     <h1>Organisation</h1>
     <p>Set up your organisation, then choose which positions appear in the public directory.</p>
+    {#if data.directoryEnabled}
+      <p class="public-link-line">
+        Public directory is live:
+        <a href="/organization" target="_blank" rel="noopener">{new URL('/organization', page.url.origin).href}</a>
+      </p>
+    {/if}
   </div>
   <details class="add-menu">
     <summary class="btn btn-primary">Add resource <span aria-hidden="true">⌄</span></summary>
@@ -1003,7 +1011,9 @@
     margin-bottom: 20px;
   }
   .page-heading h1 { margin: 2px 0 7px; font-size: clamp(26px, 4vw, 34px); letter-spacing: -.03em; }
-  .page-heading p:last-child { max-width: 720px; color: var(--text-muted); }
+  .page-heading p:not(.eyebrow) { max-width: 720px; color: var(--text-muted); }
+  .public-link-line { margin-top: 6px; font-size: 13px; color: var(--text-muted); }
+  .public-link-line a { color: var(--primary); overflow-wrap: anywhere; }
   .eyebrow {
     margin: 0;
     color: var(--primary);

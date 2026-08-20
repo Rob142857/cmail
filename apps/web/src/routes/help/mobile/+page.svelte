@@ -74,7 +74,7 @@
       <div><strong>No Install option</strong><p>On iPhone or iPad, use Safari with Open as Web App enabled. On Android, look for Install app or Add to home screen in Chrome. Needs HTTPS — ask the operator to check the manifest and icons if missing.</p></div>
       <div><strong>No notification control</strong><p>The operator may not have configured Web Push, the browser may not support it, or an iPhone/iPad site may not be running from its Home Screen icon.</p></div>
       <div><strong>Notifications blocked</strong><p>Allow notifications in Chrome's site settings and Android's app settings, reopen the app, and check again. Focus, Do Not Disturb, and battery controls can still delay an allowed alert.</p></div>
-      <div><strong>Test an alert</strong><p>Turn on New-mail alerts, then select Send test alert. “Accepted” means the push service took the request, not that it displayed. Check permissions and Do Not Disturb before treating this as a delivery issue.</p></div>
+      <div><strong>No alert after turning on</strong><p>There is no separate test button — turning notifications on is enough. Receiving mail is the real check: send yourself a message and wait a minute. Check permissions and Do Not Disturb before treating this as a delivery issue.</p></div>
       <div><strong>Mail unavailable offline</strong><p>Expected — cmail does not cache mail for offline use. Reconnect and refresh.</p></div>
     </div>
   </section>

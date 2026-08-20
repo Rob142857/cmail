@@ -209,10 +209,10 @@
     margin: 2px 0 0;
     padding: 4px 0;
     list-style: none;
-    background: var(--bg-card, #fff);
-    border: 1px solid var(--border, #d1d5db);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
     border-radius: var(--radius, 6px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
     max-height: 220px;
     overflow-y: auto;
   }
@@ -222,10 +222,11 @@
     padding: 7px 12px;
     cursor: pointer;
     font-size: 13px;
+    color: var(--text);
   }
   .ac-list li:hover,
   .ac-list li.active {
-    background: var(--bg-hover, #f3f4f6);
+    background: var(--bg-hover);
   }
   .ac-label {
     overflow: hidden;
