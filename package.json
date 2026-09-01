@@ -40,7 +40,7 @@
     "release:check": "pnpm validate && pnpm secrets:history"
   },
   "devDependencies": {
-    "wrangler": "^4.118.0"
+    "wrangler": "^4.127.1"
   },
   "keywords": [
     "email",
