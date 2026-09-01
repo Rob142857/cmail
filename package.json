@@ -29,12 +29,14 @@
     "db:migrate:preview": "pnpm config:check && wrangler d1 migrations apply DB --remote --env preview --config apps/web/wrangler.toml",
     "db:migrate:verify": "node scripts/verify-migrations.mjs",
     "config:check": "node scripts/verify-wrangler-config.mjs",
+    "landing:check": "node scripts/verify-landing-assets.mjs",
+    "deploy:landing": "pnpm landing:check && wrangler pages deploy landing",
     "secrets:scan": "node scripts/check-secrets.mjs",
     "secrets:history": "node scripts/check-git-history-secrets.mjs",
     "lint": "pnpm -r lint",
     "check": "pnpm -r check",
     "test": "pnpm -r test",
-    "validate": "pnpm secrets:scan && pnpm config:check && pnpm lint && pnpm check && pnpm test && pnpm db:migrate:verify && pnpm build && pnpm audit --audit-level=low",
+    "validate": "pnpm secrets:scan && pnpm landing:check && pnpm config:check && pnpm lint && pnpm check && pnpm test && pnpm db:migrate:verify && pnpm build && pnpm audit --audit-level=low",
     "release:check": "pnpm validate && pnpm secrets:history"
   },
   "devDependencies": {

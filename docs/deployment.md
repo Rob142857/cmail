@@ -235,6 +235,22 @@ pnpm deploy
 
 Verify the resulting Pages origin and Worker name before changing mail routing.
 
+### Deploy the optional product landing page
+
+The public product page is a separate static Pages bundle in `landing/`. Always
+deploy the directory itself so its screenshots and assurance documents are
+uploaded with `index.html`:
+
+```sh
+pnpm landing:check
+pnpm deploy:landing -- --project-name <PAGES_PROJECT> --branch <PRODUCTION_BRANCH>
+pnpm landing:check -- --url https://product.example.com
+```
+
+The final command checks every published product-tour image for a successful
+response, `image/png` content type, PNG signature, and 1280 × 720 dimensions.
+This catches a Pages fallback serving `index.html` at a missing image URL.
+
 ### Roll back a release
 
 Before each release, record the deployed Git commit and the exact prior Worker version and Pages deployment IDs. These read-only commands list the current rollback candidates:
