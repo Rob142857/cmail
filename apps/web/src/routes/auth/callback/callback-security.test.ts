@@ -74,7 +74,7 @@ const returningUser: User = {
   last_auth_country: null,
 };
 
-function fakeDb(options: { existingManager?: { id: string } | null; enrolledUser?: User | null } = {}) {
+function fakeDb(options: { existingManager?: { id: string } | null; enrolledUser?: User | null; publishedPolicy?: boolean } = {}) {
   const prepare = vi.fn((sql: string) => {
     const statement = {
       bind: vi.fn(() => statement),
@@ -82,7 +82,7 @@ function fakeDb(options: { existingManager?: { id: string } | null; enrolledUser
       first: vi.fn(async () => {
         if (sql.includes("role = 'manager'")) return options.existingManager ?? null;
         if (sql.includes('SELECT * FROM users WHERE id = ?')) return options.enrolledUser ?? null;
-        if (sql.includes('FROM ict_policy_versions')) return null;
+        if (sql.includes('FROM ict_policy_versions')) return options.publishedPolicy ? { id: 'policy-1' } : null;
         return null;
       }),
     };
@@ -93,7 +93,7 @@ function fakeDb(options: { existingManager?: { id: string } | null; enrolledUser
 
 function callbackEvent(cookieValues: Record<string, string> = {}, db = fakeDb()) {
   const cookies = {
-    get: vi.fn((name: string) => {
+    get: vi.fn((name: string): string | undefined => {
       if (name === 'cmail_oauth_state_google') return 'state-value';
       if (name === 'cmail_oauth_verifier_google') return 'verifier-value';
       return cookieValues[name];
@@ -152,6 +152,46 @@ beforeEach(() => {
 });
 
 describe('OAuth callback authorization branches', () => {
+  it.each(['wrong_state', 'missing_verifier', 'provider_error'])('rejects %s before reading identity or enrollment intent', async (failure) => {
+    const { event, cookies } = callbackEvent({ cmail_enrollment: 'synthetic-intent' });
+    if (failure === 'wrong_state') event.url.searchParams.set('state', 'wrong');
+    if (failure === 'provider_error') event.url.searchParams.set('error', 'login_required');
+    if (failure === 'missing_verifier') cookies.get.mockImplementation((name) => name === 'cmail_oauth_state_google' ? 'state-value' : undefined);
+    await expect(GET(event as never)).rejects.toMatchObject({ location: '/?error=invalid_state' });
+    expect(cookies.delete).toHaveBeenCalledWith('cmail_oauth_state_google', { path: '/' });
+    expect(cookies.delete).toHaveBeenCalledWith('cmail_oauth_verifier_google', { path: '/' });
+    expect(cookies.get).not.toHaveBeenCalledWith('cmail_enrollment');
+    expect(mocks.exchangeCode).not.toHaveBeenCalled();
+    expect(mocks.findBoundUser).not.toHaveBeenCalled();
+    expect(mocks.createSessionToken).not.toHaveBeenCalled();
+  });
+
+  it('refuses an unbound provider subject even when its email and Access headers match a staff address', async () => {
+    const { event } = callbackEvent();
+    event.request.headers.set('Cf-Access-Authenticated-User-Email', returningUser.email);
+    event.request.headers.set('Cf-Access-Jwt-Assertion', 'unverified-assertion');
+    mocks.fetchUserInfo.mockResolvedValue({ subject: 'other-subject', provider: 'google', email: returningUser.email, emailVerified: true, name: 'Other User' });
+    await expect(GET(event as never)).rejects.toMatchObject({ location: '/?error=enrollment_required' });
+    expect(mocks.findBoundUser).toHaveBeenCalledWith(event.platform.env.DB, 'google', 'other-subject');
+    expect(mocks.bindEnrolledIdentity).not.toHaveBeenCalled();
+    expect(mocks.provisionBootstrapManager).not.toHaveBeenCalled();
+    expect(mocks.createSessionToken).not.toHaveBeenCalled();
+  });
+
+  it.each(['paused', 'offboarded'] as const)('refuses an existing %s account without issuing a session', async (status) => {
+    mocks.findBoundUser.mockResolvedValue({ ...returningUser, status });
+    const { event } = callbackEvent();
+    await expect(GET(event as never)).rejects.toMatchObject({ location: '/?error=account_suspended' });
+    expect(mocks.createSessionToken).not.toHaveBeenCalled();
+  });
+
+  it('retains the policy gate after a bound provider signs in', async () => {
+    mocks.findBoundUser.mockResolvedValue(returningUser);
+    const { event } = callbackEvent({}, fakeDb({ publishedPolicy: true }));
+    const response = await GET(event as never) as Response;
+    expect(response.headers.get('Location')).toBe('/policy');
+  });
+
   it('allows a returning identity by provider + subject even when UserInfo email changed or is unverified', async () => {
     const db = fakeDb();
     mocks.findBoundUser.mockResolvedValue(returningUser);

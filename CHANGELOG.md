@@ -8,6 +8,11 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Added
 
+- Optional `?sso=1` provider sign-in links that reuse an existing cmail session
+  or allow the provider to reuse its browser session without a forced account
+  chooser. Invitation and bootstrap account selection remain explicit; the
+  existing provider-subject binding and authorization gates are unchanged.
+  See the [staff sign-in contract](docs/staff-sign-in.md).
 - Provider-aware manager invitations: a Google- or Microsoft-hosted address
   gets a one-button "Activate your mailbox" email straight into that
   provider's sign-in; an address hosted elsewhere gets the same button, but

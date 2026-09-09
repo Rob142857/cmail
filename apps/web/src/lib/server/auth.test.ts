@@ -92,6 +92,23 @@ describe('conditional OAuth providers', () => {
     expect(authorization.searchParams.get('scope')).not.toContain('User.Read');
   });
 
+  it.each(['google', 'microsoft'] as const)('allows %s session reuse without weakening the OAuth request', (provider) => {
+    const env = {
+      GOOGLE_CLIENT_ID: 'google-id', GOOGLE_CLIENT_SECRET: 'google-secret',
+      MICROSOFT_CLIENT_ID: 'microsoft-id', MICROSOFT_CLIENT_SECRET: 'microsoft-secret',
+    };
+    const callback = getOAuthCallbackUrl(AUTH_RUNTIME.APP_URL, provider)!;
+    const regular = new URL(buildAuthorizationUrl(provider, env, callback, 'state', 'challenge'));
+    const sso = new URL(buildAuthorizationUrl(provider, env, callback, 'state', 'challenge', 'existing'));
+    expect(regular.searchParams.get('prompt')).toBe('select_account');
+    expect(sso.searchParams.has('prompt')).toBe(false);
+    regular.searchParams.delete('prompt');
+    expect(sso.toString()).toBe(regular.toString());
+    expect(sso.searchParams.get('response_type')).toBe('code');
+    expect(sso.searchParams.get('code_challenge_method')).toBe('S256');
+    expect(sso.searchParams.get('scope')).toBe('openid email profile');
+  });
+
   it('rejects unsafe or ambiguous callback bases', () => {
     expect(getOAuthCallbackUrl('http://mail.example.com', 'google')).toBeNull();
     expect(getOAuthCallbackUrl(`https://user:password${String.fromCharCode(64)}mail.example.com`, 'google')).toBeNull();
