@@ -72,8 +72,8 @@ describe('optional staff SSO entry', () => {
     expect(event.cookies.set).not.toHaveBeenCalledWith(cookie, expect.anything(), expect.anything());
   });
 
-  it('opens mail directly only for an already validated cmail session', async () => {
-    const event = loginEvent('microsoft', '?sso=1&returnTo=https://other.example');
+  it.each(['google', 'microsoft'])('opens mail directly for an already validated cmail session via %s', async (provider) => {
+    const event = loginEvent(provider, '?sso=1&returnTo=https://other.example');
     event.locals.user = { id: 'existing-user' };
     const response = await GET(event as never) as Response;
     expect(response.status).toBe(303);

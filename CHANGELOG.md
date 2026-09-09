@@ -8,6 +8,14 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Added
 
+- Remember the provider only after successful returning-account OAuth so a
+  later signed-out mailbox visit can start fresh OAuth without guessing an
+  identity. The bounded host-only preference is cleared on explicit logout;
+  errors retain the normal chooser and enrollment/bootstrap remain explicit.
+- Local PNG/AVIF and Miniflare Images checks in the validation gate.
+- Pin Vitest and its mocker to 4.1.11 and scope a Sharp 0.35.4 override to
+  Miniflare, addressing GHSA-82fw-gwwq-j7x9 and GHSA-rgj7-g3m4-5g8c without
+  changing the pnpm or Wrangler toolchain. Sharp install scripts are denied.
 - Optional `?sso=1` provider sign-in links that reuse an existing cmail session
   or allow the provider to reuse its browser session without a forced account
   chooser. Invitation and bootstrap account selection remain explicit; the

@@ -36,7 +36,8 @@
     "lint": "pnpm -r lint",
     "check": "pnpm -r check",
     "test": "pnpm -r test",
-    "validate": "pnpm secrets:scan && pnpm landing:check && pnpm config:check && pnpm lint && pnpm check && pnpm test && pnpm db:migrate:verify && pnpm build && pnpm audit --audit-level=low",
+    "test:image-runtime": "node scripts/verify-image-runtime.mjs",
+    "validate": "pnpm secrets:scan && pnpm landing:check && pnpm config:check && pnpm lint && pnpm check && pnpm test && pnpm test:image-runtime && pnpm db:migrate:verify && pnpm build && pnpm audit --audit-level=low",
     "release:check": "pnpm validate && pnpm secrets:history"
   },
   "devDependencies": {

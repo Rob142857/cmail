@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from '@cmail/shared/types';
+import { PROVIDER_PREFERENCE_COOKIE } from '$lib/server/provider-preference';
 
 const mocks = vi.hoisted(() => ({
   exchangeCode: vi.fn(),
@@ -91,19 +92,19 @@ function fakeDb(options: { existingManager?: { id: string } | null; enrolledUser
   return { prepare } as unknown as D1Database;
 }
 
-function callbackEvent(cookieValues: Record<string, string> = {}, db = fakeDb()) {
+function callbackEvent(cookieValues: Record<string, string> = {}, db = fakeDb(), provider = 'google') {
   const cookies = {
     get: vi.fn((name: string): string | undefined => {
-      if (name === 'cmail_oauth_state_google') return 'state-value';
-      if (name === 'cmail_oauth_verifier_google') return 'verifier-value';
+      if (name === `cmail_oauth_state_${provider}`) return 'state-value';
+      if (name === `cmail_oauth_verifier_${provider}`) return 'verifier-value';
       return cookieValues[name];
     }),
     delete: vi.fn(),
   };
   return {
     event: {
-      params: { provider: 'google' },
-      url: new URL('https://mail.example.com/auth/callback/google?code=code-value&state=state-value'),
+      params: { provider },
+      url: new URL(`https://mail.example.com/auth/callback/${provider}?code=code-value&state=state-value`),
       platform: {
         env: {
           DB: db,
@@ -152,6 +153,38 @@ beforeEach(() => {
 });
 
 describe('OAuth callback authorization branches', () => {
+  it.each(['google', 'microsoft'])('remembers only the successful returning %s provider in a bounded host-only cookie', async (provider) => {
+    mocks.findBoundUser.mockResolvedValue(returningUser);
+    const { event } = callbackEvent({}, fakeDb(), provider);
+    const response = await GET(event as never) as Response;
+    const preference = response.headers.getSetCookie().find((value) => value.startsWith(`${PROVIDER_PREFERENCE_COOKIE}=`));
+    expect(preference).toBe(`${PROVIDER_PREFERENCE_COOKIE}=${provider}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`);
+    expect(preference).not.toContain('Domain=');
+    expect(preference).not.toContain(returningUser.email);
+    expect(response.headers.getSetCookie()).toHaveLength(2);
+  });
+
+  it('does not create a preference cookie on insecure development HTTP', async () => {
+    mocks.findBoundUser.mockResolvedValue(returningUser);
+    const { event } = callbackEvent();
+    event.url.protocol = 'http:';
+    const response = await GET(event as never) as Response;
+    expect(response.headers.getSetCookie().some((value) => value.startsWith(PROVIDER_PREFERENCE_COOKIE))).toBe(false);
+  });
+
+  it('does not remember a provider during first enrollment', async () => {
+    mocks.findEnrollment.mockResolvedValue({
+      enrollment_id: 'enrollment-1', user_id: returningUser.id, email: returningUser.email,
+      role: 'standard', status: 'pending', expires_at: 2_000_000_000,
+      consumed_at: null, bound_provider: null,
+    });
+    const { event } = callbackEvent({ cmail_enrollment: 'synthetic-intent' }, fakeDb({ enrolledUser: returningUser }));
+    const response = await GET(event as never) as Response;
+    expect(response.status).toBe(303);
+    expect(mocks.bindEnrolledIdentity).toHaveBeenCalledOnce();
+    expect(response.headers.getSetCookie().some((value) => value.startsWith(PROVIDER_PREFERENCE_COOKIE))).toBe(false);
+  });
+
   it.each(['wrong_state', 'missing_verifier', 'provider_error'])('rejects %s before reading identity or enrollment intent', async (failure) => {
     const { event, cookies } = callbackEvent({ cmail_enrollment: 'synthetic-intent' });
     if (failure === 'wrong_state') event.url.searchParams.set('state', 'wrong');
@@ -282,6 +315,7 @@ describe('OAuth callback authorization branches', () => {
       provider: 'google',
       subject: 'bootstrap-subject',
     }));
+    expect(response.headers.getSetCookie().some((value) => value.startsWith(PROVIDER_PREFERENCE_COOKIE))).toBe(false);
   });
 
   it('rejects bootstrap when UserInfo email does not match the proof', async () => {

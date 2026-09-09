@@ -11,14 +11,14 @@ overrides:
   esbuild: ^0.28.1
   "nanoid@<3.3.18": 3.3.18
   postcss: ^8.5.18
-  sharp: ^0.35.0
+  "miniflare>sharp": 0.35.4
   undici: ^7.29.0
   ws: ^8.21.0
 
 allowBuilds:
   core-js-pure: true
   esbuild: true
-  sharp: true
+  "sharp@0.35.4": false
   workerd: true
 
 minimumReleaseAgeExclude:
@@ -27,5 +27,4 @@ minimumReleaseAgeExclude:
 onlyBuiltDependencies:
   - core-js-pure
   - esbuild
-  - sharp
   - workerd
