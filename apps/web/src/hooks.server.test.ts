@@ -10,6 +10,7 @@ interface InvokeOptions {
   method?: string;
   role?: 'standard' | 'manager';
   publishedPolicy?: boolean;
+  headers?: Record<string, string>;
 }
 
 function user(role: 'standard' | 'manager'): User {
@@ -36,7 +37,7 @@ async function invoke(options: InvokeOptions): Promise<{
     ? await createSessionToken(authenticatedUser.id, SESSION_SECRET, 60_000)
     : null;
   const requestUrl = new URL(options.path, 'https://mail.example.com');
-  const headers = new Headers();
+  const headers = new Headers(options.headers);
   if (session) {
     headers.set('cookie', buildSessionCookie(session.token, true).split(';', 1)[0]);
   }
@@ -89,6 +90,20 @@ async function invoke(options: InvokeOptions): Promise<{
 }
 
 describe('central admin authorization', () => {
+  it('does not authenticate Access headers or an Access cookie as a cmail session', async () => {
+    const { response, resolve } = await invoke({
+      path: '/admin',
+      headers: {
+        'Cf-Access-Authenticated-User-Email': 'manager@example.com',
+        'Cf-Access-Jwt-Assertion': 'unverified-assertion',
+        cookie: 'CF_Authorization=unverified-assertion',
+      },
+    });
+    expect(response.status).toBe(303);
+    expect(response.headers.get('Location')).toBe('/');
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
   it.each([
     '/admin',
     '/admin/users/__data.json',

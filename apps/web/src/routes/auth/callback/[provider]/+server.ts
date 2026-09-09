@@ -21,6 +21,7 @@ import { assertStrongSessionSecret, maxSessionsPerUser, sessionTtlMs } from '$li
 import { recordTravelRequest, requestCountry, signInCountryGate } from '$lib/server/travel';
 import { normalizeDomain, normalizeEmail } from '$lib/server/validation';
 import { audit } from '$lib/server/db';
+import { providerPreferenceCookie } from '$lib/server/provider-preference';
 
 async function denySignIn(
   db: D1Database,
@@ -99,6 +100,7 @@ export const GET: RequestHandler = async ({ params, url, platform, cookies, requ
   // Returning sign-in authority is exclusively the exact provider + OIDC sub.
   // UserInfo email is intentionally not part of this lookup or decision.
   let user = await findBoundUser(env.DB, provider, userInfo.subject);
+  const returningIdentity = !!user && !enrollmentToken && !bootstrapProof;
 
   if (user && enrollmentToken) {
     const enrollment = await findEnrollment(env.DB, enrollmentToken);
@@ -279,12 +281,13 @@ export const GET: RequestHandler = async ({ params, url, platform, cookies, requ
     if (!signature) location = '/policy';
   }
 
-  return new Response(null, {
-    status: 303,
-    headers: {
-      'Set-Cookie': buildSessionCookie(token, url.protocol === 'https:'),
-      Location: location,
-      'Cache-Control': 'no-store',
-    },
+  const headers = new Headers({
+    'Set-Cookie': buildSessionCookie(token, url.protocol === 'https:'),
+    Location: location,
+    'Cache-Control': 'no-store',
   });
+  if (returningIdentity && url.protocol === 'https:') {
+    headers.append('Set-Cookie', providerPreferenceCookie(provider));
+  }
+  return new Response(null, { status: 303, headers });
 };

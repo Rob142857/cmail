@@ -119,6 +119,7 @@ export function buildAuthorizationUrl(
   redirectUri: string,
   state: string,
   codeChallenge: string,
+  accountSelection: 'choose' | 'existing' = 'choose',
 ): string {
   const config = getProviderConfig(provider, env);
   if (!config) throw new Error(`Auth provider "${provider}" is not configured`);
@@ -132,8 +133,10 @@ export function buildAuthorizationUrl(
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
     access_type: 'offline',
-    prompt: 'select_account',
   });
+  // Omitting prompt lets the provider reuse its own browser session or ask
+  // for interaction as needed. It never supplies identity to the callback.
+  if (accountSelection === 'choose') params.set('prompt', 'select_account');
 
   return `${config.authorizationUrl}?${params}`;
 }

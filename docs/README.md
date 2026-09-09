@@ -27,6 +27,10 @@ For engineers and operators setting up a deployment, roughly in this order:
 5. [Deployment and verification](deployment.md) — the production sequence, including identity providers, DNS, bootstrap, and controlled mail tests.
 6. [Security checklist](security-checklist.md) and [Operations checklist](operations-checklist.md) — complete both for every environment.
 
+For staff-portal links and optional provider-session reuse, see the
+[staff sign-in contract](staff-sign-in.md), including the Cloudflare Access
+identity boundary and live configuration checks.
+
 ## Customisation and governance
 
 - [Security, privacy, and assurance](assurance.md) — for managers, reviewers, and auditors. The public responsibility boundary, control matrix, limitations, and a deployment evidence checklist.
