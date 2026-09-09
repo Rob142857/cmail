@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from '@cmail/shared/types';
+import { PROVIDER_PREFERENCE_COOKIE } from '$lib/server/provider-preference';
 
 const mocks = vi.hoisted(() => ({
   exchangeCode: vi.fn(),
@@ -74,7 +75,7 @@ const returningUser: User = {
   last_auth_country: null,
 };
 
-function fakeDb(options: { existingManager?: { id: string } | null; enrolledUser?: User | null } = {}) {
+function fakeDb(options: { existingManager?: { id: string } | null; enrolledUser?: User | null; publishedPolicy?: boolean } = {}) {
   const prepare = vi.fn((sql: string) => {
     const statement = {
       bind: vi.fn(() => statement),
@@ -82,7 +83,7 @@ function fakeDb(options: { existingManager?: { id: string } | null; enrolledUser
       first: vi.fn(async () => {
         if (sql.includes("role = 'manager'")) return options.existingManager ?? null;
         if (sql.includes('SELECT * FROM users WHERE id = ?')) return options.enrolledUser ?? null;
-        if (sql.includes('FROM ict_policy_versions')) return null;
+        if (sql.includes('FROM ict_policy_versions')) return options.publishedPolicy ? { id: 'policy-1' } : null;
         return null;
       }),
     };
@@ -91,19 +92,19 @@ function fakeDb(options: { existingManager?: { id: string } | null; enrolledUser
   return { prepare } as unknown as D1Database;
 }
 
-function callbackEvent(cookieValues: Record<string, string> = {}, db = fakeDb()) {
+function callbackEvent(cookieValues: Record<string, string> = {}, db = fakeDb(), provider = 'google') {
   const cookies = {
-    get: vi.fn((name: string) => {
-      if (name === 'cmail_oauth_state_google') return 'state-value';
-      if (name === 'cmail_oauth_verifier_google') return 'verifier-value';
+    get: vi.fn((name: string): string | undefined => {
+      if (name === `cmail_oauth_state_${provider}`) return 'state-value';
+      if (name === `cmail_oauth_verifier_${provider}`) return 'verifier-value';
       return cookieValues[name];
     }),
     delete: vi.fn(),
   };
   return {
     event: {
-      params: { provider: 'google' },
-      url: new URL('https://mail.example.com/auth/callback/google?code=code-value&state=state-value'),
+      params: { provider },
+      url: new URL(`https://mail.example.com/auth/callback/${provider}?code=code-value&state=state-value`),
       platform: {
         env: {
           DB: db,
@@ -152,6 +153,78 @@ beforeEach(() => {
 });
 
 describe('OAuth callback authorization branches', () => {
+  it.each(['google', 'microsoft'])('remembers only the successful returning %s provider in a bounded host-only cookie', async (provider) => {
+    mocks.findBoundUser.mockResolvedValue(returningUser);
+    const { event } = callbackEvent({}, fakeDb(), provider);
+    const response = await GET(event as never) as Response;
+    const preference = response.headers.getSetCookie().find((value) => value.startsWith(`${PROVIDER_PREFERENCE_COOKIE}=`));
+    expect(preference).toBe(`${PROVIDER_PREFERENCE_COOKIE}=${provider}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`);
+    expect(preference).not.toContain('Domain=');
+    expect(preference).not.toContain(returningUser.email);
+    expect(response.headers.getSetCookie()).toHaveLength(2);
+  });
+
+  it('does not create a preference cookie on insecure development HTTP', async () => {
+    mocks.findBoundUser.mockResolvedValue(returningUser);
+    const { event } = callbackEvent();
+    event.url.protocol = 'http:';
+    const response = await GET(event as never) as Response;
+    expect(response.headers.getSetCookie().some((value) => value.startsWith(PROVIDER_PREFERENCE_COOKIE))).toBe(false);
+  });
+
+  it('does not remember a provider during first enrollment', async () => {
+    mocks.findEnrollment.mockResolvedValue({
+      enrollment_id: 'enrollment-1', user_id: returningUser.id, email: returningUser.email,
+      role: 'standard', status: 'pending', expires_at: 2_000_000_000,
+      consumed_at: null, bound_provider: null,
+    });
+    const { event } = callbackEvent({ cmail_enrollment: 'synthetic-intent' }, fakeDb({ enrolledUser: returningUser }));
+    const response = await GET(event as never) as Response;
+    expect(response.status).toBe(303);
+    expect(mocks.bindEnrolledIdentity).toHaveBeenCalledOnce();
+    expect(response.headers.getSetCookie().some((value) => value.startsWith(PROVIDER_PREFERENCE_COOKIE))).toBe(false);
+  });
+
+  it.each(['wrong_state', 'missing_verifier', 'provider_error'])('rejects %s before reading identity or enrollment intent', async (failure) => {
+    const { event, cookies } = callbackEvent({ cmail_enrollment: 'synthetic-intent' });
+    if (failure === 'wrong_state') event.url.searchParams.set('state', 'wrong');
+    if (failure === 'provider_error') event.url.searchParams.set('error', 'login_required');
+    if (failure === 'missing_verifier') cookies.get.mockImplementation((name) => name === 'cmail_oauth_state_google' ? 'state-value' : undefined);
+    await expect(GET(event as never)).rejects.toMatchObject({ location: '/?error=invalid_state' });
+    expect(cookies.delete).toHaveBeenCalledWith('cmail_oauth_state_google', { path: '/' });
+    expect(cookies.delete).toHaveBeenCalledWith('cmail_oauth_verifier_google', { path: '/' });
+    expect(cookies.get).not.toHaveBeenCalledWith('cmail_enrollment');
+    expect(mocks.exchangeCode).not.toHaveBeenCalled();
+    expect(mocks.findBoundUser).not.toHaveBeenCalled();
+    expect(mocks.createSessionToken).not.toHaveBeenCalled();
+  });
+
+  it('refuses an unbound provider subject even when its email and Access headers match a staff address', async () => {
+    const { event } = callbackEvent();
+    event.request.headers.set('Cf-Access-Authenticated-User-Email', returningUser.email);
+    event.request.headers.set('Cf-Access-Jwt-Assertion', 'unverified-assertion');
+    mocks.fetchUserInfo.mockResolvedValue({ subject: 'other-subject', provider: 'google', email: returningUser.email, emailVerified: true, name: 'Other User' });
+    await expect(GET(event as never)).rejects.toMatchObject({ location: '/?error=enrollment_required' });
+    expect(mocks.findBoundUser).toHaveBeenCalledWith(event.platform.env.DB, 'google', 'other-subject');
+    expect(mocks.bindEnrolledIdentity).not.toHaveBeenCalled();
+    expect(mocks.provisionBootstrapManager).not.toHaveBeenCalled();
+    expect(mocks.createSessionToken).not.toHaveBeenCalled();
+  });
+
+  it.each(['paused', 'offboarded'] as const)('refuses an existing %s account without issuing a session', async (status) => {
+    mocks.findBoundUser.mockResolvedValue({ ...returningUser, status });
+    const { event } = callbackEvent();
+    await expect(GET(event as never)).rejects.toMatchObject({ location: '/?error=account_suspended' });
+    expect(mocks.createSessionToken).not.toHaveBeenCalled();
+  });
+
+  it('retains the policy gate after a bound provider signs in', async () => {
+    mocks.findBoundUser.mockResolvedValue(returningUser);
+    const { event } = callbackEvent({}, fakeDb({ publishedPolicy: true }));
+    const response = await GET(event as never) as Response;
+    expect(response.headers.get('Location')).toBe('/policy');
+  });
+
   it('allows a returning identity by provider + subject even when UserInfo email changed or is unverified', async () => {
     const db = fakeDb();
     mocks.findBoundUser.mockResolvedValue(returningUser);
@@ -242,6 +315,7 @@ describe('OAuth callback authorization branches', () => {
       provider: 'google',
       subject: 'bootstrap-subject',
     }));
+    expect(response.headers.getSetCookie().some((value) => value.startsWith(PROVIDER_PREFERENCE_COOKIE))).toBe(false);
   });
 
   it('rejects bootstrap when UserInfo email does not match the proof', async () => {

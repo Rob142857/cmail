@@ -1,11 +1,27 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import type { Mailbox } from '@cmail/shared/types';
+import { getEnabledProviders, isAuthProvider } from '$lib/server/auth';
+import { BOOTSTRAP_PROOF_COOKIE } from '$lib/server/bootstrap';
+import { ENROLLMENT_COOKIE } from '$lib/server/identity';
+import { PROVIDER_PREFERENCE_COOKIE } from '$lib/server/provider-preference';
 
-export const load: LayoutServerLoad = async ({ locals, platform }) => {
-  if (!locals.user) throw redirect(302, '/');
-
+export const load: LayoutServerLoad = async ({ locals, platform, cookies, request, url, isDataRequest, setHeaders }) => {
   const env = platform?.env;
+  if (!locals.user) {
+    setHeaders({ 'Cache-Control': 'no-store', Vary: 'Cookie' });
+    const provider = cookies.get(PROVIDER_PREFERENCE_COOKIE);
+    // Only direct mailbox entry may resume a previous provider. OAuth errors
+    // and logout land on /, which always keeps the normal chooser available.
+    if (env && request.method === 'GET' && url.pathname === '/mail' && !isDataRequest
+      && provider && isAuthProvider(provider)
+      && !cookies.get(ENROLLMENT_COOKIE) && !cookies.get(BOOTSTRAP_PROOF_COOKIE)
+      && getEnabledProviders(env as unknown as Record<string, string | undefined>).includes(provider)) {
+      throw redirect(303, `/auth/login/${provider}?sso=1`);
+    }
+    throw redirect(302, '/');
+  }
+
   if (!env) throw redirect(302, '/');
 
   // Per-mailbox unread counts (inbox folder)
