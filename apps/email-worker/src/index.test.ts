@@ -365,6 +365,11 @@ describe('decoded body safety', () => {
     expect(prepareInboundBody(undefined, '&'.repeat(1_000), 1_100)).toEqual({ ok: false, reason: 'output_bytes' });
   });
 
+  it('handles malformed tag prefixes with bounded linear scanning', () => {
+    const malformed = `${'<a'.repeat(4_000)}${' '.repeat(100_000)}`;
+    expect(() => prepareInboundBody(malformed, undefined, 512 * 1024)).not.toThrow();
+  });
+
   it('derives readable previews for HTML-only messages', () => {
     expect(extractInboundSnippet(undefined, '<p>Hello &amp; welcome</p><div>Second line</div>'))
       .toBe('Hello & welcome Second line');

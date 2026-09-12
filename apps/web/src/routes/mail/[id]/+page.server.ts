@@ -17,6 +17,8 @@ import {
 import { audit, generateId } from '$lib/server/db';
 import { deriveReplyThreading } from '$lib/server/message-threading';
 import { sanitizeSenderDisplayName, sendEmail } from '$lib/server/outbound';
+import { consumeCalendarOutboundLimits } from '$lib/server/calendar-outbound';
+import { messageOwnershipPredicate } from '$lib/server/message-access';
 
 interface InviteViewModel {
   eventId: string | null;
@@ -119,7 +121,7 @@ export const load: PageServerLoad = async ({ locals, platform, params, url }) =>
      INNER JOIN mailbox_assignments ma ON m.mailbox_id = ma.mailbox_id
      INNER JOIN mailboxes mb ON mb.id = m.mailbox_id
      WHERE m.id = ? AND ma.user_id = ? AND mb.status = 'active'
-       AND (m.draft_owner_id IS NULL OR m.draft_owner_id = ?)`,
+       AND ${messageOwnershipPredicate('m')}`,
   ).bind(params.id, locals.user.id, locals.user.id).first<Message & {
     mailbox_permissions: 'read' | 'send-as' | 'full';
     mailbox_address: string;
@@ -225,7 +227,7 @@ export const actions: Actions = {
        INNER JOIN mailbox_assignments ma ON m.mailbox_id = ma.mailbox_id
        INNER JOIN mailboxes mb ON mb.id = m.mailbox_id
        WHERE m.id = ? AND ma.user_id = ? AND mb.status = 'active'
-         AND (m.draft_owner_id IS NULL OR m.draft_owner_id = ?)`,
+         AND ${messageOwnershipPredicate('m')}`,
     ).bind(params.id, locals.user.id, locals.user.id).first<{
       id: string;
       mailbox_id: string;
@@ -242,6 +244,14 @@ export const actions: Actions = {
     if (!event) return fail(404, { error: 'This invitation is no longer available to respond to.' });
     if (event.status === 'cancelled') return fail(400, { error: 'This meeting was cancelled.' });
     if (event.organizer_self === 1) return fail(400, { error: 'You organised this meeting.' });
+
+    const outboundLimits = await consumeCalendarOutboundLimits(
+      env.DB,
+      env as unknown as Record<string, unknown>,
+      locals.user.id,
+      1,
+    );
+    if (!outboundLimits.ok) return fail(outboundLimits.status, { error: outboundLimits.error });
 
     const myAddress = message.mailbox_address.toLowerCase();
     try {

@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
 import type { AuditRecord } from '@cmail/shared/types';
+import { adminLoaderFailure } from '$lib/server/admin-loader-error';
 
 type AuditRow = AuditRecord & { actor_email?: string; actor_display_name?: string };
 
@@ -12,6 +13,7 @@ export const load: PageServerLoad = async ({ platform, url }) => {
     eventTypes: [] as string[],
     unavailable: true,
     error: undefined as string | undefined,
+    errorReference: undefined as string | undefined,
   };
   if (!env) return empty;
 
@@ -48,9 +50,9 @@ export const load: PageServerLoad = async ({ platform, url }) => {
       eventType: eventType || '',
       eventTypes: (eventTypesRow.results || []).map(r => r.event_type),
       unavailable: false,
+      errorReference: undefined,
     };
   } catch (e) {
-    console.error('Failed to load audit log:', e);
-    return { ...empty, page, eventType: eventType || '', error: e instanceof Error ? e.message : String(e) };
+    return { ...empty, page, eventType: eventType || '', ...adminLoaderFailure('audit', e) };
   }
 };

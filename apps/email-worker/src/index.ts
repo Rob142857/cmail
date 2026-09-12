@@ -1134,7 +1134,12 @@ export default {
         .map((attachment) => extractCalendarText(attachment))
         .filter((text): text is string => text !== null);
       if (calendarTexts.length) {
-        ctx.waitUntil(applyCalendarWrites(env.DB, mailbox.id, messageId, calendarTexts).catch((error) => {
+        ctx.waitUntil(applyCalendarWrites(env.DB, mailbox.id, messageId, calendarTexts, {
+          // Calendar state changes require a trusted Authentication-Results
+          // boundary and DMARC alignment with the displayed organizer/replier.
+          authenticated: auth.dmarc === 'pass',
+          senderAddress: headerFrom,
+        }).catch((error) => {
           console.error('Calendar processing failed:', error instanceof Error ? error.message : 'unknown error');
         }));
       }

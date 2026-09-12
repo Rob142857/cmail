@@ -34,8 +34,8 @@
 
   {#if data.unavailable}
     <MessageBar tone="danger" title="Audit log unavailable.">
-      The audit log could not be read. Check the D1 binding.
-      {#if data.error}<span class="mono">{data.error}</span>{/if}
+      {data.error || 'The audit log could not be read. Try again.'}
+      {#if data.errorReference}<span class="mono">Reference: {data.errorReference}</span>{/if}
     </MessageBar>
   {:else}
     <div class="card table-card">

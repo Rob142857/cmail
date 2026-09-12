@@ -126,5 +126,9 @@ export function cleanPastedHtml(html: string): string {
   const result = doc.body.innerHTML.trim();
   // An image-only paste (e.g. a banner signature) has no text but is not empty.
   if (doc.body.querySelector('img')) return result;
-  return /^(?:\s|&nbsp;)*$/i.test(result.replace(/<[^>]*>/g, '')) ? '' : result;
+  // Use the parsed DOM rather than stripping tag-shaped text with a regex.
+  // The latter is an incomplete multi-character sanitization and can also
+  // misclassify literal markup-like text after entity decoding.
+  const text = doc.body.textContent?.trim() || '';
+  return text ? result : '';
 }

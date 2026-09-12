@@ -1,4 +1,5 @@
 import type { PageServerLoad } from './$types';
+import { adminLoaderFailure } from '$lib/server/admin-loader-error';
 
 /**
  * Unified investigation view: message trace and the audit log in one timeline.
@@ -93,6 +94,7 @@ export const load: PageServerLoad = async ({ platform, url }) => {
     },
     unavailable: true,
     error: undefined as string | undefined,
+    errorReference: undefined as string | undefined,
   };
   if (!env) return empty;
 
@@ -187,13 +189,13 @@ export const load: PageServerLoad = async ({ platform, url }) => {
       eventTypes: (types.results || []).map((row) => row.event_type),
       filters: { q, source, direction, status, event, outcome, from, to, page, pageSize },
       unavailable: false,
+      errorReference: undefined,
     };
   } catch (e) {
-    console.error('Failed to load investigation records:', e);
     return {
       ...empty,
       filters: { q, source, direction, status, event, outcome, from, to, page, pageSize },
-      error: e instanceof Error ? e.message : String(e),
+      ...adminLoaderFailure('investigation', e),
     };
   }
 };

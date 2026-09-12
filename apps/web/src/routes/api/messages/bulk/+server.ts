@@ -1,6 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { generateId } from '$lib/server/db';
+import { messageOwnershipPredicate } from '$lib/server/message-access';
 
 const MAX_IDS = 100;
 const MAX_BODY_BYTES = 16_384;
@@ -122,7 +123,7 @@ export const PATCH: RequestHandler = async ({ locals, platform, request }) => {
      INNER JOIN mailbox_assignments ma ON ma.mailbox_id = m.mailbox_id
      INNER JOIN mailboxes mb ON mb.id = m.mailbox_id
      WHERE m.id IN (${placeholders}) AND ma.user_id = ? AND mb.status = 'active'
-       AND (m.draft_owner_id IS NULL OR m.draft_owner_id = ?)`,
+       AND ${messageOwnershipPredicate('m')}`,
   ).bind(...ids, locals.user.id, locals.user.id).all<AuthorizedMessage>();
 
   const messages = authorized.results || [];
@@ -148,7 +149,7 @@ export const PATCH: RequestHandler = async ({ locals, platform, request }) => {
     INNER JOIN mailboxes mb ON mb.id = ma.mailbox_id
     WHERE ma.mailbox_id = messages.mailbox_id AND ma.user_id = ?
       AND mb.status = 'active' ${assignmentPermission}
-  ) AND (messages.draft_owner_id IS NULL OR messages.draft_owner_id = ?)`;
+  ) AND ${messageOwnershipPredicate('messages')}`;
 
   let mutation: D1PreparedStatement;
   if (action === 'read' || action === 'unread') {

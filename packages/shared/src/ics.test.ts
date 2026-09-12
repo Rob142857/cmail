@@ -1,7 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildIcs, parseIcs, type BuildIcsInput } from './ics.ts';
+import {
+  MAX_ICS_ATTENDEES_PER_EVENT,
+  MAX_ICS_INPUT_BYTES,
+  MAX_ICS_PHYSICAL_LINES,
+  buildIcs,
+  parseIcs,
+  type BuildIcsInput,
+} from './ics.ts';
 
 // ─── parseIcs: malformed / absent input ────────────────────────────────────
 
@@ -60,6 +67,65 @@ describe('parseIcs — malformed input never throws', () => {
     ].join('\r\n');
     const result = parseIcs(text);
     assert.equal(result!.events[0]!.summary, 'Still parses');
+  });
+
+  it('rejects oversized calendar input before parsing', () => {
+    const text = `BEGIN:VCALENDAR\r\n${'A'.repeat(MAX_ICS_INPUT_BYTES)}\r\nEND:VCALENDAR`;
+    assert.equal(parseIcs(text), null);
+  });
+
+  it('caps attendee expansion from one event', () => {
+    const attendees = Array.from(
+      { length: MAX_ICS_ATTENDEES_PER_EVENT + 10 },
+      (_, index) => `ATTENDEE:mailto:person-${index}@example.test`,
+    ).join('\r\n');
+    const text = [
+      'BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:bounded-attendees@example.test',
+      'DTSTART:20260115T090000Z', attendees, 'END:VEVENT', 'END:VCALENDAR',
+    ].join('\r\n');
+    assert.equal(parseIcs(text)!.events[0]!.attendees.length, MAX_ICS_ATTENDEES_PER_EVENT);
+  });
+
+  it('drops an event with an oversized UID instead of aliasing its prefix', () => {
+    const oversizedUid = 'u'.repeat(256) + '@example.test';
+    const text = [
+      'BEGIN:VCALENDAR', 'BEGIN:VEVENT', `UID:${oversizedUid}`,
+      'DTSTART:20260115T090000Z', 'END:VEVENT', 'END:VCALENDAR',
+    ].join('\r\n');
+    assert.equal(parseIcs(text)!.events.length, 0);
+  });
+
+  it('keeps oversized organizer invalid and skips oversized attendees', () => {
+    const oversizedAddress = 'a'.repeat(321) + '@example.test';
+    const text = [
+      'BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:identity-bounds@example.test',
+      'DTSTART:20260115T090000Z', `ORGANIZER:mailto:${oversizedAddress}`,
+      `ATTENDEE:mailto:${oversizedAddress}`, 'ATTENDEE:mailto:valid@example.test',
+      'END:VEVENT', 'END:VCALENDAR',
+    ].join('\r\n');
+    const event = parseIcs(text)!.events[0]!;
+    assert.equal(event.organizerAddress, '');
+    assert.deepEqual(event.attendees.map((attendee) => attendee.address), ['valid@example.test']);
+  });
+
+  it('drops an oversized RRULE rather than storing a partial rule', () => {
+    const text = [
+      'BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:rrule-bounds@example.test',
+      'DTSTART:20260115T090000Z', `RRULE:${'FREQ=DAILY;'.repeat(300)}`,
+      'END:VEVENT', 'END:VCALENDAR',
+    ].join('\r\n');
+    assert.equal(parseIcs(text)!.events[0]!.rrule, null);
+  });
+
+  it('counts CRLF as one physical line at the configured limit', () => {
+    const lines = [
+      'BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:line-bound@example.test',
+      'DTSTART:20260115T090000Z',
+      ...Array.from({ length: MAX_ICS_PHYSICAL_LINES - 6 }, () => 'X'),
+      'END:VEVENT', 'END:VCALENDAR',
+    ];
+    const result = parseIcs(lines.join('\r\n'));
+    assert.equal(result!.events.length, 1);
   });
 });
 

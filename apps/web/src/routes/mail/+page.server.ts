@@ -2,6 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { Message } from '@cmail/shared/types';
 import { escapeLike } from '$lib/server/validation';
+import { messageOwnershipPredicate } from '$lib/server/message-access';
 
 const FOLDERS = ['inbox', 'sent', 'drafts', 'archive', 'spam', 'trash'];
 const PAGE_SIZE = 50;
@@ -23,7 +24,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
     'ma.user_id = ?',
     'm.folder = ?',
     "mb.status = 'active'",
-    '(m.draft_owner_id IS NULL OR m.draft_owner_id = ?)',
+    messageOwnershipPredicate('m'),
   ];
   const bindings: unknown[] = [locals.user.id, folder, locals.user.id];
   if (mailboxId) {

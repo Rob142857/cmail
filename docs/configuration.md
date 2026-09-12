@@ -107,6 +107,24 @@ On iPhone and iPad, [standards-based Web Push is available to web apps added to 
 
 This notification path is direct and best-effort, not a durable queue. See the non-implemented [push notification reliability blueprint](push-notification-reliability.md) before designing a higher-assurance delivery path.
 
+## Inbound calendar updates
+
+Automatic ICS calendar writes are gated on a DMARC result from the configured
+trusted inbound Authentication-Results boundary. Configure this only when the
+receiving MTA/provider's exact `authserv-id` has been verified:
+
+| Variable | Secret | Purpose |
+|---|---:|---|
+| `INBOUND_AUTHSERV_ID` | No | Exact `authserv-id` stamped by the trusted inbound mail boundary |
+
+When `INBOUND_AUTHSERV_ID` is blank or unset, automatic REQUEST/PUBLISH/CANCEL/
+REPLY calendar updates are intentionally disabled. Mail ingestion and durable
+message delivery continue normally; only the calendar side effect is skipped.
+Do not populate this variable with a guessed provider or tenant name. Verify it
+from the receiving boundary's documented configuration and a controlled,
+authenticated test message first. A new installation leaves this setting blank
+until that evidence exists.
+
 ## Outbound delivery
 
 | Variable | Secret | Purpose |

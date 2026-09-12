@@ -211,9 +211,16 @@ export function publicPushKey(env: Partial<PushEnvironment>): string {
 }
 
 export function configuredPushHosts(env: Partial<PushEnvironment>): string[] {
+  const trimDots = (host: string): string => {
+    let start = 0;
+    let end = host.length;
+    while (start < end && host[start] === '.') start += 1;
+    while (end > start && host[end - 1] === '.') end -= 1;
+    return host.slice(start, end);
+  };
   const additions = text(env.PUSH_ENDPOINT_HOSTS)
     .split(',')
-    .map((host) => host.trim().toLowerCase().replace(/^\.+|\.+$/g, ''))
+    .map((host) => trimDots(host.trim().toLowerCase()))
     .filter((host) => /^(?:[a-z0-9-]+\.)+[a-z]{2,63}$/.test(host));
   return [...new Set([...DEFAULT_PUSH_HOSTS, ...additions])];
 }

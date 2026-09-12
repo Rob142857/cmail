@@ -18,6 +18,29 @@ Use the button only to import the repository, then complete every step below bef
 - Review dependency changes and known advisories.
 - Record the commit being deployed.
 
+## Updating an existing instance
+
+The management console shows the web build's Git revision and checks the configured public GitHub `REPO_URL` against `main` when opened, then hourly while open. Checks are cached for an hour per running server instance and require no GitHub token. Only managers can access the check endpoint. GitHub outages, rate limits, private repositories, and unknown revisions show an unavailable status; they never prevent mail or management from loading. Modified builds and diverged histories are marked as custom, not as ordinary upgrades. The notice describes newer source commits, not a certified release, and does not measure the separately deployed email Worker.
+
+For an existing tenant checkout, start with a clean working tree (`git status --short` should be empty), then:
+
+```sh
+git pull --ff-only origin main
+pnpm install --frozen-lockfile
+pnpm release:check
+```
+
+Review the changes and pending migrations, record current deployment IDs, and complete the backup procedure below before changing production. Preserve the tenant's ignored Wrangler manifests and secrets. Then, from the repository root:
+
+```sh
+pnpm db:migrate
+pnpm deploy
+```
+
+The root deploy command installs the email Worker before building and deploying Pages. Complete the verification checklist below, including inbound/outbound mail and the management screens. Refresh the console to see the new web revision. An open browser checks hourly; this is not an email or background notification service.
+
+The console's **Email support** button opens a draft containing the web build, update status, and change link. Set `UPDATE_SUPPORT_EMAIL` in the primary `apps/web/wrangler.toml` `[vars]` section to your own service desk. If blank, it falls back to the site's configured support address (`SUPPORT_EMAIL`, including any override in Settings). The dedicated value takes precedence over site overrides; no service provider is hardcoded into the template. The manager reviews and sends the draft. There is no automatic updater: a Pages deploy hook alone would not update the email Worker or migrate D1.
+
 ## 2. Provision Cloudflare resources
 
 ```sh

@@ -15,6 +15,7 @@ import { formatEventRange } from '$lib/dates';
 import { zonedDateTimeToUtcIso } from '$lib/zoned-time';
 import { sanitizeSenderDisplayName, sendEmail } from '$lib/server/outbound';
 import { normalizeEmail, parseRecipientList } from '$lib/server/validation';
+import { consumeCalendarOutboundLimits } from '$lib/server/calendar-outbound';
 
 const DATE_RX = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RX = /^\d{2}:\d{2}$/;
@@ -92,6 +93,14 @@ export const actions: Actions = {
        WHERE m.address = ? AND ma.user_id = ? AND ma.permissions IN ('send-as', 'full') AND m.status = 'active'`,
     ).bind(fromAddress, locals.user.id).first<{ id: string; address: string; display_name: string }>();
     if (!mailbox) return fail(403, { error: 'You don\'t have permission to organise from this address' });
+
+    const outboundLimits = await consumeCalendarOutboundLimits(
+      env.DB,
+      envRecord,
+      locals.user.id,
+      attendeeResult.recipients.length,
+    );
+    if (!outboundLimits.ok) return fail(outboundLimits.status, { error: outboundLimits.error });
 
     const uid = `${crypto.randomUUID()}@cmail`;
     const eventId = generateId();

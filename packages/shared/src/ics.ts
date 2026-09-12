@@ -79,6 +79,37 @@ const ENCODER = new TextEncoder();
 const DECODER = new TextDecoder();
 const RECOGNISED_METHODS: ReadonlySet<string> = new Set(['REQUEST', 'REPLY', 'CANCEL', 'PUBLISH']);
 
+// Calendar parts are untrusted MIME data. Keep parsing and the downstream D1
+// fan-out bounded independently of the much larger message/attachment caps.
+// A normal meeting invite is usually measured in a few kilobytes.
+export const MAX_ICS_INPUT_BYTES = 512 * 1024;
+export const MAX_ICS_PHYSICAL_LINES = 10_000;
+export const MAX_ICS_EVENTS = 50;
+export const MAX_ICS_ATTENDEES_PER_EVENT = 50;
+const MAX_ICS_TEXT_CHARS = 4_096;
+const MAX_ICS_UID_CHARS = 255;
+const MAX_ICS_ADDRESS_CHARS = 320;
+const MAX_ICS_RRULE_CHARS = 2_048;
+
+function boundedIcsText(value: string, maxChars = MAX_ICS_TEXT_CHARS): string {
+  return value.slice(0, maxChars);
+}
+
+function hasTooManyPhysicalLines(value: string): boolean {
+  let lines = 1;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (character === '\r') {
+      if (value[index + 1] === '\n') index += 1;
+      lines += 1;
+    } else if (character === '\n') {
+      lines += 1;
+    }
+    if (lines > MAX_ICS_PHYSICAL_LINES) return true;
+  }
+  return false;
+}
+
 // ─── Shared text escaping (RFC 5545 §3.3.11) ───────────────────────────────
 
 function escapeText(value: string): string {
@@ -293,6 +324,7 @@ function normalizePartstat(value: string | undefined): IcsPartstat {
 
 interface MutableEvent {
   uid: string;
+  uidInvalid: boolean;
   sequence: number;
   summary: string;
   description: string;
@@ -303,14 +335,17 @@ interface MutableEvent {
   durationMs: number | null;
   status: 'confirmed' | 'cancelled';
   organizerAddress: string;
+  organizerInvalid: boolean;
   organizerName: string;
   attendees: ParsedAttendee[];
   rrule: string | null;
+  rruleInvalid: boolean;
 }
 
 function createEmptyEvent(): MutableEvent {
   return {
     uid: '',
+    uidInvalid: false,
     sequence: 0,
     summary: '',
     description: '',
@@ -321,16 +356,22 @@ function createEmptyEvent(): MutableEvent {
     durationMs: null,
     status: 'confirmed',
     organizerAddress: '',
+    organizerInvalid: false,
     organizerName: '',
     attendees: [],
     rrule: null,
+    rruleInvalid: false,
   };
 }
 
 function applyEventProperty(event: MutableEvent, line: ContentLine): void {
   switch (line.name) {
     case 'UID':
-      event.uid = unescapeText(line.value).trim();
+      {
+        const uid = unescapeText(line.value).trim();
+        event.uidInvalid = event.uidInvalid || uid.length > MAX_ICS_UID_CHARS;
+        event.uid = event.uidInvalid ? '' : uid;
+      }
       return;
     case 'SEQUENCE': {
       const n = Number.parseInt(line.value.trim(), 10);
@@ -338,13 +379,13 @@ function applyEventProperty(event: MutableEvent, line: ContentLine): void {
       return;
     }
     case 'SUMMARY':
-      event.summary = unescapeText(line.value);
+      event.summary = boundedIcsText(unescapeText(line.value));
       return;
     case 'DESCRIPTION':
-      event.description = unescapeText(line.value);
+      event.description = boundedIcsText(unescapeText(line.value));
       return;
     case 'LOCATION':
-      event.location = unescapeText(line.value);
+      event.location = boundedIcsText(unescapeText(line.value));
       return;
     case 'STATUS':
       event.status = line.value.trim().toUpperCase() === 'CANCELLED' ? 'cancelled' : event.status;
@@ -365,18 +406,28 @@ function applyEventProperty(event: MutableEvent, line: ContentLine): void {
       return;
     }
     case 'RRULE':
-      event.rrule = line.value.trim() || null;
+      {
+        const rrule = line.value.trim();
+        event.rruleInvalid = event.rruleInvalid || rrule.length > MAX_ICS_RRULE_CHARS;
+        event.rrule = event.rruleInvalid || !rrule ? null : rrule;
+      }
       return;
     case 'ORGANIZER':
-      event.organizerAddress = stripMailto(line.value);
-      event.organizerName = (line.params.get('CN') || '').trim();
+      {
+        const address = stripMailto(line.value);
+        event.organizerInvalid = event.organizerInvalid || address.length > MAX_ICS_ADDRESS_CHARS;
+        event.organizerAddress = event.organizerInvalid ? '' : address;
+      }
+      event.organizerName = boundedIcsText((line.params.get('CN') || '').trim(), 120);
       return;
     case 'ATTENDEE': {
+      if (event.attendees.length >= MAX_ICS_ATTENDEES_PER_EVENT) return;
       const address = stripMailto(line.value);
+      if (address.length > MAX_ICS_ADDRESS_CHARS) return;
       if (address) {
         event.attendees.push({
           address,
-          name: (line.params.get('CN') || '').trim(),
+          name: boundedIcsText((line.params.get('CN') || '').trim(), 120),
           partstat: normalizePartstat(line.params.get('PARTSTAT')),
         });
       }
@@ -391,7 +442,7 @@ function finalizeEvent(event: MutableEvent): ParsedEvent | null {
   // A VEVENT with no interpretable DTSTART cannot be stored (starts_at is
   // NOT NULL) or shown meaningfully, so it is dropped rather than emitted
   // with a placeholder time. Every other field degrades to a default instead.
-  if (!event.startsAtUtc) return null;
+  if (!event.startsAtUtc || event.uidInvalid) return null;
   const endsAtUtc = event.endsAtUtc !== null
     ? event.endsAtUtc
     : event.durationMs !== null
@@ -425,6 +476,7 @@ function finalizeEvent(event: MutableEvent): ParsedEvent | null {
  */
 export function parseIcs(text: string): ParsedCalendar | null {
   if (typeof text !== 'string' || !text.includes('BEGIN:VCALENDAR')) return null;
+  if (ENCODER.encode(text).byteLength > MAX_ICS_INPUT_BYTES || hasTooManyPhysicalLines(text)) return null;
 
   try {
     const stack: string[] = [];
@@ -451,7 +503,7 @@ export function parseIcs(text: string): ParsedCalendar | null {
         const component = upper.slice(4).trim();
         if (component === 'VEVENT' && current) {
           const finalized = finalizeEvent(current);
-          if (finalized) events.push(finalized);
+          if (finalized && events.length < MAX_ICS_EVENTS) events.push(finalized);
           current = null;
         }
         if (stack.length) stack.pop();

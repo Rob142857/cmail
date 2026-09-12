@@ -58,6 +58,12 @@ describe('safe text handling', () => {
     );
   });
 
+  it('does not reintroduce nested or unterminated tag openers', () => {
+    const nested = htmlToPlainText('<scrip<script>alert(1)</script>t>');
+    expect(nested).not.toContain('<script');
+    expect(htmlToPlainText('<script')).toBe('');
+  });
+
   it('escapes SQL LIKE metacharacters', () => {
     expect(escapeLike('100%_safe\\value')).toBe('100\\%\\_safe\\\\value');
   });

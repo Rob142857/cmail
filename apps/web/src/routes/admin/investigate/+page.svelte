@@ -84,8 +84,8 @@
 
   {#if d.unavailable}
     <MessageBar tone="danger" title="Records unavailable.">
-      The trace and audit tables could not be read. Check the D1 binding.
-      {#if d.error}<span class="mono">{d.error}</span>{/if}
+      {d.error || 'The trace and audit records could not be read. Try again.'}
+      {#if d.errorReference}<span class="mono">Reference: {d.errorReference}</span>{/if}
     </MessageBar>
   {:else}
     <form method="GET" class="filters" role="search">

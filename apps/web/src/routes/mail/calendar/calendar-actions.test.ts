@@ -25,6 +25,7 @@ function mockDb(
   firstBySubstring: Array<[string, unknown]>,
   runChanges = 1,
   allBySubstring: Array<[string, unknown[]]> = [],
+  rateLimitCount = 1,
 ): { db: D1Database; calls: QueryCall[] } {
   const calls: QueryCall[] = [];
   const db = {
@@ -37,6 +38,7 @@ function mockDb(
           return statement;
         },
         async first<T>() {
+          if (sql.includes('INSERT INTO rate_limits')) return { count: rateLimitCount } as T;
           const match = firstBySubstring.find(([pattern]) => sql.includes(pattern));
           return (match ? match[1] : null) as T | null;
         },
@@ -84,6 +86,28 @@ function platform(db: D1Database): App.Platform {
 }
 
 describe('calendar/new create action', () => {
+  it('enforces the shared outbound budget before creating a meeting', async () => {
+    const { db, calls } = mockDb([
+      ['SELECT m.id, m.address, m.display_name FROM mailboxes', { id: 'mailbox-1', address: 'rob@example.com', display_name: 'Rob Evans' }],
+    ], 1, [], 61);
+    const formData = new FormData();
+    formData.set('from', 'rob@example.com');
+    formData.set('title', 'Weekly sync');
+    formData.set('date', '2026-08-25');
+    formData.set('start_time', '14:00');
+    formData.set('end_time', '14:30');
+    formData.set('attendees', 'jamie@example.com');
+
+    const result = await (newMeetingActions.create as any)({
+      request: new Request('https://mail.example.com/mail/calendar/new?/create', { method: 'POST', body: formData }),
+      locals: locals(),
+      platform: platform(db),
+    });
+
+    expect(result).toMatchObject({ status: 429, data: { error: expect.stringContaining('Hourly send limit') } });
+    expect(calls.some(({ sql }) => sql.includes('INSERT INTO calendar_events'))).toBe(false);
+  });
+
   it('rejects a missing title without touching the database', async () => {
     const { db, calls } = mockDb([]);
     const formData = new FormData();

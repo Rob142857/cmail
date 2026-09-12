@@ -12,5 +12,5 @@ export const load: LayoutServerLoad = async ({ locals, platform }) => {
       .catch(() => null)
     : null;
 
-  return { user: locals.user, pendingTravelCount: pendingTravel?.count || 0 };
+  return { user: locals.user, pendingTravelCount: pendingTravel?.count || 0, updateSupportEmail: env?.UPDATE_SUPPORT_EMAIL || '' };
 };

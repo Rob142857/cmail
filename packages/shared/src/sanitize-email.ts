@@ -24,7 +24,6 @@ const VOID_ELEMENTS = new Set([
   'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link',
   'meta', 'param', 'source', 'track', 'wbr',
 ]);
-const TAG_PATTERN = /<\s*(\/?)\s*([a-z][a-z0-9:-]*)(?:\s[^<>]*?)?\s*(\/?)>/gi;
 const ENCODER = new TextEncoder();
 
 const emailSchema = {
@@ -226,34 +225,105 @@ function resolvedLimits(overrides: Partial<EmailHtmlComplexityLimits>): EmailHtm
   };
 }
 
+interface ScannedTag {
+  closing: boolean;
+  tagName: string;
+  selfClosing: boolean;
+}
+
+function isTagWhitespace(character: string | undefined): boolean {
+  return character === '\t' || character === '\n' || character === '\f' || character === '\r' || character === ' ';
+}
+
+function isTagNameStart(character: string | undefined): boolean {
+  if (!character) return false;
+  const code = character.charCodeAt(0);
+  return (code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a);
+}
+
+function isTagNameCharacter(character: string | undefined): boolean {
+  if (!character) return false;
+  const code = character.charCodeAt(0);
+  return isTagNameStart(character) || (code >= 0x30 && code <= 0x39) || character === ':' || character === '-';
+}
+
+/**
+ * Finds HTML start tags in one forward-only pass. A regex with overlapping
+ * whitespace/attribute repetitions is tempting here, but it makes malformed
+ * attacker-controlled input a polynomial-time operation. This scanner is
+ * deliberately conservative: a malformed tag is ignored, and quoted `>`
+ * characters do not terminate a tag.
+ */
+function scanTags(value: string, onTag: (tag: ScannedTag) => void): void {
+  let cursor = 0;
+  while (cursor < value.length) {
+    const start = value.indexOf('<', cursor);
+    if (start < 0) return;
+
+    let index = start + 1;
+    while (index < value.length && isTagWhitespace(value[index])) index += 1;
+    const closing = value[index] === '/';
+    if (closing) index += 1;
+    while (index < value.length && isTagWhitespace(value[index])) index += 1;
+    if (!isTagNameStart(value[index])) {
+      cursor = start + 1;
+      continue;
+    }
+
+    const nameStart = index;
+    index += 1;
+    while (index < value.length && isTagNameCharacter(value[index])) index += 1;
+    const tagName = value.slice(nameStart, index).toLowerCase();
+    let quote = '';
+    let end = index;
+    for (; end < value.length; end += 1) {
+      const character = value[end];
+      if (quote) {
+        if (character === quote) quote = '';
+      } else if (character === '"' || character === "'") {
+        quote = character;
+      } else if (character === '>') {
+        break;
+      }
+    }
+    if (end >= value.length || quote) return;
+
+    let beforeEnd = end - 1;
+    while (beforeEnd >= start && isTagWhitespace(value[beforeEnd])) beforeEnd -= 1;
+    onTag({ closing, tagName, selfClosing: value[beforeEnd] === '/' || VOID_ELEMENTS.has(tagName) });
+    cursor = end + 1;
+  }
+}
+
 function inspectComplexity(value: string, limits: EmailHtmlComplexityLimits): BoundedEmailHtmlResult | null {
   const inputBytes = ENCODER.encode(value).byteLength;
   if (inputBytes > limits.maxInputBytes) return { ok: false, reason: 'input_bytes' };
 
   let elements = 0;
   const openTags: string[] = [];
-  TAG_PATTERN.lastIndex = 0;
-  for (let match = TAG_PATTERN.exec(value); match; match = TAG_PATTERN.exec(value)) {
-    const closing = match[1] === '/';
-    const tagName = match[2].toLowerCase();
-    const selfClosing = match[3] === '/' || VOID_ELEMENTS.has(tagName);
+  let rejected: BoundedEmailHtmlResult | null = null;
+  scanTags(value, ({ closing, tagName, selfClosing }) => {
+    if (rejected) return;
     if (closing) {
       // Ignore unmatched closers. A closer for an open ancestor implicitly
       // closes everything above it, matching the conservative HTML shape.
       const openIndex = openTags.lastIndexOf(tagName);
       if (openIndex >= 0) openTags.length = openIndex;
-      continue;
+      return;
     }
 
     elements += 1;
-    if (elements > limits.maxElements) return { ok: false, reason: 'elements' };
+    if (elements > limits.maxElements) {
+      rejected = { ok: false, reason: 'elements' };
+      return;
+    }
     if (!selfClosing) {
       openTags.push(tagName);
-      if (openTags.length > limits.maxDepth) return { ok: false, reason: 'depth' };
+      if (openTags.length > limits.maxDepth) rejected = { ok: false, reason: 'depth' };
     }
-  }
+  });
 
-  return null;
+  return rejected;
 }
 
 function sanitizeTree(value: string): Root {

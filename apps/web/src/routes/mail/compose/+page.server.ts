@@ -75,6 +75,7 @@ import {
 } from '$lib/server/compose-body';
 import { formatQuoteDate } from '$lib/dates';
 import { appendSignatureToAuthoredHtml, getEffectiveSignature } from '$lib/server/signatures';
+import { messageOwnershipPredicate } from '$lib/server/message-access';
 
 const BLOCKED_EXTENSIONS = new Set([
   '.exe', '.bat', '.cmd', '.scr', '.js', '.vbs', '.ps1', '.msi',
@@ -109,7 +110,7 @@ async function replyThreadingForSource(
      INNER JOIN mailbox_assignments ma ON m.mailbox_id = ma.mailbox_id
      INNER JOIN mailboxes mb ON mb.id = m.mailbox_id
      WHERE m.id = ? AND ma.user_id = ? AND mb.status = 'active'
-       AND (m.draft_owner_id IS NULL OR m.draft_owner_id = ?)`,
+       AND ${messageOwnershipPredicate('m')}`,
   ).bind(sourceId, userId, userId).first<Pick<Message, 'message_id_header' | 'in_reply_to' | 'references_header'>>();
   if (!source) return null;
   return deriveReplyThreading(source);
@@ -319,7 +320,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
        INNER JOIN mailbox_assignments ma ON m.mailbox_id = ma.mailbox_id
        INNER JOIN mailboxes mb ON mb.id = m.mailbox_id
         WHERE m.id = ? AND ma.user_id = ? AND mb.status = 'active'
-          AND (m.draft_owner_id IS NULL OR m.draft_owner_id = ?)`,
+          AND ${messageOwnershipPredicate('m')}`,
     ).bind(sourceId, locals.user.id, locals.user.id).first<Message>();
     if (replyTo) {
       // Quoted HTML deliberately strips cid: sources. Surface that content loss

@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { canRenderAttachmentInline } from '$lib/server/inline-images';
+import { messageOwnershipPredicate } from '$lib/server/message-access';
 
 const SAFE_CONTENT_TYPE_RX = /^[\w.+/-]+(?:;\s*[\w.+/-]+=[\w.+/"-]+)*$/;
 
@@ -33,7 +34,7 @@ export const GET: RequestHandler = async ({ locals, platform, params, url }) => 
      INNER JOIN mailbox_assignments ma ON m.mailbox_id = ma.mailbox_id
      INNER JOIN mailboxes mb ON mb.id = m.mailbox_id
      WHERE a.id = ? AND ma.user_id = ? AND mb.status = 'active'
-       AND (m.draft_owner_id IS NULL OR m.draft_owner_id = ?)`,
+       AND ${messageOwnershipPredicate('m')}`,
   ).bind(params.id, locals.user.id, locals.user.id).first<{
     id: string; filename: string; content_type: string; r2_key: string; size_bytes: number;
     content_id: string | null; disposition: 'attachment' | 'inline';

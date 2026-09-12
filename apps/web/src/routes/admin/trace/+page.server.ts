@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
 import type { MailTrace } from '@cmail/shared/types';
+import { adminLoaderFailure } from '$lib/server/admin-loader-error';
 
 const VALID_PAGE_SIZES = [20, 50, 100];
 
@@ -85,7 +86,9 @@ export const load: PageServerLoad = async ({ platform, url }) => {
       pageSize,
     };
   } catch (e) {
-    console.error('Failed to load mail traces:', e);
-    return { traces: [], total: 0, outboundJournals: [], outboundJournalTotal: 0, search, direction, status, page, pageSize, error: `Failed to load traces: ${(e as Error).message}` };
+    return {
+      traces: [], total: 0, outboundJournals: [], outboundJournalTotal: 0,
+      search, direction, status, page, pageSize, ...adminLoaderFailure('trace', e),
+    };
   }
 };

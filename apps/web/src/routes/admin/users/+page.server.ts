@@ -19,6 +19,7 @@ import {
   normalizeMailboxLocalPart,
   textField,
 } from '$lib/server/validation';
+import { managerIdentityAllowed, managerInviteProviderAllowed } from './users-security';
 
 const PAGE_SIZE = 25;
 const USER_ROLES: readonly UserRole[] = ['standard', 'manager'];
@@ -306,6 +307,9 @@ export const actions: Actions = {
     if (!mailDomain) {
       return fail(503, { error: 'Set MAIL_DOMAIN before creating mailboxes' });
     }
+    if (role === 'manager' && !sendInvite) {
+      return fail(400, { error: 'Manager accounts must be invited with Google or Microsoft sign-in' });
+    }
 
     const mailboxAddress = mailboxLocal && mailDomain ? `${mailboxLocal}@${mailDomain}` : '';
     const [existingUser, existingMailbox] = await Promise.all([
@@ -324,6 +328,9 @@ export const actions: Actions = {
     if (sendInvite) {
       const guard = await guardInviteProvider(email, env as unknown as Record<string, string | undefined>);
       if (!guard.ok) return fail(guard.status, { error: guard.error });
+      if (!managerInviteProviderAllowed(role, guard.provider)) {
+        return fail(400, { error: 'Manager accounts require a Google or Microsoft sign-in identity' });
+      }
       inviteProvider = guard.provider;
     }
 
@@ -530,7 +537,7 @@ export const actions: Actions = {
     }
     // Manager access always requires an OAuth identity: email-OTP sign-in
     // carries none of Google/Microsoft's ongoing 2FA/revocation guarantees.
-    if (role === 'manager' && user.has_email_identity && !user.has_oauth_identity) {
+    if (role === 'manager' && !managerIdentityAllowed(Boolean(user.has_oauth_identity))) {
       return fail(400, {
         error: 'Manager access requires signing in with Google or Microsoft. Invite this person with a Google or Microsoft account first.',
       });
@@ -588,12 +595,12 @@ export const actions: Actions = {
     if (!userId) return fail(400, { error: 'Invalid account' });
 
     const user = await env.DB.prepare(
-      `SELECT u.id, u.email, u.display_name, u.status,
+      `SELECT u.id, u.email, u.display_name, u.role, u.status,
               CASE WHEN EXISTS (
                 SELECT 1 FROM user_identities identity WHERE identity.user_id = u.id
               ) THEN 1 ELSE 0 END AS identity_bound
        FROM users u WHERE u.id = ?`,
-    ).bind(userId).first<Pick<User, 'id' | 'email' | 'display_name' | 'status'> & { identity_bound: number }>();
+    ).bind(userId).first<Pick<User, 'id' | 'email' | 'display_name' | 'role' | 'status'> & { identity_bound: number }>();
     if (!user) return fail(404, { error: 'Account not found' });
     if (user.status === 'paused' || user.status === 'offboarded') {
       return fail(409, { error: 'Reactivate the account before sending another invite' });
@@ -604,6 +611,9 @@ export const actions: Actions = {
 
     const guard = await guardInviteProvider(user.email, env as unknown as Record<string, string | undefined>);
     if (!guard.ok) return fail(guard.status, { error: guard.error });
+    if (!managerInviteProviderAllowed(user.role, guard.provider)) {
+      return fail(400, { error: 'Manager accounts require a Google or Microsoft sign-in identity' });
+    }
 
     const mailbox = await env.DB.prepare(
       `SELECT m.address, m.status

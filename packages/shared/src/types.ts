@@ -247,6 +247,7 @@ export interface Env {
   ORG_SHORT_NAME?: string;    // e.g. "Example Org"
   ORG_URL?: string;           // e.g. "https://example.com"
   SUPPORT_EMAIL?: string;     // e.g. "support@example.com"
+  UPDATE_SUPPORT_EMAIL?: string; // Optional update service desk; otherwise use site support.
   LANDING_URL?: string;       // e.g. "https://mail.example.com"
   POLICY_URL?: string;        // e.g. "https://mail.example.com/policy"
   REPO_URL?: string;          // e.g. "https://github.com/Rob142857/cmail"

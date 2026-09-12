@@ -102,10 +102,46 @@ export function plainTextToHtml(value: string): string {
 }
 
 export function htmlToPlainText(value: string): string {
-  return value
-    .replace(/<(br|hr)\s*\/?\s*>/gi, '\n')
-    .replace(/<\/(p|div|li|blockquote|h[1-6])\s*>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
+  let text = '';
+  let tag = '';
+  let inTag = false;
+  let quote: '"' | "'" | null = null;
+
+  // Scan tags one character at a time. A single regex replacement can expose
+  // a second tag when malformed input contains nested tag-like text (for
+  // example, `<scrip<script>...</script>t>`), which is exactly the case
+  // flagged by CodeQL's incomplete-multi-character-sanitization rule.
+  for (const character of value) {
+    if (!inTag) {
+      if (character === '<') {
+        inTag = true;
+        tag = '<';
+      } else {
+        text += character;
+      }
+      continue;
+    }
+
+    tag += character;
+    if (quote) {
+      if (character === quote) quote = null;
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+    } else if (character === '>') {
+      if (/^<\s*\/?\s*(?:br|hr)\b/i.test(tag) || /^<\s*\/\s*(?:p|div|li|blockquote|h[1-6])\b/i.test(tag)) {
+        text += '\n';
+      }
+      inTag = false;
+      tag = '';
+    }
+  }
+
+  // Discard unterminated markup. Entity decoding preserves literal text;
+  // this is a text conversion helper, not an HTML sanitizer. Its output must
+  // still be escaped if used in an HTML context.
+  return text
     .replaceAll('&nbsp;', ' ')
     .replaceAll('&lt;', '<')
     .replaceAll('&gt;', '>')

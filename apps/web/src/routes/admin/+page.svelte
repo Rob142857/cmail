@@ -160,7 +160,8 @@
   {:else}
     <div class="empty" role="alert">
       <h2>Management data is unavailable</h2>
-      <p>Check the Cloudflare bindings and run pending D1 migrations.</p>
+      <p>{data.error || 'The management data could not be read. Try again.'}</p>
+      {#if data.errorReference}<p class="mono">Reference: {data.errorReference}</p>{/if}
       <a class="btn" href="/admin">Try again</a>
     </div>
   {/if}

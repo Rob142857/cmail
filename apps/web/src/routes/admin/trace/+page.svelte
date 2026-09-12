@@ -1,6 +1,7 @@
 <script>
   import { formatDateTime } from '$lib/dates';
   import { tick } from 'svelte';
+  import MessageBar from '$lib/ui/MessageBar.svelte';
   let { data } = $props();
 
   /** @type {any} */
@@ -70,6 +71,13 @@
     <div><p class="eyebrow">Mail</p><h1 id="trace-heading">Mail trace</h1></div>
     <span class="total-badge">{data.total} event{data.total !== 1 ? 's' : ''}</span>
   </div>
+
+  {#if data.error}
+    <MessageBar tone="danger" title="Mail trace unavailable.">
+      {data.error}
+      {#if data.errorReference}<span>Reference: {data.errorReference}</span>{/if}
+    </MessageBar>
+  {/if}
 
   {#if data.outboundJournalTotal > 0}
     <section class="journal-alert" aria-labelledby="journal-alert-heading">

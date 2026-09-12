@@ -14,6 +14,7 @@ import { audit } from '$lib/server/db';
 import { publicRuntimeConfig } from '$lib/server/config';
 import { formatEventRange } from '$lib/dates';
 import { sanitizeSenderDisplayName, sendEmail } from '$lib/server/outbound';
+import { consumeCalendarOutboundLimits } from '$lib/server/calendar-outbound';
 
 const MONTH_RX = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
@@ -153,6 +154,15 @@ export const actions: Actions = {
     const attendeeRows = await env.DB.prepare('SELECT * FROM calendar_attendees WHERE event_id = ? ORDER BY address')
       .bind(event.id).all<CalendarAttendeeRow>();
     const attendees = attendeeRows.results || [];
+    if (attendees.length) {
+      const outboundLimits = await consumeCalendarOutboundLimits(
+        env.DB,
+        env as unknown as Record<string, unknown>,
+        locals.user.id,
+        attendees.length,
+      );
+      if (!outboundLimits.ok) return fail(outboundLimits.status, { error: outboundLimits.error });
+    }
     const nextSequence = event.sequence + 1;
 
     let updated;

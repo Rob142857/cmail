@@ -231,7 +231,7 @@ describe('disabled mailbox access boundaries', () => {
     expectActiveMailboxFilter(compose.queries[0], 'm');
     expectActiveMailboxFilter(compose.queries[1]);
     expectActiveMailboxFilter(compose.queries[2]);
-    expect(compose.queries[2]).toMatch(/draft_owner_id IS NULL OR m\.draft_owner_id = \?/);
+    expect(compose.queries[2]).toMatch(/\(\(m\.folder <> 'drafts' AND m\.draft_owner_id IS NULL\) OR m\.draft_owner_id = \?\)/);
 
     const discard = capturedDatabase();
     const formData = new FormData();

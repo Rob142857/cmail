@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import AppShell from '$lib/ui/AppShell.svelte';
   import Icon from '$lib/ui/Icon.svelte';
+  import SourceUpdates from '$lib/ui/SourceUpdates.svelte';
 
   type NavItem = { href: string; label: string; description: string; icon: string; count?: number };
   type NavGroup = { label: string; items: NavItem[] };
@@ -129,6 +130,7 @@
     </div>
 
     <div class="nav-pane-bottom">
+      <SourceUpdates supportEmail={data.updateSupportEmail || page.data?.supportEmail || ''} />
       <a href="/mail" class="nav-item return-link">
         <span class="nav-icon"><Icon name="arrowLeft" size={16} /></span>
         <span class="nav-label">Return to mail</span>

@@ -19,7 +19,14 @@
  * calls it via ctx.waitUntil *after* the message is already durably stored,
  * so a calendar bug can never delay, reject, or lose an email.
  */
-import { parseIcs, type IcsMethod, type ParsedAttendee, type ParsedEvent } from '@cmail/shared/ics';
+import {
+  MAX_ICS_ATTENDEES_PER_EVENT,
+  parseIcs,
+  type IcsMethod,
+  type ParsedAttendee,
+  type ParsedEvent,
+} from '@cmail/shared/ics';
+import { normalizeParticipantAddress } from '@cmail/shared/message-participants';
 
 export type { IcsMethod, ParsedAttendee, ParsedEvent } from '@cmail/shared/ics';
 
@@ -33,6 +40,13 @@ export interface CalendarSourceAttachment {
 export interface ExistingCalendarEvent {
   id: string;
   sequence: number;
+  organizerAddress?: string;
+}
+
+/** Only an authenticated receiving boundary may cause calendar state changes. */
+export interface CalendarTrustContext {
+  authenticated: boolean;
+  senderAddress: string;
 }
 
 export type CalendarWriteIntent =
@@ -40,7 +54,7 @@ export type CalendarWriteIntent =
   | { kind: 'update'; eventId: string; event: ParsedEvent }
   | { kind: 'cancel'; eventId: string; sequence: number }
   | { kind: 'update-attendee'; eventId: string; address: string; partstat: ParsedAttendee['partstat'] }
-  | { kind: 'skip'; reason: 'unsupported-method' | 'no-uid' | 'stale-sequence' | 'not-found' | 'no-attendee' };
+  | { kind: 'skip'; reason: 'unsupported-method' | 'no-uid' | 'stale-sequence' | 'not-found' | 'no-attendee' | 'untrusted-sender' };
 
 // ─── Detection ──────────────────────────────────────────────────────────────
 
@@ -125,7 +139,7 @@ function attendeeInsertStatements(db: D1Database, eventId: string, attendees: re
   // same address twice with different casing must not fail the whole batch.
   const seen = new Set<string>();
   const statements: D1PreparedStatement[] = [];
-  for (const attendee of attendees) {
+  for (const attendee of attendees.slice(0, MAX_ICS_ATTENDEES_PER_EVENT)) {
     const address = attendee.address.trim().toLowerCase();
     if (!address || seen.has(address)) continue;
     seen.add(address);
@@ -200,27 +214,6 @@ function calendarStatementsForIntent(
   }
 }
 
-async function applyOneCalendarEvent(
-  db: D1Database,
-  mailboxId: string,
-  messageId: string,
-  method: IcsMethod | null,
-  event: ParsedEvent,
-): Promise<void> {
-  const existingRow = event.uid
-    ? await db.prepare('SELECT id, sequence FROM calendar_events WHERE mailbox_id = ? AND uid = ?')
-        .bind(mailboxId, event.uid)
-        .first<{ id: string; sequence: number }>()
-    : null;
-  const existing: ExistingCalendarEvent | null = existingRow
-    ? { id: existingRow.id, sequence: existingRow.sequence }
-    : null;
-
-  const intent = planCalendarWrites(method, event, existing);
-  const statements = calendarStatementsForIntent(db, mailboxId, messageId, intent);
-  if (statements.length) await db.batch(statements);
-}
-
 /**
  * Parses and applies every calendar text part found on one inbound message.
  * Called from the Worker via `ctx.waitUntil` *after* the message itself is
@@ -232,7 +225,11 @@ export async function applyCalendarWrites(
   mailboxId: string,
   messageId: string,
   calendarTexts: readonly string[],
+  trust: CalendarTrustContext,
 ): Promise<void> {
+  const senderAddress = normalizeParticipantAddress(trust.senderAddress);
+  if (!trust.authenticated || !senderAddress) return;
+
   for (const text of calendarTexts) {
     let parsed;
     try {
@@ -244,8 +241,29 @@ export async function applyCalendarWrites(
 
     for (const event of parsed.events) {
       try {
+        const organizer = normalizeParticipantAddress(event.organizerAddress);
+        const responder = normalizeParticipantAddress(event.attendees[0]?.address);
         // eslint-disable-next-line no-await-in-loop -- sequential by design: multiple parts in one message may target the same UID.
-        await applyOneCalendarEvent(db, mailboxId, messageId, parsed.method, event);
+        const existingRow = event.uid
+          ? await db.prepare('SELECT id, sequence, organizer_address FROM calendar_events WHERE mailbox_id = ? AND uid = ?')
+            .bind(mailboxId, event.uid)
+            .first<{ id: string; sequence: number; organizer_address?: string }>()
+          : null;
+        const existing = existingRow
+          ? { id: existingRow.id, sequence: existingRow.sequence, organizerAddress: existingRow.organizer_address }
+          : null;
+        const existingOrganizer = normalizeParticipantAddress(existing?.organizerAddress);
+        const authorized = parsed.method === 'REQUEST' || parsed.method === 'PUBLISH'
+          ? organizer === senderAddress && (!existing || existingOrganizer === senderAddress)
+          : parsed.method === 'CANCEL'
+            ? Boolean(existingOrganizer && existingOrganizer === senderAddress && (!organizer || organizer === existingOrganizer))
+            : parsed.method === 'REPLY'
+              ? responder === senderAddress
+              : false;
+        if (!authorized) continue;
+        const intent = planCalendarWrites(parsed.method, event, existing);
+        const statements = calendarStatementsForIntent(db, mailboxId, messageId, intent);
+        if (statements.length) await db.batch(statements);
       } catch (error) {
         console.error('Calendar event processing failed:', error instanceof Error ? error.message : 'unknown error');
       }
