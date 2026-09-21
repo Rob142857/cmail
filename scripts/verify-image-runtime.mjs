@@ -22,15 +22,30 @@ for (const input of [png, avif]) {
   assert.equal(resized.info.height, 3);
 }
 
+// Miniflare 5 models Worker code and bindings with a manifest and typed env.
 const mf = new Miniflare({
-  modules: true,
-  compatibilityDate: '2026-08-01',
-  images: { binding: 'IMAGES' },
-  script: `export default { async fetch(request, env) {
-    const output = await env.IMAGES.input(request.body)
-      .transform({ width: 4, height: 3 }).output({ format: 'image/png' });
-    return output.response();
-  } };`,
+  cf: false,
+  telemetry: { enabled: false },
+  workers: [{
+    config: {
+      name: 'image-runtime-check',
+      compatibilityDate: '2026-08-01',
+      manifest: {
+        mainModule: 'worker.mjs',
+        modules: {
+          'worker.mjs': {
+            type: 'esm',
+            contents: `export default { async fetch(request, env) {
+              const output = await env.IMAGES.input(request.body)
+                .transform({ width: 4, height: 3 }).output({ format: 'image/png' });
+              return output.response();
+            } };`,
+          },
+        },
+      },
+      env: { IMAGES: { type: 'images' } },
+    },
+  }],
 });
 try {
   for (const input of [png, avif]) {

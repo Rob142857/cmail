@@ -41,6 +41,7 @@ identity boundary and live configuration checks.
 - [Acceptable-use policy template](acceptable-use-policy-template.md) — for Managers publishing a usage policy. A starting point to adapt and have reviewed.
 - [Project roadmap](../ROADMAP.md) — where cmail is headed.
 - [Maintainer release guide](maintainer-guide.md) — for maintainers cutting a release.
+- [September 2026 dependency upgrade review](dependency-review-2026-09-22.md) — current toolchain, major-version migrations, and compatibility boundaries.
 - [Contributing](../CONTRIBUTING.md), [Support](../SUPPORT.md), [Security policy](../SECURITY.md), [Code of Conduct](../CODE_OF_CONDUCT.md) — standard project files, for contributors.
 
 ## Command reference

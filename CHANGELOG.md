@@ -6,6 +6,17 @@ Notable changes to cmail are recorded here. The project follows
 
 ## [Unreleased]
 
+### Changed
+
+- Upgrade the build and mail toolchain to pnpm 12.5.1, TypeScript 7.0.2,
+  Vitest 5.0.1, postal-mime 3.0.0, Vite 8.3.0, Svelte 5.57.1, and Wrangler
+  4.136.1, alongside current compatible direct dependencies and pinned CI
+  actions. Node 24 LTS is recommended; Node 22.12 is the minimum.
+- Keep TypeScript 6.0.3 solely as the web tooling's required compiler API,
+  while validating Svelte with both the existing checker and TypeScript 7's
+  native checker. No peer constraints are bypassed. See the
+  [dependency upgrade review](docs/dependency-review-2026-09-22.md).
+
 ### Added
 
 - Remember the provider only after successful returning-account OAuth so a

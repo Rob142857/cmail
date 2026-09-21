@@ -3,18 +3,18 @@ packages:
   - packages/*
 
 # Some Corepack hosts launch workspace child scripts with their bundled pnpm.
-# The lockfile and packageManager field still pin installs to pnpm 11.18.0.
+# The lockfile and packageManager field still pin installs to pnpm 12.5.1.
 pmOnFail: ignore
 
 overrides:
   cookie: ^0.7.2
   devalue: 5.9.2
-  esbuild: ^0.28.1
+  esbuild: ^0.28.2
   "nanoid@<3.3.18": 3.3.18
-  postcss: ^8.5.18
+  postcss: ^8.5.28
   "miniflare>sharp": 0.35.4
   undici: ^7.29.0
-  ws: ^8.21.0
+  ws: ^8.21.3
 
 allowBuilds:
   core-js-pure: true
@@ -23,9 +23,24 @@ allowBuilds:
   workerd: true
 
 minimumReleaseAgeExclude:
-  - globals@17.9.0
-
-onlyBuiltDependencies:
-  - core-js-pure
-  - esbuild
-  - workerd
+  - '@cloudflare/unenv-preset@2.16.2'
+  - '@cloudflare/workerd-darwin-64@1.20260921.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20260921.1'
+  - '@cloudflare/workerd-linux-64@1.20260921.1'
+  - '@cloudflare/workerd-linux-arm64@1.20260921.1'
+  - '@cloudflare/workerd-windows-64@1.20260921.1'
+  - '@cloudflare/workers-types@5.20260921.1'
+  - '@typescript-eslint/eslint-plugin@8.70.1'
+  - '@typescript-eslint/parser@8.70.1'
+  - '@typescript-eslint/project-service@8.70.1'
+  - '@typescript-eslint/scope-manager@8.70.1'
+  - '@typescript-eslint/tsconfig-utils@8.70.1'
+  - '@typescript-eslint/type-utils@8.70.1'
+  - '@typescript-eslint/types@8.70.1'
+  - '@typescript-eslint/typescript-estree@8.70.1'
+  - '@typescript-eslint/utils@8.70.1'
+  - '@typescript-eslint/visitor-keys@8.70.1'
+  - miniflare@5.20260921.0-alpha
+  - typescript-eslint@8.70.1
+  - workerd@1.20260921.1
+  - wrangler@4.136.1

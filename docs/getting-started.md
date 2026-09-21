@@ -4,7 +4,7 @@ This guide takes a new cmail deployment from an empty Cloudflare account to loca
 
 ## Prerequisites
 
-- Node.js 22 or newer and Corepack-enabled pnpm 11
+- Node.js 24 LTS recommended (minimum 22.12) and Corepack-enabled pnpm 12.5.1
 - Git
 - A Cloudflare account and a domain using Cloudflare DNS
 - A Google OAuth client, Microsoft Entra application, or both
@@ -35,9 +35,15 @@ Choose these values before creating resources:
 ```sh
 git clone https://github.com/Rob142857/cmail.git
 cd cmail
-pnpm install
+corepack enable
+pnpm install --frozen-lockfile
 pnpm setup
 ```
+
+Corepack selects the exact pnpm version in `package.json`. Confirm `pnpm --version`
+prints `12.5.1` before installing; an older global pnpm earlier on `PATH` can also
+be picked up by nested workspace scripts. Use Corepack's shims for the entire
+shell session, not only the initial command. Do not bypass the engine check.
 
 The setup script copies each `wrangler.toml.example` to `wrangler.toml`, and
 creates `apps/web/.dev.vars` and `apps/email-worker/.dev.vars` (with a fresh,
