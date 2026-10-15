@@ -8,7 +8,7 @@ const fromWrangler = createRequire(require.resolve('wrangler'));
 const miniflarePath = fromWrangler.resolve('miniflare');
 const { Miniflare } = fromWrangler('miniflare');
 const sharp = createRequire(miniflarePath)('sharp');
-assert.equal(sharp.versions.sharp, '0.35.4');
+assert.equal(sharp.versions.sharp, '0.35.5');
 
 const pixels = { create: { width: 8, height: 6, channels: 4, background: '#336699' } };
 const png = await sharp(pixels).png().toBuffer();
@@ -58,4 +58,4 @@ try {
 } finally {
   await mf.dispose();
 }
-console.log('Sharp 0.35.4 PNG/AVIF and local Miniflare Images transforms passed.');
+console.log('Sharp 0.35.5 PNG/AVIF and local Miniflare Images transforms passed.');

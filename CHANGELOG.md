@@ -6,6 +6,13 @@ Notable changes to cmail are recorded here. The project follows
 
 ## [Unreleased]
 
+### Security
+
+- Clear all 22 `pnpm audit` findings with in-range overrides: undici ^7.29.1,
+  devalue 5.9.4, brace-expansion ^5.0.12, source-map-js ^1.2.2,
+  postcss-selector-parser ^7.1.6, and Miniflare's Sharp 0.35.5 (install
+  scripts still denied). No majors changed.
+
 ### Changed
 
 - Upgrade the build and mail toolchain to pnpm 12.5.1, TypeScript 7.0.2,
