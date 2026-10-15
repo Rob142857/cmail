@@ -6,6 +6,13 @@ Notable changes to cmail are recorded here. The project follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `pnpm deploy`, `deploy:web`, and `deploy:email-worker` now call each app's
+  `deploy` script with `pnpm --filter … run deploy`. Under pnpm 12 the bare
+  `pnpm --filter … deploy` form invokes pnpm's built-in workspace deploy
+  command and fails with `ERR_PNPM_INVALID_DEPLOY_TARGET`.
+
 ### Security
 
 - Clear all 22 `pnpm audit` findings with in-range overrides: undici ^7.29.1,
