@@ -60,6 +60,28 @@ which also scans every reachable Git object without printing matched values:
 pnpm release:check
 ```
 
+### Mobile and accessibility suite
+
+UI changes also run the Playwright suite in `e2e/mobile/`. It builds the app,
+serves it with `wrangler pages dev` over local HTTPS, applies every migration
+to a throwaway local D1 under `.tmp/e2e-mobile/`, and seeds invented users and
+messages (`e2e/mobile/seed-data.mjs`). Outbound delivery is off, so nothing
+leaves the machine.
+
+```sh
+npx playwright install chromium webkit   # once per machine
+pnpm test:mobile                         # Pixel 7, Galaxy S24 (360px), iPhone 14, desktop
+pnpm test:mobile:update                  # refresh screenshot baselines after an intended UI change
+pnpm test:mobile:report                  # open the HTML report
+```
+
+It checks console errors, sideways scroll at 360/375px, 44px touch targets,
+keyboard focus, axe-core (serious and critical only), dark mode, the
+on-screen keyboard, offline behaviour and per-device screenshots
+(`e2e/mobile/__screenshots__/<platform>/<device>/`). Known bugs are listed in
+`e2e/mobile/known-bugs.ts` and run as expected failures; when you fix one,
+its test reports "Expected to fail, but passed" and you delete the entry.
+
 Two narrower commands are also available: `pnpm secrets:scan` checks tracked
 and untracked files for likely credentials, and `pnpm secrets:history` runs
 just the Git-history scan that `release:check` includes.
