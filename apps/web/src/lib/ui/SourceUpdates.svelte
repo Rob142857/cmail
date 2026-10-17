@@ -27,17 +27,19 @@
   <div class="source-update" aria-live="polite">
     <span>Web build {update.build.revision.slice(0, 8)}{update.build.modified ? ' (modified)' : ''}</span>
     {#if update.status === 'available'}
-      <strong>Source update available · {update.ahead} new {update.ahead === 1 ? 'commit' : 'commits'}</strong>
+      <strong>Update available: {update.latest?.version ? `${update.latest.version} · ` : ''}{update.latest?.revision.slice(0, 8)}{update.ahead ? ` (${update.ahead} new ${update.ahead === 1 ? 'commit' : 'commits'})` : ''}</strong>
       <a href={update.changesUrl!} target="_blank" rel="noreferrer">Review changes</a>
     {:else if update.status === 'current'}
-      <span>Up to date with source at last check</span>
+      <span>Up to date</span>
     {:else if update.status === 'custom'}
       <span>Custom build — review source compatibility before updating</span>
+    {:else if update.status === 'disabled'}
+      <span>Update checks are off</span>
     {:else}
-      <span>Update status unavailable</span>
+      <span title={update.reason || undefined}>Update status unavailable{update.reason ? ` — ${update.reason}` : ''}</span>
     {/if}
     {#if update.checkedAt}<span>Checked {new Date(update.checkedAt).toLocaleString()}</span>{/if}
-    <a href="https://github.com/Rob142857/cmail/blob/main/docs/deployment.md#updating-an-existing-instance" target="_blank" rel="noreferrer">Update procedure</a>
+    <a href={update.procedureUrl} target="_blank" rel="noreferrer">Update procedure</a>
     {#if supportLink}<a href={supportLink}>Email support</a>{/if}
   </div>
 {/if}

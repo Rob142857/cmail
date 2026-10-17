@@ -248,7 +248,7 @@ The public endpoint never selects user IDs, login addresses, personal contact da
 | `LOCALE` | `en` | Unicode locale identifier used by configurable formatting |
 | `TIME_ZONE` | `UTC` | IANA time-zone name used by configurable formatting |
 
-`REPO_URL` appears in the example configuration as deployment metadata only — the application doesn't render it automatically.
+`REPO_URL` (default `https://github.com/Rob142857/cmail`) is the public GitHub repository the management console checks for updates and links for the update procedure. Point it at your fork if you deploy from one. Set `UPDATE_CHECK = "off"` to stop the console contacting GitHub at all. Neither value is secret. See [Updating an existing instance](deployment.md#updating-an-existing-instance).
 
 ## Web guardrails
 
