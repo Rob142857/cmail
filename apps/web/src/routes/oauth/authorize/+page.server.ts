@@ -50,6 +50,11 @@ export const load: PageServerLoad = async ({ url, locals, platform, cookies, req
   const secure = url.protocol === 'https:';
 
   if (url.searchParams.has('client_id')) {
+    // While the organisation switch is off, a new request is refused before
+    // any client lookup, so no client metadata document is ever fetched.
+    if (!(await isMcpEnabled(env.DB))) {
+      return { view: 'error', message: 'AI app connections are turned off for this organisation. A manager can turn them on in Management › Settings.' } satisfies View;
+    }
     // A fresh request from an AI app. Validate, park it in D1, then continue
     // on a clean URL so the code challenge and state leave the address bar.
     const ip = (request.headers.get('cf-connecting-ip') || 'unknown').slice(0, 64);

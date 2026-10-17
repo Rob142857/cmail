@@ -245,11 +245,12 @@ export async function fetchClientMetadataDocument(
 /**
  * Look up a client by id. URL-shaped ids are resolved as Client ID Metadata
  * Documents (cached in D1 for a day); anything else must be a DCR client.
+ * Pass `fetcher: null` to use only stored clients and never fetch.
  */
 export async function resolveClient(
   db: D1Database,
   clientId: unknown,
-  fetcher: typeof fetch = fetch,
+  fetcher: typeof fetch | null = fetch,
 ): Promise<McpClient | null> {
   if (typeof clientId !== 'string' || clientId.length < 8 || clientId.length > 2048) return null;
   const row = await db.prepare(
@@ -259,7 +260,7 @@ export async function resolveClient(
   ).bind(clientId).first<ClientRow>();
   const now = nowEpoch();
   if (row && (row.registration_type === 'dcr' || (row.metadata_expires_epoch ?? 0) > now)) return rowToClient(row);
-  if (!isClientIdMetadataUrl(clientId)) return null;
+  if (!fetcher || !isClientIdMetadataUrl(clientId)) return null;
 
   let fetched: Omit<McpClient, 'client_secret_hash'>;
   try {
@@ -329,7 +330,7 @@ export function presentedClientCredentials(request: Request, form: URLSearchPara
 export async function authenticateClient(
   db: D1Database,
   credentials: PresentedClientCredentials,
-  fetcher: typeof fetch = fetch,
+  fetcher: typeof fetch | null = fetch,
 ): Promise<McpClient> {
   const client = await resolveClient(db, credentials.clientId, fetcher);
   if (!client) throw new OAuthError('invalid_client', 'Unknown client', 401);

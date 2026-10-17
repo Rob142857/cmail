@@ -125,6 +125,17 @@ describe('/oauth/authorize page', () => {
     expect(fixture.db.sqlite.prepare('SELECT COUNT(*) AS n FROM mcp_grants').get()).toEqual({ n: 0 });
   });
 
+  it('refuses new requests while the switch is off, without looking the client up', async () => {
+    const fixture = createFixture();
+    fixture.db.sqlite.exec("UPDATE org_settings SET value = 'false' WHERE key = 'mcp_enabled'");
+    const url = new URL(`${APP_URL}/oauth/authorize?${authorizeParams('https://agent.example.com/client.json', { code_challenge: await challenge() })}`);
+    const cookies = cookieJar();
+    const result = await run(() => (load as any)({ url, locals: { user: null }, platform: fixture.platform, cookies, request: new Request(url), setHeaders() {} }));
+    expect(result.value).toMatchObject({ view: 'error' });
+    expect(cookies.get(MCP_AUTHORIZE_COOKIE)).toBeUndefined();
+    expect(fixture.db.sqlite.prepare('SELECT COUNT(*) AS n FROM mcp_clients').get()).toEqual({ n: 0 });
+  });
+
   it('shows an error page for an invalid client instead of redirecting', async () => {
     const fixture = createFixture();
     const url = new URL(`${APP_URL}/oauth/authorize?${authorizeParams('cmc_nobody000000000000000', { code_challenge: await challenge() })}`);

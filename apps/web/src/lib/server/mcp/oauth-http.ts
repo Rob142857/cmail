@@ -114,7 +114,9 @@ export async function handleRevoke(request: Request, platform: Platformish): Pro
     const form = parseForm(await readBody(request, 'application/x-www-form-urlencoded'));
     const credentials = presentedClientCredentials(request, form);
     basicUsed = credentials.method === 'client_secret_basic';
-    const client = await authenticateClient(db, credentials);
+    // Revocation only concerns clients that already hold tokens, so it never
+    // needs to fetch a metadata document (it also works while the switch is off).
+    const client = await authenticateClient(db, credentials, null);
     await revokeToken(db, client, form.get('token'));
     return new Response(null, { status: 200, headers: NO_STORE });
   } catch (caught) {
