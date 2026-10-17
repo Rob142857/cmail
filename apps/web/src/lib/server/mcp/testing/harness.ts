@@ -129,8 +129,9 @@ export function createTestBucket(): R2Bucket & { objects: Map<string, Uint8Array
     async delete(keys: string | string[]) {
       for (const key of Array.isArray(keys) ? keys : [keys]) objects.delete(key);
     },
-    async list() {
-      return { objects: [...objects.keys()].map((key) => ({ key })), truncated: false };
+    async list(options: { prefix?: string } = {}) {
+      const prefix = options.prefix ?? '';
+      return { objects: [...objects.keys()].filter((key) => key.startsWith(prefix)).map((key) => ({ key })), truncated: false };
     },
   } as unknown as R2Bucket & { objects: Map<string, Uint8Array> };
 }

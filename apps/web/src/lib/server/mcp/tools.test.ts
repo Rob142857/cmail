@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { UNTRUSTED_NOTICE } from './tools';
-import { createFixture, seedMessage, type Fixture } from './testing/harness';
-import { callTool, connect } from './testing/flow';
+import { APP_URL, createFixture, seedMessage, type Fixture } from './testing/harness';
+import { saveDraft } from './compose-bridge';
+import { callTool, connect, userRow } from './testing/flow';
 
 const ALL = ['mail.read', 'mail.draft', 'mail.send', 'mailbox.manage', 'calendar.read'];
 
@@ -190,6 +191,26 @@ describe('draft and send tools (through the real compose actions)', () => {
     const audit = fixture.db.sqlite.prepare("SELECT actor_id, detail FROM audit_log WHERE event_type = 'mcp.email_sent'").get() as { actor_id: string; detail: string };
     expect(audit.actor_id).toBe('user-alice');
     expect(audit.detail).toContain('Test Agent');
+  });
+
+  it('keeps a rich-text draft\'s formatting when an app retitles and sends it', async () => {
+    const fixture = createFixture();
+    const { tokens } = await connect(fixture, { scopes: ALL });
+    const user = await userRow(fixture, 'user-alice');
+    const saved = await saveDraft(
+      { from: 'alice@example.test', to: ['bob@example.test'], cc: [], bcc: [], subject: 'Agenda', body: '<p><strong>Item one</strong></p>', bodyFormat: 'html' },
+      null, user, fixture.platform, APP_URL,
+    );
+    expect(saved.ok).toBe(true);
+    const draftId = saved.ok ? saved.value.draftId : '';
+    const retitled = await callTool(fixture, tokens.access_token, 'update_draft', { draft_id: draftId, subject: 'Agenda v2' });
+    expect(retitled.isError, retitled.text).toBe(false);
+    const sent = await callTool(fixture, tokens.access_token, 'send_draft', { draft_id: draftId });
+    expect(sent.isError, sent.text).toBe(false);
+    const copy = fixture.db.sqlite.prepare("SELECT subject, body_r2_key FROM messages WHERE mailbox_id = 'mb-bob' AND folder = 'inbox'").get() as { subject: string; body_r2_key: string };
+    expect(copy.subject).toBe('Agenda v2');
+    const html = new TextDecoder().decode(fixture.bucket.objects.get(copy.body_r2_key));
+    expect(html).toContain('<strong>Item one</strong>');
   });
 
   it('sends a new message in one step and honours the idempotency key', async () => {

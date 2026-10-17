@@ -574,11 +574,10 @@ async function loadOwnDraft(context: ToolContext, draftId: string): Promise<Draf
     if (!object) throw new ToolError('draft_unavailable', 'The draft body is temporarily unavailable. Try again shortly.', 'error');
     stored = await object.text();
   }
-  // Rich-text drafts (stored by the web composer when it supports formatting)
-  // are re-submitted as their sanitised HTML so sending or retitling one from
-  // an AI app keeps its formatting. Older stores expose only authoredText.
-  const split = splitStoredComposeBody(stored) as ReturnType<typeof splitStoredComposeBody> & { format?: string; authored?: string };
-  const rich = split.format === 'html' && typeof split.authored === 'string';
+  // Rich-text drafts from the web composer are re-submitted as their sanitised
+  // HTML, so sending or retitling one from an AI app keeps its formatting.
+  const split = splitStoredComposeBody(stored);
+  const rich = split.format === 'html';
   return {
     row,
     fields: {
@@ -587,7 +586,7 @@ async function loadOwnDraft(context: ToolContext, draftId: string): Promise<Draf
       cc: jsonList(row.cc_addresses),
       bcc: jsonList(row.bcc_addresses),
       subject: row.subject === '(no subject)' ? '' : row.subject,
-      body: rich ? (split.authored as string) : split.authoredText,
+      body: rich ? split.authored : split.authoredText,
       bodyFormat: rich ? 'html' : 'text',
       quotedHtml: split.quotedHtml,
     },
