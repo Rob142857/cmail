@@ -216,7 +216,7 @@ export function seedMessage(
     `<${message.id}@sender.example>`,
     message.from ?? 'sender@external.example',
     message.subject ?? 'Quarterly numbers',
-    (message.body ?? 'Hello there').replace(/<[^>]+>/g, '').slice(0, 100),
+    `Preview of ${message.subject ?? 'Quarterly numbers'}`,
     key,
     message.folder ?? 'inbox',
     message.draftOwnerId ?? null,
