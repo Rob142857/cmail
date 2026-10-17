@@ -7,7 +7,20 @@
   import EmailAutocomplete from '$lib/EmailAutocomplete.svelte';
   import { signaturePreviewDocument } from '$lib/signature-preview';
   import EmailHtmlFrame from '$lib/mail/EmailHtmlFrame.svelte';
+  import RichTextEditor from '$lib/RichTextEditor.svelte';
+  import { plainTextToRichHtml, richDocToPlainText } from '$lib/rich-text';
   let { data, form } = $props();
+
+  const FORMAT_PREFERENCE_KEY = 'cmail:compose-format';
+  /** @returns {'text' | 'html'} */
+  function preferredFormat() {
+    if (!browser) return 'html';
+    try {
+      return localStorage.getItem(FORMAT_PREFERENCE_KEY) === 'text' ? 'text' : 'html';
+    } catch {
+      return 'html';
+    }
+  }
   /** @type {any} */
   const d = $derived(data);
 
@@ -31,6 +44,10 @@
       bcc: d.draft ? parseList(d.draft.bcc_addresses) : '',
       from: d.draft?.from_address || d.preferredFrom || d.mailboxes[0]?.address || '',
       body: d.draft?.body || '',
+      // A saved draft keeps the mode it was written in; a new message uses the
+      // person's last choice (rich text unless they switched it off).
+      // (The stored preference is applied in onMount so SSR and hydration agree.)
+      bodyFormat: d.draft ? (d.draft.body_format === 'html' ? 'html' : 'text') : 'html',
       quotedHtml: d.draft?.quoted_html || d.replyQuoteHtml || '',
       replySourceId: d.replySourceId || '',
       importance: d.draft?.importance || 'normal',
@@ -51,13 +68,21 @@
   let showBcc = $state(Boolean(initial.bcc));
   let from = $state(initial.from);
   let body = $state(initial.body);
+  /** @type {'text' | 'html'} */
+  let bodyFormat = $state(initial.bodyFormat);
+  // Remounts the rich-text editor when its content is replaced from outside
+  // (recovery restore or a mode switch); the editor owns its content otherwise.
+  let editorKey = $state(0);
+  /** @type {{ getJson: () => any } | null} */
+  let richApi = null;
+  let richEditorFailed = $state(false);
   let quotedHtml = $state(initial.quotedHtml);
   let importance = $state(initial.importance);
   let draftId = $state(initial.draftId);
   let draftVersion = $state(initial.draftVersion);
   let recoveryKey = $state(initial.recoveryKey);
   let recoveryReady = $state(false);
-  /** @type {{ subject: string, to: string, cc: string, bcc: string, from: string, body: string, importance: 'low' | 'normal' | 'high' } | null} */
+  /** @type {{ subject: string, to: string, cc: string, bcc: string, from: string, body: string, bodyFormat: 'text' | 'html', importance: 'low' | 'normal' | 'high' } | null} */
   let recoveryConflict = $state(null);
 
   /** D1 timestamps are UTC but omit the ISO separator and zone. */
@@ -156,12 +181,21 @@
     // client-side navigation alike.
     if (composeUrlSynced) return;
     composeUrlSynced = true;
-    if (!initial.isUnsavedCompose || draftId) return;
-    const current = new URL(window.location.href);
-    if (current.searchParams.get('compose') !== initial.recoveryId) {
-      current.searchParams.set('compose', initial.recoveryId);
-      replaceState(`${current.pathname}?${current.searchParams}${current.hash}`, { ...page.state });
-    }
+    // During hydration SvelteKit runs afterNavigate callbacks a moment before
+    // it marks the router started, and dev builds refuse replaceState until
+    // then. A microtask runs right after start-up in every build.
+    queueMicrotask(() => {
+      if (!initial.isUnsavedCompose || draftId) return;
+      const current = new URL(window.location.href);
+      if (current.searchParams.get('compose') !== initial.recoveryId) {
+        current.searchParams.set('compose', initial.recoveryId);
+        try {
+          replaceState(`${current.pathname}?${current.searchParams}${current.hash}`, { ...page.state });
+        } catch {
+          // The id only helps reload recovery; autosave stays authoritative.
+        }
+      }
+    });
   });
 
   function hasDraftContent() {
@@ -192,12 +226,14 @@
       bcc: typeof saved.bcc === 'string' ? saved.bcc.slice(0, 20_000) : '',
       from: typeof saved.from === 'string' && d.mailboxes.some((mailbox) => mailbox.address === saved.from) ? saved.from : from,
       body: typeof saved.body === 'string' ? saved.body.slice(0, 1_000_000) : '',
+      // Snapshots written before rich text existed hold plain text.
+      bodyFormat: saved.bodyFormat === 'html' ? 'html' : 'text',
       importance: savedImportance,
     };
     return copy;
   }
 
-  /** @param {{ subject: string, to: string, cc: string, bcc: string, from: string, body: string, importance: 'low' | 'normal' | 'high' }} copy */
+  /** @param {{ subject: string, to: string, cc: string, bcc: string, from: string, body: string, bodyFormat: 'text' | 'html', importance: 'low' | 'normal' | 'high' }} copy */
   function applyRecovery(copy) {
     subject = copy.subject;
     to = copy.to;
@@ -206,6 +242,8 @@
     if (copy.bcc) showBcc = true;
     from = copy.from;
     body = copy.body;
+    bodyFormat = copy.bodyFormat;
+    editorKey += 1;
     importance = copy.importance;
     recoveryConflict = null;
     markDirty();
@@ -226,6 +264,7 @@
         bcc,
         from,
         body,
+        bodyFormat,
         importance,
         updatedAt: Date.now(),
         baseDraftVersion: knownDraftVersion,
@@ -243,6 +282,9 @@
   }
 
   onMount(() => {
+    // Start a new message in the person's preferred mode. A draft, reply text
+    // or restored copy decides its own mode instead.
+    if (!d.draft && !body && preferredFormat() === 'text') bodyFormat = 'text';
     try {
       const saved = JSON.parse(sessionStorage.getItem(recoveryKey) || 'null');
       const recovery = normalizeRecovery(saved);
@@ -267,7 +309,7 @@
   });
 
   $effect(() => {
-    void subject; void to; void cc; void bcc; void from; void body; void importance; void dirty; void recoveryKey; void recoveryReady; void recoveryConflict; void saveConflict;
+    void subject; void to; void cc; void bcc; void from; void body; void bodyFormat; void importance; void dirty; void recoveryKey; void recoveryReady; void recoveryConflict; void saveConflict;
     if (!browser || !recoveryReady || !recoveryKey) return;
     // A conflict copy remains byte-for-byte untouched until the user makes an
     // explicit choice in the recovery banner.
@@ -417,7 +459,7 @@
     saving = true;
     saveError = '';
     const savingVersion = editVersion;
-    const snapshot = { from, to, cc, bcc, subject, body, quotedHtml, importance };
+    const snapshot = { from, to, cc, bcc, subject, body, bodyFormat, quotedHtml, importance };
     try {
       const fd = new FormData();
       fd.set('from', snapshot.from);
@@ -426,6 +468,7 @@
       fd.set('bcc', snapshot.bcc);
       fd.set('subject', snapshot.subject || '(no subject)');
       fd.set('body', snapshot.body);
+      fd.set('body_format', snapshot.bodyFormat);
       fd.set('quoted_html', snapshot.quotedHtml);
       fd.set('importance', snapshot.importance);
       if (initial.replySourceId) fd.set('reply_source_id', initial.replySourceId);
@@ -556,6 +599,7 @@
     formData.set('bcc', bcc);
     formData.set('subject', subject);
     formData.set('body', body);
+    formData.set('body_format', bodyFormat);
     formData.set('importance', importance);
     formData.set('draft_id', draftId);
     if (draftId) formData.set('draft_version', String(draftVersion));
@@ -580,10 +624,49 @@
     };
   }
 
+  /** @param {'text' | 'html'} next */
+  function switchFormat(next) {
+    if (next === bodyFormat) return;
+    if (next === 'text') {
+      if (body && !window.confirm('Switch to plain text? Bold, italics, underline, links and lists will be removed from this message.')) return;
+      body = !body ? '' : richApi ? richDocToPlainText(richApi.getJson()) : htmlTextContent(body);
+    } else {
+      body = plainTextToRichHtml(body);
+    }
+    bodyFormat = next;
+    richApi = null;
+    editorKey += 1;
+    try { localStorage.setItem(FORMAT_PREFERENCE_KEY, next); } catch { /* preference is optional */ }
+    if (body) markDirty();
+  }
+
+  /**
+   * Text of stored rich-text HTML when the editor isn't available to ask.
+   * DOMParser documents are inert: nothing in them loads or runs.
+   * @param {string} html
+   */
+  function htmlTextContent(html) {
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    for (const br of parsed.body.querySelectorAll('br')) br.replaceWith('\n');
+    for (const block of parsed.body.querySelectorAll('p, li, blockquote, div')) block.append('\n');
+    return (parsed.body.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  /** The editor bundle couldn't load: keep the text and carry on in plain text. */
+  function richEditorUnavailable() {
+    richEditorFailed = true;
+    if (bodyFormat !== 'html') return;
+    if (body) {
+      body = htmlTextContent(body);
+      markDirty();
+    }
+    bodyFormat = 'text';
+  }
+
   // Autosave shortly after the user pauses. A second pause is scheduled when
   // an edit lands during an in-flight request; navigation explicitly flushes it.
   $effect(() => {
-    void body; void subject; void to; void cc; void bcc; void from; void importance; void quotedHtml; void dirty; void sending;
+    void body; void bodyFormat; void subject; void to; void cc; void bcc; void from; void importance; void quotedHtml; void dirty; void sending;
     scheduleAutosave();
     return cancelAutosaveTimer;
   });
@@ -720,8 +803,30 @@
     </div>
 
     <div class="field">
-      <label for="body">Message</label>
-      <textarea name="body" id="body" bind:value={body} oninput={markDirty} rows="14" maxlength="1000000" placeholder="Write in plain text…" spellcheck="true" autocapitalize="sentences"></textarea>
+      <div class="field-label-row">
+        <label for="body" id="body-label">Message</label>
+        <div class="format-toggle" role="group" aria-label="Message format">
+          <button type="button" aria-pressed={bodyFormat === 'html'} onclick={() => switchFormat('html')} disabled={richEditorFailed}>Rich text</button>
+          <button type="button" aria-pressed={bodyFormat === 'text'} onclick={() => switchFormat('text')}>Plain text</button>
+        </div>
+      </div>
+      <input type="hidden" name="body_format" value={bodyFormat} />
+      {#if bodyFormat === 'html'}
+        <input type="hidden" name="body" value={body} />
+        {#key editorKey}
+          <RichTextEditor
+            id="body"
+            value={body}
+            disabled={sending || discarding || navigationInProgress || !!recoveryConflict || saveConflict || d.mailboxes.length === 0}
+            onchange={(html) => { if (html !== body) { body = html; markDirty(); } }}
+            onready={(api) => { richApi = api; }}
+            onfailed={richEditorUnavailable}
+          />
+        {/key}
+      {:else}
+        <textarea name="body" id="body" bind:value={body} oninput={markDirty} rows="14" maxlength="1000000" placeholder="Write in plain text…" spellcheck="true" autocapitalize="sentences"></textarea>
+      {/if}
+      {#if richEditorFailed}<small class="format-note">The formatting editor couldn't load, so this message is in plain text.</small>{/if}
     </div>
 
     {#if d.signature}
@@ -866,6 +971,11 @@
   }
   .bcc-toggle:hover { text-decoration: underline; }
   .compose-form textarea { font-family: inherit; resize: vertical; min-height: 240px; }
+  .format-toggle { display:inline-flex; gap:2px; padding:2px; border:1px solid var(--border); border-radius:var(--radius-pill); background:var(--bg-subtle); }
+  .format-toggle button { min-height:26px; padding:2px 10px; border:0; border-radius:var(--radius-pill); background:transparent; color:var(--text-muted); font-size:11.5px; font-weight:600; cursor:pointer; }
+  .format-toggle button[aria-pressed='true'] { background:var(--bg-surface); color:var(--text); box-shadow:0 0 0 1px var(--border); }
+  .format-toggle button:disabled { opacity:.5; cursor:not-allowed; }
+  .format-note { color:var(--text-muted); font-size:11px; }
   .importance-field { max-width:260px; }
   .importance-field small { color:var(--text-muted); font-size:11px; line-height:1.35; }
   .quoted-message { margin: 0 0 14px; }

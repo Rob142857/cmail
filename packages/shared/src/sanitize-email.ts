@@ -326,6 +326,21 @@ function inspectComplexity(value: string, limits: EmailHtmlComplexityLimits): Bo
   return rejected;
 }
 
+/**
+ * The same cheap byte/tag/depth pre-check sanitizeBoundedEmailHtml runs before
+ * parsing, for other parser-backed sanitizers (such as compose HTML) to share.
+ */
+export function checkEmailHtmlComplexity(
+  value: string,
+  overrides: Partial<EmailHtmlComplexityLimits> = {},
+): { ok: false; reason: 'input_bytes' | 'elements' | 'depth' } | null {
+  const rejected = inspectComplexity(value, resolvedLimits(overrides));
+  if (!rejected || rejected.ok) return null;
+  return rejected.reason === 'input_bytes' || rejected.reason === 'elements' || rejected.reason === 'depth'
+    ? { ok: false, reason: rejected.reason }
+    : null;
+}
+
 function sanitizeTree(value: string): Root {
   const parsed = parser.parse(value) as Root;
   return sanitizer.runSync(parsed) as Root;

@@ -28,7 +28,11 @@
     if (typeof message === 'string' && message) {
       const nextState = { ...page.state };
       delete nextState.cmailToast;
-      replaceState(page.url, nextState);
+      // On a full page load this runs during hydration, a moment before the
+      // router is marked started (dev builds throw then); defer it.
+      queueMicrotask(() => {
+        try { replaceState(page.url, nextState); } catch { /* the toast still shows */ }
+      });
       // Reset first so navigating away from two drafts can announce the same
       // confirmation twice.
       toastMessage = '';

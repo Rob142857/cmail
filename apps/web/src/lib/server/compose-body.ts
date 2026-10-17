@@ -1,8 +1,16 @@
+import { htmlToText, sanitizeComposeHtml } from '@cmail/shared/compose-html';
 import { sanitizeBoundedEmailHtml } from '@cmail/shared/sanitize-email';
 import { escapeHtml, htmlToPlainText, plainTextToHtml } from './validation';
 
 const QUOTE_START = '<!--cmail-compose-quote:start-->';
 const QUOTE_END = '<!--cmail-compose-quote:end-->';
+/**
+ * Marks a stored draft whose authored part is rich-text HTML. Drafts without it
+ * (every draft saved before rich text existed, and plain-text mode drafts) are
+ * escaped plain text, so they reopen exactly as typed. Readers never see the
+ * marker: HTML comments are removed by every sanitizer on the read path.
+ */
+const RICH_FORMAT_MARKER = '<!--cmail-compose-format:html-->';
 const ENCODER = new TextEncoder();
 
 export const MAX_COMPOSE_BODY_BYTES = 1024 * 1024;
@@ -14,21 +22,27 @@ const QUOTE_LIMITS = {
   maxDepth: 128,
 } as const;
 
+export type ComposeBodyFormat = 'text' | 'html';
+
 export type ComposeBodyFailureReason =
   | 'input_bytes'
   | 'elements'
   | 'depth'
   | 'invalid'
   | 'output_bytes'
-  | 'combined_bytes';
+  | 'combined_bytes'
+  | 'authored_html';
 
 export type ComposeBodyResult =
   | {
       ok: true;
+      format: ComposeBodyFormat;
+      /** Draft storage form: authored HTML (with format marker) plus the marked quote. */
       html: string;
       text: string;
       snippet: string;
       authoredHtml: string;
+      authoredText: string;
       quotedHtml: string;
       quotedText: string;
     }
@@ -41,6 +55,11 @@ export interface QuoteHeader {
   subject?: string;
   to?: string;
   cc?: string;
+}
+
+/** Form values arrive as untrusted strings; anything but "html" means plain text. */
+export function composeBodyFormat(value: unknown): ComposeBodyFormat {
+  return value === 'html' ? 'html' : 'text';
 }
 
 /** Accept only same-origin mail-list or message-view return targets. */
@@ -70,7 +89,7 @@ function sanitizeQuote(value: string): { ok: true; html: string } | { ok: false;
 }
 
 /**
- * Produces the inert quoted fragment shown below the plain-text authoring area.
+ * Produces the inert quoted fragment shown below the authoring area.
  * Every source/body field is either escaped or passed through the bounded email
  * sanitizer before the fragment is returned to a route.
  */
@@ -100,30 +119,71 @@ export function buildQuotedMessageHtml(
   return sanitizeQuote(candidate);
 }
 
-/** Build both MIME bodies and the HTML persisted for a draft/sent copy. */
-export function prepareComposeBody(authoredText: string, submittedQuoteHtml = ''): ComposeBodyResult {
+/**
+ * Build both MIME bodies and the HTML persisted for a draft/sent copy.
+ *
+ * Plain-text mode escapes the typed text. Rich-text mode passes the editor's
+ * HTML through the compose allowlist sanitizer (the server never trusts the
+ * editor) and derives the text/plain alternative from the sanitized tree.
+ */
+export function prepareComposeBody(
+  authored: string,
+  submittedQuoteHtml = '',
+  format: ComposeBodyFormat = 'text',
+): ComposeBodyResult {
   const quote = sanitizeQuote(submittedQuoteHtml);
   if (!quote.ok) return quote;
 
-  const authoredHtml = plainTextToHtml(authoredText);
+  let authoredHtml: string;
+  let authoredText: string;
+  if (format === 'html') {
+    const rich = sanitizeComposeHtml(authored);
+    if (!rich.ok) return { ok: false, reason: rich.reason === 'invalid' ? 'invalid' : 'authored_html' };
+    authoredHtml = rich.html;
+    authoredText = rich.text;
+  } else {
+    authoredHtml = plainTextToHtml(authored);
+    authoredText = authored;
+  }
+
+  const storedAuthored = format === 'html' && authoredHtml ? `${RICH_FORMAT_MARKER}${authoredHtml}` : authoredHtml;
   const html = quote.html
-    ? `${authoredHtml}${QUOTE_START}${quote.html}${QUOTE_END}`
-    : authoredHtml;
+    ? `${storedAuthored}${QUOTE_START}${quote.html}${QUOTE_END}`
+    : storedAuthored;
   if (ENCODER.encode(html).byteLength > MAX_COMPOSE_BODY_BYTES) {
     return { ok: false, reason: 'combined_bytes' };
   }
 
-  const quotedText = quote.html ? htmlToPlainText(quote.html) : '';
+  const quotedText = quote.html ? htmlToText(quote.html) : '';
   const text = [authoredText.trimEnd(), quotedText].filter(Boolean).join('\n\n');
   return {
     ok: true,
+    format,
     html,
     text,
     snippet: text.replace(/\s+/g, ' ').trim().slice(0, 200),
     authoredHtml,
+    authoredText,
     quotedHtml: quote.html,
     quotedText,
   };
+}
+
+export interface StoredComposeBody {
+  format: ComposeBodyFormat;
+  /** What the editor reloads: plain text, or sanitized rich-text HTML. */
+  authored: string;
+  authoredText: string;
+  quotedHtml: string;
+}
+
+function splitAuthored(storedAuthored: string): Pick<StoredComposeBody, 'format' | 'authored' | 'authoredText'> {
+  if (storedAuthored.startsWith(RICH_FORMAT_MARKER)) {
+    const rich = sanitizeComposeHtml(storedAuthored.slice(RICH_FORMAT_MARKER.length));
+    if (rich.ok) return { format: 'html', authored: rich.html, authoredText: rich.text };
+  }
+  const authoredText = htmlToPlainText(storedAuthored);
+  return { format: 'text', authored: authoredText, authoredText };
 }
 
 /**
@@ -131,10 +191,7 @@ export function prepareComposeBody(authoredText: string, submittedQuoteHtml = ''
  * only as one exact, well-ordered pair. Any ambiguity falls back to treating the
  * whole body as authored text so content can never be silently hidden.
  */
-export function splitStoredComposeBody(storedHtml: string): {
-  authoredText: string;
-  quotedHtml: string;
-} {
+export function splitStoredComposeBody(storedHtml: string): StoredComposeBody {
   const start = storedHtml.indexOf(QUOTE_START);
   const end = storedHtml.indexOf(QUOTE_END);
   const hasOnePair = start >= 0
@@ -144,16 +201,17 @@ export function splitStoredComposeBody(storedHtml: string): {
     && storedHtml.slice(end + QUOTE_END.length).trim() === '';
 
   if (!hasOnePair) {
-    return { authoredText: htmlToPlainText(storedHtml), quotedHtml: '' };
+    const whole = htmlToPlainText(storedHtml);
+    return storedHtml.startsWith(RICH_FORMAT_MARKER) && !storedHtml.includes(QUOTE_START)
+      ? { ...splitAuthored(storedHtml), quotedHtml: '' }
+      : { format: 'text', authored: whole, authoredText: whole, quotedHtml: '' };
   }
 
   const rawQuote = storedHtml.slice(start + QUOTE_START.length, end);
   const quote = sanitizeQuote(rawQuote);
   if (!quote.ok) {
-    return { authoredText: htmlToPlainText(storedHtml), quotedHtml: '' };
+    const whole = htmlToPlainText(storedHtml);
+    return { format: 'text', authored: whole, authoredText: whole, quotedHtml: '' };
   }
-  return {
-    authoredText: htmlToPlainText(storedHtml.slice(0, start)),
-    quotedHtml: quote.html,
-  };
+  return { ...splitAuthored(storedHtml.slice(0, start)), quotedHtml: quote.html };
 }

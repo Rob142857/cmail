@@ -2,6 +2,7 @@ import { sanitizeBoundedEmailHtml } from '@cmail/shared/sanitize-email';
 import type { Root, RootContent } from 'hast';
 import rehypeParse from 'rehype-parse';
 import { unified } from 'unified';
+import { plainTextToHtml } from './validation';
 
 const SIGNATURE_LIMITS = {
   maxInputBytes: 64 * 1024,
@@ -91,7 +92,13 @@ export function sanitizeSignature(html: string, plainText = ''): SanitizedSignat
 }
 
 function sanitizedStoredSignature(signature: { html_body: string; plain_text_body: string } | null): SanitizedSignature {
-  return sanitizeSignature(signature?.html_body || '', signature?.plain_text_body || '') || { html: '', plainText: '' };
+  const sanitized = sanitizeSignature(signature?.html_body || '', signature?.plain_text_body || '') || { html: '', plainText: '' };
+  // A signature saved only as plain text (older rows, or an operator who set
+  // just plain_text_body) must still appear in the HTML part of every message.
+  if (!sanitized.html && sanitized.plainText) {
+    return { html: `<div>${plainTextToHtml(sanitized.plainText)}</div>`, plainText: sanitized.plainText };
+  }
+  return sanitized;
 }
 
 function signatureBlock(layer: 'personal' | 'organisation', html: string): string {
@@ -101,7 +108,10 @@ function signatureBlock(layer: 'personal' | 'organisation', html: string): strin
 /** Adds one separator between authored content and the first generated layer. */
 export function appendSignatureToAuthoredHtml(authoredHtml: string, signatureHtml: string): string {
   if (!signatureHtml) return authoredHtml;
-  return `${authoredHtml}${authoredHtml ? '<br>' : ''}${signatureHtml}`;
+  // Plain-text bodies end mid-line and need a break; rich-text bodies already
+  // end with a closed block, where an extra <br> would add a blank line.
+  const endsWithBlock = /<\/(?:p|div|ul|ol|blockquote)>\s*$/i.test(authoredHtml);
+  return `${authoredHtml}${authoredHtml && !endsWithBlock ? '<br>' : ''}${signatureHtml}`;
 }
 
 export async function getPersonalSignature(db: D1Database, userId: string): Promise<StoredPersonalSignature | null> {

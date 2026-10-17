@@ -54,6 +54,23 @@
     timers = [setTimeout(measure, 250), setTimeout(measure, 1500)];
   }
 
+  // The load listener is attached here rather than with an onload attribute:
+  // Svelte's server render turns onload into an inline handler, which the
+  // app's CSP (correctly) blocks, so a frame that finished loading before
+  // hydration was never measured. A frame already showing its srcdoc is
+  // measured straight away.
+  $effect(() => {
+    const frame = frameEl;
+    if (!frame) return;
+    frame.addEventListener('load', handleLoad);
+    try {
+      if (frame.contentDocument?.URL === 'about:srcdoc' && frame.contentDocument.readyState === 'complete') handleLoad();
+    } catch {
+      // Measuring is a nicety; the fixed-height frame still shows the message.
+    }
+    return () => frame.removeEventListener('load', handleLoad);
+  });
+
   $effect(() => () => timers.forEach(clearTimeout));
 </script>
 
@@ -70,7 +87,6 @@
   sandbox={allowLinks ? 'allow-same-origin allow-popups' : 'allow-same-origin'}
   referrerpolicy="no-referrer"
   srcdoc={frameDocument}
-  onload={handleLoad}
 ></iframe>
 
 <style>

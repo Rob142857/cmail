@@ -68,10 +68,12 @@ import { sendIdempotencyKey } from '$lib/server/send-idempotency';
 import { normalizeDomain, normalizeEmail, parseRecipientList } from '$lib/server/validation';
 import {
   buildQuotedMessageHtml,
+  composeBodyFormat,
   prepareComposeBody,
   safeComposeReturnHref,
   splitStoredComposeBody,
   type ComposeBodyFailureReason,
+  type ComposeBodyFormat,
 } from '$lib/server/compose-body';
 import { formatQuoteDate } from '$lib/dates';
 import { appendSignatureToAuthoredHtml, getEffectiveSignature } from '$lib/server/signatures';
@@ -228,6 +230,9 @@ function composeBodyFailure(reason: ComposeBodyFailureReason): { status: 400 | 4
   if (reason === 'combined_bytes') {
     return { status: 413, error: 'Message and quoted email exceed the 1 MB draft limit.' };
   }
+  if (reason === 'authored_html') {
+    return { status: 413, error: 'Message formatting is too large or complex. Simplify it, or switch to plain text.' };
+  }
   if (reason === 'input_bytes' || reason === 'output_bytes') {
     return { status: 413, error: 'Quoted email exceeds the 512 KB safety limit. Remove the quote and try again.' };
   }
@@ -272,6 +277,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
     bcc_addresses: string;
     subject: string;
     body: string;
+    body_format: ComposeBodyFormat;
     quoted_html: string;
     in_reply_to: string | null;
     references_header: string | null;
@@ -302,7 +308,8 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
         cc_addresses: existing.cc_addresses,
         bcc_addresses: existing.bcc_addresses,
         subject: existing.subject,
-        body: storedBody.authoredText,
+        body: storedBody.authored,
+        body_format: storedBody.format,
         quoted_html: storedBody.quotedHtml,
         in_reply_to: existing.in_reply_to,
         references_header: existing.references_header,
@@ -469,6 +476,7 @@ export const actions: Actions = {
     const subjectInput = stringValue(formData.get('subject')).trim();
     const subject = subjectInput || '(no subject)';
     const body = stringValue(formData.get('body'));
+    const bodyFormat = composeBodyFormat(formData.get('body_format'));
     const quotedHtml = stringValue(formData.get('quoted_html'));
     const replySourceId = stringValue(formData.get('reply_source_id'));
     const importance = normalizeMessageImportance(stringValue(formData.get('importance')));
@@ -497,7 +505,7 @@ export const actions: Actions = {
     if (body.length > MAX_BODY_LENGTH) return fail(413, { error: 'Message body is too large' });
     const bodyBytes = new TextEncoder().encode(body).byteLength;
     if (bodyBytes > MAX_BODY_BYTES) return fail(413, { error: 'Message body exceeds 1 MB limit' });
-    const preparedBody = prepareComposeBody(body, quotedHtml);
+    const preparedBody = prepareComposeBody(body, quotedHtml, bodyFormat);
     if (!preparedBody.ok) {
       const failure = composeBodyFailure(preparedBody.reason);
       return fail(failure.status, { error: failure.error });
@@ -668,7 +676,7 @@ export const actions: Actions = {
     // after their new text, before the immutable quoted conversation.
     const htmlWithSignature = `${appendSignatureToAuthoredHtml(preparedBody.authoredHtml, signature.html)}${preparedBody.quotedHtml}`;
     const textWithSignature = [
-      body.trimEnd(),
+      preparedBody.authoredText.trimEnd(),
       signature.text,
       preparedBody.quotedText,
     ].filter(Boolean).join('\n\n');
@@ -1128,6 +1136,7 @@ export const actions: Actions = {
     const bcc = stringValue(formData.get('bcc')).slice(0, 20_000);
     const subject = stringValue(formData.get('subject')).slice(0, MAX_SUBJECT_LENGTH) || '(no subject)';
     const body = stringValue(formData.get('body'));
+    const bodyFormat = composeBodyFormat(formData.get('body_format'));
     const quotedHtml = stringValue(formData.get('quoted_html'));
     const replySourceId = stringValue(formData.get('reply_source_id'));
     let inReplyTo: string | null = null;
@@ -1142,7 +1151,7 @@ export const actions: Actions = {
     }
     if (body.length > MAX_BODY_LENGTH) return fail(413, { error: 'Message body is too large' });
     if (new TextEncoder().encode(body).byteLength > MAX_BODY_BYTES) return fail(413, { error: 'Message body exceeds 1 MB limit' });
-    const preparedBody = prepareComposeBody(body, quotedHtml);
+    const preparedBody = prepareComposeBody(body, quotedHtml, bodyFormat);
     if (!preparedBody.ok) {
       const failure = composeBodyFailure(preparedBody.reason);
       return fail(failure.status, { error: failure.error });
