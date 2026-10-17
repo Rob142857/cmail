@@ -20,7 +20,23 @@ Use the button only to import the repository, then complete every step below bef
 
 ## Updating an existing instance
 
-The management console shows the web build's Git revision and checks the configured public GitHub `REPO_URL` against `main` when opened, then hourly while open. Checks are cached for an hour per running server instance and require no GitHub token. Only managers can access the check endpoint. GitHub outages, rate limits, private repositories, and unknown revisions show an unavailable status; they never prevent mail or management from loading. Modified builds and diverged histories are marked as custom, not as ordinary upgrades. The notice describes newer source commits, not a certified release, and does not measure the separately deployed email Worker.
+The management console shows the web build's Git revision and compares it with `main` of the upstream repository when opened, then hourly while open. It shows one of:
+
+- **Up to date**: upstream `main` is the commit this build came from.
+- **Update available: <version> · <commit>**: `main` has moved on. The commit count and "Review changes" link appear when GitHub can say how far ahead it is.
+- **Custom build**: the build had local changes, or its commit isn't on upstream `main` (a fork or branch). Review compatibility before updating.
+- **Update status unavailable — <reason>**: the check couldn't run (repository unreachable, `REPO_URL` invalid or private, or a build without Git metadata). Mail and management are unaffected.
+- **Update checks are off**: `UPDATE_CHECK = "off"`.
+
+How it works, so you can predict and troubleshoot it:
+
+- **Upstream.** `REPO_URL` in the web `[vars]` (default `https://github.com/Rob142857/cmail`). It must be a plain public `https://github.com/<owner>/<repo>` URL; anything else is never fetched. The "Update procedure" link points at this section of that repository.
+- **Sources.** The latest `main` commit comes from Git's public ref advertisement (`github.com/<repo>.git/info/refs`) and the version from `package.json` at that commit on `raw.githubusercontent.com`. Neither uses GitHub's REST API, whose 60-requests-an-hour unauthenticated limit is shared by everyone behind the same Cloudflare egress address and is usually exhausted. The REST compare API is tried only for the commit count and fork detection, and losing it is harmless.
+- **Caching.** Results are cached in the Cloudflare edge cache and in memory for an hour (ten minutes after a failed check), so a busy console asks GitHub about once an hour per location.
+- **Server-side, manager-only, no secrets.** The browser calls `/admin/source-updates` on your own instance; the Worker fetches GitHub. No token is used and the Content Security Policy needs no change.
+- **To turn it off**, for example on an air-gapped or private-fork deployment, set `UPDATE_CHECK = "off"` in the web `[vars]` and redeploy.
+
+The notice describes newer source commits, not a certified release, and does not measure the separately deployed email Worker.
 
 For an existing tenant checkout, start with a clean working tree (`git status --short` should be empty), then:
 

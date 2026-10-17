@@ -304,6 +304,12 @@ deployment level instead. To change one, follow the
 [configuration reference](configuration.md) and your organisation's
 deployment change process.
 
+## Update notices
+
+The bottom of the Management sidebar shows the installed web build and whether a newer cmail is available. "Up to date" means you run the latest upstream source. "Update available" names the new version and commit and links to the changes. "Custom build" means your instance carries local or forked changes, so ask whoever maintains it before updating. "Update status unavailable" gives the reason and never affects mail.
+
+The notice is information, not an automatic update. Follow **Update procedure** (or your support provider, via **Email support** where your deployment sets one) to plan the update, take a backup, and deploy. Your deployment team can point the check at a fork or turn it off; see [Updating an existing instance](deployment.md#updating-an-existing-instance).
+
 ## Safe operating routine
 
 - Review Overview, Mail trace, Audit log, provider health, and backup results
