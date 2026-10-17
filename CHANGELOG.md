@@ -8,6 +8,19 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Fixed
 
+- Message bodies shown in a frame (reading view, quoted originals) were not
+  resized to their content after a full page load. Svelte's server render
+  turned the frame's load handler into an inline `onload` attribute, which
+  the app's CSP blocks, so the load event was lost before hydration. The
+  listener is now attached in script and a frame that already loaded is
+  measured straight away.
+- A signature stored only as plain text now also appears in the HTML part of
+  outgoing mail (it was previously sent in the text part only).
+- In development builds, a full page load of compose (or of mail with a
+  pending toast) threw "Cannot call replaceState(...) before router is
+  initialized" from `afterNavigate`, which stopped the draft id reaching the
+  URL. The URL update now runs right after router start-up.
+
 - Compose opened by a full page load (bookmark, new tab, refresh of
   `/mail/compose`) could not send. The page pinned its recovery id in the URL
   with `replaceState()` from `onMount`, which on hydration runs inside
@@ -41,6 +54,20 @@ Notable changes to cmail are recorded here. The project follows
   [dependency upgrade review](docs/dependency-review-2026-09-22.md).
 
 ### Added
+
+- Rich-text compose. The message box is now a TipTap (ProseMirror) editor with
+  bold, italic, underline, links, bulleted and numbered lists, quote and clear
+  formatting, and pasted content is cleaned before it enters the editor. A
+  **Plain text** toggle keeps the old textarea, the choice is remembered per
+  device, and drafts reopen in the mode they were saved in. The editor is
+  loaded on demand by the compose page only. The server never trusts editor
+  output: it re-sanitizes the HTML with a narrow compose allowlist (no
+  attributes except checked link targets, no styles, scripts or images) using
+  the existing rehype-sanitize pipeline, then derives the text/plain part
+  from the sanitized tree, so every message goes out as multipart/alternative
+  with readable lists, quotes and link addresses. Replies and forwards keep
+  the quoted original as HTML, now also quoted with `> ` in the text part.
+  Reading and its CSP are unchanged. No migration.
 
 - Remember the provider only after successful returning-account OAuth so a
   later signed-out mailbox visit can start fresh OAuth without guessing an

@@ -47,6 +47,7 @@ This checklist replaces deployment-specific audit notes. It's a starting point, 
 - [ ] HTML bodies rendered with an appropriate sandbox and restrictive content policy
 - [ ] Remote images are blocked by default and load only after an explicit user action with no referrer
 - [ ] Inbound decoded HTML/plain text is byte-, element-, and depth-bounded and sanitized once before storage
+- [ ] Rich-text compose HTML is re-sanitized on the server with the compose allowlist (no styles, scripts, images, event handlers, or non-http(s)/mailto links) before every draft save and send, and the text/plain part is derived from the sanitized tree
 - [ ] Attachment filenames, types, sizes, and download headers reviewed
 - [ ] Dangerous inbound and outbound attachment extensions tested
 - [ ] Message headers protected from CR/LF injection

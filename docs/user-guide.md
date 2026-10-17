@@ -114,8 +114,8 @@ your own mailbox addresses. Replying from a Sent item targets the original
 recipients, not yourself. Always check the recipient fields before sending,
 especially from a shared mailbox.
 
-The composer supports To, Cc, Bcc, a subject, plain-text content, and
-attachments up to the limits shown next to the attachment button. Select
+The composer supports To, Cc, Bcc, a subject, a formatted or plain-text
+message, and attachments up to the limits shown next to the attachment button. Select
 **Bcc** next to Cc to add one. Bcc is envelope-only: nobody in To or Cc ever
 sees who you blind-copied, your own Sent copy still shows the full list
 including Bcc, and a reply to your message never carries the original Bcc
@@ -151,6 +151,30 @@ them inline; instead, the Forward screen gives you a download link for each
 original part, so you choose exactly what to reattach. Drafts stay private to
 whoever created them, even from a shared mailbox — other delegates only see
 the Sent copy once it's delivered, not the unfinished draft.
+
+### Formatting your message
+
+The message box is a rich-text editor. Its toolbar has **Bold**, **Italic**,
+**Underline**, **Link**, bulleted and numbered lists, **Quote**, and **Clear**
+(which removes formatting from the selected text). The usual shortcuts work
+too: Ctrl+B, Ctrl+I and Ctrl+U (Cmd on a Mac), and Ctrl+Z to undo. **Link**
+asks for a web address or an email address; typing `example.org` links to
+`https://example.org`, and anything other than a web or email link is
+refused. Text pasted from Word, a web page or another email keeps simple
+formatting such as bold, lists and links; fonts, colours, tables and images
+are removed.
+
+Prefer plain text? Select **Plain text** above the message box. Switching
+from rich text to plain text removes the formatting (cmail asks first if
+there is any text), and switching back turns your paragraphs and line breaks
+into rich text. cmail remembers your choice for new messages on that device,
+and a saved draft always reopens in the mode it was written in.
+
+Every message is sent with both a formatted (HTML) version and a plain-text
+version, so recipients whose email app shows only plain text still see your
+lists, quotes and link addresses. cmail cleans the formatting on the server
+before saving or sending: anything beyond the toolbar's options, including
+scripts, styles and images, is removed.
 
 ### Email signatures
 

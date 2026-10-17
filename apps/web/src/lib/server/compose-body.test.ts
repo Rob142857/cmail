@@ -34,6 +34,8 @@ describe('compose body handling', () => {
     expect(prepared.text).toContain('sender@example.com wrote:');
 
     expect(splitStoredComposeBody(prepared.html)).toEqual({
+      format: 'text',
+      authored: 'Thanks — received.',
       authoredText: 'Thanks — received.',
       quotedHtml: prepared.quotedHtml,
     });

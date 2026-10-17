@@ -33,6 +33,9 @@
   },
   "dependencies": {
     "@cmail/shared": "workspace:*",
+    "@tiptap/core": "3.31.4",
+    "@tiptap/pm": "3.31.4",
+    "@tiptap/starter-kit": "3.31.4",
     "mimetext": "^3.0.28",
     "rehype-parse": "9.0.1",
     "rehype-sanitize": "6.0.0",
