@@ -18,8 +18,14 @@ export interface ComposeFields {
   cc: string[];
   bcc: string[];
   subject: string;
-  /** Plain text authored by the agent. */
+  /** Plain text authored by the agent, or a stored rich-text draft's sanitised HTML. */
   body: string;
+  /**
+   * 'html' only when re-submitting a draft that cmail itself stored as rich
+   * text; agent-written bodies are always plain text. The compose action
+   * sanitises either way.
+   */
+  bodyFormat?: 'text' | 'html';
   /** Sanitised quoted HTML kept from an existing draft (never agent-supplied). */
   quotedHtml?: string;
   replySourceId?: string;
@@ -40,6 +46,7 @@ function form(fields: ComposeFields, extra: Record<string, string>): FormData {
   data.set('subject', fields.subject);
   data.set('body', fields.body);
   data.set('importance', 'normal');
+  if (fields.bodyFormat === 'html') data.set('body_format', 'html');
   if (fields.quotedHtml) data.set('quoted_html', fields.quotedHtml);
   if (fields.replySourceId) data.set('reply_source_id', fields.replySourceId);
   for (const [key, value] of Object.entries(extra)) data.set(key, value);

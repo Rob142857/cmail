@@ -574,7 +574,11 @@ async function loadOwnDraft(context: ToolContext, draftId: string): Promise<Draf
     if (!object) throw new ToolError('draft_unavailable', 'The draft body is temporarily unavailable. Try again shortly.', 'error');
     stored = await object.text();
   }
-  const split = splitStoredComposeBody(stored);
+  // Rich-text drafts (stored by the web composer when it supports formatting)
+  // are re-submitted as their sanitised HTML so sending or retitling one from
+  // an AI app keeps its formatting. Older stores expose only authoredText.
+  const split = splitStoredComposeBody(stored) as ReturnType<typeof splitStoredComposeBody> & { format?: string; authored?: string };
+  const rich = split.format === 'html' && typeof split.authored === 'string';
   return {
     row,
     fields: {
@@ -583,7 +587,8 @@ async function loadOwnDraft(context: ToolContext, draftId: string): Promise<Draf
       cc: jsonList(row.cc_addresses),
       bcc: jsonList(row.bcc_addresses),
       subject: row.subject === '(no subject)' ? '' : row.subject,
-      body: split.authoredText,
+      body: rich ? (split.authored as string) : split.authoredText,
+      bodyFormat: rich ? 'html' : 'text',
       quotedHtml: split.quotedHtml,
     },
   };
@@ -613,7 +618,8 @@ const updateDraft: ToolDefinition = {
       ...(args.addresses('cc') !== undefined ? { cc: changes.cc } : {}),
       ...(args.addresses('bcc') !== undefined ? { bcc: changes.bcc } : {}),
       ...(args.string('subject', { max: 500 }) !== undefined ? { subject: changes.subject } : {}),
-      ...(args.string('body', { max: MAX_BODY_CHARS }) !== undefined ? { body: changes.body } : {}),
+      // A new body from the agent is plain text and replaces any rich draft body.
+      ...(args.string('body', { max: MAX_BODY_CHARS }) !== undefined ? { body: changes.body, bodyFormat: 'text' as const } : {}),
     };
     const saved = await saveDraft(
       merged,
