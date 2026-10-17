@@ -2,13 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { audit } from '$lib/server/db';
 import { messageOwnershipPredicate } from '$lib/server/message-access';
-
-const MOVE_SOURCES: Record<string, readonly string[]> = {
-  inbox: ['archive', 'spam'],
-  archive: ['inbox'],
-  spam: ['inbox', 'archive'],
-  trash: ['inbox', 'sent', 'archive', 'spam'],
-};
+import { MOVE_SOURCES, isMoveFolder } from '$lib/server/message-moves';
 
 export const PATCH: RequestHandler = async ({ locals, platform, params, request }) => {
   if (!locals.user) throw error(401);
@@ -53,7 +47,7 @@ export const PATCH: RequestHandler = async ({ locals, platform, params, request 
   } else if (action === 'star' && fullControl) {
     await env.DB.prepare('UPDATE messages SET is_starred = CASE WHEN is_starred = 1 THEN 0 ELSE 1 END WHERE id = ?').bind(msg.id).run();
   } else if (action === 'move' && folder && fullControl) {
-    if (!MOVE_SOURCES[folder]?.includes(msg.folder)) throw error(400, 'Invalid folder move');
+    if (!isMoveFolder(folder) || !MOVE_SOURCES[folder].includes(msg.folder)) throw error(400, 'Invalid folder move');
     await env.DB.prepare('UPDATE messages SET folder = ? WHERE id = ?').bind(folder, msg.id).run();
     await audit(env.DB, {
       event_type: 'email.moved',

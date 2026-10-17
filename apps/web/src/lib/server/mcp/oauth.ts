@@ -506,7 +506,8 @@ export async function validateAccessToken(db: D1Database, token: string, resourc
     token_resource: string; scopes: string; grant_id: string; client_id: string; client_name: string; last_used_epoch: number | null;
   }>();
   if (!row || row.token_resource !== resource) return null;
-  const { token_resource: _resource, scopes, grant_id, client_id, client_name, last_used_epoch, ...user } = row;
+  const { scopes, grant_id, client_id, client_name, last_used_epoch, ...user } = row;
+  delete (user as Partial<typeof user>).token_resource;
   return {
     grantId: grant_id,
     clientId: client_id,

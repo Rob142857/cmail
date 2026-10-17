@@ -39,7 +39,7 @@ const CIMD_TIMEOUT_MS = 5000;
 /** Strip control characters and bound a display string supplied by a client. */
 export function cleanClientText(value: unknown, max: number): string {
   if (typeof value !== 'string') return '';
-  return value.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, '').trim().slice(0, max);
+  return value.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, '').trim().slice(0, max);
 }
 
 function cleanHttpsUri(value: unknown): string {
@@ -53,7 +53,7 @@ function cleanHttpsUri(value: unknown): string {
 }
 
 function rowToClient(row: ClientRow): McpClient {
-  let redirectUris: string[] = [];
+  let redirectUris: string[];
   try {
     const parsed = JSON.parse(row.redirect_uris) as unknown;
     redirectUris = Array.isArray(parsed) ? parsed.filter((uri): uri is string => typeof uri === 'string') : [];

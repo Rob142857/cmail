@@ -2,22 +2,14 @@ import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { generateId } from '$lib/server/db';
 import { messageOwnershipPredicate } from '$lib/server/message-access';
+import { MOVE_SOURCES, isMoveFolder, type MoveFolder } from '$lib/server/message-moves';
 
 const MAX_IDS = 100;
 const MAX_BODY_BYTES = 16_384;
 const STATE_ACTIONS = ['read', 'unread', 'star', 'unstar'] as const;
-const MOVE_FOLDERS = ['inbox', 'archive', 'spam', 'trash'] as const;
 
 type StateAction = (typeof STATE_ACTIONS)[number];
-type MoveFolder = (typeof MOVE_FOLDERS)[number];
 type BulkAction = StateAction | 'move' | 'restore';
-
-const MOVE_SOURCES: Record<MoveFolder, readonly string[]> = {
-  inbox: ['archive', 'spam'],
-  archive: ['inbox'],
-  spam: ['inbox', 'archive'],
-  trash: ['inbox', 'sent', 'archive', 'spam'],
-};
 
 interface BulkRequest {
   ids?: unknown;
@@ -34,10 +26,6 @@ interface AuthorizedMessage {
 
 function isStateAction(value: string): value is StateAction {
   return (STATE_ACTIONS as readonly string[]).includes(value);
-}
-
-function isMoveFolder(value: string): value is MoveFolder {
-  return (MOVE_FOLDERS as readonly string[]).includes(value);
 }
 
 function auditDescription(action: BulkAction, count: number, folder: MoveFolder | null): {

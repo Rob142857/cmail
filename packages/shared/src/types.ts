@@ -289,6 +289,9 @@ export interface Env {
   VAPID_SUBJECT?: string;
   PUSH_ENDPOINT_HOSTS?: string;
 
+  // Optional per-connection hourly send ceiling for AI apps (MCP), default 10.
+  MCP_SEND_RATE_PER_HOUR?: string;
+
   // Auth — at least one required
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
