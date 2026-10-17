@@ -274,6 +274,25 @@ Draft autosaves and explicit saves share the per-user, per-mailbox hourly limit.
 
 Fixed per-send ceilings also apply, regardless of configuration: 250 MiB aggregate delivery payload, 100 MiB duplicated internal R2 content, and 250 new R2 objects. A message body is capped at 1 MiB and attachments at 20 MiB total; compose requests declaring a length above 24 MiB are rejected before form parsing, and every parsed form is checked again. Each internal message owns its R2 keys, and deletion removes those objects — so internal copies are bounded rather than sharing blobs.
 
+## AI agent (MCP) connections
+
+The MCP server and its OAuth authorization server need no secrets or extra
+bindings. They derive every URL, the token issuer, and the token audience from
+`APP_URL`, which must be the deployment's public `https://` origin with no
+path (`http://localhost` is accepted for local development). If `APP_URL` is
+missing or unsafe, `/mcp` answers 503 and the Manager switch can't be turned
+on.
+
+The feature is off until a Manager turns on **Management > Settings > AI agent
+(MCP) connections**. That switch is stored in D1 (`org_settings` key
+`mcp_enabled`), not in Wrangler configuration.
+
+| Variable | Default | Accepted range | Use |
+|---|---:|---:|---|
+| `MCP_SEND_RATE_PER_HOUR` | 10 | 1–200 | Messages one connected AI app may send per hour, on top of the person's own outbound limits |
+
+See [AI agents and MCP](mcp.md) for scopes, limits, and the threat model.
+
 ## Inbound Worker limits
 
 Before any D1 lookup, the optional native Cloudflare Rate Limiting bindings in `apps/email-worker/wrangler.toml` record a generous per-colo (Cloudflare edge location) abuse threshold: 120 messages/minute for a trusted source IP (or, without a trusted boundary IP, the sender-controlled envelope sender), plus a 1,000 messages/minute per-colo aggregate circuit breaker. Actor inputs are SHA-256 pseudonymized — not anonymized — before reaching the counter key. This surfaces unavailable-recipient spraying without spending outbound-send quota. Cloudflare documents Email Workers `setReject()` as a permanent SMTP error, so cmail deliberately does **not** turn this signal into a misleading `451` or drop mail. The bindings fail open when absent or faulty, so this optional protection can't cause a mail outage; namespaces must be positive, account-unique integers, and preview must use different namespaces from production. Thresholds never alter delivery or block D1 reads. A third, one-per-minute-per-colo alert binding allows one generic no-PII Worker warning when either signal is over limit; if that binding is absent, denied, or faulty, cmail just omits the warning. Native counters are local to one colo, so the D1-backed limits below remain the durable mailbox and sender controls.

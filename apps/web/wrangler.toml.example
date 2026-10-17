@@ -74,6 +74,9 @@ MAX_DRAFTS_PER_MAILBOX_USER = "100"
 # session cookie's own fixed Max-Age).
 SESSION_TTL_HOURS = "8"
 MAX_SESSIONS_PER_USER = "5"
+# AI agent (MCP) connections are off until a Manager turns them on in
+# Management > Settings. This caps sends per connected app per hour (1-200).
+MCP_SEND_RATE_PER_HOUR = "10"
 
 # Invitation-scoped email one-time-code sign-in, for invitees hosted by
 # neither Google nor Microsoft. See docs/configuration.md. Set to "false" to
@@ -167,6 +170,7 @@ MAX_DRAFTS_PER_MAILBOX_USER = "100"
 # Inactivity window — see the SESSION_TTL_HOURS comment in [vars] above.
 SESSION_TTL_HOURS = "8"
 MAX_SESSIONS_PER_USER = "5"
+MCP_SEND_RATE_PER_HOUR = "10"
 # Email-OTP sign-in — see the comments in [vars] above. Codes simply won't
 # send while OUTBOUND_PROVIDER is "none" here, by the same preview design.
 EMAIL_OTP_ENABLED = "true"

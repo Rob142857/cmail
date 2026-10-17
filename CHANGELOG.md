@@ -6,6 +6,40 @@ Notable changes to cmail are recorded here. The project follows
 
 ## [Unreleased]
 
+### Added
+
+- Remote MCP (Model Context Protocol) server at `/mcp` so AI assistants
+  such as Claude can work with mail, off until a Manager enables it in
+  Management > Settings. Streamable HTTP, stateless, dual-era: the 2026-07-28
+  revision (per-request metadata, validated mirrored headers,
+  `server/discover`) and the initialize-based 2025-11-25, 2025-06-18 and
+  2025-03-26 revisions. Thirteen tools for reading, searching, drafting,
+  sending, organising and calendar reading, each limited by scope, by the
+  mailboxes the person approved, and by their live delegation.
+- OAuth 2.1 authorization server for it: RFC 9728 and RFC 8414 discovery,
+  Client ID Metadata Documents and RFC 7591 registration, authorization code
+  with PKCE (S256 only), exact redirect matching, RFC 8707 audience binding,
+  RFC 9207 `iss`, 1-hour access tokens, rotating refresh tokens with reuse
+  detection, a 90-day connection limit, and RFC 7009 revocation. Codes,
+  tokens and client secrets are stored only as hashes.
+- Browser consent screen showing the app (verified host or unverified name),
+  return address, scopes (read and draft pre-ticked, send opt-in) and
+  personal and shared mailboxes.
+- Mail > Settings > Connected AI apps, to review and disconnect apps.
+- Per-call audit rows (tool, mailbox, outcome; no content), per-connection
+  rate limits, and `MCP_SEND_RATE_PER_HOUR`.
+- Migration `0016_mcp_oauth.sql` (additive: new tables only).
+- [AI agents and MCP](docs/mcp.md) guide with the threat model and limits.
+
+### Changed
+
+- SvelteKit's built-in CSRF origin check is now enforced by an identical
+  check in `hooks.server.ts`, which exempts only the cookie-less
+  `/oauth/token` and `/oauth/revoke` endpoints that native OAuth clients
+  call without an `Origin` header.
+- Pausing or offboarding a person also disconnects their AI apps.
+- Message move rules are shared between the message APIs and MCP tools.
+
 ### Fixed
 
 - Message bodies shown in a frame (reading view, quoted originals) were not

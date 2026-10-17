@@ -33,6 +33,7 @@ flowchart LR
 | R2 | Message bodies and attachment objects | Decide mailbox authorization |
 | Google or Microsoft | Authenticate identities selected by the operator | Auto-authorize or provision ordinary cmail users |
 | Cloudflare Email Service or Postmark | Deliver external outbound messages | Store cmail mailbox permissions |
+| AI app (MCP client) | Calls `/mcp` with a bearer token after the person approved it in the browser | Use cookies, reach mailboxes or scopes outside its grant, or act while the organisation switch is off |
 | Browser push service | Best-effort delivery of generic, user-enabled new-mail notices | Receive sender, subject, mailbox, body, or attachment data from cmail |
 
 ## Primary flows
@@ -75,6 +76,21 @@ Draft autosaves have their own per-user/mailbox rate. New drafts and mailbox mov
 
 Administration records are manager-only. `GET /api/organization` is the one public endpoint — an empty array unless its master switch is enabled, and even then limited to explicitly public, active positions: occupant display name, work email, and position title. It never returns user IDs, login addresses, hierarchy, or other organisation metadata.
 
+### AI agent access (MCP)
+
+When a Manager enables it, `/mcp` serves the Model Context Protocol over
+Streamable HTTP, and the same Pages app acts as the OAuth 2.1 authorization
+server: discovery metadata, client registration (Client ID Metadata
+Documents or dynamic registration), `/oauth/authorize` with the normal cmail
+sign-in plus a consent screen, and `/oauth/token` / `/oauth/revoke`.
+Codes and tokens are opaque, hashed in D1, audience-bound to `APP_URL/mcp`,
+and refresh tokens rotate with reuse detection. Every tool call re-reads the
+grant, the person's live mailbox assignments and status, the policy
+acknowledgement, and the organisation switch, then writes a content-free audit
+row. Drafting and sending reuse the compose actions in-process, so the send
+journal, quotas and limits are shared with the web composer. See
+[AI agents and MCP](mcp.md).
+
 ### Optional browser notifications
 
 Web Push stays disabled unless the Pages app and inbound Worker share a complete VAPID (keys that authenticate your server to push services) key pair and subject, and a signed-in user opts in with an explicit gesture. Subscriptions are user-owned; payloads carry only generic new-mail copy plus an authenticated in-app route, never message or mailbox metadata. Push endpoints are restricted to a built-in allowlist plus operator-reviewed additions.
@@ -84,6 +100,7 @@ Fan-out is best-effort: inbound storage completes first, then the runtime tries 
 ## Trust boundaries
 
 - Treat browser input, routed email, provider responses, message HTML, attachments, and configuration values as untrusted.
+- Treat MCP clients as untrusted: they get only the scopes and mailboxes a person approved, and message text returned to them is labelled as untrusted content.
 - Authorization belongs on server routes and actions; hiding a UI control is not an authorization decision.
 - D1 and R2 bindings grant data-plane access — limit who can change Pages, Worker, provider, DNS, and Cloudflare account configuration.
 - OAuth client secrets, session keys, outbound API keys, the Turnstile secret key, bootstrap token/email, tenant IDs, and resource IDs are deployment-owned: keep them in secret stores and local ignored files, not source control. Treat raw enrolment links, bootstrap proofs, and email one-time codes the same way.

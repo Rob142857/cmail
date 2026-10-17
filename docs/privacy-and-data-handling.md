@@ -27,6 +27,7 @@ A typical cmail deployment can process:
 | Mail content | Sender/recipient fields (including Bcc, kept envelope-only), subject, plain text, sanitized HTML, attachments, inline images, drafts, signatures | Receiving, composing, storing, finding, and delivering organisational mail |
 | Mail-flow and security metadata | Envelope addresses, message identifiers, size, provider response, authentication results, spam score, suspicious-link/risk information | Delivery, investigation, abuse prevention, troubleshooting |
 | Administrative evidence | Manager action, actor, target, timestamp, source address, policy version and acceptance, travel-approval decisions | Security review, accountability, policy administration |
+| AI app connections (MCP), when enabled | App name and identifier, approved scopes and mailboxes, hashed tokens and codes, connection and last-use times, a per-call log of tool, mailbox and outcome (no content) | Letting a person's chosen AI assistant work with their mail, revocation, accountability |
 | Device notification data | Push endpoint, keys, browser/device capability and subscription timestamps | Optional new-mail notification delivery |
 | Operational configuration | Organisation name, domains, support contacts, provider choices, approved sign-in countries, retention and quota settings | Running and supporting the deployment |
 
@@ -56,6 +57,12 @@ receive it.
   to a person's consumer inbox, drive, contacts, or search history.
 - Web Push sends a minimal notification through the endpoint's push service.
   Push is optional and should not contain message content.
+- When a person connects an AI app over MCP (off unless a Manager enables
+  it), the mail that app reads or drafts through the approved scopes and
+  mailboxes is disclosed to that app and its model provider, under that
+  provider's terms. cmail records which tools were called, never the content.
+  Decide whether staff may connect AI apps, which ones, and for what mail,
+  and say so in the privacy notice and acceptable-use policy.
 - Backups, exports, support artifacts, DMARC/TLS reports, and independent logs
   are separate processing locations. Inventory and protect each one.
 
@@ -92,6 +99,9 @@ cmail has no legal-hold workflow and its application audit log is not an
 independently immutable archive. If preservation, eDiscovery, WORM
 (write-once, read-many) storage, or protected export is required, implement
 and test it outside cmail before destructive retention is enabled.
+
+AI app connection records are removed 30 days after they are revoked or
+expire, expired tokens after a day, and the per-call tool log after one year.
 
 Offboarding revokes access and disables the personal mailbox. It does not
 automatically erase retained mail or every backup. Document the difference

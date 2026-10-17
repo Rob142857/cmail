@@ -114,6 +114,20 @@ See [Email authentication and sender requirements](email-authentication.md) for 
 - [ ] Notification payload verified to contain no sender, subject, mailbox, address, body, or attachment data
 - [ ] Disable, unsubscribe, expired-subscription cleanup, and VAPID rotation behavior tested
 
+## AI agent (MCP) connections, when enabled
+
+See [AI agents and MCP](mcp.md).
+
+- [ ] The organisation has decided to allow AI apps; the switch stays off otherwise
+- [ ] `APP_URL` is the exact public `https://` origin; `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server` show it
+- [ ] `/mcp` without a token returns 401 with a `WWW-Authenticate` header naming the resource metadata
+- [ ] Consent tested with a real client: read and draft pre-ticked, send and organise off, personal mailbox ticked, shared mailboxes not
+- [ ] Removing or downgrading a shared-mailbox delegation is reflected on the next tool call
+- [ ] Pausing a test user disconnects their apps; turning the switch off returns 403 to connected apps
+- [ ] `MCP_SEND_RATE_PER_HOUR` reviewed; people told that sending is opt-in and to prefer drafts
+- [ ] The tool-call log (Management > Settings) and connection events in the audit log are reviewed periodically
+- [ ] Staff guidance covers prompt injection: mail is untrusted input to an AI app, and approving an app shares the chosen mail with that app's provider
+
 ## Release decision
 
 Record:

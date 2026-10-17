@@ -38,6 +38,9 @@ Reports are especially useful for:
 - exposure of message content, attachments, secrets, or tenant metadata;
 - inbound or outbound mail spoofing caused by application logic;
 - privilege escalation in user, mailbox, policy, audit, trace, or settings tools;
+- the MCP endpoint or its OAuth authorization server: consent bypass, token
+  theft or replay, redirect or audience confusion, scope or mailbox escape,
+  and prompt-injection paths that lead cmail to act without the user's grant;
 - dependency vulnerabilities with a demonstrated path through cmail.
 
 Provider outages, provider-account compromise, DNS misconfiguration, unsupported local changes, and social engineering without a product flaw are usually deployment concerns, not project vulnerabilities. Report privately if the boundary is unclear.
@@ -52,6 +55,8 @@ Every deployment should:
 - configure OAuth callback URLs exactly;
 - verify sender domains and publish appropriate SPF, DKIM, and DMARC records;
 - monitor authentication, audit, trace, provider, and DNS events;
+- leave AI agent (MCP) connections off unless the organisation has decided to
+  use them, and review connected apps and the tool-call log while they are on;
 - define D1 and R2 backup and restore procedures;
 - update dependencies and redeploy security fixes promptly;
 - follow the [security checklist](docs/security-checklist.md).

@@ -207,6 +207,16 @@ convenience, not a guarantee. Open cmail to check your actual mail.
 For installation, permissions, and troubleshooting, see the
 [iOS, iPadOS, and Android guide](mobile-pwa.md).
 
+## Connect an AI assistant
+
+If your organisation allows it, you can connect an AI assistant such as Claude
+to your mail. The assistant opens a cmail window; you sign in and choose what
+it may do and which mailboxes it may use. Reading and drafting are offered by
+default; sending is off unless you turn it on. See and disconnect your apps in
+**Settings > Connected AI apps**. Remember that email is written by other
+people: don't let an assistant act on instructions it finds in a message. See
+[AI agents and MCP](mcp.md).
+
 ## Sign out and get help
 
 Use **Sign out** in the account area when you finish, especially on a shared

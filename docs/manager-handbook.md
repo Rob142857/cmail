@@ -291,6 +291,12 @@ revoke those requests from **Management > Travel approvals**. See
 behaviour. Changes here take effect immediately and are recorded in the
 Audit log.
 
+The **AI agent (MCP) connections** card turns on, or off, people's ability
+to connect AI assistants such as Claude to their mail. It's off by default.
+While it's on, the card shows how many connections exist, the most recent tool
+calls (no content), and a button to disconnect every AI app at once. See
+[AI agents and MCP](mcp.md).
+
 OAuth credentials, session secrets, Cloudflare bindings, mail domain,
 outbound provider keys, Web Push private keys, and other security-sensitive
 settings are deliberately kept out of this screen and controlled at the
