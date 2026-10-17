@@ -2,6 +2,7 @@ import type { Handle, HandleServerError } from '@sveltejs/kit';
 import type { User } from '@cmail/shared/types';
 import { assertStrongSessionSecret, publicRuntimeConfig, sessionTtlMs } from '$lib/server/config';
 import { clearSessionCookie, getSessionTokenFromCookie, hashToken, shouldRenewSession, verifySessionToken } from '$lib/server/session';
+import { mcpMaintenanceStatements } from '$lib/server/mcp/maintenance';
 
 function appendVary(headers: Headers, value: string): void {
   const values = new Set(
@@ -35,6 +36,30 @@ function isUnsafeCrossOrigin(request: Request, requestOrigin: string): boolean {
   return !!origin && origin !== requestOrigin;
 }
 
+// SvelteKit's built-in CSRF guard (kit.csrf) is replaced by this identical
+// check so that exactly two machine-facing OAuth endpoints can accept the
+// form-encoded POSTs that native MCP clients send without an Origin header
+// (RFC 6749 requires that encoding at the token endpoint). Those endpoints
+// never read cookies: they authenticate the client with PKCE or a client
+// secret, so a cross-site form post to them gains an attacker nothing.
+// Every other path keeps SvelteKit's exact rule: a form-encoded POST, PUT,
+// PATCH or DELETE must carry an Origin equal to this origin.
+const FORM_CONTENT_TYPES = new Set([
+  'application/x-www-form-urlencoded',
+  'multipart/form-data',
+  'text/plain',
+  'application/x-sveltekit-formdata',
+]);
+const CSRF_EXEMPT_MACHINE_PATHS = new Set(['/oauth/token', '/oauth/revoke']);
+
+export function isCrossSiteFormSubmission(request: Request, url: URL): boolean {
+  if (CSRF_EXEMPT_MACHINE_PATHS.has(url.pathname)) return false;
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method.toUpperCase())) return false;
+  const contentType = (request.headers.get('content-type')?.split(';', 1)[0].trim() ?? '').toLowerCase();
+  if (!FORM_CONTENT_TYPES.has(contentType)) return false;
+  return request.headers.get('origin') !== url.origin;
+}
+
 function isAdminRequestPath(pathname: string): boolean {
   // SvelteKit form-action query strings are excluded from pathname, while
   // internal page-data requests remain below the /admin segment (for example,
@@ -52,6 +77,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   if (isUnsafeCrossOrigin(event.request, event.url.origin)) {
     return secureResponse(new Response('Cross-origin request blocked', { status: 403 }), false, isHttps);
+  }
+  if (isCrossSiteFormSubmission(event.request, event.url)) {
+    const message = `Cross-site ${event.request.method.toUpperCase()} form submissions are forbidden`;
+    const denied = event.request.headers.get('accept') === 'application/json'
+      ? Response.json({ message }, { status: 403 })
+      : new Response(message, { status: 403 });
+    return secureResponse(denied, false, isHttps);
   }
 
   let clearInvalidCookie = false;
@@ -142,6 +174,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         env.DB.prepare(`DELETE FROM enrollment_tokens WHERE consumed_at IS NOT NULL OR expires_at < unixepoch('now')`).run(),
         env.DB.prepare(`DELETE FROM auth_otp_codes WHERE expires_epoch < unixepoch('now')`).run(),
         env.DB.prepare(`DELETE FROM send_idempotency WHERE created_at < datetime('now', '-7 days')`).run(),
+        ...mcpMaintenanceStatements(env.DB).map((statement) => statement.run()),
       ]).then(() => undefined).catch(() => undefined),
     );
   }

@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { audit, generateId } from '$lib/server/db';
+import { MCP_AUTHORIZE_COOKIE, mcpResumeLocation } from '$lib/server/mcp/resume';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
   const env = platform?.env;
@@ -33,7 +34,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 };
 
 export const actions: Actions = {
-  default: async ({ locals, platform, request }) => {
+  default: async ({ locals, platform, request, cookies }) => {
     if (!locals.user) throw redirect(302, '/');
     const env = platform?.env;
     if (!env?.DB) return fail(503, { error: 'Policy storage unavailable' });
@@ -75,6 +76,7 @@ export const actions: Actions = {
       session_id: locals.sessionId,
     });
 
-    throw redirect(303, '/mail');
+    // A pending AI-app (MCP) authorization resumes at its consent screen.
+    throw redirect(303, mcpResumeLocation(cookies.get(MCP_AUTHORIZE_COOKIE), '/mail'));
   },
 };

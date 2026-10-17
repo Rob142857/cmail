@@ -29,6 +29,9 @@ security reports, and focused community proposals.
 - Exercise Cloudflare Email Routing and both outbound-provider paths with
   controlled domains.
 - Establish a clear compatibility and release policy.
+- Exercise the MCP integration with the major AI clients across both
+  protocol eras, and seek independent review of its OAuth authorization
+  server and consent flow.
 - Close high-impact security, accessibility, and data-loss risks discovered by
   review or field testing.
 

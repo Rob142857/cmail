@@ -9,6 +9,7 @@ This page is the map for all cmail documentation. cmail is pre-1.0 software: ope
 - [Mobile app and notifications](mobile-pwa.md) — for anyone on iPhone, iPad, or Android. Installing cmail and turning on new-mail alerts, plus troubleshooting.
 - [Push notification reliability blueprint](push-notification-reliability.md) — for engineers planning ahead. A design, not yet built, for a more durable notification pipeline.
 - [Mail client connectivity architecture](mail-client-connectivity.md) — for anyone asking "can I use Outlook or Gmail instead?". The current PWA-only boundary and the staged plan for JMAP and optional IMAP support.
+- [AI agents and MCP](mcp.md) — for anyone connecting Claude or another AI assistant, and for Managers. Browser sign-in and consent, scopes, per-mailbox sharing, the organisation switch, revocation, audit, prompt-injection stance, threat model, and limits.
 - [Shared mailboxes](shared-mailboxes.md) — for anyone using a team address. Delegation, Send as, Full access, shared folders and read state, and lifecycle.
 - [Email signatures](signatures.md) — for anyone who sends mail, and for Managers. Personal sign-offs, the optional organisation footer, locking, and safe formatting.
 - [Manager handbook](manager-handbook.md) — for the Manager role. People, Mailboxes, Organisation, Usage policy, Mail trace, Audit log, Settings, and safe operating practice.

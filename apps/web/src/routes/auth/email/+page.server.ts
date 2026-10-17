@@ -49,6 +49,7 @@ import {
 } from '$lib/server/travel';
 import { turnstileEnabled, turnstileSiteKey, verifyTurnstile } from '$lib/server/turnstile';
 import { normalizeEmail } from '$lib/server/validation';
+import { MCP_AUTHORIZE_COOKIE, mcpResumeLocation } from '$lib/server/mcp/resume';
 
 const NEUTRAL_REQUEST_MESSAGE = 'If this address is registered for email sign-in, a code is on its way.';
 const NEUTRAL_VERIFY_MESSAGE = "That code didn't work or has expired.";
@@ -456,6 +457,7 @@ export const actions: Actions = {
       secure: url.protocol === 'https:',
       maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
     });
-    throw redirect(303, location);
+    // A pending AI-app (MCP) authorization resumes at its consent screen.
+    throw redirect(303, mcpResumeLocation(cookies.get(MCP_AUTHORIZE_COOKIE), location));
   },
 };

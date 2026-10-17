@@ -4,14 +4,26 @@ import { isValidCountryCode } from '$lib/countries';
 import { audit } from '$lib/server/db';
 import { loadOrgSettings, ORG_SETTINGS_KEYS, type OrgSettingsKey } from '$lib/server/org-settings';
 import { normalizeDomain, normalizeEmail } from '$lib/server/validation';
+import { ORG_SETTING_MCP_ENABLED, isMcpEnabled, mcpResource } from '$lib/server/mcp/config';
+import { adminMcpOverview } from '$lib/server/mcp/grants';
+import { revokeAllGrantsStatements } from '$lib/server/mcp/oauth';
 
 export const load: PageServerLoad = async ({ platform }) => {
   const env = platform?.env;
-  if (!env) return { settings: null, mailDomain: '' };
+  if (!env) return { settings: null, mailDomain: '', mcp: null };
   const settings = await loadOrgSettings(env as unknown as Record<string, unknown>);
+  const [mcpEnabled, mcpOverview] = await Promise.all([
+    isMcpEnabled(env.DB),
+    adminMcpOverview(env.DB).catch(() => null),
+  ]);
   return {
     settings,
     mailDomain: normalizeDomain(env.MAIL_DOMAIN) || '',
+    mcp: {
+      enabled: mcpEnabled,
+      url: mcpResource(env as unknown as Record<string, unknown>),
+      overview: mcpOverview,
+    },
   };
 };
 
@@ -42,6 +54,46 @@ function isSafeHttpUrl(s: string): boolean {
 }
 
 export const actions: Actions = {
+  // AI agent (MCP) connections: an explicit, audited org switch, off by default.
+  mcp: async ({ request, platform, locals }) => {
+    const env = platform?.env;
+    if (!env) return fail(503, { error: 'Service unavailable' });
+    if (!locals.user) return fail(401, { error: 'Authentication required' });
+    if (locals.user.role !== 'manager') return fail(403, { error: 'Manager role required' });
+    const data = await request.formData();
+    const enabled = data.get('mcp_enabled') === 'true';
+    if (enabled && !mcpResource(env as unknown as Record<string, unknown>)) {
+      return fail(400, { error: 'APP_URL must be a valid https address before AI app connections can be turned on' });
+    }
+    await env.DB.prepare(
+      `INSERT INTO org_settings (key, value, updated_at, updated_by)
+       VALUES (?, ?, datetime('now'), ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now'), updated_by = excluded.updated_by`,
+    ).bind(ORG_SETTING_MCP_ENABLED, enabled ? 'true' : 'false', locals.user.id).run();
+    await audit(env.DB, {
+      event_type: 'org.mcp_toggled',
+      actor_id: locals.user.id,
+      actor_role: locals.user.role,
+      detail: `AI agent (MCP) connections turned ${enabled ? 'on' : 'off'}`,
+    });
+    return { success: enabled ? 'AI app connections are on' : 'AI app connections are off. Connected apps are blocked immediately.' };
+  },
+
+  mcpRevokeAll: async ({ platform, locals }) => {
+    const env = platform?.env;
+    if (!env) return fail(503, { error: 'Service unavailable' });
+    if (!locals.user) return fail(401, { error: 'Authentication required' });
+    if (locals.user.role !== 'manager') return fail(403, { error: 'Manager role required' });
+    await env.DB.batch(revokeAllGrantsStatements(env.DB));
+    await audit(env.DB, {
+      event_type: 'mcp.grants_revoked_all',
+      actor_id: locals.user.id,
+      actor_role: locals.user.role,
+      detail: 'Disconnected every AI app for every user',
+    });
+    return { success: 'Every connected AI app was disconnected. People must approve apps again to reconnect.' };
+  },
+
   save: async ({ request, platform, locals }) => {
     const env = platform?.env;
     if (!env) return fail(503, { error: 'Service unavailable' });

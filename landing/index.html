@@ -359,6 +359,94 @@
       overflow-wrap: anywhere;
     }
 
+    /* ─── MCP integration ─────────────────────────────────────── */
+    .steps {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px; margin: 0 0 28px; padding: 0;
+      list-style: none; counter-reset: step;
+    }
+    .steps li {
+      position: relative;
+      padding: 20px 20px 20px 62px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      box-shadow: var(--shadow-4);
+      counter-increment: step;
+    }
+    .steps li::before {
+      content: counter(step);
+      position: absolute; left: 20px; top: 19px;
+      display: grid; place-items: center;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--primary); color: var(--on-primary);
+      font-size: 13px; font-weight: 700;
+    }
+    .steps strong { display: block; margin-bottom: 4px; font-size: 15px; }
+    .steps span { color: var(--text-muted); font-size: 13.5px; }
+    .steps code {
+      display: inline-block; margin-top: 8px; padding: 2px 7px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--bg-subtle); color: var(--primary-text);
+      font: 12px/1.6 var(--font-mono); overflow-wrap: anywhere;
+    }
+    .consent {
+      margin: 0;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--bg-surface);
+      box-shadow: var(--shadow-16);
+    }
+    .consent-head {
+      padding: 16px 18px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .consent-head small {
+      display: block; margin-bottom: 4px;
+      color: var(--primary-text);
+      font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+    }
+    .consent-head strong { font-size: 16px; }
+    .consent-head span { display: block; margin-top: 4px; color: var(--text-faint); font-size: 12px; }
+    .consent-row {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px; align-items: center;
+      padding: 11px 18px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13.5px;
+    }
+    .consent-row em { display: block; color: var(--text-muted); font-size: 12px; font-style: normal; }
+    .consent-group {
+      padding: 10px 18px 6px;
+      color: var(--text-faint);
+      font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    }
+    .pill {
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 11.5px; font-weight: 650; white-space: nowrap;
+    }
+    .pill.on { background: var(--primary-soft); color: var(--primary-text); border: 1px solid var(--primary-border); }
+    .pill.off { background: var(--bg-subtle); color: var(--text-faint); border: 1px solid var(--border); }
+    .consent-foot {
+      display: flex; justify-content: flex-end; gap: 8px;
+      padding: 13px 18px;
+      background: var(--bg-subtle);
+    }
+    .consent-foot span {
+      padding: 5px 14px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      font-size: 13px; font-weight: 600;
+    }
+    .consent-foot span.allow { border-color: var(--primary); background: var(--primary); color: var(--on-primary); }
+    .consent-caption { margin: 8px 2px 0; color: var(--text-faint); font-size: 12px; }
+    .controls { margin-top: 28px; }
+    .controls-title { margin: 0 0 10px; font-size: 18px; letter-spacing: -.01em; }
+    .controls h3 { margin: 0 0 12px; font-size: 18px; letter-spacing: -.01em; }
+
     /* ─── Deploy ──────────────────────────────────────────────── */
     .deploy {
       display: grid; grid-template-columns: 1.05fr .95fr;
@@ -409,6 +497,7 @@
     @media (max-width: 900px) {
       .grid-3 { grid-template-columns: 1fr 1fr; }
       .split, .deploy { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr; }
       .nav-links a.nav-secondary { display: none; }
     }
     @media (max-width: 620px) {
@@ -482,6 +571,7 @@
     <symbol id="i-clipboard" viewBox="0 0 20 20"><path d="M7.5 3.4H6a1.6 1.6 0 0 0-1.6 1.6v10.1A1.6 1.6 0 0 0 6 16.7h8a1.6 1.6 0 0 0 1.6-1.6V5A1.6 1.6 0 0 0 14 3.4h-1.5M7.5 3.4a1.3 1.3 0 0 1 1.3-1.3h2.4a1.3 1.3 0 0 1 1.3 1.3M7.5 3.4a1.3 1.3 0 0 0 1.3 1.3h2.4a1.3 1.3 0 0 0 1.3-1.3M7.3 9.2h5.4M7.3 12.4h3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-check" viewBox="0 0 20 20"><path d="M4 10.4 8 14.4l8-8.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-link" viewBox="0 0 20 20"><path d="M8.4 11.6a3.4 3.4 0 0 0 5.1.4l2-2a3.4 3.4 0 0 0-4.8-4.8l-1.1 1.1M11.6 8.4a3.4 3.4 0 0 0-5.1-.4l-2 2a3.4 3.4 0 0 0 4.8 4.8l1.1-1.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 20 20"><path d="M10 2.8 11.6 8.4 17.2 10 11.6 11.6 10 17.2 8.4 11.6 2.8 10 8.4 8.4zM15.6 2.9v2.6M14.3 4.2h2.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-cloud" viewBox="0 0 20 20"><path d="M5.8 15.4a3.9 3.9 0 0 1-.5-7.7 5 5 0 0 1 9.6-1.1 3.9 3.9 0 0 1 .5 7.7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   </svg>
 
@@ -494,6 +584,7 @@
         <a class="nav-secondary" href="#capabilities">Capabilities</a>
         <a class="nav-secondary" href="#tour" data-insight="tour_open">Product tour</a>
         <a class="nav-secondary" href="#delegation">Shared mailboxes</a>
+        <a class="nav-secondary" href="#mcp">AI agents (MCP)</a>
         <a href="/assurance/" data-insight="assurance_open">Security &amp; assurance</a>
         <a class="nav-secondary" href="https://github.com/Rob142857/cmail" data-insight="github_click">Source</a>
         <a class="cta" href="#deploy" data-insight="deploy_start">Deploy it</a>
@@ -621,6 +712,11 @@
             <h3>Works like an app</h3>
             <p>Install cmail on a phone or desktop, and get notified when new mail arrives.</p>
           </article>
+          <article class="card">
+            <span class="icon" aria-hidden="true"><svg width="17" height="17"><use href="#i-spark"/></svg></span>
+            <h3>AI assistants, on your terms</h3>
+            <p>Connect Claude or another MCP client with a browser sign-in. People choose the mailboxes and permissions; sending stays off unless they turn it on. <a href="#mcp">How it works</a></p>
+          </article>
         </div>
       </section>
 
@@ -648,6 +744,90 @@
             <article><strong>Send as</strong><span>Everything in Read, plus writing and replying from the shared address.</span></article>
             <article><strong>Full access</strong><span>Everything in Send as, plus moving, starring, archiving, and deleting messages.</span></article>
           </div>
+        </div>
+      </section>
+
+      <section id="mcp" aria-labelledby="mcp-heading">
+        <div class="section-heading">
+          <p class="kicker">MCP integration</p>
+          <h2 id="mcp-heading">Let an AI assistant help with mail, without handing over the keys</h2>
+          <p>cmail includes a remote Model Context Protocol (MCP) server. An AI app such as Claude can search, read, draft and organise mail for you, but only in the mailboxes and only with the permissions you approve, in a sign-in window that cmail controls. It's off until your organisation turns it on.</p>
+        </div>
+
+        <ol class="steps" aria-label="Connecting an AI app">
+          <li>
+            <strong>Add one address</strong>
+            <span>Paste your cmail server address into the AI app's connector or MCP settings.</span>
+            <code>https://mail.your-domain/mcp</code>
+          </li>
+          <li>
+            <strong>Sign in, the usual way</strong>
+            <span>A cmail window opens. Sign in with Google, Microsoft or an email code. The AI app never sees a password.</span>
+          </li>
+          <li>
+            <strong>Choose, then allow</strong>
+            <span>Tick what the app may do and which mailboxes it may use. You're returned to the app, connected.</span>
+          </li>
+        </ol>
+
+        <div class="split">
+          <div>
+            <h3 class="controls-title">You decide, mailbox by mailbox</h3>
+            <p>
+              The consent screen names the app (and, where it can, the website that
+              vouches for it), shows where you'll be sent back, and starts with the
+              safest choices: read and draft on; send, organise and calendar off.
+              Personal mail is ticked; shared team mailboxes are opt-in.
+            </p>
+            <p>
+              Every request is checked again against what you approved <em>and</em> what
+              you can still access. Lose access to a shared mailbox and the app loses it
+              on its next request.
+            </p>
+            <p class="note">
+              <strong>Sending is opt-in.</strong> An app can only send if you tick
+              "Send email as you". Even then it's limited per hour, and drafting for
+              your review stays the recommended default.
+            </p>
+          </div>
+          <figure class="consent" aria-label="Illustration of the cmail consent screen">
+            <div class="consent-head">
+              <small>Connect an AI app</small>
+              <strong>Allow "Example Assistant" to use your mail?</strong>
+              <span>Returns to: an app on this computer · Signed in as you</span>
+            </div>
+            <div class="consent-group">What it may do</div>
+            <div class="consent-row"><div>Read mail<em>Search and read the mailboxes you choose</em></div><span class="pill on">On</span></div>
+            <div class="consent-row"><div>Write drafts<em>Saved to Drafts, never sent</em></div><span class="pill on">On</span></div>
+            <div class="consent-row"><div>Send email as you<em>Off unless you turn it on</em></div><span class="pill off">Off</span></div>
+            <div class="consent-row"><div>Organise mail<em>Archive, move, mark, star</em></div><span class="pill off">Off</span></div>
+            <div class="consent-group">Which mailboxes</div>
+            <div class="consent-row"><div>you@your-domain<em>Personal</em></div><span class="pill on">Shared</span></div>
+            <div class="consent-row"><div>support@your-domain<em>Team mailbox</em></div><span class="pill off">Not shared</span></div>
+            <div class="consent-foot"><span>Deny</span><span class="allow">Allow</span></div>
+          </figure>
+        </div>
+
+        <div class="controls">
+          <h3>Security built in, not bolted on</h3>
+          <ul class="feature-list">
+            <li><strong>Admin off-switch.</strong> Off by default. A Manager turns it on, can turn it off, and can disconnect every AI app at once.</li>
+            <li><strong>Revoke any time.</strong> Each person sees their connected apps, what they can do, when they were last used, and a Disconnect button that works immediately.</li>
+            <li><strong>Audit log for every call.</strong> Time, person, app, tool, mailbox and result are recorded. Message content never is.</li>
+            <li><strong>Prompt-injection aware.</strong> Mail is written by strangers. Everything an app reads is labelled untrusted, and cmail never acts on instructions found in an email.</li>
+            <li><strong>Short-lived, bound tokens.</strong> OAuth 2.1 with PKCE. One-hour access tokens that only work on your server, rotating refresh tokens, and automatic disconnection if a token is ever replayed.</li>
+            <li><strong>Nothing secret at rest.</strong> Codes and tokens are stored only as hashes, and connections expire after 90 days.</li>
+            <li><strong>Same rules as the web app.</strong> Drafts and sends go through cmail's own compose path, with the same permissions, limits and send journal.</li>
+            <li><strong>Current MCP, open standards.</strong> Streamable HTTP for the 2026-07-28 revision and earlier clients, with OAuth discovery, client metadata documents and dynamic registration.</li>
+          </ul>
+          <p class="note">
+            Designed for MCP clients that support remote servers with OAuth sign-in,
+            such as Claude's custom connectors and Claude Code. Like the rest of cmail
+            it's pre-1.0 and hasn't been independently audited: review it for your own
+            requirements, and remember that an app you approve can read the mail you
+            share with it.
+            <a href="https://github.com/Rob142857/cmail/blob/main/docs/mcp.md" data-insight="docs_open">Read the MCP guide and threat model</a>.
+          </p>
         </div>
       </section>
 

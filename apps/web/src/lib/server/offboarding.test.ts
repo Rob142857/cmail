@@ -21,7 +21,7 @@ describe('offboarding lifecycle cleanup', () => {
 
     const statements = offboardingCleanupStatements(db, 'departing-user');
 
-    expect(statements).toHaveLength(6);
+    expect(statements).toHaveLength(8);
     expect(captured[0].sql).toContain('UPDATE sessions SET revoked = 1');
     expect(captured[1].sql).toContain('DELETE FROM enrollment_tokens');
     expect(captured[2].sql).toContain('DELETE FROM push_subscriptions');
@@ -30,6 +30,8 @@ describe('offboarding lifecycle cleanup', () => {
     expect(captured[4].sql).toContain('DELETE FROM mailbox_assignments');
     expect(captured[4].sql).toContain("type = 'shared'");
     expect(captured[5].sql).toContain("SET visibility = 'internal'");
+    expect(captured[6].sql).toContain('UPDATE mcp_tokens SET revoked_epoch');
+    expect(captured[7].sql).toContain("revoked_reason = 'offboarded'");
     for (const statement of captured) {
       expect(statement.sql).toContain("status = 'offboarded'");
       expect(statement.args).toEqual(['departing-user', 'departing-user']);

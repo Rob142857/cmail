@@ -80,6 +80,11 @@ by default, with Postmark as an alternative.
   name, title, and work email can ever be exposed.
 - **Policy acknowledgement** — required before mailbox access whenever a
   policy is published.
+- **AI agent access over MCP, off by default** — a remote Model Context
+  Protocol server with OAuth 2.1 browser sign-in and consent. People choose
+  the scopes and mailboxes an AI app may use; sending is a separate opt-in;
+  every call is re-authorised and audited; Managers have an off-switch. See
+  [AI agents and MCP](docs/mcp.md).
 - **Optional browser notifications** — user-enabled, with privacy-minimised
   new-mail copy only.
 - **Responsive, installable PWA** — works on desktop and mobile browsers.

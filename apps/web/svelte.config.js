@@ -14,6 +14,11 @@ const config = {
     // Lifecycle-triggered updated.check() calls in the root layout perform
     // deployment detection; disable SvelteKit's background polling timer.
     version: { pollInterval: 0 },
+    // The built-in CSRF origin check is re-implemented verbatim in
+    // src/hooks.server.ts (isCrossSiteFormSubmission), which exempts only the
+    // cookie-less OAuth token and revocation endpoints that native MCP
+    // clients call without an Origin header. '*' disables the built-in copy.
+    csrf: { trustedOrigins: ['*'] },
     // CSP — SvelteKit auto-injects sha256 hashes for its own hydration scripts
     // and inline styles when mode is 'hash'. We can therefore stay on a strict
     // policy WITHOUT 'unsafe-inline' for scripts.

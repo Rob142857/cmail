@@ -476,6 +476,18 @@ export const actions: Actions = {
              SELECT 1 FROM users WHERE id = ? AND status = ?
            )`,
         ).bind(userId, userId, status),
+        // Pausing also disconnects AI apps (MCP); reactivation does not restore them.
+        env.DB.prepare(
+          `UPDATE mcp_tokens SET revoked_epoch = unixepoch()
+           WHERE revoked_epoch IS NULL
+             AND grant_id IN (SELECT id FROM mcp_grants WHERE user_id = ?)
+             AND EXISTS (SELECT 1 FROM users WHERE id = ? AND status = ?)`,
+        ).bind(userId, userId, status),
+        env.DB.prepare(
+          `UPDATE mcp_grants SET revoked_epoch = unixepoch(), revoked_reason = 'paused'
+           WHERE user_id = ? AND revoked_epoch IS NULL
+             AND EXISTS (SELECT 1 FROM users WHERE id = ? AND status = ?)`,
+        ).bind(userId, userId, status),
       );
     }
     if (status === 'offboarded') statements.push(...offboardingCleanupStatements(env.DB, userId));
