@@ -266,7 +266,7 @@ uploaded with `index.html`:
 
 ```sh
 pnpm landing:check
-pnpm deploy:landing -- --project-name <PAGES_PROJECT> --branch <PRODUCTION_BRANCH>
+pnpm deploy:landing --project-name <PAGES_PROJECT> --branch <PRODUCTION_BRANCH>
 pnpm landing:check -- --url https://product.example.com
 ```
 
