@@ -11,11 +11,53 @@
   <header class="page-heading">
     <p class="eyebrow">Configuration</p>
     <h1 id="settings-heading">Organisation settings</h1>
-    <p>Manage organisation details and system email. Security settings are set outside this app.</p>
+    <p>Manage organisation details, system email and AI app access. Deployment security settings are set outside this app.</p>
   </header>
 
   {#if form?.error}<div class="notice notice-error" role="alert">{form.error}</div>{/if}
   {#if form?.success}<div class="notice notice-success" role="status">{form.success}</div>{/if}
+
+  {#if data.mcp}
+    <section class="card mcp-card" aria-labelledby="mcp-heading">
+      <div class="mcp-head">
+        <div>
+          <h2 id="mcp-heading">AI agent (MCP) connections</h2>
+          <p class="group-intro">Let people connect AI assistants such as Claude to their mail with the Model Context Protocol. Each person signs in, chooses mailboxes and permissions, and can disconnect at any time. Sending is a separate opt-in for each app.</p>
+        </div>
+        <span class="state-badge" class:on={data.mcp.enabled}>{data.mcp.enabled ? 'On' : 'Off'}</span>
+      </div>
+      <form method="POST" action="?/mcp" class="mcp-toggle">
+        <input type="hidden" name="mcp_enabled" value={data.mcp.enabled ? 'false' : 'true'} />
+        <button type="submit" class="btn {data.mcp.enabled ? 'btn-outline-danger' : 'btn-primary'}">
+          {data.mcp.enabled ? 'Turn off AI app connections' : 'Allow AI agent (MCP) connections'}
+        </button>
+        {#if data.mcp.url}<small>Server address for apps: <code>{data.mcp.url}</code></small>{/if}
+      </form>
+      {#if data.mcp.overview}
+        <p class="mcp-stats">{data.mcp.overview.activeGrants} active connection{data.mcp.overview.activeGrants === 1 ? '' : 's'} across {data.mcp.overview.activeUsers} {data.mcp.overview.activeUsers === 1 ? 'person' : 'people'}.</p>
+        {#if data.mcp.overview.activeGrants > 0}
+          <form method="POST" action="?/mcpRevokeAll">
+            <button type="submit" class="btn btn-sm btn-ghost-danger">Disconnect every AI app now</button>
+          </form>
+        {/if}
+        {#if data.mcp.overview.recentCalls.length}
+          <details class="mcp-log">
+            <summary>Recent AI tool calls (identifiers only, no content)</summary>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Time (UTC)</th><th>Person</th><th>App</th><th>Tool</th><th>Mailbox</th><th>Result</th></tr></thead>
+                <tbody>
+                  {#each data.mcp.overview.recentCalls as call}
+                    <tr><td>{call.at.replace('T', ' ').slice(0, 19)}</td><td>{call.user}</td><td>{call.app}</td><td>{call.tool}</td><td>{call.mailbox || '—'}</td><td>{call.result}{call.errorCode ? ` (${call.errorCode})` : ''}</td></tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        {/if}
+      {/if}
+    </section>
+  {/if}
 
   {#if settings}
     <form method="POST" action="?/save" class="settings-form">
@@ -135,6 +177,19 @@
   .form-actions { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--bg-surface) 94%, transparent); box-shadow: var(--shadow); backdrop-filter: blur(10px); }
   .form-actions p { color: var(--text-muted); font-size: 12px; }
   .empty-state { padding: 42px 24px; text-align: center; }
+  .mcp-card { display: grid; gap: 12px; padding: 20px; }
+  .mcp-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+  .mcp-head h2 { margin: 0 0 4px; font-size: 16px; }
+  .mcp-head .group-intro { margin: 0; }
+  .state-badge { flex: 0 0 auto; padding: 3px 10px; border-radius: var(--radius-pill); background: var(--bg-subtle); color: var(--text-muted); font-size: 12px; font-weight: 650; }
+  .state-badge.on { background: var(--success-soft); color: var(--success); }
+  .mcp-toggle { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+  .mcp-toggle small { color: var(--text-muted); font-size: 11px; overflow-wrap: anywhere; }
+  .mcp-stats { margin: 0; color: var(--text-muted); font-size: 12px; }
+  .mcp-log summary { cursor: pointer; color: var(--text-muted); font-size: 12px; }
+  .table-wrap { margin-top: 8px; overflow-x: auto; }
+  .mcp-log table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  .mcp-log th, .mcp-log td { padding: 5px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
   .empty-state p { margin-top: 6px; color: var(--text-muted); }
   @media (max-width: 680px) {
     fieldset.card { grid-template-columns: 1fr; padding: 16px; }

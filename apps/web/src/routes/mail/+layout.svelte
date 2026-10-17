@@ -110,6 +110,7 @@
 
   const isList = $derived((page.route.id || '') === '/mail');
   const isMailSettings = $derived(page.url.pathname === '/mail/settings');
+  const isConnectedApps = $derived(page.url.pathname === '/mail/connected-apps');
 
   const permissionLabel = /** @type {Record<string, string>} */ ({
     read: 'Read only',
@@ -246,6 +247,14 @@
           >
             <span class="nav-icon"><Icon name="compose" size={16} /></span>
             <span class="nav-label">Email signature</span>
+          </a>
+          <a
+            href="/mail/connected-apps"
+            class="nav-item"
+            aria-current={isConnectedApps ? 'page' : undefined}
+          >
+            <span class="nav-icon"><Icon name="key" size={16} /></span>
+            <span class="nav-label">Connected AI apps</span>
           </a>
         </nav>
       </div>

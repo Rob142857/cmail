@@ -22,6 +22,7 @@ import { recordTravelRequest, requestCountry, signInCountryGate } from '$lib/ser
 import { normalizeDomain, normalizeEmail } from '$lib/server/validation';
 import { audit } from '$lib/server/db';
 import { providerPreferenceCookie } from '$lib/server/provider-preference';
+import { MCP_AUTHORIZE_COOKIE, mcpResumeLocation } from '$lib/server/mcp/resume';
 
 async function denySignIn(
   db: D1Database,
@@ -281,6 +282,8 @@ export const GET: RequestHandler = async ({ params, url, platform, cookies, requ
     if (!signature) location = '/policy';
   }
 
+  // A pending AI-app (MCP) authorization resumes at its consent screen.
+  location = mcpResumeLocation(cookies.get(MCP_AUTHORIZE_COOKIE), location);
   const headers = new Headers({
     'Set-Cookie': buildSessionCookie(token, url.protocol === 'https:'),
     Location: location,

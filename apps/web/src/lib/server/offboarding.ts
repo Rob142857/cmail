@@ -50,5 +50,18 @@ export function offboardingCleanupStatements(db: D1Database, userId: string): D1
        WHERE user_id = ? AND visibility = 'public'
          AND EXISTS (SELECT 1 FROM users WHERE id = ? AND status = 'offboarded')`,
     ).bind(userId, userId),
+    // AI app (MCP) access: kill every token, then mark every grant revoked.
+    // Token validation also requires an active user, so this is belt and braces.
+    db.prepare(
+      `UPDATE mcp_tokens SET revoked_epoch = unixepoch()
+       WHERE revoked_epoch IS NULL
+         AND grant_id IN (SELECT id FROM mcp_grants WHERE user_id = ?)
+         AND EXISTS (SELECT 1 FROM users WHERE id = ? AND status = 'offboarded')`,
+    ).bind(userId, userId),
+    db.prepare(
+      `UPDATE mcp_grants SET revoked_epoch = unixepoch(), revoked_reason = 'offboarded'
+       WHERE user_id = ? AND revoked_epoch IS NULL
+         AND EXISTS (SELECT 1 FROM users WHERE id = ? AND status = 'offboarded')`,
+    ).bind(userId, userId),
   ];
 }
