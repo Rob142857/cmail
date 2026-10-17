@@ -63,8 +63,8 @@ function locals(): App.Locals {
   return {
     user: {
       id: 'user-1',
-      email: 'rob@example.com',
-      display_name: 'Rob Evans',
+      email: 'alex@example.com',
+      display_name: 'Alex Morgan',
       role: 'standard',
       status: 'active',
       auth_provider: 'google',
@@ -88,10 +88,10 @@ function platform(db: D1Database): App.Platform {
 describe('calendar/new create action', () => {
   it('enforces the shared outbound budget before creating a meeting', async () => {
     const { db, calls } = mockDb([
-      ['SELECT m.id, m.address, m.display_name FROM mailboxes', { id: 'mailbox-1', address: 'rob@example.com', display_name: 'Rob Evans' }],
+      ['SELECT m.id, m.address, m.display_name FROM mailboxes', { id: 'mailbox-1', address: 'alex@example.com', display_name: 'Alex Morgan' }],
     ], 1, [], 61);
     const formData = new FormData();
-    formData.set('from', 'rob@example.com');
+    formData.set('from', 'alex@example.com');
     formData.set('title', 'Weekly sync');
     formData.set('date', '2026-08-25');
     formData.set('start_time', '14:00');
@@ -111,7 +111,7 @@ describe('calendar/new create action', () => {
   it('rejects a missing title without touching the database', async () => {
     const { db, calls } = mockDb([]);
     const formData = new FormData();
-    formData.set('from', 'rob@example.com');
+    formData.set('from', 'alex@example.com');
     formData.set('date', '2026-08-25');
     formData.set('start_time', '14:00');
     formData.set('end_time', '14:30');
@@ -130,7 +130,7 @@ describe('calendar/new create action', () => {
   it('rejects an end time that is not after the start time', async () => {
     const { db } = mockDb([]);
     const formData = new FormData();
-    formData.set('from', 'rob@example.com');
+    formData.set('from', 'alex@example.com');
     formData.set('title', 'Weekly sync');
     formData.set('date', '2026-08-25');
     formData.set('start_time', '14:00');
@@ -149,7 +149,7 @@ describe('calendar/new create action', () => {
   it('rejects a meeting with no attendees', async () => {
     const { db } = mockDb([]);
     const formData = new FormData();
-    formData.set('from', 'rob@example.com');
+    formData.set('from', 'alex@example.com');
     formData.set('title', 'Weekly sync');
     formData.set('date', '2026-08-25');
     formData.set('start_time', '14:00');
@@ -167,10 +167,10 @@ describe('calendar/new create action', () => {
 
   it('saves the event and attendees, and reports a plain retry message when delivery fails', async () => {
     const { db, calls } = mockDb([
-      ['SELECT m.id, m.address, m.display_name FROM mailboxes', { id: 'mailbox-1', address: 'rob@example.com', display_name: 'Rob Evans' }],
+      ['SELECT m.id, m.address, m.display_name FROM mailboxes', { id: 'mailbox-1', address: 'alex@example.com', display_name: 'Alex Morgan' }],
     ]);
     const formData = new FormData();
-    formData.set('from', 'rob@example.com');
+    formData.set('from', 'alex@example.com');
     formData.set('title', 'Weekly sync');
     formData.set('date', '2026-08-25');
     formData.set('start_time', '14:00');
@@ -234,8 +234,8 @@ describe('mail/[id] rsvp action', () => {
         message_id_header: '<abc@example.com>',
         in_reply_to: null,
         references_header: null,
-        mailbox_address: 'rob@example.com',
-        mailbox_display_name: 'Rob Evans',
+        mailbox_address: 'alex@example.com',
+        mailbox_display_name: 'Alex Morgan',
       }],
       ['SELECT * FROM calendar_events WHERE message_id = ?', {
         id: 'event-1',
@@ -273,7 +273,7 @@ describe('mail/[id] rsvp action', () => {
     const upsert = calls.find(({ sql }) => sql.includes('INSERT INTO calendar_attendees'));
     expect(upsert).toBeDefined();
     expect(upsert!.sql).toContain('ON CONFLICT(event_id, address)');
-    expect(upsert!.values).toContain('rob@example.com');
+    expect(upsert!.values).toContain('alex@example.com');
     expect(upsert!.values).toContain('accepted');
 
     const auditInsert = calls.find(({ sql }) => sql.includes('INSERT INTO audit_log'));
@@ -284,7 +284,7 @@ describe('mail/[id] rsvp action', () => {
     const { db } = mockDb([
       ['FROM messages m', {
         id: 'message-1', mailbox_id: 'mailbox-1', message_id_header: null, in_reply_to: null, references_header: null,
-        mailbox_address: 'rob@example.com', mailbox_display_name: 'Rob Evans',
+        mailbox_address: 'alex@example.com', mailbox_display_name: 'Alex Morgan',
       }],
       ['SELECT * FROM calendar_events WHERE message_id = ?', {
         id: 'event-1', mailbox_id: 'mailbox-1', uid: 'uid-1@cmail', sequence: 1, summary: 'Weekly sync',
@@ -327,7 +327,7 @@ describe('calendar cancel action', () => {
         description: '', location: '', starts_at: '2026-08-25T14:00:00.000Z', ends_at: '2026-08-25T14:30:00.000Z',
         all_day: 0, status: 'confirmed', organizer_address: 'someone.else@example.com', organizer_self: 0,
         message_id: 'message-1', rrule: null, created_at: '2026-08-01 00:00:00', updated_at: '2026-08-01 00:00:00',
-        mailbox_address: 'rob@example.com', mailbox_display_name: 'Rob Evans',
+        mailbox_address: 'alex@example.com', mailbox_display_name: 'Alex Morgan',
       }],
     ]);
     const formData = new FormData();
@@ -347,9 +347,9 @@ describe('calendar cancel action', () => {
       ['FROM calendar_events ce', {
         id: 'event-1', mailbox_id: 'mailbox-1', uid: 'uid-1@cmail', sequence: 0, summary: 'Weekly sync',
         description: '', location: 'Room 4', starts_at: '2026-08-25T14:00:00.000Z', ends_at: '2026-08-25T14:30:00.000Z',
-        all_day: 0, status: 'confirmed', organizer_address: 'rob@example.com', organizer_self: 1,
+        all_day: 0, status: 'confirmed', organizer_address: 'alex@example.com', organizer_self: 1,
         message_id: null, rrule: null, created_at: '2026-08-01 00:00:00', updated_at: '2026-08-01 00:00:00',
-        mailbox_address: 'rob@example.com', mailbox_display_name: 'Rob Evans',
+        mailbox_address: 'alex@example.com', mailbox_display_name: 'Alex Morgan',
       }],
     ]);
     const formData = new FormData();
@@ -379,9 +379,9 @@ describe('calendar cancel action', () => {
         ['FROM calendar_events ce', {
           id: 'event-1', mailbox_id: 'mailbox-1', uid: 'uid-1@cmail', sequence: 2, summary: 'Weekly sync',
           description: '', location: '', starts_at: '2026-08-25T14:00:00.000Z', ends_at: '2026-08-25T14:30:00.000Z',
-          all_day: 0, status: 'confirmed', organizer_address: 'rob@example.com', organizer_self: 1,
+          all_day: 0, status: 'confirmed', organizer_address: 'alex@example.com', organizer_self: 1,
           message_id: null, rrule: null, created_at: '2026-08-01 00:00:00', updated_at: '2026-08-01 00:00:00',
-          mailbox_address: 'rob@example.com', mailbox_display_name: 'Rob Evans',
+          mailbox_address: 'alex@example.com', mailbox_display_name: 'Alex Morgan',
         }],
       ],
       1,

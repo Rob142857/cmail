@@ -19,7 +19,7 @@ function draftDatabase(): { db: D1Database; calls: QueryCall[] } {
         },
         async first() {
           if (sql.includes('SELECT m.id, m.display_name FROM mailboxes')) {
-            return { id: 'mailbox-1', display_name: 'Robert Evans' };
+            return { id: 'mailbox-1', display_name: 'Alex Morgan' };
           }
           if (sql.includes('INSERT INTO rate_limits')) return { count: 1 };
           return null;
@@ -51,7 +51,7 @@ describe('compose draft persistence', () => {
       delete: vi.fn(async () => undefined),
     } as unknown as R2Bucket;
     const formData = new FormData();
-    formData.set('from', 'robert.evans@cliomuseum.org');
+    formData.set('from', 'alex.morgan@example.com');
     formData.set('to', 'recipient@example.net');
     formData.set('subject', 'Draft persistence regression');
     formData.set('body', 'Hello from the draft-save regression test.');
@@ -59,15 +59,15 @@ describe('compose draft persistence', () => {
     formData.set('draft_create_token', '11111111-1111-4111-8111-111111111111');
 
     const result = await (actions.save as any)({
-      request: new Request('https://mail.cliomuseum.org/mail/compose?/save', {
+      request: new Request('https://mail.example.com/mail/compose?/save', {
         method: 'POST',
         body: formData,
       }),
       locals: {
         user: {
           id: 'user-1',
-          email: 'robert.evans@cliomuseum.org',
-          display_name: 'Robert Evans',
+          email: 'alex.morgan@example.com',
+          display_name: 'Alex Morgan',
           role: 'manager',
           status: 'active',
           auth_provider: 'google',
@@ -82,7 +82,7 @@ describe('compose draft persistence', () => {
         env: {
           DB: db,
           STORAGE: storage,
-          MAIL_DOMAIN: 'cliomuseum.org',
+          MAIL_DOMAIN: 'example.com',
         },
       },
     });
@@ -108,7 +108,7 @@ describe('compose draft persistence', () => {
       delete: vi.fn(async () => undefined),
     } as unknown as R2Bucket;
     const formData = new FormData();
-    formData.set('from', 'robert.evans@cliomuseum.org');
+    formData.set('from', 'alex.morgan@example.com');
     formData.set('to', 'recipient@example.net');
     formData.set('cc', 'copy@example.net');
     formData.set('bcc', 'hidden@example.net');
@@ -118,15 +118,15 @@ describe('compose draft persistence', () => {
     formData.set('draft_create_token', '22222222-2222-4222-8222-222222222222');
 
     const result = await (actions.save as any)({
-      request: new Request('https://mail.cliomuseum.org/mail/compose?/save', {
+      request: new Request('https://mail.example.com/mail/compose?/save', {
         method: 'POST',
         body: formData,
       }),
       locals: {
         user: {
           id: 'user-1',
-          email: 'robert.evans@cliomuseum.org',
-          display_name: 'Robert Evans',
+          email: 'alex.morgan@example.com',
+          display_name: 'Alex Morgan',
           role: 'manager',
           status: 'active',
           auth_provider: 'google',
@@ -141,7 +141,7 @@ describe('compose draft persistence', () => {
         env: {
           DB: db,
           STORAGE: storage,
-          MAIL_DOMAIN: 'cliomuseum.org',
+          MAIL_DOMAIN: 'example.com',
         },
       },
     });

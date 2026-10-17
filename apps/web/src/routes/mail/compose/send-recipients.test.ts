@@ -3,8 +3,8 @@ import { actions } from './+page.server';
 
 const user = {
   id: 'user-1',
-  email: 'robert.evans@cliomuseum.org',
-  display_name: 'Robert Evans',
+  email: 'alex.morgan@example.com',
+  display_name: 'Alex Morgan',
   role: 'manager' as const,
   status: 'active' as const,
   auth_provider: 'google' as const,
@@ -22,7 +22,7 @@ const user = {
 function sendRequest(fields: Record<string, string>): Request {
   const formData = new FormData();
   for (const [key, value] of Object.entries(fields)) formData.set(key, value);
-  return new Request('https://mail.cliomuseum.org/mail/compose?/send', {
+  return new Request('https://mail.example.com/mail/compose?/send', {
     method: 'POST',
     body: formData,
   });
@@ -32,7 +32,7 @@ describe('compose send: recipient cap and Bcc dedupe', () => {
   it('rejects when To + Cc + Bcc combined exceed the configured recipient cap', async () => {
     const result = await (actions.send as any)({
       request: sendRequest({
-        from: 'robert.evans@cliomuseum.org',
+        from: 'alex.morgan@example.com',
         to: 'one@example.net',
         cc: 'two@example.net',
         bcc: 'three@example.net, four@example.net',
@@ -56,7 +56,7 @@ describe('compose send: recipient cap and Bcc dedupe', () => {
     // and fail with the recipient-cap error instead.
     const result = await (actions.send as any)({
       request: sendRequest({
-        from: 'robert.evans@cliomuseum.org',
+        from: 'alex.morgan@example.com',
         to: 'one@example.net',
         cc: 'two@example.net',
         bcc: 'ONE@example.net',
@@ -79,7 +79,7 @@ describe('compose send: recipient cap and Bcc dedupe', () => {
   it('rejects an invalid Bcc address the same way as an invalid Cc address', async () => {
     const result = await (actions.send as any)({
       request: sendRequest({
-        from: 'robert.evans@cliomuseum.org',
+        from: 'alex.morgan@example.com',
         to: 'one@example.net',
         // A real submission always includes cc (empty string when unused) —
         // EmailAutocomplete's bound input never omits the field entirely.

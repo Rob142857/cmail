@@ -34,13 +34,13 @@ describe('canonical mailbox assignees', () => {
     const captured = capturedDatabase([{
       user_id: 'user-1',
       display_name: 'Alex Example',
-      mailbox_address: 'alex@maatara.io',
+      mailbox_address: 'alex@example.com',
     }]);
 
-    await expect(searchEligibleMailboxAssignees(captured.db, '@MAATARA.IO.', ' Al%_ ')).resolves.toEqual([{
+    await expect(searchEligibleMailboxAssignees(captured.db, '@EXAMPLE.COM.', ' Al%_ ')).resolves.toEqual([{
       userId: 'user-1',
       displayName: 'Alex Example',
-      mailboxAddress: 'alex@maatara.io',
+      mailboxAddress: 'alex@example.com',
     }]);
 
     expect(captured.calls[0].sql).toContain("u.status IN ('active', 'pending')");
@@ -48,19 +48,19 @@ describe('canonical mailbox assignees', () => {
     expect(captured.calls[0].sql).toContain("personal.status = 'active'");
     expect(captured.calls[0].sql).toContain('personal.owner_user_id = u.id');
     expect(captured.calls[0].sql).toContain('HAVING COUNT(*) = 1');
-    expect(captured.calls[0].values).toEqual(['maatara.io', '%al\\%\\_%', '%al\\%\\_%', 8]);
+    expect(captured.calls[0].values).toEqual(['example.com', '%al\\%\\_%', '%al\\%\\_%', 8]);
   });
 
   it('looks up forged action ids through the same eligibility boundary', async () => {
     const captured = capturedDatabase();
-    await expect(getEligibleMailboxAssignee(captured.db, 'maatara.io', 'offboarded-user')).resolves.toBeNull();
-    expect(captured.calls[0].values).toEqual(['maatara.io', 'offboarded-user']);
+    await expect(getEligibleMailboxAssignee(captured.db, 'example.com', 'offboarded-user')).resolves.toBeNull();
+    expect(captured.calls[0].values).toEqual(['example.com', 'offboarded-user']);
     expect(ELIGIBLE_MAILBOX_ASSIGNEE_EXISTS_SQL).toContain('HAVING COUNT(*) = 1');
   });
 
   it('does not query for a blank search or invalid domain', async () => {
     const captured = capturedDatabase();
-    await expect(searchEligibleMailboxAssignees(captured.db, 'maatara.io', '   ')).resolves.toEqual([]);
+    await expect(searchEligibleMailboxAssignees(captured.db, 'example.com', '   ')).resolves.toEqual([]);
     await expect(searchEligibleMailboxAssignees(captured.db, 'not a domain', 'alex')).resolves.toEqual([]);
     expect(captured.calls).toHaveLength(0);
   });
