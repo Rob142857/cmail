@@ -8,6 +8,15 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Fixed
 
+- Compose opened by a full page load (bookmark, new tab, refresh of
+  `/mail/compose`) could not send. The page pinned its recovery id in the URL
+  with `replaceState()` from `onMount`, which on hydration runs inside
+  SvelteKit's root constructor, before the router has a root. The throw left
+  the router without one, so the first autosave failed with "Cannot read
+  properties of undefined (reading '$set')", the next save reported "Draft
+  changed in another tab", and Send never completed. The URL is now pinned
+  from `afterNavigate`, and a URL update can no longer leave a saved draft
+  with a stale version.
 - `pnpm deploy`, `deploy:web`, and `deploy:email-worker` now call each app's
   `deploy` script with `pnpm --filter … run deploy`. Under pnpm 12 the bare
   `pnpm --filter … deploy` form invokes pnpm's built-in workspace deploy

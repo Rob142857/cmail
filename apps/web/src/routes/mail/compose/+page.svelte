@@ -142,9 +142,26 @@
   /** @type {(() => void) | null} */
   let resolveHistoryNavigation = null;
 
+  let composeUrlSynced = false;
+
   afterNavigate(() => {
     resolveHistoryNavigation?.();
     resolveHistoryNavigation = null;
+    // Pin the recovery id in the URL so a reload restores this compose. This
+    // must not run in onMount: on a full page load the root component's mount
+    // effects flush inside SvelteKit's `new Root()`, before the router has a
+    // root to update, so replaceState() throws and leaves the router broken
+    // (later replaceState/goto/form updates all fail and Send can't finish).
+    // afterNavigate only fires once the router is ready, on hydration and on
+    // client-side navigation alike.
+    if (composeUrlSynced) return;
+    composeUrlSynced = true;
+    if (!initial.isUnsavedCompose || draftId) return;
+    const current = new URL(window.location.href);
+    if (current.searchParams.get('compose') !== initial.recoveryId) {
+      current.searchParams.set('compose', initial.recoveryId);
+      replaceState(`${current.pathname}?${current.searchParams}${current.hash}`, { ...page.state });
+    }
   });
 
   function hasDraftContent() {
@@ -226,13 +243,6 @@
   }
 
   onMount(() => {
-    if (initial.isUnsavedCompose) {
-      const current = new URL(window.location.href);
-      if (current.searchParams.get('compose') !== initial.recoveryId) {
-        current.searchParams.set('compose', initial.recoveryId);
-        replaceState(`${current.pathname}?${current.searchParams}${current.hash}`, { ...page.state });
-      }
-    }
     try {
       const saved = JSON.parse(sessionStorage.getItem(recoveryKey) || 'null');
       const recovery = normalizeRecovery(saved);
@@ -435,14 +445,21 @@
         throw new Error(result.type === 'failure' && result.data?.error ? result.data.error : 'Couldn\'t save draft');
       }
       const payload = result.data;
-      if (payload?.savedDraftId) {
-        const firstSave = !draftId;
-        draftId = payload.savedDraftId;
-        if (firstSave) keepDraftInUrl(draftId);
-      }
+      const firstSave = Boolean(payload?.savedDraftId) && !draftId;
+      if (payload?.savedDraftId) draftId = payload.savedDraftId;
       if (Number.isSafeInteger(payload?.draftVersion)) {
         draftVersion = payload.draftVersion;
         knownDraftVersion = payload.draftVersion;
+      }
+      // The save has committed; record the new id/version before touching the
+      // URL so a URL bookkeeping failure can never leave a stale version that
+      // the next save or Send reports as a conflict.
+      if (firstSave) {
+        try {
+          keepDraftInUrl(draftId);
+        } catch {
+          // The URL only helps reload recovery; the server draft is saved.
+        }
       }
       saveConflict = false;
       knownServerSavedAt = utcTimestamp(payload?.savedAt) || Date.now();
