@@ -266,7 +266,7 @@ describe('signatures with rich-text bodies', () => {
           bind() { return this; },
           first: async () => query.includes('personal_signatures')
             ? {
-              user_id: 'user-1', html_body: '', plain_text_body: 'Rob Evans\nDesk <lead>',
+              user_id: 'user-1', html_body: '', plain_text_body: 'Alex Morgan\nDesk <lead>',
               is_locked: 0, updated_at: '2026-10-01 00:00:00', updated_by: 'user-1',
             }
             : null,
@@ -274,8 +274,8 @@ describe('signatures with rich-text bodies', () => {
       },
     } as unknown as D1Database;
     const signature = await getEffectiveSignature(db, 'user-1', 'user@example.test');
-    expect(signature.text).toBe('Rob Evans\nDesk <lead>');
-    expect(signature.html).toBe('<div data-cmail-signature="personal"><div>Rob Evans<br>Desk &lt;lead&gt;</div></div>');
+    expect(signature.text).toBe('Alex Morgan\nDesk <lead>');
+    expect(signature.html).toBe('<div data-cmail-signature="personal"><div>Alex Morgan<br>Desk &lt;lead&gt;</div></div>');
   });
 
   it('drops the empty paragraph the editor keeps after a list or quote', () => {

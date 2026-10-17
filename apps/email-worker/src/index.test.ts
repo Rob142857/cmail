@@ -227,18 +227,18 @@ describe('RFC 5322 participant metadata', () => {
   it('keeps decoded Unicode and quoted-comma names separate from canonical routing addresses', async () => {
     const parsed = await parseHeaders([
       'From: =?UTF-8?B?Sm9zw6kgTcO8bGxlcg==?= <Jose@example.test>',
-      'To: "Evans, Robert" <ROBERT@example.test>',
-      'Reply-To: =?UTF-8?Q?Helpdesk_=E2=80=94_Clio?= <HELP@example.test>',
+      'To: "Morgan, Alex" <ALEX@example.test>',
+      'Reply-To: =?UTF-8?Q?Helpdesk_=E2=80=94_Northstar?= <HELP@example.test>',
     ].join('\r\n'));
 
     expect(inboundFromParticipant(parsed.from, 'envelope@example.test')).toEqual({
       address: 'jose@example.test', name: 'José Müller',
     });
     expect(flattenParsedParticipants(parsed.to)).toEqual([
-      { address: 'robert@example.test', name: 'Evans, Robert' },
+      { address: 'alex@example.test', name: 'Morgan, Alex' },
     ]);
     expect(flattenParsedParticipants(parsed.replyTo)).toEqual([
-      { address: 'help@example.test', name: 'Helpdesk — Clio' },
+      { address: 'help@example.test', name: 'Helpdesk — Northstar' },
     ]);
   });
 

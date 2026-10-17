@@ -30,8 +30,8 @@ function requestEvent(options: {
   return {
     event: {
       locals: { user: options.role ? user(options.role) : null },
-      platform: { env: { DB: db, MAIL_DOMAIN: 'maatara.io' } },
-      url: new URL(`https://mail.maatara.io/admin/mailboxes/assignees?q=${encodeURIComponent(options.query || '')}`),
+      platform: { env: { DB: db, MAIL_DOMAIN: 'example.com' } },
+      url: new URL(`https://mail.example.com/admin/mailboxes/assignees?q=${encodeURIComponent(options.query || '')}`),
     },
     calls,
   };
@@ -67,7 +67,7 @@ describe('manager mailbox assignee search', () => {
       rows: [{
         user_id: 'user-2',
         display_name: 'Alex Example',
-        mailbox_address: 'alex@maatara.io',
+        mailbox_address: 'alex@example.com',
         sign_in_email: 'private@example.net',
       }],
     });
@@ -78,8 +78,8 @@ describe('manager mailbox assignee search', () => {
     await expect(response.json()).resolves.toEqual([{
       userId: 'user-2',
       displayName: 'Alex Example',
-      mailboxAddress: 'alex@maatara.io',
+      mailboxAddress: 'alex@example.com',
     }]);
-    expect(captured.calls[0].values).toEqual(['maatara.io', '%alex%', '%alex%', 8]);
+    expect(captured.calls[0].values).toEqual(['example.com', '%alex%', '%alex%', 8]);
   });
 });
