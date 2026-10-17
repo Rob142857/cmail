@@ -6,6 +6,9 @@ Notable changes to cmail are recorded here. The project follows
 
 ## [Unreleased]
 
+### Fixed
+- `deploy:landing` now requires `--project-name` and passes it to Wrangler, so a stray `wrangler.toml` in the checkout can't send the product page to another Pages project.
+
 ### Added
 
 - Remote MCP (Model Context Protocol) server at `/mcp` so AI assistants
