@@ -112,5 +112,5 @@
     border-color: var(--primary-border);
     color: var(--text);
   }
-  .bar-info .bar-icon { color: var(--primary); }
+  .bar-info .bar-icon { color: var(--primary-text); }
 </style>

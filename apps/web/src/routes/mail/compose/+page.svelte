@@ -966,7 +966,7 @@
   .field-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .bcc-toggle {
     padding: 0; border: 0; background: none;
-    color: var(--primary); font-size: 12px; font-weight: 500;
+    color: var(--primary-text); font-size: 12px; font-weight: 500;
     cursor: pointer;
   }
   .bcc-toggle:hover { text-decoration: underline; }
@@ -1037,6 +1037,13 @@
   .btn-ghost:hover { background: var(--bg-hover); }
   .btn-ghost-danger { background: transparent; border-color: transparent; color: var(--danger); }
   .btn-ghost-danger:hover { background: #fee2e2; }
+
+  @media (pointer: coarse), (max-width: 860px) {
+    .format-toggle button { min-height: 44px; padding: 2px 14px; font-size: 13px; }
+    .format-toggle { padding: 0; }
+    .bcc-toggle { min-width: 44px; min-height: 44px; font-size: 13px; }
+    .att-remove { min-width: 44px; min-height: 44px; }
+  }
 
   @media (max-width: 768px) {
     .compose-form { padding: 14px; }

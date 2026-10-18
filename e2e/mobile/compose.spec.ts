@@ -20,6 +20,8 @@ test('rich text: bold and a bulleted list are applied in the editor', async ({ p
   await expect(editor).toBeFocused();
   await page.keyboard.type('Key points');
   await page.getByRole('button', { name: 'Bold' }).click();
+  await expect(page.getByRole('button', { name: 'Bold' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(editor).toBeFocused();
   await page.keyboard.press('Enter');
   await page.getByRole('button', { name: 'Bulleted list' }).click();
   await expect(editor).toBeFocused();

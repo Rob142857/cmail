@@ -169,7 +169,7 @@
     padding:1px 6px;
     border:0;
     background:none;
-    color:var(--primary);
+    color:var(--primary-text);
     font-size:12px;
     cursor:pointer;
     border-radius:var(--radius-sm, 4px);
@@ -190,7 +190,7 @@
   .permission-label { padding:1px 7px; border:1px solid var(--border); border-radius:999px; font-size:11px; white-space:nowrap; }
   .importance-label { display:inline-flex; align-items:center; gap:4px; font-weight:650; }
   .importance-label.high { color:var(--danger); }
-  .importance-label.low { color:var(--primary); }
+  .importance-label.low { color:var(--primary-text); }
   .delivery-failure { color:var(--danger); font-weight:650; }
   .quarantine-note { color:var(--danger); font-weight:650; }
 

@@ -49,7 +49,7 @@ test.describe('no sideways scroll on narrow phones', () => {
         await page.setViewportSize({ width, height: page.viewportSize()!.height });
         await open(page, p.path);
         await expect(page.locator(p.ready).first()).toBeVisible();
-        expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+        await expect.poll(() => horizontalOverflow(page), { timeout: 3000 }).toBeLessThanOrEqual(0);
       });
     }
   }

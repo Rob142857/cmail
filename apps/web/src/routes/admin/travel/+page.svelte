@@ -31,7 +31,7 @@
     </div>
 
     {#if data.pending.length}
-      <div class="card table-card">
+      <div class="card table-card" role="region" aria-label="Table" tabindex="0">
         <table>
           <caption class="sr-only">Pending sign-in country requests</caption>
           <thead>
@@ -87,7 +87,7 @@
     </div>
 
     {#if data.exceptions.length}
-      <div class="card table-card">
+      <div class="card table-card" role="region" aria-label="Table" tabindex="0">
         <table>
           <caption class="sr-only">Active sign-in country exceptions</caption>
           <thead>
@@ -135,7 +135,7 @@
     </div>
 
     {#if data.decisions.length}
-      <div class="card table-card">
+      <div class="card table-card" role="region" aria-label="Table" tabindex="0">
         <table>
           <caption class="sr-only">Recent travel approval decisions</caption>
           <thead>

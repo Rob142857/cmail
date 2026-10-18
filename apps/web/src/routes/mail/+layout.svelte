@@ -302,5 +302,6 @@
 
 <style>
   .mailbox-picker { width: 100%; min-height: 38px; margin-top: 8px; }
+  @media (pointer: coarse), (max-width: 860px) { .mailbox-picker { min-height: 44px; } }
   .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 </style>

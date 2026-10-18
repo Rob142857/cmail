@@ -172,7 +172,7 @@
   .page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
   .page-heading h1 { margin: 2px 0 7px; font-size: clamp(25px, 3vw, 34px); }
   .page-heading p:not(.eyebrow) { max-width: 680px; color: var(--text-muted); }
-  .eyebrow { margin: 0; color: var(--primary); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+  .eyebrow { margin: 0; color: var(--primary-text); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
   .quick-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
   .readiness-summary { display: flex; align-items: center; gap: 13px; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--warning) 36%, var(--border)); border-radius: 10px; background: var(--warning-soft); }
   .readiness-summary.ready { border-color: color-mix(in srgb, var(--success) 32%, var(--border)); background: var(--success-soft); }

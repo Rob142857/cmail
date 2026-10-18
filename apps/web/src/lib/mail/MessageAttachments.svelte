@@ -64,7 +64,7 @@
   .attachment-heading p { color:var(--text-muted); font-size:12px; }
   .attachment-toggle { display:inline-flex; align-items:center; gap:5px; padding:0; border:0; background:none; color:var(--text); cursor:pointer; }
   .attachment-toggle:hover h2 { text-decoration:underline; }
-  .chevron { display:inline-block; color:var(--primary); transition:transform .12s ease; line-height:1; }
+  .chevron { display:inline-block; color:var(--primary-text); transition:transform .12s ease; line-height:1; }
   .chevron.open { transform:rotate(180deg); }
   .attachment-list { display:flex; gap:8px; flex-wrap:wrap; }
   .attachment-item { display:flex; flex-direction:column; gap:3px; max-width:100%; }

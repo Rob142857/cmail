@@ -227,7 +227,8 @@
 
   @media (max-width: 860px) {
     .nav-toggle { display: inline-flex; }
-    .mode-label { display: none; }
+    /* Icon-only on narrow screens, but keep the name for screen readers. */
+    .mode-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   }
 
   @media (max-width: 700px) {
@@ -241,7 +242,7 @@
       inset: 0 8px;
       top: 50%;
       transform: translateY(-50%);
-      height: 34px;
+      height: 44px;
       z-index: 2;
       background: var(--bg-surface);
       border-color: var(--border);
@@ -255,9 +256,9 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      min-height: 28px;
-      height: 28px;
+      width: 44px;
+      min-height: 44px;
+      height: 44px;
       padding: 0;
       border: none;
       background: transparent;
@@ -267,8 +268,9 @@
     .search-close:hover { background: var(--bg-hover); }
   }
 
-  @media (max-width: 400px) {
+  @media (max-width: 600px) {
     /* Mark only — the wordmark costs more width than it earns here. */
     .suite-brand :global(.brand-word) { display: none; }
+    .suite-sep { display: none; }
   }
 </style>

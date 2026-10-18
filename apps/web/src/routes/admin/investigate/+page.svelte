@@ -376,7 +376,7 @@
     font-size: var(--fs-caption); text-transform: capitalize;
     color: var(--text-muted); white-space: nowrap;
   }
-  .kind-trace :global(svg) { color: var(--primary); }
+  .kind-trace :global(svg) { color: var(--primary-text); }
   .kind-audit :global(svg) { color: var(--text-faint); }
 
   .event-type { font-family: var(--font-mono); font-size: 12px; }

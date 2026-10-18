@@ -380,7 +380,7 @@
   .title-row .eyebrow { margin: 0; }
   .print-button { white-space: nowrap; }
   header { max-width: 720px; }
-  .eyebrow { margin: 0 0 6px; color: var(--primary); font-size: 11px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
+  .eyebrow { margin: 0 0 6px; color: var(--primary-text); font-size: 11px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
   h1 { margin: 0; font-size: clamp(30px, 6vw, 46px); letter-spacing: -.035em; }
   .document-meta { margin: 7px 0 0; color: var(--text-faint); font-size: 11.5px; line-height: 1.5; }
   .lede { margin-top: 12px; color: var(--text-muted); font-size: 17px; line-height: 1.65; }

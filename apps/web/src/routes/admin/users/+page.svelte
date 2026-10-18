@@ -185,7 +185,7 @@
   </div>
 
   {#if data.users.length}
-    <div class="card table-card">
+    <div class="card table-card" role="region" aria-label="Table" tabindex="0">
       <table>
         <caption class="sr-only">User accounts and administrative actions</caption>
         <thead>
