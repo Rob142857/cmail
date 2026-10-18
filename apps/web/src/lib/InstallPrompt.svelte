@@ -75,7 +75,17 @@
     }
   }
 
-  const show = $derived(!isStandalone && !wasDismissed && !dismissed && !installed && (deferredPrompt || isIosSafari));
+  // Only on the sign-in page and the message list: on compose or a message
+  // a fixed bar would sit over Send and the reading toolbar.
+  const onQuietPage = $derived(page.url.pathname === '/' || page.url.pathname === '/mail');
+  const show = $derived(onQuietPage && !isStandalone && !wasDismissed && !dismissed && !installed && (deferredPrompt || isIosSafari));
+
+  // Reserve room under the page so the banner never covers the last row.
+  $effect(() => {
+    if (!browser) return;
+    document.body.classList.toggle('has-install-banner', Boolean(show));
+    return () => document.body.classList.remove('has-install-banner');
+  });
 </script>
 
 {#if show}
@@ -96,7 +106,7 @@
       {:else}
         <button class="pwa-install" onclick={install}>Install</button>
       {/if}
-      <button class="pwa-close" onclick={dismiss} aria-label="Dismiss">✕</button>
+      <button class="pwa-close" onclick={dismiss} aria-label="Dismiss install suggestion">✕</button>
     </div>
   </section>
 {/if}
@@ -147,6 +157,8 @@
     background: var(--primary-hover, #1d4ed8);
   }
   .pwa-close {
+    min-width: 44px;
+    min-height: 44px;
     background: transparent;
     border: none;
     color: var(--text-muted, #6b7280);
@@ -155,6 +167,8 @@
     padding: 4px 6px;
     line-height: 1;
   }
+  .pwa-install { min-height: 44px; }
+  :global(body.has-install-banner .content-scroll) { padding-bottom: calc(max(40px, env(safe-area-inset-bottom)) + 76px); }
   @media (max-width: 520px) {
     .pwa-banner { align-items: flex-start; padding-inline: 12px; }
     .pwa-content { min-width: 0; }

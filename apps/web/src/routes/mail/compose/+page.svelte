@@ -5,6 +5,7 @@
   import { afterNavigate, beforeNavigate, goto, replaceState } from '$app/navigation';
   import { onMount, untrack } from 'svelte';
   import EmailAutocomplete from '$lib/EmailAutocomplete.svelte';
+  import Icon from '$lib/ui/Icon.svelte';
   import { signaturePreviewDocument } from '$lib/signature-preview';
   import EmailHtmlFrame from '$lib/mail/EmailHtmlFrame.svelte';
   import RichTextEditor from '$lib/RichTextEditor.svelte';
@@ -875,7 +876,7 @@
     <div class="attachments">
       <div class="attachments-head">
         <span class="attachments-label">Attachments</span>
-        <button type="button" class="btn" onclick={() => fileInput?.click()}>📎 Add files</button>
+        <button type="button" class="btn" onclick={() => fileInput?.click()}><Icon name="attach" size={16} /> Add files</button>
         <input
           type="file"
           name="attachments"
@@ -892,9 +893,9 @@
         <ul class="attachment-list">
           {#each attachedFiles as f, i}
             <li>
-              <span class="att-name">📄 {f.name}</span>
+              <span class="att-name"><Icon name="document" size={14} /> {f.name}</span>
               <span class="att-size">{fmtSize(f.size)}</span>
-              <button type="button" class="att-remove" onclick={() => removeFile(i)} aria-label="Remove {f.name}">✕</button>
+              <button type="button" class="att-remove" onclick={() => removeFile(i)} aria-label="Remove {f.name}"><Icon name="close" size={14} /></button>
             </li>
           {/each}
         </ul>
@@ -922,7 +923,7 @@
       </div>
       <div class="right">
         <button type="button" class="btn" onclick={() => void saveDraft(true)} disabled={saving || sending || !!recoveryConflict || saveConflict || !from || !hasDraftContent()}>Save draft</button>
-        <button type="submit" class="btn btn-primary" disabled={sending || discarding || navigationInProgress || !!recoveryConflict || saveConflict || d.mailboxes.length === 0}>{sending ? 'Sending…' : 'Send'}</button>
+        <button type="submit" class="btn btn-primary send-button" disabled={sending || discarding || navigationInProgress || !!recoveryConflict || saveConflict || d.mailboxes.length === 0}>{sending ? 'Sending…' : 'Send'}</button>
       </div>
     </div>
   </form>
@@ -936,8 +937,9 @@
 
   .form-error {
     padding: 10px 14px;
-    background: #fee2e2;
-    color: #991b1b;
+    border: 1px solid var(--danger-border);
+    background: var(--danger-soft);
+    color: var(--danger-text);
     border-radius: var(--radius);
     font-size: 14px;
   }
@@ -1021,11 +1023,11 @@
     cursor: pointer; padding: 2px 6px; font-size: 14px; line-height: 1;
     border-radius: 4px;
   }
-  .att-remove:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+  .att-remove:hover { background: var(--bg-hover); color: var(--text); }
   .att-note { font-size: 11px; color: var(--text-muted); margin: 4px 0 0; }
   .attachment-error {
     padding: 6px 10px; font-size: 12px;
-    background: #fee2e2; color: #991b1b;
+    background: var(--danger-soft); color: var(--danger-text);
     border-radius: var(--radius);
     margin-bottom: 8px;
   }
@@ -1036,7 +1038,7 @@
   .btn-ghost { background: transparent; border-color: transparent; }
   .btn-ghost:hover { background: var(--bg-hover); }
   .btn-ghost-danger { background: transparent; border-color: transparent; color: var(--danger); }
-  .btn-ghost-danger:hover { background: #fee2e2; }
+  .btn-ghost-danger:hover { background: var(--danger-soft); }
 
   @media (pointer: coarse), (max-width: 860px) {
     .format-toggle button { min-height: 44px; padding: 2px 14px; font-size: 13px; }
@@ -1047,10 +1049,20 @@
 
   @media (max-width: 768px) {
     .compose-form { padding: 14px; }
-    .compose-actions { flex-wrap: wrap; }
-    .compose-actions .left, .compose-actions .right { width: 100%; }
-    .compose-actions .left { flex-wrap:wrap; }
-    .compose-actions .right { justify-content: flex-end; }
+    /* The action bar sticks to the bottom of the screen (and above the
+       on-screen keyboard), so Send never needs a scroll to the end. */
+    .compose-actions {
+      position: sticky;
+      bottom: 0;
+      z-index: 5;
+      margin: 4px -14px -14px;
+      padding: 8px 14px max(8px, env(safe-area-inset-bottom));
+      background: var(--bg-surface);
+      box-shadow: 0 -1px 0 var(--border), 0 -4px 12px rgba(0, 0, 0, 0.06);
+      border-top: 0;
+    }
+    .compose-actions .left { gap: 4px; }
+    .compose-actions .right { margin-left: auto; }
     .quoted-heading { align-items:flex-start; flex-direction:column; gap:2px; }
     .recovery-warning { align-items:flex-start; flex-direction:column; }
     .recovery-actions { flex-wrap:wrap; }

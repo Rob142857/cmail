@@ -43,9 +43,15 @@ test.describe('on a phone', () => {
 
   test('New message is one tap away without opening the menu', async ({ page }) => {
     await open(page, '/mail');
-    const compose = page.getByRole('link', { name: 'New message' }).filter({ visible: true });
-    await expect(compose).toBeVisible();
-    await compose.click();
+    // The drawer's own New message link is off-screen (and inert) while closed.
+    const links = page.getByRole('link', { name: 'New message' });
+    const onScreen = await links.evaluateAll((elements) => elements.findIndex((element) => {
+      const rect = element.getBoundingClientRect();
+      return !element.closest('[inert]') && rect.width > 0 && rect.left >= 0 && rect.right <= window.innerWidth
+        && rect.top >= 0 && rect.bottom <= window.innerHeight;
+    }));
+    expect(onScreen).toBeGreaterThan(-1);
+    await links.nth(onScreen).click();
     await expect(page).toHaveURL(/\/mail\/compose/);
   });
 

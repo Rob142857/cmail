@@ -1122,8 +1122,9 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
   .nav-item { min-height: 44px; }
   .mode-switch { padding: 0; }
   .mode-switch a { height: 44px; min-width: 44px; justify-content: center; }
-  .suite-brand { min-height: 44px; }
+  .suite-brand { min-height: 44px; min-width: 44px; justify-content: center; }
   .btn-link { min-height: 44px; }
+  .cmd { min-width: 44px; justify-content: center; }
 }
 
 /* ─── 22. Print ─────────────────────────────────────────────────────── */

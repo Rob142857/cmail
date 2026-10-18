@@ -16,7 +16,7 @@
 -->
 <script>
   import { browser } from '$app/environment';
-  import { afterNavigate } from '$app/navigation';
+  import { afterNavigate, beforeNavigate } from '$app/navigation';
   import { onMount } from 'svelte';
   import Brand from './Brand.svelte';
   import Icon from './Icon.svelte';
@@ -63,6 +63,32 @@
   afterNavigate(() => {
     navOpen = false;
     searchOpen = false;
+  });
+
+  // Offline, SvelteKit can't load the next page's data and falls back to a
+  // full page load, which swaps the app for the browser's offline page.
+  // Stay put instead and say why.
+  let offline = $state(false);
+  let offlineNotice = $state('');
+  beforeNavigate((navigation) => {
+    if (navigation.willUnload || navigator.onLine) return;
+    if (navigation.to?.url.origin !== location.origin) return;
+    navigation.cancel();
+    offlineNotice = 'You\'re offline. Reconnect to open this page.';
+  });
+
+  onMount(() => {
+    const syncOnline = () => {
+      offline = !navigator.onLine;
+      if (!offline) offlineNotice = '';
+    };
+    syncOnline();
+    window.addEventListener('online', syncOnline);
+    window.addEventListener('offline', syncOnline);
+    return () => {
+      window.removeEventListener('online', syncOnline);
+      window.removeEventListener('offline', syncOnline);
+    };
   });
 
   onMount(() => {
@@ -208,6 +234,12 @@
     </aside>
 
     <main class="content" id="main-content" tabindex="-1" inert={isNarrow && navOpen}>
+      {#if offline || offlineNotice}
+        <div class="offline-bar" role="status">
+          <Icon name="warning" size={16} />
+          <span>{offlineNotice || 'You\'re offline. What\'s on screen stays here; reconnect to load more.'}</span>
+        </div>
+      {/if}
       {#if commandBar}
         <div class="command-bar">{@render commandBar()}</div>
       {/if}
@@ -221,6 +253,17 @@
 </div>
 
 <style>
+  .offline-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--warning-border);
+    background: var(--warning-soft);
+    color: var(--warning-text);
+    font-size: 13px;
+    flex: 0 0 auto;
+  }
   .nav-toggle { display: none; }
   .search-toggle { display: none; }
   .search-close { display: none; }
