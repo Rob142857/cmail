@@ -77,6 +77,8 @@ import {
 } from '$lib/server/compose-body';
 import { formatQuoteDate } from '$lib/dates';
 import { appendSignatureToAuthoredHtml, getEffectiveSignature } from '$lib/server/signatures';
+import { getComposeDefaults } from '$lib/server/compose-preferences';
+import { wrapWithComposeDefaults } from '@cmail/shared/compose-style';
 import { messageOwnershipPredicate } from '$lib/server/message-access';
 
 const BLOCKED_EXTENSIONS = new Set([
@@ -390,7 +392,10 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
     || mailboxes.find((mailbox) => mailbox.id === requestedMailboxId)?.address
     || mailboxes[0]?.address
     || '';
-  const signature = await getEffectiveSignature(env.DB, locals.user.id, preferredFrom);
+  const [signature, composeDefaults] = await Promise.all([
+    getEffectiveSignature(env.DB, locals.user.id, preferredFrom),
+    getComposeDefaults(env.DB, locals.user.id),
+  ]);
   const fallbackReturn = sourceId
     ? `/mail/${encodeURIComponent(sourceId)}`
     : draftId
@@ -400,6 +405,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
   return {
     mailboxes,
     preferredFrom,
+    composeDefaults,
     replyTo,
     replyRecipients,
     replyQuoteHtml,
@@ -671,10 +677,20 @@ export const actions: Actions = {
     // raw transport sends only to the external SMTP envelope. This avoids both
     // header distortion and duplicate/loopback delivery to local recipients.
 
-    const signature = await getEffectiveSignature(env.DB, locals.user.id, from);
+    const [signature, composeDefaults] = await Promise.all([
+      getEffectiveSignature(env.DB, locals.user.id, from),
+      getComposeDefaults(env.DB, locals.user.id),
+    ]);
     // Match familiar email clients: the sender's signature belongs immediately
     // after their new text, before the immutable quoted conversation.
-    const htmlWithSignature = `${appendSignatureToAuthoredHtml(preparedBody.authoredHtml, signature.html)}${preparedBody.quotedHtml}`;
+    const bodyHtml = `${appendSignatureToAuthoredHtml(preparedBody.authoredHtml, signature.html)}${preparedBody.quotedHtml}`;
+    // Rich text goes out inside a container with the sender's default font and
+    // size (read from settings, never from the form), as Outlook does, so
+    // every recipient's client starts from the same font. Plain-text mode
+    // keeps its unstyled HTML part.
+    const htmlWithSignature = preparedBody.format === 'html'
+      ? wrapWithComposeDefaults(bodyHtml, composeDefaults)
+      : bodyHtml;
     const textWithSignature = [
       preparedBody.authoredText.trimEnd(),
       signature.text,

@@ -246,7 +246,7 @@
             aria-current={isMailSettings ? 'page' : undefined}
           >
             <span class="nav-icon"><Icon name="compose" size={16} /></span>
-            <span class="nav-label">Email signature</span>
+            <span class="nav-label">Font and signature</span>
           </a>
           <a
             href="/mail/connected-apps"

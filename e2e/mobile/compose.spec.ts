@@ -109,7 +109,7 @@ test.describe('on a phone', () => {
     await page.locator('input[type=file][name=attachments]').setInputFiles({
       name: 'invented-agenda.txt', mimeType: 'text/plain', buffer: Buffer.from('Invented agenda'),
     });
-    const small = await smallTapTargets(page, '.rich-text .toolbar button, .format-toggle button, .attachments button, .bcc-toggle');
+    const small = await smallTapTargets(page, '.rich-text .toolbar button, .rich-text .toolbar select, .format-toggle button, .attachments button, .bcc-toggle');
     expect(small, small.join('\n')).toEqual([]);
   });
 });

@@ -3,27 +3,68 @@
   import Icon from '$lib/ui/Icon.svelte';
   import SignatureEditor from '$lib/SignatureEditor.svelte';
   import { signaturePreviewDocument } from '$lib/signature-preview';
+  import { COMPOSE_FONTS, COMPOSE_FONT_SIZES_PT, DEFAULT_COMPOSE_DEFAULTS, composeDefaultsStyle } from '@cmail/shared/compose-style';
 
-  let { data, form } = $props();
+  let { data, form: rawForm } = $props();
+  // Each action returns its own message keys.
+  const form = $derived(rawForm as { error?: string; success?: string; fontError?: string; fontSuccess?: string } | null);
   const personal = $derived(data.personalSignature);
   const organisation = $derived(data.organisationSignature);
   let previewHtml = $state(untrack(() => data.personalSignature?.html || ''));
+  const savedDefaults = $derived(data.composeDefaults || DEFAULT_COMPOSE_DEFAULTS);
+  let fontFamily = $state(untrack(() => (data.composeDefaults || DEFAULT_COMPOSE_DEFAULTS).fontFamily));
+  let fontSizePt = $state(untrack(() => String((data.composeDefaults || DEFAULT_COMPOSE_DEFAULTS).fontSizePt)));
+  const fontPreviewStyle = $derived(composeDefaultsStyle({ fontFamily, fontSizePt: Number(fontSizePt) }));
+  const fontChanged = $derived(fontFamily !== savedDefaults.fontFamily || Number(fontSizePt) !== savedDefaults.fontSizePt);
 </script>
 
-<svelte:head><title>Email signature · {data.appName || 'cmail'}</title></svelte:head>
+<svelte:head><title>Font and signature · {data.appName || 'cmail'}</title></svelte:head>
 
 <section class="settings-page" aria-labelledby="signature-heading">
   <header class="page-header">
     <div>
       <p class="eyebrow">Mail settings</p>
-      <h1 id="signature-heading">Email signature</h1>
-      <p>The sign-off cmail adds to new messages, replies, and forwards.</p>
+      <h1 id="signature-heading">Font and signature</h1>
+      <p>How your new messages, replies, and forwards start, and the sign-off cmail adds to them.</p>
     </div>
     <a href="/mail/compose" class="btn"><Icon name="compose" size={15} /> Preview in a message</a>
   </header>
 
   {#if form?.error}<div class="notice notice-error" role="alert">{form.error}</div>{/if}
   {#if form?.success}<div class="notice notice-success" role="status">{form.success}</div>{/if}
+
+  <section class="card font-card" aria-labelledby="font-heading">
+    <div class="section-head">
+      <div>
+        <h2 id="font-heading">Default font</h2>
+        <p>Rich-text messages start in this font and size, and recipients see it too. Outlook's default is Aptos, 12 pt.</p>
+      </div>
+    </div>
+    {#if form?.fontError}<div class="notice notice-error" role="alert">{form.fontError}</div>{/if}
+    {#if form?.fontSuccess}<div class="notice notice-success" role="status">{form.fontSuccess}</div>{/if}
+    <form method="POST" action="?/saveComposeDefaults" class="font-form">
+      <div class="font-fields">
+        <div class="field">
+          <label for="default-font-family">Font</label>
+          <select id="default-font-family" name="font_family" bind:value={fontFamily}>
+            {#each COMPOSE_FONTS as font (font.name)}
+              <option value={font.name}>{font.name}</option>
+            {/each}
+          </select>
+        </div>
+        <div class="field">
+          <label for="default-font-size">Size</label>
+          <select id="default-font-size" name="font_size_pt" bind:value={fontSizePt}>
+            {#each COMPOSE_FONT_SIZES_PT as size (size)}
+              <option value={String(size)}>{size} pt</option>
+            {/each}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary" disabled={!fontChanged}>Save font</button>
+      </div>
+      <p class="font-preview" style={fontPreviewStyle} aria-label="Font preview">Thanks for the update. I'll send the final details shortly.</p>
+    </form>
+  </section>
 
   <section class="signature-order" aria-labelledby="signature-order-title">
     <div class="order-copy">
@@ -121,6 +162,14 @@
   .page-header h1 { margin: 3px 0 5px; font-size: var(--fs-title-2); }
   .page-header > div > p:last-child, .section-head p { margin: 0; color: var(--text-muted); font-size: 13px; }
   .notice { margin-bottom: 14px; }
+  .font-card { padding: 20px; margin-bottom: 16px; }
+  .font-card .section-head { margin-bottom: 12px; }
+  .font-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+  .font-fields .field { display: flex; flex-direction: column; gap: 4px; margin: 0; min-width: 0; }
+  .font-fields select { min-width: 180px; max-width: 100%; }
+  .font-fields .field:nth-child(2) select { min-width: 110px; }
+  /* Email paper: recipients read on white, so the preview stays white in dark mode. */
+  .font-preview { margin: 14px 0 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: #ffffff; color-scheme: light; overflow-wrap: anywhere; }
   .eyebrow { margin: 0; color: var(--primary-text); font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
   .signature-order {
     display: grid;
@@ -181,7 +230,9 @@
     .signature-order { padding: 16px; }
     .order-flow { align-items: flex-start; flex-direction: column; gap: 6px; }
     .flow-line { width: 1px; height: 14px; min-width: 0; flex: none; margin: 0 0 0 13px; }
-    .editor-card { padding: 15px; }
+    .editor-card, .font-card { padding: 15px; }
+    .font-fields { align-items: stretch; flex-direction: column; }
+    .font-fields select { width: 100%; min-width: 0; }
     .section-head, .form-actions { align-items: flex-start; flex-direction: column; }
   }
 </style>

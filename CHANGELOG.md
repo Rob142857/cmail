@@ -6,6 +6,15 @@ Notable changes to cmail are recorded here. The project follows
 
 ## [Unreleased]
 
+### Added
+- Outlook-style formatting bar in compose: font and size, bold, italic, underline, strikethrough, font and highlight colour, lists, indent, alignment, link (Ctrl+K, http(s) and mailto only), quote, clear formatting, undo and redo, with Outlook's shortcuts, pressed states, tooltips and arrow-key navigation. Built on TipTap's text-style and text-align extensions (3.31.4), plus a small indent extension. On phones it is one swipeable row with the most-used controls, a More sheet and 44px targets, stuck above the keyboard.
+- Default font: new messages, replies and forwards start in Aptos 12 pt (falling back to Calibri, Arial, sans-serif), in black, like Exchange/Outlook. Each person can pick another font and size under Mail > Settings > Font and signature (new `compose_preferences` table, migration `0017`; existing deployments run `pnpm db:migrate` before `deploy:web`, and until then compose falls back to Aptos 12 pt). Sent HTML is wrapped in a container with that font and size so Outlook, Gmail and Apple Mail start from the same font.
+- Paste from Word and Outlook keeps bold, italic, underline, lists (Word's paragraph lists become real lists), links, colours and sizes, and strips `mso-` styles, classes and conditional comments.
+
+### Changed
+- The compose sanitizer now keeps a minimal `style` allowlist on span, p, li, blockquote and div (font family from the fixed list, bounded font size, hex/rgb colour and highlight, text-align, underline/line-through, weight, italic, bounded margin-left). Every other property, and any style with url(), expression(), escapes, comments or behaviour, is removed. The reading sanitizer and CSP are unchanged. Plain-text mode and the generated text/plain part are unchanged.
+- Mail > Settings > Email signature is now **Font and signature**.
+
 ### Fixed
 - Manager update notices showed "Update status unavailable" on Cloudflare because GitHub's unauthenticated REST limit is shared across Cloudflare egress addresses. The check now reads upstream `main` from Git's ref advertisement, shows "Up to date" or "Update available: <version>", caches at the edge, explains any failure, links the procedure for the configured `REPO_URL`, and can be turned off with `UPDATE_CHECK = "off"`.
 - `deploy:landing` now requires `--project-name` and passes it to Wrangler, so a stray `wrangler.toml` in the checkout can't send the product page to another Pages project.

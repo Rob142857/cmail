@@ -154,15 +154,50 @@ the Sent copy once it's delivered, not the unfinished draft.
 
 ### Formatting your message
 
-The message box is a rich-text editor. Its toolbar has **Bold**, **Italic**,
-**Underline**, **Link**, bulleted and numbered lists, **Quote**, and **Clear**
-(which removes formatting from the selected text). The usual shortcuts work
-too: Ctrl+B, Ctrl+I and Ctrl+U (Cmd on a Mac), and Ctrl+Z to undo. **Link**
-asks for a web address or an email address; typing `example.org` links to
-`https://example.org`, and anything other than a web or email link is
-refused. Text pasted from Word, a web page or another email keeps simple
-formatting such as bold, lists and links; fonts, colours, tables and images
-are removed.
+The message box is a rich-text editor with a formatting bar across the top,
+laid out like Outlook's **Format text** ribbon:
+
+- **Font** and **Font size** (8 to 36 pt). The fonts are email-safe: Aptos,
+  Calibri, Arial, Times New Roman, Georgia, Verdana and Courier New, each with
+  fallbacks for devices that don't have it.
+- **Bold**, **Italic**, **Underline** and **Strikethrough**.
+- **Font colour** and **Highlight colour**, from a fixed palette. **Automatic**
+  (or **No colour**) takes the colour off again.
+- **Bulleted list**, **Numbered list**, **Decrease indent** and **Increase
+  indent**. In a list, indenting nests the item.
+- **Align left**, **Centre** and **Align right**.
+- **Link**, **Quote**, **Clear formatting**, **Undo** and **Redo**.
+
+Buttons show when their formatting is on, and hovering one shows its name and
+shortcut. The keyboard shortcuts match Outlook: Ctrl+B, Ctrl+I, Ctrl+U,
+Ctrl+K for a link, Ctrl+M and Ctrl+Shift+M to indent and outdent, Ctrl+Z to
+undo and Ctrl+Y to redo (Cmd on a Mac). Ctrl+Shift+L, E and R align left,
+centre and right. With the bar focused, the arrow keys move between its
+controls.
+
+**Link** (or Ctrl+K) opens a small box for a web or email address; typing
+`example.org` links to `https://example.org`. Only web (http/https) and email
+(mailto) links are accepted. To change or remove a link, put the cursor in it
+and press **Link** again.
+
+On a phone the bar is one row you can swipe sideways, with the most-used
+controls (bold, italic, underline, size, colour, bulleted list and link) and
+**More** (…) for the rest. It stays at the top of the message box while you
+type, above the on-screen keyboard.
+
+Text pasted from Word, Outlook, a web page or another email keeps bold,
+italic, underline, lists, links, colours, sizes and the fonts listed above.
+Office clutter (hidden Word styles, classes and comments), other fonts,
+tables and images are removed.
+
+#### Default font
+
+New messages, replies and forwards start in **Aptos, 12 pt**, in black, the
+same as Outlook. To change it, open **Mail > Settings > Font and signature**
+and choose a font and size under **Default font**. It's saved to your
+account, so it follows you to every device. The message is sent with that
+font and size set on the whole body, so it looks the same in the recipient's
+Outlook, Gmail or Apple Mail.
 
 Prefer plain text? Select **Plain text** above the message box. Switching
 from rich text to plain text removes the formatting (cmail asks first if
@@ -174,11 +209,11 @@ Every message is sent with both a formatted (HTML) version and a plain-text
 version, so recipients whose email app shows only plain text still see your
 lists, quotes and link addresses. cmail cleans the formatting on the server
 before saving or sending: anything beyond the toolbar's options, including
-scripts, styles and images, is removed.
+scripts, images and any other styling, is removed.
 
 ### Email signatures
 
-Open **Mail > Settings > Email signature** to set your personal sign-off.
+Open **Mail > Settings > Font and signature** to set your personal sign-off.
 cmail adds it below your new text and above any quoted history, in every
 message, reply, or forward — below an organisation signature too, if one is
 enabled. The toolbar supports basic formatting. Pasted content becomes plain

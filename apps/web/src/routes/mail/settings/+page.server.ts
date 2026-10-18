@@ -8,6 +8,8 @@ import {
   savePersonalSignature,
   type StoredPersonalSignature,
 } from '$lib/server/signatures';
+import { getComposeDefaults, parseComposeDefaultsForm, saveComposeDefaults } from '$lib/server/compose-preferences';
+import { DEFAULT_COMPOSE_DEFAULTS } from '@cmail/shared/compose-style';
 
 function publicPersonalSignature(signature: StoredPersonalSignature | null) {
   if (!signature) return null;
@@ -23,17 +25,25 @@ function publicPersonalSignature(signature: StoredPersonalSignature | null) {
 export const load: PageServerLoad = async ({ locals, platform }) => {
   if (!locals.user) throw redirect(303, '/');
   const env = platform?.env;
-  if (!env) return { personalSignature: null, organisationSignature: { html: '', plainText: '', enabled: false, locked: true } };
+  if (!env) {
+    return {
+      personalSignature: null,
+      organisationSignature: { html: '', plainText: '', enabled: false, locked: true },
+      composeDefaults: { ...DEFAULT_COMPOSE_DEFAULTS },
+    };
+  }
 
-  const [personal, organisation] = await Promise.all([
+  const [personal, organisation, composeDefaults] = await Promise.all([
     getPersonalSignature(env.DB, locals.user.id),
     getOrganisationSignature(env.DB),
+    getComposeDefaults(env.DB, locals.user.id),
   ]);
   const organisationContent = organisation?.is_enabled === 1
     ? sanitizeSignature(organisation.html_body, organisation.plain_text_body) || { html: '', plainText: '' }
     : { html: '', plainText: '' };
 
   return {
+    composeDefaults,
     personalSignature: publicPersonalSignature(personal),
     organisationSignature: {
       html: organisationContent.html,
@@ -45,6 +55,27 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 };
 
 export const actions: Actions = {
+  saveComposeDefaults: async ({ request, locals, platform }) => {
+    if (!locals.user) throw redirect(303, '/');
+    const env = platform?.env;
+    if (!env) return fail(503, { fontError: 'Service configuration is unavailable' });
+
+    const parsed = parseComposeDefaultsForm(await request.formData());
+    if (!parsed.ok) return fail(400, { fontError: parsed.error });
+    try {
+      await saveComposeDefaults(env.DB, locals.user.id, parsed.defaults);
+    } catch {
+      return fail(503, { fontError: 'Could not save the default font. Try again shortly.' });
+    }
+    await audit(env.DB, {
+      event_type: 'compose_defaults.update',
+      actor_id: locals.user.id,
+      actor_role: locals.user.role,
+      target: locals.user.id,
+      detail: `Default font ${parsed.defaults.fontFamily} ${parsed.defaults.fontSizePt}pt`,
+    });
+    return { fontSuccess: 'Default font saved. New messages, replies and forwards will start in it.' };
+  },
   savePersonal: async ({ request, locals, platform }) => {
     if (!locals.user) throw redirect(303, '/');
     const env = platform?.env;

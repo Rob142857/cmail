@@ -9,7 +9,7 @@ If both are on, cmail puts your personal signature first, then the organisation 
 
 ## Your signature
 
-Go to **Mail > Settings > Email signature** to add or change your personal sign-off. Keep it short — it goes on every message you send.
+Go to **Mail > Settings > Font and signature** to add or change your personal sign-off. Keep it short — it goes on every message you send.
 
 The editor supports simple formatting: bold/italic, lists, tables, inline styling, images, and links (`https`, `http`, or `mailto`). If you paste from a webpage or Word, cmail keeps the formatting but strips anything unsafe, such as scripts or hidden styling.
 

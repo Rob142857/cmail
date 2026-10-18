@@ -818,6 +818,7 @@
           <RichTextEditor
             id="body"
             value={body}
+            defaults={d.composeDefaults}
             disabled={sending || discarding || navigationInProgress || !!recoveryConflict || saveConflict || d.mailboxes.length === 0}
             onchange={(html) => { if (html !== body) { body = html; markDirty(); } }}
             onready={(api) => { richApi = api; }}

@@ -4,15 +4,19 @@ import rehypeSanitize from 'rehype-sanitize';
 import rehypeStringify from 'rehype-stringify';
 import { unified } from 'unified';
 import { checkEmailHtmlComplexity, type EmailHtmlComplexityLimits } from './sanitize-email';
+import { COMPOSE_STYLE_TAGS, filterComposeStyle } from './compose-style';
 
 /**
  * Authored (compose) HTML is far narrower than received email: the editor only
  * produces paragraphs, line breaks, simple inline marks, links, lists and
  * quotes. Anything else is unwrapped to its text, and active or embedding
  * content (scripts, styles, frames, forms, media and every image) is dropped
- * with its contents. No attribute survives except a checked link target and
- * an ordered list's start number, so event handlers, inline styles, classes
- * and data attributes can never reach a recipient or the Sent copy.
+ * with its contents. The only attributes that survive are a checked link
+ * target, an ordered list's start number and, on span/p/li/blockquote/div, a
+ * style rebuilt from the fixed formatting allowlist in compose-style.ts (font,
+ * size, colour, highlight, alignment, decoration, weight, slant and a bounded
+ * indent). Event handlers, classes, ids, data attributes and every other CSS
+ * property can never reach a recipient or the Sent copy.
  */
 const composeSchema = {
   tagNames: [
@@ -22,6 +26,11 @@ const composeSchema = {
   attributes: {
     a: ['href'],
     ol: ['start'],
+    blockquote: ['style'],
+    div: ['style'],
+    li: ['style'],
+    p: ['style'],
+    span: ['style'],
   },
   protocols: {
     href: ['http', 'https', 'mailto'],
@@ -88,6 +97,9 @@ function hardenTree(root: Root, limits: EmailHtmlComplexityLimits): 'elements' |
       } else if (node.tagName === 'ol') {
         const start = safeStart(node.properties.start);
         node.properties = start !== null && start !== 1 ? { start } : {};
+      } else if (COMPOSE_STYLE_TAGS.has(node.tagName)) {
+        const style = filterComposeStyle(node.tagName, node.properties.style);
+        node.properties = style ? { style } : {};
       } else {
         node.properties = {};
       }
@@ -99,6 +111,35 @@ function hardenTree(root: Root, limits: EmailHtmlComplexityLimits): 'elements' |
     }
   }
   return null;
+}
+
+/**
+ * A span left with no allowed style does nothing, so its content moves up to
+ * the parent, and an empty span is dropped (pasted Office HTML leaves many of
+ * both). Iterative, like hardenTree.
+ */
+function unwrapBareSpans(root: Root): void {
+  const pending: Array<Root | Element> = [root];
+  while (pending.length) {
+    const parent = pending.pop();
+    if (!parent) break;
+    const children: Array<RootContent | ElementContent> = [];
+    const queue = [...parent.children];
+    while (queue.length) {
+      const child = queue.shift() as RootContent | ElementContent;
+      if (child.type === 'element' && child.tagName === 'span') {
+        // An empty span (Word's list-marker and <o:p> wrappers) renders nothing.
+        if (!child.children.length || child.children.every((inner) => inner.type === 'text' && inner.value === '')) continue;
+        if (Object.keys(child.properties).length === 0) {
+          queue.unshift(...child.children);
+          continue;
+        }
+      }
+      children.push(child);
+      if (child.type === 'element') pending.push(child);
+    }
+    parent.children = children as typeof parent.children;
+  }
 }
 
 function isBlankNode(node: RootContent): boolean {
@@ -239,6 +280,7 @@ export function sanitizeComposeHtml(
   }
   const treeRejected = hardenTree(tree, limits);
   if (treeRejected) return { ok: false, reason: treeRejected };
+  unwrapBareSpans(tree);
   trimEmptyEdgeParagraphs(tree);
 
   const text = finish(renderNodes(tree.children));
