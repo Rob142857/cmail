@@ -38,6 +38,8 @@
       {#if data.errorReference}<span class="mono">Reference: {data.errorReference}</span>{/if}
     </MessageBar>
   {:else}
+    <!-- A sideways-scrolling table must be reachable by keyboard (axe). -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <div class="card table-card" role="region" aria-label="Table" tabindex="0">
       <table>
         <caption class="sr-only">Audit events, newest first</caption>

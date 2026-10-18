@@ -31,6 +31,8 @@
     </div>
 
     {#if data.pending.length}
+      <!-- A sideways-scrolling table must be reachable by keyboard (axe). -->
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div class="card table-card" role="region" aria-label="Table" tabindex="0">
         <table>
           <caption class="sr-only">Pending sign-in country requests</caption>
@@ -87,6 +89,8 @@
     </div>
 
     {#if data.exceptions.length}
+      <!-- A sideways-scrolling table must be reachable by keyboard (axe). -->
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div class="card table-card" role="region" aria-label="Table" tabindex="0">
         <table>
           <caption class="sr-only">Active sign-in country exceptions</caption>
@@ -135,6 +139,8 @@
     </div>
 
     {#if data.decisions.length}
+      <!-- A sideways-scrolling table must be reachable by keyboard (axe). -->
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div class="card table-card" role="region" aria-label="Table" tabindex="0">
         <table>
           <caption class="sr-only">Recent travel approval decisions</caption>

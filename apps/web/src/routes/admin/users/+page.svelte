@@ -185,6 +185,8 @@
   </div>
 
   {#if data.users.length}
+    <!-- A sideways-scrolling table must be reachable by keyboard (axe). -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <div class="card table-card" role="region" aria-label="Table" tabindex="0">
       <table>
         <caption class="sr-only">User accounts and administrative actions</caption>
