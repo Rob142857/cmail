@@ -14,11 +14,11 @@
     "@cloudflare/workers-types": "^5.20261008.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
-    "vitest": "5.0.3",
+    "vitest": "5.0.4",
     "wrangler": "^4.148.0"
   },
   "dependencies": {
     "@cmail/shared": "workspace:*",
-    "postal-mime": "^3.0.1"
+    "postal-mime": "^4.0.6"
   }
 }
