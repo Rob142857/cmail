@@ -44,7 +44,7 @@
     "release:check": "pnpm validate && pnpm secrets:history"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.13.0",
+    "@axe-core/playwright": "4.14.0",
     "@playwright/test": "1.64.1",
     "wrangler": "^4.148.0"
   },
