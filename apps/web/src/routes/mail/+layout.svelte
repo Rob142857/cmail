@@ -290,6 +290,13 @@
   {@render children()}
 </AppShell>
 
+{#if isList}
+  <!-- Phones: New message is otherwise only inside the closed drawer. -->
+  <a href={composeHref} class="compose-fab" aria-label="New message">
+    <Icon name="compose" size={22} />
+  </a>
+{/if}
+
 {#if d.user?.id}
   <WelcomeGuide
     appName={d.appName || 'cmail'}
@@ -303,5 +310,28 @@
 <style>
   .mailbox-picker { width: 100%; min-height: 38px; margin-top: 8px; }
   @media (pointer: coarse), (max-width: 860px) { .mailbox-picker { min-height: 44px; } }
+  .compose-fab { display: none; }
+  @media (max-width: 860px) {
+    .compose-fab {
+      position: fixed;
+      right: max(16px, env(safe-area-inset-right));
+      bottom: max(16px, calc(env(safe-area-inset-bottom) + 8px));
+      z-index: 50;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: var(--primary);
+      color: var(--on-primary);
+      box-shadow: var(--shadow-16);
+      text-decoration: none;
+    }
+    .compose-fab:hover { background: var(--primary-hover); color: var(--on-primary); text-decoration: none; }
+    :global(.has-install-banner) .compose-fab { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 76px); }
+    /* Keep the last message clear of the button. */
+    :global(.mail-page) { padding-bottom: 72px; }
+  }
   .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 </style>

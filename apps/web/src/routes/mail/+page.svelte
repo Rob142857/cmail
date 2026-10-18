@@ -1,5 +1,6 @@
 <script lang="ts">
   import { afterNavigate, invalidateAll } from '$app/navigation';
+  import Icon from '$lib/ui/Icon.svelte';
   import { onMount, tick } from 'svelte';
   import { dateTimeAttribute, formatDate } from '$lib/dates';
   import { sanitizeParticipantName } from '@cmail/shared/message-participants';
@@ -73,6 +74,15 @@
 
   async function refreshMessages(announce = true): Promise<void> {
     if (refreshing || busyAction) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      // Refreshing offline makes SvelteKit fall back to a full page load,
+      // which replaces the list with the browser's offline page.
+      if (announce) {
+        refreshStatus = 'You\'re offline. Reconnect, then refresh.';
+        refreshFailed = true;
+      }
+      return;
+    }
     refreshing = true;
     refreshStatus = '';
     refreshFailed = false;
@@ -302,8 +312,8 @@
       {#if d.search}
         <a class="btn" href={clearSearchHref}>Clear search</a>
       {/if}
-      <button class="btn refresh-button" type="button" disabled={refreshing || Boolean(busyAction)} onclick={() => refreshMessages()}>
-        {refreshing ? 'Refreshing…' : 'Refresh'}
+      <button class="btn refresh-button" type="button" aria-label={refreshing ? 'Refreshing messages' : 'Refresh messages'} disabled={refreshing || Boolean(busyAction)} onclick={() => refreshMessages()}>
+        <Icon name="refresh" size={16} /><span class="refresh-label">{refreshing ? 'Refreshing…' : 'Refresh'}</span>
       </button>
     </div>
   </header>
@@ -411,7 +421,7 @@
               <span class="participant" title={participantTitle(message)}>{participantText(message)}</span>
               <span class="message-middle">
                 <span class="subject">{message.subject || '(no subject)'}</span>
-                {#if message.snippet}<span class="snippet"> — {message.snippet}</span>{/if}
+                {#if message.snippet}<span class="snippet"><span class="snippet-sep"> — </span>{message.snippet}</span>{/if}
               </span>
               <span class="message-date">
                 <span class="indicators">
@@ -662,8 +672,11 @@
   }
 
   @media (max-width: 860px) {
-    .page-header { align-items: stretch; flex-direction: column; gap: 12px; }
-    .page-actions { width:100%; }
+    /* Title left, actions right, on one line: the list starts higher. */
+    .page-header { align-items: center; gap: 12px; margin-bottom: 12px; }
+    .page-actions { width: auto; flex: 0 0 auto; }
+    .refresh-button { width: 44px; padding: 0; }
+    .refresh-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     .bulk-bar { align-items: stretch; flex-wrap: wrap; }
     .select-all { flex: 1; }
     .selection-summary { display: flex; align-items: center; justify-content: flex-end; }
@@ -684,16 +697,20 @@
       grid-template-areas:
         'participant date'
         'middle middle';
-      gap: 3px 10px;
-      padding-block: 9px;
+      gap: 2px 10px;
+      padding-block: 8px;
     }
     .mail-row-link.with-mailbox {
       grid-template-areas:
-        'mailbox date'
-        'participant participant'
-        'middle middle';
+        'participant date'
+        'middle mailbox';
     }
-    .mailbox-tag { grid-area: mailbox; justify-self: start; max-width: 150px; }
+    .mailbox-tag { grid-area: mailbox; justify-self: end; align-self: start; max-width: 96px; margin-top: 1px; }
+    .message-middle { display: grid; gap: 1px; white-space: normal; }
+    .message-middle .subject,
+    .message-middle .snippet { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .snippet { font-size: 13px; }
+    .snippet-sep { display: none; }
     .participant { grid-area: participant; }
     .message-middle { grid-area: middle; }
     .message-date { grid-area: date; }
@@ -701,12 +718,10 @@
 
   @media (max-width: 520px) {
     .heading-group h1 { font-size: 20px; }
-    .page-actions { align-items:stretch; flex-direction:column; }
-    .refresh-button { align-self:flex-start; }
-    .mail-row { grid-template-columns: 40px minmax(0, 1fr); }
-    .message-selector { min-width: 40px; }
-    .mail-row-link { padding-right: 10px; }
-    .snippet { display: none; }
+
+    .mail-row { grid-template-columns: 44px minmax(0, 1fr); }
+    .message-selector { min-width: 44px; }
+    .mail-row-link { padding-right: 12px; }
     .bulk-commands .btn { min-height: 36px; }
   }
 

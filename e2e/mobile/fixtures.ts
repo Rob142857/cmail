@@ -58,10 +58,11 @@ export const test = base.extend<Fixtures>({
   // Marks a test as an expected failure (test.fail) while its bug is listed in
   // known-bugs.ts for this device. When the bug is fixed the test reports
   // "Expected to fail, but passed": delete its entry in the same commit.
+  // E2E_SHOW_KNOWN_BUGS=1 runs them as normal tests to see the real errors.
   knownBug: [async ({}, use, info) => {
     const key = `${basename(info.file)} › ${info.titlePath.slice(1).join(' › ')}`;
     const bug = KNOWN_BUGS[key];
-    if (bug && (bug.projects === 'all' || bug.projects.includes(info.project.name))) {
+    if (process.env.E2E_SHOW_KNOWN_BUGS !== '1' && bug && (bug.projects === 'all' || bug.projects.includes(info.project.name))) {
       info.annotations.push({ type: 'known-bug', description: bug.todo });
       info.fail(true, bug.todo);
     }
