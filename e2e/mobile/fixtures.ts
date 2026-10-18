@@ -216,7 +216,13 @@ export async function tabOrder(page: Page, steps: number): Promise<Array<{ label
       const element = document.activeElement as HTMLElement | null;
       if (!element || element === document.body) return { label: '(body)', visibleFocus: false };
       const style = getComputedStyle(element);
-      const outline = style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0;
+      // A ring on the field's wrapper (:focus-within) counts too.
+      const ringed = [element, element.parentElement, element.parentElement?.parentElement].some((node) => {
+        if (!node) return false;
+        const s = getComputedStyle(node);
+        return s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0;
+      });
+      const outline = ringed;
       const ring = style.boxShadow && style.boxShadow !== 'none';
       const underline = parseFloat(style.borderBottomWidth) >= 2;
       const label = element.getAttribute('aria-label') || (element.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 40)

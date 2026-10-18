@@ -113,3 +113,9 @@ test.describe('on a phone', () => {
     expect(small, small.join('\n')).toEqual([]);
   });
 });
+
+test('recipients become removable chips', async ({ page }) => {
+  await newMessage(page);
+  await page.locator('#to').fill('records@wattle.test, ');
+  await expect(page.getByRole('button', { name: /remove records@wattle\.test/i })).toBeVisible({ timeout: 3000 });
+});
