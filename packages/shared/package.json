@@ -8,6 +8,8 @@
     "./push": "./src/push.ts",
     "./sanitize-email": "./src/sanitize-email.ts",
     "./compose-html": "./src/compose-html.ts",
+    "./compose-style": "./src/compose-style.ts",
+    "./compose-paste": "./src/compose-paste.ts",
     "./link-risk": "./src/link-risk.ts",
     "./inbound-risk": "./src/inbound-risk.ts",
     "./mailbox-storage": "./src/mailbox-storage.ts",
@@ -17,7 +19,7 @@
     "./contacts": "./src/contacts.ts"
   },
   "scripts": {
-    "check": "tsc --noEmit --target ES2022 --module ES2022 --moduleResolution Bundler --types @cloudflare/workers-types --strict --skipLibCheck src/types.ts src/push.ts src/sanitize-email.ts src/compose-html.ts src/link-risk.ts src/inbound-risk.ts src/mailbox-storage.ts src/message-importance.ts src/message-participants.ts src/ics.ts src/contacts.ts",
+    "check": "tsc --noEmit --target ES2022 --module ES2022 --moduleResolution Bundler --types @cloudflare/workers-types --strict --skipLibCheck src/types.ts src/push.ts src/sanitize-email.ts src/compose-html.ts src/compose-style.ts src/compose-paste.ts src/link-risk.ts src/inbound-risk.ts src/mailbox-storage.ts src/message-importance.ts src/message-participants.ts src/ics.ts src/contacts.ts",
     "lint": "pnpm check",
     "test": "node --test"
   },

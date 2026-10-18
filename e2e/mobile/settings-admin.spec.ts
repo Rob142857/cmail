@@ -4,7 +4,7 @@ test.use({ as: 'user-mia' });
 
 test('signature settings show the personal editor and organisation layer', async ({ page }) => {
   await open(page, '/mail/settings');
-  await expect(page.getByRole('heading', { level: 1, name: 'Email signature' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Font and signature' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Personal signature' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save signature' })).toBeVisible();
 });

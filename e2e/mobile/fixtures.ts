@@ -8,9 +8,9 @@ import { KNOWN_BUGS } from './known-bugs';
  * Seeded users (see seed-data.mjs). Mia is a manager whose views are kept
  * stable for screenshots: specs only READ as Mia. Anything that writes
  * (drafts, sends, moves) runs as Sam, so parallel projects never disturb
- * Mia's inbox.
+ * Mia's inbox. Ivy exists only to change her own compose defaults.
  */
-export type TestUser = 'user-mia' | 'user-sam';
+export type TestUser = 'user-mia' | 'user-sam' | 'user-ivy';
 
 const STATE = resolve(process.cwd(), '.tmp/e2e-mobile/sessions.json');
 

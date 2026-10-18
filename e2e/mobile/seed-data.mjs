@@ -13,6 +13,9 @@ export const USERS = [
   { id: 'user-mia', email: 'mia.manager@wattle.test', name: 'Mia Okafor', role: 'manager', provider: 'microsoft' },
   { id: 'user-sam', email: 'sam.standard@wattle.test', name: 'Sam Lindqvist', role: 'standard', provider: 'google' },
   { id: 'user-pia', email: 'pia.pending@wattle.test', name: 'Pia Ruiz', role: 'standard', provider: '', status: 'pending' },
+  // Only the compose-defaults spec signs in as Ivy: it changes her default
+  // font, which would otherwise race with specs that expect Outlook's.
+  { id: 'user-ivy', email: 'ivy.settings@wattle.test', name: 'Ivy Tran', role: 'standard', provider: 'google' },
 ];
 
 export const MAILBOXES = [
@@ -32,6 +35,7 @@ export const ASSIGNMENTS = [
   ['user-sam', 'mb-sam', 'full'],
   ['user-sam', 'mb-desk', 'send-as'],
   ['user-sam', 'mb-records', 'read'],
+  ['user-ivy', 'mb-desk', 'send-as'],
 ];
 
 const p = (text) => `<p>${text}</p>`;

@@ -368,7 +368,7 @@ try {
           'organization_directory_settings', 'organization_layers',
           'organization_units', 'organization_roles', 'organization_positions',
           'push_subscriptions', 'push_device_preferences', 'outbound_send_journal',
-          'outbound_send_targets', 'outbound_send_attachments'
+          'outbound_send_targets', 'outbound_send_attachments', 'compose_preferences'
         )) AS application_table_count,
       (SELECT COUNT(*) FROM sqlite_master
         WHERE type = 'index' AND name IN (
@@ -451,6 +451,10 @@ try {
           AND dflt_value = '1') AS organisation_signature_enabled_column_count,
       (SELECT COUNT(*) FROM pragma_table_info('personal_signatures')
         WHERE name IN ('user_id', 'html_body', 'plain_text_body', 'is_locked', 'updated_at', 'updated_by')) AS personal_signature_column_count,
+      (SELECT COUNT(*) FROM pragma_table_info('compose_preferences')
+        WHERE (name = 'font_family' AND "notnull" = 1 AND dflt_value = '''Aptos''')
+           OR (name = 'font_size_pt' AND "notnull" = 1 AND dflt_value = '12')
+           OR name IN ('user_id', 'updated_at')) AS compose_preference_column_count,
       (SELECT COUNT(*) FROM pragma_table_info('mailboxes')
         WHERE name = 'owner_user_id') AS personal_mailbox_owner_column_count,
       (SELECT COUNT(*) FROM pragma_table_info('push_subscriptions')
@@ -471,7 +475,7 @@ try {
 
   assertEqual(Number(row.migration_count), expectedMigrations.length, 'Applied migration count');
   assertArrayEqual(appliedMigrations, expectedMigrations, 'Applied migration names');
-  assertEqual(Number(row.application_table_count), 27, 'Application table count');
+  assertEqual(Number(row.application_table_count), 28, 'Application table count');
   assertEqual(Number(row.essential_index_count), 10, 'Essential index count');
   assertEqual(Number(row.organization_trigger_count), 2, 'Organisation cycle-trigger count');
   assertEqual(Number(row.inbound_guard_trigger_count), 5, 'Delivery reservation-trigger count');
@@ -492,6 +496,7 @@ try {
   assertEqual(Number(row.default_signature_count), 1, 'Default signature seed count');
   assertEqual(Number(row.organisation_signature_enabled_column_count), 1, 'Organisation signature enabled column');
   assertEqual(Number(row.personal_signature_column_count), 6, 'Personal signature columns');
+  assertEqual(Number(row.compose_preference_column_count), 4, 'Compose preference columns');
   assertEqual(Number(row.personal_mailbox_owner_column_count), 1, 'Personal mailbox owner column');
   assertEqual(Number(row.push_device_id_column_count), 1, 'Push device identifier column');
   assertEqual(Number(row.foreign_key_violation_count), 0, 'Foreign-key violation count');
