@@ -61,6 +61,7 @@
   <button
     type="button"
     class="user-chip"
+    aria-label={`Account: ${name}`}
     bind:this={trigger}
     aria-haspopup="menu"
     aria-expanded={open}

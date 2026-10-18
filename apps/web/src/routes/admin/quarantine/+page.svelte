@@ -45,7 +45,9 @@
     </div>
 
     {#if data.messages.length}
-      <div class="card table-card">
+      <!-- A sideways-scrolling table must be reachable by keyboard (axe). -->
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+      <div class="card table-card" role="region" aria-label="Table" tabindex="0">
         <table>
           <caption class="sr-only">Quarantined messages</caption>
           <thead>
@@ -136,7 +138,9 @@
     </form>
 
     {#if data.rules.length}
-      <div class="card table-card">
+      <!-- A sideways-scrolling table must be reachable by keyboard (axe). -->
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+      <div class="card table-card" role="region" aria-label="Table" tabindex="0">
         <table>
           <caption class="sr-only">Sender allow and block rules</caption>
           <thead>

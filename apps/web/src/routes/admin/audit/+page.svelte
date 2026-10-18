@@ -38,7 +38,9 @@
       {#if data.errorReference}<span class="mono">Reference: {data.errorReference}</span>{/if}
     </MessageBar>
   {:else}
-    <div class="card table-card">
+    <!-- A sideways-scrolling table must be reachable by keyboard (axe). -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div class="card table-card" role="region" aria-label="Table" tabindex="0">
       <table>
         <caption class="sr-only">Audit events, newest first</caption>
         <thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Actor</th><th scope="col">Target and detail</th><th scope="col">Source IP</th></tr></thead>
@@ -73,7 +75,7 @@
   .page-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
   .page-heading h1 { margin: 2px 0 5px; font-size: clamp(25px, 3vw, 34px); }
   .page-heading > div > p:last-child { color: var(--text-muted); }
-  .eyebrow { margin: 0; color: var(--primary); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+  .eyebrow { margin: 0; color: var(--primary-text); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
   .filters { display: grid; gap: 4px; width: min(100%, 430px); }
   .filters > label { color: var(--text-muted); font-size: 11px; font-weight: 650; }
   .filters > div { display: flex; gap: 7px; }

@@ -90,7 +90,7 @@
   @import '../getting-started/guide.css';
   .platform-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   .platform-card { padding: 20px !important; border: 1px solid var(--border) !important; border-radius: 12px; background: var(--bg-surface); }
-  .platform-name { margin: 0 0 5px !important; color: var(--primary) !important; font-size: 11px !important; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+  .platform-name { margin: 0 0 5px !important; color: var(--primary-text) !important; font-size: 11px !important; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
   .platform-card h2 { font-size: 20px !important; }
   .source-link { margin-top: 13px !important; font-size: 12px !important; }
   .troubleshooting { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
@@ -99,7 +99,7 @@
   .connection-status { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
   .connection-status div { padding: 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-surface); }
   .connection-status strong { display: block; }
-  .connection-status span { display: inline-block; margin-top: 4px; color: var(--primary); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+  .connection-status span { display: inline-block; margin-top: 4px; color: var(--primary-text); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
   .connection-status p, .connection-note { margin-top: 7px; font-size: 12px !important; }
   @media (max-width: 680px) { .platform-grid, .troubleshooting, .connection-status { grid-template-columns: 1fr; } }
 </style>

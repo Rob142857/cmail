@@ -75,7 +75,7 @@
 <style>
   .invite-card { margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px; }
   .invite-head { display: flex; align-items: flex-start; gap: 10px; }
-  .invite-icon { flex: 0 0 auto; color: var(--primary); margin-top: 2px; }
+  .invite-icon { flex: 0 0 auto; color: var(--primary-text); margin-top: 2px; }
   .invite-heading { min-width: 0; }
   .invite-summary { font-weight: 650; font-size: 15px; overflow-wrap: anywhere; }
   .invite-when { color: var(--text-muted); font-size: 13px; margin-top: 2px; }

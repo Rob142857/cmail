@@ -1013,10 +1013,10 @@
   .page-heading h1 { margin: 2px 0 7px; font-size: clamp(26px, 4vw, 34px); letter-spacing: -.03em; }
   .page-heading p:not(.eyebrow) { max-width: 720px; color: var(--text-muted); }
   .public-link-line { margin-top: 6px; font-size: 13px; color: var(--text-muted); }
-  .public-link-line a { color: var(--primary); overflow-wrap: anywhere; }
+  .public-link-line a { color: var(--primary-text); overflow-wrap: anywhere; }
   .eyebrow {
     margin: 0;
-    color: var(--primary);
+    color: var(--primary-text);
     font-size: 11px;
     font-weight: 750;
     letter-spacing: .09em;
@@ -1105,7 +1105,7 @@
     place-items: center;
     border-radius: 9px;
     background: var(--primary-soft);
-    color: var(--primary);
+    color: var(--primary-text);
   }
   .privacy-boundary h2 { margin: 0 0 2px; font-size: 13px; }
   .privacy-boundary p { margin: 0; color: var(--text-muted); font-size: 11px; }
@@ -1207,7 +1207,7 @@
     place-items: center;
     border-radius: 50%;
     background: var(--primary-soft);
-    color: var(--primary);
+    color: var(--primary-text);
     font-size: 12px;
     font-weight: 750;
   }
@@ -1398,7 +1398,7 @@
     font-weight: 700;
     white-space: nowrap;
   }
-  .visibility-badge.public { background: var(--primary-soft); color: var(--primary); }
+  .visibility-badge.public { background: var(--primary-soft); color: var(--primary-text); }
   .visibility-badge.live { background: var(--success-soft); color: var(--success); }
   .visibility-badge.attention { background: var(--warning-soft); color: var(--warning); }
   .tree-edit-hint { color: var(--text-faint); font-size: 9px; opacity: 0; }
@@ -1455,7 +1455,7 @@
     color: var(--text-muted);
     font-size: 12px;
   }
-  .filter-bar button.active { background: var(--primary-soft); color: var(--primary); }
+  .filter-bar button.active { background: var(--primary-soft); color: var(--primary-text); }
   .resource-list {
     overflow: hidden;
     border: 1px solid var(--border);

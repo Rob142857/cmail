@@ -42,12 +42,12 @@
   .notice { width: min(100% - 32px, 760px); margin: 0 auto; padding: 40px 0 64px; }
   .back { display: inline-block; margin-bottom: 18px; color: var(--text-muted); font-size: 13px; }
   article { padding: 30px; }
-  .eyebrow { margin: 0 0 6px; color: var(--primary); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .eyebrow { margin: 0 0 6px; color: var(--primary-text); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
   h1 { margin: 0 0 14px; font-size: 28px; }
   h2 { margin: 28px 0 8px; font-size: 17px; }
   p { color: var(--text-muted); line-height: 1.65; }
   h1 + p { color: var(--text); font-size: 16px; }
-  a { color: var(--primary); }
+  a { color: var(--primary-text); }
   .fine-print { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border); font-size: 12px; }
   @media (max-width: 600px) { .notice { width: min(100% - 24px, 760px); padding-top: 20px; } article { padding: 20px; } }
 </style>

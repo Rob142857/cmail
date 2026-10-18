@@ -41,7 +41,7 @@
   .bootstrap-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
   .bootstrap-card { width: min(100%, 460px); padding: 32px; }
   .brand-logo { display: block; max-width: min(220px, 100%); height: auto; margin: 0 auto 22px; }
-  .eyebrow { margin: 0 0 5px; color: var(--primary); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
+  .eyebrow { margin: 0 0 5px; color: var(--primary-text); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
   h1 { margin: 0; font-size: 23px; }
   .intro { margin: 9px 0 20px; color: var(--text-muted); line-height: 1.55; }
   code { overflow-wrap: anywhere; font-size: .88em; }

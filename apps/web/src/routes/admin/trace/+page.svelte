@@ -298,7 +298,7 @@
 <style>
   .header { display: flex; align-items: end; gap: 12px; margin-bottom: 16px; }
   .header h1 { margin: 2px 0 0; font-size: clamp(25px, 3vw, 34px); }
-  .eyebrow { margin: 0; color: var(--primary); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+  .eyebrow { margin: 0; color: var(--primary-text); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
   .total-badge {
     font-size: 12px; color: var(--text-muted); background: var(--bg-hover);
     padding: 2px 8px; border-radius: 10px;
@@ -349,7 +349,7 @@
   .status-dot { font-size: 18px; vertical-align: middle; }
 
   .btn-link {
-    background: none; border: none; color: var(--primary); cursor: pointer;
+    background: none; border: none; color: var(--primary-text); cursor: pointer;
     font-size: 13px; padding: 2px 4px; text-decoration: underline;
   }
   .btn-link:hover { color: var(--primary-hover); }

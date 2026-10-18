@@ -36,7 +36,7 @@
   /* Ink */
   --text: #242424;
   --text-muted: #616161;
-  --text-faint: #8a8a8a;
+  --text-faint: #6b6b6b;   /* 5.3:1 on white, 5.1:1 on --bg-subtle */
   --text-disabled: #bdbdbd;
 
   /* Lines */
@@ -469,7 +469,7 @@ legend { padding: 0 6px; font-size: var(--fs-body); font-weight: 600; color: var
   font-size: var(--fs-body);
   line-height: 20px;
 }
-.msgbar-icon { flex: 0 0 auto; margin-top: 1px; color: var(--primary); }
+.msgbar-icon { flex: 0 0 auto; margin-top: 1px; color: var(--primary-text); }
 .msgbar-body { flex: 1 1 auto; min-width: 0; }
 .msgbar-title { font-weight: 600; }
 .msgbar-success, .notice-success { background: var(--success-soft); border-color: var(--success-border); }
@@ -608,6 +608,8 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
 .shell {
   display: grid;
   grid-template-rows: var(--suite-header-h) 1fr;
+  /* Never let the header's or a page's min-content widen the app past the screen. */
+  grid-template-columns: minmax(0, 1fr);
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
@@ -691,7 +693,7 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
   color: #fff;
   transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
-.suite-search:focus-within { background: #fff; border-color: #fff; color: var(--text); }
+.suite-search:focus-within { background: #fff; border-color: #fff; color: var(--text); outline: 2px solid #fff; outline-offset: 2px; }
 .suite-search:focus-within .suite-search-icon { color: var(--text-muted); }
 .suite-search-icon { flex: 0 0 auto; color: rgba(255, 255, 255, 0.86); }
 .suite-search input {
@@ -775,7 +777,7 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
 .nav-item[aria-current='page'] .nav-icon,
 .nav-item.active .nav-icon { color: var(--primary-text); }
 .nav-item[aria-current='page'] .nav-desc,
-.nav-item.active .nav-desc { color: var(--primary-text); opacity: 0.8; font-weight: 400; }
+.nav-item.active .nav-desc { color: var(--primary-text); font-weight: 400; }
 /* Fluent's selected-item accent rail */
 .nav-item[aria-current='page']::before,
 .nav-item.active::before {
@@ -797,8 +799,8 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
 
 .nav-footer-links { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 8px; }
 .nav-footer-links a { color: var(--text-muted); font-size: 11px; }
-.product-credit { display: block; margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--border); color: var(--text-faint); font-size: 9.5px; letter-spacing: .02em; line-height: 1.45; }
-.product-meta { display: block; margin-top: 4px; color: var(--text-faint); font-size: 9.5px; letter-spacing: .02em; }
+.product-credit { display: block; margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--border); color: var(--text-faint); font-size: 11px; line-height: 1.45; }
+.product-meta { display: block; margin-top: 4px; color: var(--text-faint); font-size: 11px; }
 .product-meta a { color: var(--text-muted); }
 
 /* ─── 15. Content region ────────────────────────────────────────────── */
@@ -847,7 +849,7 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
 .cmd:hover { background: var(--bg-hover); color: var(--text); text-decoration: none; }
 .cmd:active { background: var(--bg-active); }
 .cmd[disabled], .cmd[aria-disabled='true'] { color: var(--text-disabled); pointer-events: none; }
-.cmd-icon { color: var(--primary); flex: 0 0 auto; }
+.cmd-icon { color: var(--primary-text); flex: 0 0 auto; }
 /* On phones the bar keeps icon-only commands so the breadcrumb stays readable. */
 @media (max-width: 600px) {
   .cmd .cmd-label { display: none; }
@@ -1106,6 +1108,22 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
   .card { padding: 14px; border-radius: var(--radius-md); }
   thead th, tbody td { padding: 8px 10px; }
   .mode-switch a { padding: 0 9px; font-size: 12px; }
+}
+
+/* Touch screens and phone widths: every control is at least 44×44 CSS px
+   (WCAG 2.5.5 / Apple HIG). Desktop with a mouse keeps the denser sizes. */
+@media (pointer: coarse), (max-width: 860px) {
+  button, .btn, .cmd, select, input:not([type='checkbox']):not([type='radio']) { min-height: 44px; }
+  .btn-sm { min-height: 40px; padding-inline: 12px; }
+  .btn-icon, .btn-icon.btn-sm { width: 44px; min-width: 44px; }
+  .suite-btn { min-height: 44px; height: 44px; }
+  .suite-btn-icon { width: 44px; }
+  .user-chip { height: 44px; min-width: 44px; justify-content: center; }
+  .nav-item { min-height: 44px; }
+  .mode-switch { padding: 0; }
+  .mode-switch a { height: 44px; min-width: 44px; justify-content: center; }
+  .suite-brand { min-height: 44px; }
+  .btn-link { min-height: 44px; }
 }
 
 /* ─── 22. Print ─────────────────────────────────────────────────────── */

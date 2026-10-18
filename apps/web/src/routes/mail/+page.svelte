@@ -340,7 +340,7 @@
     </div>
   {:else}
     <section class="message-list card" aria-label={`${folderLabel} messages`}>
-      <div class="bulk-bar" aria-busy={Boolean(busyAction)}>
+      <div class="bulk-bar" class:has-selection={selectedCount > 0} aria-busy={Boolean(busyAction)}>
         <label class="select-all">
           <input
             type="checkbox"
@@ -624,7 +624,7 @@
   .indicator.importance-high,
   .indicator.importance-low { align-items:center; justify-content:center; width:15px; height:15px; font-size:15px; font-weight:800; line-height:1; }
   .indicator.importance-high { color:var(--danger); }
-  .indicator.importance-low { color:var(--primary); }
+  .indicator.importance-low { color:var(--primary-text); }
   .indicator.starred { color: var(--warning); }
   .indicator svg {
     width: 15px;
@@ -674,6 +674,10 @@
       overflow-x: auto;
       scrollbar-width: thin;
     }
+    /* Phones: the actions appear once something is selected, rather than a
+       row of disabled buttons above every list. */
+    .bulk-bar:not(.has-selection) .bulk-commands { display: none; }
+    .bulk-bar:not(.has-selection) { min-height: 0; padding-block: 2px; }
     .mail-row-link,
     .mail-row-link.with-mailbox {
       grid-template-columns: minmax(0, 1fr) auto;

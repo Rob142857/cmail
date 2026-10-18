@@ -95,7 +95,7 @@
   }
   .welcome-accent { height: 6px; background: var(--primary); }
   .welcome-body { padding: clamp(22px, 5vw, 38px); }
-  .eyebrow { margin: 0 0 5px; color: var(--primary); font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+  .eyebrow { margin: 0 0 5px; color: var(--primary-text); font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
   h2 { margin: 0; font-size: clamp(24px, 5vw, 32px); }
   .welcome-copy { margin: 10px 0 0; color: var(--text-muted); line-height: 1.6; }
   .welcome-steps { display: grid; gap: 13px; margin: 24px 0; padding: 0; list-style: none; }
@@ -108,7 +108,7 @@
     height: 30px;
     border-radius: 50%;
     background: var(--primary-soft);
-    color: var(--primary);
+    color: var(--primary-text);
     font-size: 12px;
     font-weight: 750;
   }

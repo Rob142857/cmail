@@ -214,7 +214,7 @@
     letter-spacing: 0;
   }
   .toolbar button:hover:not(:disabled) { border-color: var(--border); background: var(--bg-hover); }
-  .toolbar button[aria-pressed='true'] { border-color: var(--primary-border); background: var(--primary-soft, var(--bg-hover)); color: var(--primary); }
+  .toolbar button[aria-pressed='true'] { border-color: var(--primary-border); background: var(--primary-soft, var(--bg-hover)); color: var(--primary-text); }
   .toolbar-divider { width: 1px; height: 20px; margin: 0 3px; background: var(--border); }
   /* Email paper, like the signature editor: recipients read on white, so the
      writing surface stays white in dark mode too. */
@@ -246,5 +246,9 @@
 
   @media (max-width: 768px) {
     .host :global(.rich-text-surface) { min-height: 200px; max-height: none; }
+  }
+  @media (pointer: coarse), (max-width: 860px) {
+    .toolbar { gap: 2px; padding: 2px 4px; }
+    .toolbar button { min-width: 44px; min-height: 44px; padding: 3px 10px; font-size: 14px; }
   }
 </style>

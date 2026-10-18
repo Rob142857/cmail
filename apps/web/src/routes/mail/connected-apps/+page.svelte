@@ -116,7 +116,7 @@
   .notice-error { border: 1px solid var(--danger-border); background: var(--danger-soft); color: var(--danger-text); }
   .notice-success { border: 1px solid var(--success-border); background: var(--success-soft); color: var(--success-text); }
   .callout { display: flex; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-subtle); font-size: 13px; }
-  .callout :global(svg) { flex: 0 0 auto; margin-top: 2px; color: var(--primary); }
+  .callout :global(svg) { flex: 0 0 auto; margin-top: 2px; color: var(--primary-text); }
   .callout p { margin: 0; }
   .callout code { display: inline-block; margin-top: 6px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface); font-size: 12.5px; overflow-wrap: anywhere; user-select: all; }
   .empty { display: grid; justify-items: center; gap: 6px; padding: 32px 20px; text-align: center; }

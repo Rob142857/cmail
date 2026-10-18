@@ -69,7 +69,7 @@
   .help-header nav { display: flex; justify-content: center; gap: 3px; overflow-x: auto; scrollbar-width: thin; }
   .help-header nav a { padding: 8px 10px; border-radius: var(--radius); color: var(--text-muted); font-size: 12px; font-weight: 550; text-decoration: none; white-space: nowrap; }
   .help-header nav a:hover { background: var(--bg-hover); color: var(--text); }
-  .help-header nav a.active { background: var(--primary-soft); color: var(--primary); }
+  .help-header nav a.active { background: var(--primary-soft); color: var(--primary-text); }
   .return-link { font-size: 12px; }
   .help-content { width: min(100% - 40px, 920px); flex: 1; margin: 0 auto; padding: 44px 0 64px; }
   .help-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; padding: 22px max(20px, calc((100vw - 1240px) / 2)); border-top: 1px solid var(--border); color: var(--text-muted); font-size: 11px; }

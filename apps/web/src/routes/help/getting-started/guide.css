@@ -1,6 +1,6 @@
 :global(.guide) { display: grid; gap: 30px; }
 :global(.guide > header) { max-width: 760px; }
-:global(.guide .eyebrow) { margin: 0 0 6px; color: var(--primary); font-size: 11px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
+:global(.guide .eyebrow) { margin: 0 0 6px; color: var(--primary-text); font-size: 11px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
 :global(.guide h1) { margin: 0; font-size: clamp(30px, 6vw, 44px); letter-spacing: -.035em; }
 :global(.guide > header > p:last-child) { margin-top: 12px; color: var(--text-muted); font-size: 17px; line-height: 1.65; }
 :global(.guide section) { scroll-margin-top: 92px; padding-top: 27px; border-top: 1px solid var(--border); }

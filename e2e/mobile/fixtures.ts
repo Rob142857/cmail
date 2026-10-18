@@ -114,9 +114,31 @@ export async function open(page: Page, path: string): Promise<void> {
   await page.waitForLoadState('networkidle');
 }
 
-/** Width the document overflows the viewport by (sideways scroll), in px. */
+/**
+ * How far content reaches past the right edge of the screen, in px: the
+ * document's sideways scroll, or any element sticking out (cmail's shell
+ * clips overflow, which would otherwise hide a too-wide header or list).
+ * Content inside its own sideways scroller (tables, toolbars) is fine.
+ */
 export async function horizontalOverflow(page: Page): Promise<number> {
-  return page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  return page.evaluate(() => {
+    const width = document.documentElement.clientWidth;
+    let worst = document.documentElement.scrollWidth - width;
+    for (const element of document.querySelectorAll('body *')) {
+      const rect = element.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+      if (element.closest('[inert], .sr-only') || getComputedStyle(element).position === 'fixed') continue;
+      let scroller = element.parentElement;
+      let insideScroller = false;
+      while (scroller && scroller !== document.body) {
+        const overflowX = getComputedStyle(scroller).overflowX;
+        if ((overflowX === 'auto' || overflowX === 'scroll') && scroller.getBoundingClientRect().right <= width + 1) { insideScroller = true; break; }
+        scroller = scroller.parentElement;
+      }
+      if (!insideScroller) worst = Math.max(worst, Math.round(rect.right - width));
+    }
+    return worst;
+  });
 }
 
 /**

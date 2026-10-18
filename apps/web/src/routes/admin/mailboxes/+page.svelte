@@ -599,7 +599,7 @@
   .page-header { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
   .page-header h1 { margin: 2px 0 6px; font-size: clamp(25px, 3vw, 34px); }
   .page-header p:not(.eyebrow) { max-width: 720px; color: var(--text-muted); }
-  .eyebrow { margin: 0; color: var(--primary); font-size: 10px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
+  .eyebrow { margin: 0; color: var(--primary-text); font-size: 10px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
 
   .notice { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); }
   .notice span { color: var(--text-muted); font-size: 13px; }
@@ -617,7 +617,7 @@
   .panel-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding-right: 84px; }
   .panel-heading h2 { margin: 0; font-size: 19px; }
   .panel-heading p { margin-top: 4px; max-width: 760px; color: var(--text-muted); font-size: 13px; }
-  .step-label { padding: 3px 7px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+  .step-label { padding: 3px 7px; border-radius: 999px; background: var(--primary-soft); color: var(--primary-text); font-size: 10px; font-weight: 700; text-transform: uppercase; }
 
   .create-form { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 14px; align-items: start; }
   .field { display: grid; gap: 5px; min-width: 0; }
@@ -696,13 +696,13 @@
 
   .delegation-pane { display: grid; align-content: start; gap: 13px; }
   .add-delegation { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface); }
-  .add-delegation > summary { padding: 9px 11px; cursor: pointer; color: var(--primary); font-size: 12px; font-weight: 700; }
+  .add-delegation > summary { padding: 9px 11px; cursor: pointer; color: var(--primary-text); font-size: 12px; font-weight: 700; }
   .delegation-form { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(135px, .45fr) auto; gap: 10px; align-items: end; padding: 0 11px 11px; }
   .assignment-list { display: grid; gap: 0; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); list-style: none; overflow: hidden; background: var(--bg-surface); }
   .assignment-list li { display: grid; grid-template-columns: minmax(190px, 1fr) auto minmax(220px, auto) auto; gap: 10px; align-items: center; padding: 10px; border-bottom: 1px solid var(--border); }
   .assignment-list li:last-child { border-bottom: 0; }
   .principal { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; align-items: center; min-width: 0; }
-  .principal-mark { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; border-radius: 50%; background: var(--primary-soft); color: var(--primary); font-size: 11px; font-weight: 750; }
+  .principal-mark { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; border-radius: 50%; background: var(--primary-soft); color: var(--primary-text); font-size: 11px; font-weight: 750; }
   .principal > span:last-child { display: flex; min-width: 0; flex-direction: column; }
   .principal strong, .principal small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .principal strong { font-size: 12px; }

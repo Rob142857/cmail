@@ -90,7 +90,7 @@
   .header-links { display: flex; align-items: center; gap: 14px; font-size: 13px; }
   .directory-content { flex: 1; padding: 64px 0 70px; }
   .heading { max-width: 720px; }
-  .eyebrow { margin: 0; color: var(--primary); font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+  .eyebrow { margin: 0; color: var(--primary-text); font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
   h1 { margin: 5px 0 10px; font-size: clamp(30px, 5vw, 48px); }
   .heading > p:last-child { color: var(--text-muted); font-size: 16px; }
   .directory-tools { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 34px 0 16px; }
@@ -99,7 +99,7 @@
   .directory-tools > p { color: var(--text-muted); font-size: 13px; white-space: nowrap; }
   .directory-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
   .directory-grid li { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 13px; padding: 18px; }
-  .avatar { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: var(--primary-soft); color: var(--primary); font-weight: 750; }
+  .avatar { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: var(--primary-soft); color: var(--primary-text); font-weight: 750; }
   .directory-grid h2 { margin: 0; font-size: 16px; }
   .directory-grid p { margin: 2px 0 5px; color: var(--text-muted); font-size: 13px; }
   .directory-grid a { overflow-wrap: anywhere; font-size: 13px; }

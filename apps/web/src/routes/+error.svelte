@@ -44,7 +44,7 @@
     padding: 24px;
   }
   .error-card { width: min(100%, 520px); padding: 32px; text-align: center; }
-  .status-code { margin: 0 0 8px; color: var(--primary); font-size: 13px; font-weight: 750; letter-spacing: .1em; }
+  .status-code { margin: 0 0 8px; color: var(--primary-text); font-size: 13px; font-weight: 750; letter-spacing: .1em; }
   h1 { margin: 0; font-size: clamp(24px, 5vw, 34px); }
   h1 + p { margin: 12px auto 0; max-width: 430px; color: var(--text-muted); }
   .reference { margin-top: 14px; color: var(--text-muted); font-size: 12px; }

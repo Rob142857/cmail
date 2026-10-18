@@ -149,7 +149,7 @@
   .brand-logo { display: block; width: min(180px, 100%); height: auto; margin: 0 auto 18px; object-fit: contain; }
   h1 { margin: 0 0 8px; font-size: 21px; line-height: 1.3; overflow-wrap: anywhere; }
   .client-name { color: var(--primary-text, var(--primary)); }
-  .eyebrow { margin: 0 0 4px; color: var(--primary); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .eyebrow { margin: 0 0 4px; color: var(--primary-text); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
   .lead { margin: 0 0 18px; color: var(--text-muted); }
   .client-facts { display: grid; gap: 6px; margin: 14px 0 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-subtle); font-size: 13px; }
   .client-facts div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; }
