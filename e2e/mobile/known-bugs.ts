@@ -7,10 +7,8 @@
  * delete the entry in the same commit.
  */
 export const KNOWN_BUGS: Record<string, { projects: 'all' | string[]; todo: string }> = {
-  'a11y.spec.ts › keyboard › skip link comes first and every stop shows a focus ring':
-    { projects: ['desktop-chrome'], todo: 'TODO(a11y): header search field shows no focus ring when tabbed to.' },
-  'message.spec.ts › on a phone › message actions fit on one row above the subject':
-    { projects: ['pixel-7', 'galaxy-s24', 'iphone-14'], todo: 'TODO(reading): eight full-text buttons wrap into two or three rows above the subject on phones; use an icon toolbar with a More menu.' },
-  'message.spec.ts › wide HTML mail fits the screen instead of being cut off':
-    { projects: ['pixel-7', 'galaxy-s24', 'iphone-14'], todo: 'TODO(reading): 600px newsletter tables are cut off on the right with no way to scroll; scale the frame content to fit.' },
+  'message.spec.ts › sender text stays readable when its background colour is removed':
+    { projects: 'all', todo: 'TODO(reading, sanitizer): the reading sanitizer drops background colours but keeps text colours, so white-on-colour headers become white on white. Drop or neutralise a light text colour whenever its background is removed (needs a security review; packages/shared sanitize).' },
+  'compose.spec.ts › recipients become removable chips':
+    { projects: 'all', todo: 'TODO(compose): To/Cc/Bcc are comma-separated text; turn confirmed addresses into chips with a remove button (L: EmailAutocomplete rework).' },
 };

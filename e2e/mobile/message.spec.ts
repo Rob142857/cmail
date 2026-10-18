@@ -18,13 +18,13 @@ test('wide HTML mail fits the screen instead of being cut off', async ({ page })
   const frame = page.locator('iframe[title="Email content"]');
   await expect(frame).toBeVisible();
   await page.waitForTimeout(400);
-  const clipped = await frame.evaluate((element) => {
+  // Content wider than the frame would be cut off: auto-sized frames don't scroll.
+  await expect.poll(() => frame.evaluate((element) => {
     const doc = (element as HTMLIFrameElement).contentDocument!;
-    const root = doc.documentElement;
-    const scale = Number(doc.body.style.zoom || 1);
-    return Math.round(root.scrollWidth * scale - (element as HTMLIFrameElement).clientWidth);
-  });
-  expect(clipped).toBeLessThanOrEqual(2);
+    return Math.round(doc.documentElement.scrollWidth - (element as HTMLIFrameElement).clientWidth);
+  })).toBeLessThanOrEqual(2);
+  // ...and the whole newsletter is still there to read.
+  await expect(page.frameLocator('iframe[title="Email content"]').getByText('RSVP for Saturday')).toBeVisible();
 });
 
 test('plain message shows sender, recipients and the body', async ({ page }) => {
@@ -55,4 +55,14 @@ test.describe('on a phone', () => {
     const small = await smallTapTargets(page, '[aria-label="Message actions"] a, [aria-label="Message actions"] button');
     expect(small, small.join('\n')).toEqual([]);
   });
+});
+
+test('sender text stays readable when its background colour is removed', async ({ page }) => {
+  await open(page, '/mail/msg-newsletter');
+  const heading = page.frameLocator('iframe[title="Email content"]').getByRole('heading', { name: 'Banksia Heads Landcare' });
+  await expect(heading).toBeVisible();
+  // The newsletter sets white text on a green cell; the reader drops the
+  // background, so the text must not stay white on the white page.
+  const colour = await heading.evaluate((element) => getComputedStyle(element).color);
+  expect(colour).not.toBe('rgb(255, 255, 255)');
 });

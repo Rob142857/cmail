@@ -35,10 +35,36 @@
   let measuredHeight = $state(0);
   let timers = [];
 
+  /**
+   * Newsletters are often laid out at a fixed 600px or more. On a phone the
+   * frame is narrower and auto-sized frames don't scroll sideways, so the
+   * right-hand side was simply cut off. Shrink the content to fit, as mail
+   * apps do. Only the frame's own presentation changes: no script runs in
+   * the frame and its CSP and sandbox are untouched.
+   * @param {Document} doc
+   */
+  function fitWidth(doc) {
+    const body = doc.body;
+    if (!body || !frameEl) return;
+    body.style.zoom = '';
+    const available = frameEl.clientWidth;
+    if (available <= 0) return;
+    // The frame's own padding doesn't scale, so settle in a few passes.
+    let zoom = 1;
+    for (let pass = 0; pass < 4; pass += 1) {
+      const needed = doc.documentElement.scrollWidth;
+      if (needed <= available + 1) break;
+      zoom = Math.max(0.4, Math.floor(zoom * ((available - 2) / needed) * 1000) / 1000);
+      body.style.zoom = String(zoom);
+      if (zoom === 0.4) break;
+    }
+  }
+
   function measure() {
     if (!frameEl || compact) return;
     try {
       const doc = frameEl.contentDocument;
+      if (doc) fitWidth(doc);
       const h = Math.max(doc?.documentElement?.scrollHeight || 0, doc?.body?.scrollHeight || 0);
       if (h > 0) measuredHeight = h;
     } catch {
