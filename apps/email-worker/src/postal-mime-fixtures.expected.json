@@ -1,0 +1,1292 @@
+{
+  "plainText": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "Alice Example <alice@example.test>"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "bob@example.test"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "Plain hello"
+      },
+      {
+        "key": "message-id",
+        "originalKey": "Message-ID",
+        "value": "<plain-1@example.test>"
+      },
+      {
+        "key": "date",
+        "originalKey": "Date",
+        "value": "Wed, 21 Oct 2026 09:00:00 +1100"
+      },
+      {
+        "key": "mime-version",
+        "originalKey": "MIME-Version",
+        "value": "1.0"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "text/plain; charset=utf-8"
+      }
+    ],
+    "from": {
+      "address": "alice@example.test",
+      "name": "Alice Example"
+    },
+    "to": [
+      {
+        "address": "bob@example.test",
+        "name": ""
+      }
+    ],
+    "subject": "Plain hello",
+    "messageId": "<plain-1@example.test>",
+    "date": "2026-10-20T22:00:00.000Z",
+    "text": "Hello Bob,\nSecond line.\n",
+    "attachments": [],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: Alice Example <alice@example.test>"
+      },
+      {
+        "key": "to",
+        "line": "To: bob@example.test"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: Plain hello"
+      },
+      {
+        "key": "message-id",
+        "line": "Message-ID: <plain-1@example.test>"
+      },
+      {
+        "key": "date",
+        "line": "Date: Wed, 21 Oct 2026 09:00:00 +1100"
+      },
+      {
+        "key": "mime-version",
+        "line": "MIME-Version: 1.0"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: text/plain; charset=utf-8"
+      }
+    ]
+  },
+  "rfc2047Headers": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "=?UTF-8?B?Sm9zw6kgR2FyY8OtYQ==?= <jose@example.test>"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "=?UTF-8?Q?Zo=C3=AB_Smith?= <zoe@example.test>, \"Plain, Quoted\" <pq@example.test>"
+      },
+      {
+        "key": "cc",
+        "originalKey": "Cc",
+        "value": "=?ISO-8859-1?Q?Andr=E9?= <andre@example.test>"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "=?UTF-8?B?w4BuIGVuY29kZWQgc3ViamVjdCDinJM=?="
+      },
+      {
+        "key": "mime-version",
+        "originalKey": "MIME-Version",
+        "value": "1.0"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "text/plain; charset=utf-8"
+      }
+    ],
+    "from": {
+      "address": "jose@example.test",
+      "name": "José García"
+    },
+    "to": [
+      {
+        "address": "zoe@example.test",
+        "name": "Zoë Smith"
+      },
+      {
+        "address": "pq@example.test",
+        "name": "Plain, Quoted"
+      }
+    ],
+    "cc": [
+      {
+        "address": "andre@example.test",
+        "name": "André"
+      }
+    ],
+    "subject": "Àn encoded subject ✓",
+    "text": "body\n",
+    "attachments": [],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: =?UTF-8?B?Sm9zw6kgR2FyY8OtYQ==?= <jose@example.test>"
+      },
+      {
+        "key": "to",
+        "line": "To: =?UTF-8?Q?Zo=C3=AB_Smith?= <zoe@example.test>, \"Plain, Quoted\" <pq@example.test>"
+      },
+      {
+        "key": "cc",
+        "line": "Cc: =?ISO-8859-1?Q?Andr=E9?= <andre@example.test>"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: =?UTF-8?B?w4BuIGVuY29kZWQgc3ViamVjdCDinJM=?="
+      },
+      {
+        "key": "mime-version",
+        "line": "MIME-Version: 1.0"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: text/plain; charset=utf-8"
+      }
+    ]
+  },
+  "addressGroups": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "sender@example.test"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "Team: a@example.test, \"B Person\" <b@example.test>;, solo@example.test"
+      },
+      {
+        "key": "cc",
+        "originalKey": "Cc",
+        "value": "Empty Group:;"
+      },
+      {
+        "key": "reply-to",
+        "originalKey": "Reply-To",
+        "value": "Replies <replies@example.test>"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "groups"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "text/plain"
+      }
+    ],
+    "from": {
+      "address": "sender@example.test",
+      "name": ""
+    },
+    "to": [
+      {
+        "name": "Team",
+        "group": [
+          {
+            "address": "a@example.test",
+            "name": ""
+          },
+          {
+            "address": "b@example.test",
+            "name": "B Person"
+          }
+        ]
+      },
+      {
+        "address": "solo@example.test",
+        "name": ""
+      }
+    ],
+    "cc": [
+      {
+        "name": "Empty Group",
+        "group": []
+      }
+    ],
+    "replyTo": [
+      {
+        "address": "replies@example.test",
+        "name": "Replies"
+      }
+    ],
+    "subject": "groups",
+    "text": "group body\n",
+    "attachments": [],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: sender@example.test"
+      },
+      {
+        "key": "to",
+        "line": "To: Team: a@example.test, \"B Person\" <b@example.test>;, solo@example.test"
+      },
+      {
+        "key": "cc",
+        "line": "Cc: Empty Group:;"
+      },
+      {
+        "key": "reply-to",
+        "line": "Reply-To: Replies <replies@example.test>"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: groups"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: text/plain"
+      }
+    ]
+  },
+  "duplicateAndFoldedHeaders": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "First <first@example.test>"
+      },
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "Second <second@example.test>"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "first subject that is long enough to be folded over two lines"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "second subject"
+      },
+      {
+        "key": "in-reply-to",
+        "originalKey": "In-Reply-To",
+        "value": "<parent@example.test>"
+      },
+      {
+        "key": "references",
+        "originalKey": "References",
+        "value": "<root@example.test> <parent@example.test>"
+      },
+      {
+        "key": "importance",
+        "originalKey": "Importance",
+        "value": "high"
+      },
+      {
+        "key": "x-priority",
+        "originalKey": "X-Priority",
+        "value": "1"
+      },
+      {
+        "key": "x-custom",
+        "originalKey": "X-Custom",
+        "value": "one"
+      },
+      {
+        "key": "x-custom",
+        "originalKey": "X-Custom",
+        "value": "two"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "One <one@example.test>,  Two <two@example.test>"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "text/plain; charset=us-ascii"
+      }
+    ],
+    "from": {
+      "address": "first@example.test",
+      "name": "First"
+    },
+    "to": [
+      {
+        "address": "one@example.test",
+        "name": "One"
+      },
+      {
+        "address": "two@example.test",
+        "name": "Two"
+      }
+    ],
+    "subject": "first subject that is long enough to be folded over two lines",
+    "inReplyTo": "<parent@example.test>",
+    "references": "<root@example.test> <parent@example.test>",
+    "text": "body\n",
+    "attachments": [],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: First <first@example.test>"
+      },
+      {
+        "key": "from",
+        "line": "From: Second <second@example.test>"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: first subject that is long enough to be\n folded over two lines"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: second subject"
+      },
+      {
+        "key": "in-reply-to",
+        "line": "In-Reply-To: <parent@example.test>"
+      },
+      {
+        "key": "references",
+        "line": "References: <root@example.test>\n <parent@example.test>"
+      },
+      {
+        "key": "importance",
+        "line": "Importance: high"
+      },
+      {
+        "key": "x-priority",
+        "line": "X-Priority: 1"
+      },
+      {
+        "key": "x-custom",
+        "line": "X-Custom: one"
+      },
+      {
+        "key": "x-custom",
+        "line": "X-Custom: two"
+      },
+      {
+        "key": "to",
+        "line": "To: One <one@example.test>,\n  Two <two@example.test>"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: text/plain; charset=us-ascii"
+      }
+    ]
+  },
+  "alternativeQuotedPrintable": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "qp@example.test"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "reader@example.test"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "qp alternative"
+      },
+      {
+        "key": "mime-version",
+        "originalKey": "MIME-Version",
+        "value": "1.0"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "multipart/alternative; boundary=\"alt\""
+      }
+    ],
+    "from": {
+      "address": "qp@example.test",
+      "name": ""
+    },
+    "to": [
+      {
+        "address": "reader@example.test",
+        "name": ""
+      }
+    ],
+    "subject": "qp alternative",
+    "html": "<p>Café <b>au lait</b></p>\n",
+    "text": "Café au lait — long line that is soft wrapped by the encoder so it joins back up\n",
+    "attachments": [],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: qp@example.test"
+      },
+      {
+        "key": "to",
+        "line": "To: reader@example.test"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: qp alternative"
+      },
+      {
+        "key": "mime-version",
+        "line": "MIME-Version: 1.0"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: multipart/alternative; boundary=\"alt\""
+      }
+    ]
+  },
+  "latin1Windows1252": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "legacy@example.test"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "reader@example.test"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "legacy charset"
+      },
+      {
+        "key": "mime-version",
+        "originalKey": "MIME-Version",
+        "value": "1.0"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "multipart/alternative; boundary=\"b\""
+      }
+    ],
+    "from": {
+      "address": "legacy@example.test",
+      "name": ""
+    },
+    "to": [
+      {
+        "address": "reader@example.test",
+        "name": ""
+      }
+    ],
+    "subject": "legacy charset",
+    "html": "<p>smart “quotes” and €</p>",
+    "text": "café naïve",
+    "attachments": [],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: legacy@example.test"
+      },
+      {
+        "key": "to",
+        "line": "To: reader@example.test"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: legacy charset"
+      },
+      {
+        "key": "mime-version",
+        "line": "MIME-Version: 1.0"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: multipart/alternative; boundary=\"b\""
+      }
+    ]
+  },
+  "base64Utf8Body": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "b64@example.test"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "reader@example.test"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "base64 body"
+      },
+      {
+        "key": "mime-version",
+        "originalKey": "MIME-Version",
+        "value": "1.0"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "text/plain; charset=utf-8"
+      },
+      {
+        "key": "content-transfer-encoding",
+        "originalKey": "Content-Transfer-Encoding",
+        "value": "base64"
+      }
+    ],
+    "from": {
+      "address": "b64@example.test",
+      "name": ""
+    },
+    "to": [
+      {
+        "address": "reader@example.test",
+        "name": ""
+      }
+    ],
+    "subject": "base64 body",
+    "text": "Grüße, 世界 🌏",
+    "attachments": [],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: b64@example.test"
+      },
+      {
+        "key": "to",
+        "line": "To: reader@example.test"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: base64 body"
+      },
+      {
+        "key": "mime-version",
+        "line": "MIME-Version: 1.0"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: text/plain; charset=utf-8"
+      },
+      {
+        "key": "content-transfer-encoding",
+        "line": "Content-Transfer-Encoding: base64"
+      }
+    ]
+  },
+  "attachmentsBinaryAndEncodedNames": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "files@example.test"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "reader@example.test"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "attachments"
+      },
+      {
+        "key": "mime-version",
+        "originalKey": "MIME-Version",
+        "value": "1.0"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "multipart/mixed; boundary=\"mix\""
+      }
+    ],
+    "from": {
+      "address": "files@example.test",
+      "name": ""
+    },
+    "to": [
+      {
+        "address": "reader@example.test",
+        "name": ""
+      }
+    ],
+    "subject": "attachments",
+    "text": "See attached.",
+    "attachments": [
+      {
+        "filename": "plain.bin",
+        "mimeType": "application/octet-stream",
+        "disposition": "attachment",
+        "content": {
+          "bytesBase64": "AAECA/8="
+        }
+      },
+      {
+        "filename": "résumé.pdf",
+        "mimeType": "application/pdf",
+        "disposition": "attachment",
+        "content": {
+          "bytesBase64": "JVBERi0xLjQK"
+        }
+      },
+      {
+        "filename": "data ✓.csv",
+        "mimeType": "text/csv",
+        "disposition": "attachment",
+        "content": {
+          "bytesBase64": "YSxiDQoxLDINCg=="
+        }
+      },
+      {
+        "filename": null,
+        "mimeType": "application/zip",
+        "disposition": "attachment",
+        "content": {
+          "bytesBase64": "UEsDBBQAAAAIAA=="
+        }
+      }
+    ],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: files@example.test"
+      },
+      {
+        "key": "to",
+        "line": "To: reader@example.test"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: attachments"
+      },
+      {
+        "key": "mime-version",
+        "line": "MIME-Version: 1.0"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: multipart/mixed; boundary=\"mix\""
+      }
+    ]
+  },
+  "inlineRelatedImage": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "inline@example.test"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "reader@example.test"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "inline image"
+      },
+      {
+        "key": "mime-version",
+        "originalKey": "MIME-Version",
+        "value": "1.0"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "multipart/related; boundary=\"rel\""
+      }
+    ],
+    "from": {
+      "address": "inline@example.test",
+      "name": ""
+    },
+    "to": [
+      {
+        "address": "reader@example.test",
+        "name": ""
+      }
+    ],
+    "subject": "inline image",
+    "html": "<p>logo: <img src=\"cid:logo@example.test\"></p>",
+    "attachments": [
+      {
+        "filename": "logo.png",
+        "mimeType": "image/png",
+        "disposition": "inline",
+        "related": true,
+        "contentId": "<logo@example.test>",
+        "content": {
+          "bytesBase64": "iVBORw0KGgo="
+        }
+      }
+    ],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: inline@example.test"
+      },
+      {
+        "key": "to",
+        "line": "To: reader@example.test"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: inline image"
+      },
+      {
+        "key": "mime-version",
+        "line": "MIME-Version: 1.0"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: multipart/related; boundary=\"rel\""
+      }
+    ]
+  },
+  "calendarInvite": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "organiser@example.test"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "guest@example.test"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "Invitation"
+      },
+      {
+        "key": "mime-version",
+        "originalKey": "MIME-Version",
+        "value": "1.0"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "multipart/alternative; boundary=\"cal\""
+      }
+    ],
+    "from": {
+      "address": "organiser@example.test",
+      "name": ""
+    },
+    "to": [
+      {
+        "address": "guest@example.test",
+        "name": ""
+      }
+    ],
+    "subject": "Invitation",
+    "text": "You are invited.",
+    "attachments": [
+      {
+        "filename": null,
+        "mimeType": "text/calendar",
+        "disposition": null,
+        "method": "REQUEST",
+        "content": {
+          "bytesBase64": "QkVHSU46VkNBTEVOREFSCk1FVEhPRDpSRVFVRVNUCkJFR0lOOlZFVkVOVApVSUQ6ZXZlbnQtMUBleGFtcGxlLnRlc3QKRFRTVEFSVDoyMDI2MTEwMVQwMDAwMDBaCkRURU5EOjIwMjYxMTAxVDAxMDAwMFoKU1VNTUFSWTpQbGFubmluZwpFTkQ6VkVWRU5UCkVORDpWQ0FMRU5EQVIK"
+        }
+      },
+      {
+        "filename": "invite.ics",
+        "mimeType": "application/ics",
+        "disposition": "attachment",
+        "content": {
+          "bytesBase64": "QkVHSU46VkNBTEVOREFSCkVORDpWQ0FMRU5EQVIK"
+        }
+      }
+    ],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: organiser@example.test"
+      },
+      {
+        "key": "to",
+        "line": "To: guest@example.test"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: Invitation"
+      },
+      {
+        "key": "mime-version",
+        "line": "MIME-Version: 1.0"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: multipart/alternative; boundary=\"cal\""
+      }
+    ]
+  },
+  "nestedRfc822": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "forwarder@example.test"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "reader@example.test"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "Fwd: inner"
+      },
+      {
+        "key": "mime-version",
+        "originalKey": "MIME-Version",
+        "value": "1.0"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "multipart/mixed; boundary=\"outer\""
+      }
+    ],
+    "from": {
+      "address": "forwarder@example.test",
+      "name": ""
+    },
+    "to": [
+      {
+        "address": "reader@example.test",
+        "name": ""
+      }
+    ],
+    "subject": "Fwd: inner",
+    "text": "Forwarded below.",
+    "attachments": [
+      {
+        "filename": "inner.eml",
+        "mimeType": "message/rfc822",
+        "disposition": "attachment",
+        "content": {
+          "bytesBase64": "RnJvbTogaW5uZXJAZXhhbXBsZS50ZXN0DQpUbzogc29tZW9uZUBleGFtcGxlLnRlc3QNClN1YmplY3Q6IGlubmVyIG1lc3NhZ2UNCkNvbnRlbnQtVHlwZTogdGV4dC9wbGFpbg0KDQppbm5lciBib2R5"
+        }
+      }
+    ],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: forwarder@example.test"
+      },
+      {
+        "key": "to",
+        "line": "To: reader@example.test"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: Fwd: inner"
+      },
+      {
+        "key": "mime-version",
+        "line": "MIME-Version: 1.0"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: multipart/mixed; boundary=\"outer\""
+      }
+    ]
+  },
+  "bareLfLineEndings": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "lf@example.test"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "reader@example.test"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "bare LF"
+      },
+      {
+        "key": "mime-version",
+        "originalKey": "MIME-Version",
+        "value": "1.0"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "multipart/alternative; boundary=\"lf\""
+      }
+    ],
+    "from": {
+      "address": "lf@example.test",
+      "name": ""
+    },
+    "to": [
+      {
+        "address": "reader@example.test",
+        "name": ""
+      }
+    ],
+    "subject": "bare LF",
+    "text": "only LF endings",
+    "attachments": [],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: lf@example.test"
+      },
+      {
+        "key": "to",
+        "line": "To: reader@example.test"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: bare LF"
+      },
+      {
+        "key": "mime-version",
+        "line": "MIME-Version: 1.0"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: multipart/alternative; boundary=\"lf\""
+      }
+    ]
+  },
+  "unterminatedMultipart": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "broken@example.test"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "reader@example.test"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "no closing boundary"
+      },
+      {
+        "key": "mime-version",
+        "originalKey": "MIME-Version",
+        "value": "1.0"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "multipart/mixed; boundary=\"open\""
+      }
+    ],
+    "from": {
+      "address": "broken@example.test",
+      "name": ""
+    },
+    "to": [
+      {
+        "address": "reader@example.test",
+        "name": ""
+      }
+    ],
+    "subject": "no closing boundary",
+    "text": "text before truncation",
+    "attachments": [
+      {
+        "filename": "cut.bin",
+        "mimeType": "application/octet-stream",
+        "disposition": "attachment",
+        "content": {
+          "bytesBase64": "AQID"
+        }
+      }
+    ],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: broken@example.test"
+      },
+      {
+        "key": "to",
+        "line": "To: reader@example.test"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: no closing boundary"
+      },
+      {
+        "key": "mime-version",
+        "line": "MIME-Version: 1.0"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: multipart/mixed; boundary=\"open\""
+      }
+    ]
+  },
+  "noHeadersBodyOnly": {
+    "headers": [],
+    "text": "body without any headers\n",
+    "attachments": [],
+    "headerLines": []
+  },
+  "malformedAddresses": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "\"Unclosed <broken@example.test"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "<>, not-an-address, \"A\" <a@example.test>, <b@example.test>"
+      },
+      {
+        "key": "cc",
+        "originalKey": "Cc",
+        "value": "a@example.test, a@example.test"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "malformed"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "text/plain"
+      }
+    ],
+    "from": {
+      "address": "\"Unclosed <broken\"@example.test",
+      "name": ""
+    },
+    "to": [
+      {
+        "address": "",
+        "name": ""
+      },
+      {
+        "address": "a@example.test",
+        "name": "not-an-address, A"
+      },
+      {
+        "address": "b@example.test",
+        "name": ""
+      }
+    ],
+    "cc": [
+      {
+        "address": "a@example.test",
+        "name": ""
+      },
+      {
+        "address": "a@example.test",
+        "name": ""
+      }
+    ],
+    "subject": "malformed",
+    "text": "x\n",
+    "attachments": [],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: \"Unclosed <broken@example.test"
+      },
+      {
+        "key": "to",
+        "line": "To: <>, not-an-address, \"A\" <a@example.test>, <b@example.test>"
+      },
+      {
+        "key": "cc",
+        "line": "Cc: a@example.test, a@example.test"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: malformed"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: text/plain"
+      }
+    ]
+  },
+  "unicodeBodyAndSubjectRaw": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "raw@example.test"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "Zoë <zoe@example.test>"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "Raw 8-bit subject ✓"
+      },
+      {
+        "key": "mime-version",
+        "originalKey": "MIME-Version",
+        "value": "1.0"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "text/plain; charset=utf-8"
+      },
+      {
+        "key": "content-transfer-encoding",
+        "originalKey": "Content-Transfer-Encoding",
+        "value": "8bit"
+      }
+    ],
+    "from": {
+      "address": "raw@example.test",
+      "name": ""
+    },
+    "to": [
+      {
+        "address": "zoe@example.test",
+        "name": "Zoë"
+      }
+    ],
+    "subject": "Raw 8-bit subject ✓",
+    "text": "Bonjour — café, 世界\n",
+    "attachments": [],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: raw@example.test"
+      },
+      {
+        "key": "to",
+        "line": "To: Zoë <zoe@example.test>"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: Raw 8-bit subject ✓"
+      },
+      {
+        "key": "mime-version",
+        "line": "MIME-Version: 1.0"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: text/plain; charset=utf-8"
+      },
+      {
+        "key": "content-transfer-encoding",
+        "line": "Content-Transfer-Encoding: 8bit"
+      }
+    ]
+  },
+  "htmlOnlyWithEntities": {
+    "headers": [
+      {
+        "key": "from",
+        "originalKey": "From",
+        "value": "html@example.test"
+      },
+      {
+        "key": "to",
+        "originalKey": "To",
+        "value": "reader@example.test"
+      },
+      {
+        "key": "subject",
+        "originalKey": "Subject",
+        "value": "html only"
+      },
+      {
+        "key": "mime-version",
+        "originalKey": "MIME-Version",
+        "value": "1.0"
+      },
+      {
+        "key": "content-type",
+        "originalKey": "Content-Type",
+        "value": "text/html; charset=utf-8"
+      }
+    ],
+    "from": {
+      "address": "html@example.test",
+      "name": ""
+    },
+    "to": [
+      {
+        "address": "reader@example.test",
+        "name": ""
+      }
+    ],
+    "subject": "html only",
+    "html": "<html><body><p>5 &lt; 6 &amp; 7 &gt; 3</p><a href=\"https://example.test/x?a=1&amp;b=2\">link</a></body></html>\n",
+    "attachments": [],
+    "headerLines": [
+      {
+        "key": "from",
+        "line": "From: html@example.test"
+      },
+      {
+        "key": "to",
+        "line": "To: reader@example.test"
+      },
+      {
+        "key": "subject",
+        "line": "Subject: html only"
+      },
+      {
+        "key": "mime-version",
+        "line": "MIME-Version: 1.0"
+      },
+      {
+        "key": "content-type",
+        "line": "Content-Type: text/html; charset=utf-8"
+      }
+    ]
+  }
+}
