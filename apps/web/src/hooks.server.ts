@@ -204,13 +204,17 @@ export const handle: Handle = async ({ event, resolve }) => {
   return response;
 };
 
-export const handleError: HandleServerError = ({ error, event }) => {
+export const handleError: HandleServerError = ({ kind, error, event }) => {
+  // SvelteKit 3 also sends errors thrown with error(status, message) here.
+  // Those are expected: returning nothing keeps their status and message, as
+  // SvelteKit 2 did by never calling this hook for them.
+  if (kind === 'app') return;
   const reference = crypto.randomUUID();
   console.error('Unhandled request error', {
     reference,
     method: event.request.method,
     path: event.url.pathname,
-    error: error instanceof Error ? error.message : String(error),
+    error: error instanceof Error ? error.message : kind === 'unknown' ? String(error) : error.message,
   });
   return { message: 'An unexpected error occurred', reference };
 };
