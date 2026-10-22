@@ -198,3 +198,29 @@ describe('central ICT policy gate', () => {
     },
   );
 });
+
+describe('Workers runtime platform (adapter-cloudflare 8)', () => {
+  it('fills event.platform from the runtime module when the adapter provides none', async () => {
+    const runtime = { env: { DB: {} as D1Database, STORAGE: {} as R2Bucket, SESSION_SECRET }, context: { waitUntil: vi.fn() } };
+    vi.resetModules();
+    vi.doMock('#lib/server/cloudflare-runtime.js', () => ({ runtimePlatform: () => runtime }));
+    const { handle: freshHandle } = await import('./hooks.server');
+
+    const requestUrl = new URL('/', 'https://mail.example.com');
+    const event: { url: URL; request: Request; locals: Record<string, unknown>; platform?: unknown } = {
+      url: requestUrl,
+      request: new Request(requestUrl),
+      locals: { user: null, sessionId: null },
+    };
+    await (freshHandle as any)({ event, resolve: vi.fn(async () => new Response('ok')) });
+    expect(event.platform).toBe(runtime);
+
+    vi.doUnmock('#lib/server/cloudflare-runtime.js');
+    vi.resetModules();
+  });
+
+  it('keeps a platform the caller already supplied', async () => {
+    const { response } = await invoke({ path: '/' });
+    expect(response.status).toBe(200);
+  });
+});

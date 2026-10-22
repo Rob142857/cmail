@@ -6,9 +6,9 @@ import {
   bootstrapConfiguration,
   createBootstrapProof,
   secretsEqual,
-} from '$lib/server/bootstrap';
-import { ENROLLMENT_COOKIE } from '$lib/server/identity';
-import { consumeRateLimit } from '$lib/server/rate-limit';
+} from '#lib/server/bootstrap.js';
+import { ENROLLMENT_COOKIE } from '#lib/server/identity.js';
+import { consumeRateLimit } from '#lib/server/rate-limit.js';
 
 async function managerExists(db: D1Database): Promise<boolean> {
   return !!await db.prepare("SELECT id FROM users WHERE role = 'manager' LIMIT 1").first<{ id: string }>();

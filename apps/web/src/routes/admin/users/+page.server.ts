@@ -1,15 +1,15 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import type { AuthProvider, Env, User, UserRole, UserStatus } from '@cmail/shared/types';
-import { audit, generateId } from '$lib/server/db';
-import { detectProvider, sendEmail } from '$lib/server/outbound';
-import { generateInviteEmail } from '$lib/server/invite-email';
-import { detectEmailProvider } from '$lib/server/email-provider';
-import { getEnabledProviders, getProviderConfig } from '$lib/server/auth';
-import { loadOrgSettings } from '$lib/server/org-settings';
-import { emailOtpEnabled, publicRuntimeConfig } from '$lib/server/config';
-import { issueEnrollmentToken } from '$lib/server/identity';
-import { offboardingCleanupStatements } from '$lib/server/offboarding';
+import { audit, generateId } from '#lib/server/db.js';
+import { detectProvider, sendEmail } from '#lib/server/outbound.js';
+import { generateInviteEmail } from '#lib/server/invite-email.js';
+import { detectEmailProvider } from '#lib/server/email-provider.js';
+import { getEnabledProviders, getProviderConfig } from '#lib/server/auth.js';
+import { loadOrgSettings } from '#lib/server/org-settings.js';
+import { emailOtpEnabled, publicRuntimeConfig } from '#lib/server/config.js';
+import { issueEnrollmentToken } from '#lib/server/identity.js';
+import { offboardingCleanupStatements } from '#lib/server/offboarding.js';
 import {
   boundedInteger,
   escapeLike,
@@ -18,7 +18,7 @@ import {
   normalizeEmail,
   normalizeMailboxLocalPart,
   textField,
-} from '$lib/server/validation';
+} from '#lib/server/validation.js';
 import { managerIdentityAllowed, managerInviteProviderAllowed } from './users-security';
 
 const PAGE_SIZE = 25;

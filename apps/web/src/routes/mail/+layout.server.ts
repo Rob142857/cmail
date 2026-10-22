@@ -1,10 +1,10 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import type { Mailbox } from '@cmail/shared/types';
-import { getEnabledProviders, isAuthProvider } from '$lib/server/auth';
-import { BOOTSTRAP_PROOF_COOKIE } from '$lib/server/bootstrap';
-import { ENROLLMENT_COOKIE } from '$lib/server/identity';
-import { PROVIDER_PREFERENCE_COOKIE } from '$lib/server/provider-preference';
+import { getEnabledProviders, isAuthProvider } from '#lib/server/auth.js';
+import { BOOTSTRAP_PROOF_COOKIE } from '#lib/server/bootstrap.js';
+import { ENROLLMENT_COOKIE } from '#lib/server/identity.js';
+import { PROVIDER_PREFERENCE_COOKIE } from '#lib/server/provider-preference.js';
 
 export const load: LayoutServerLoad = async ({ locals, platform, cookies, request, url, isDataRequest, setHeaders }) => {
   const env = platform?.env;

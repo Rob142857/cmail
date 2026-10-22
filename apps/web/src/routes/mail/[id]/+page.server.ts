@@ -2,9 +2,9 @@ import { redirect, error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import type { Message, Attachment } from '@cmail/shared/types';
 import { buildIcs, parseIcs } from '@cmail/shared/ics';
-import { sanitizeEmailHtmlWithLinkGuard, type RiskyLink } from '$lib/server/sanitize-email';
-import { resolveInlineImages } from '$lib/server/inline-images';
-import { replyAllAddsRecipients } from '$lib/server/reply-recipients';
+import { sanitizeEmailHtmlWithLinkGuard, type RiskyLink } from '#lib/server/sanitize-email.js';
+import { resolveInlineImages } from '#lib/server/inline-images.js';
+import { replyAllAddsRecipients } from '#lib/server/reply-recipients.js';
 import {
   isIcsAttachment,
   isRsvpPartstat,
@@ -13,12 +13,12 @@ import {
   rsvpSubject,
   type CalendarAttendeeRow,
   type CalendarEventRow,
-} from '$lib/server/calendar';
-import { audit, generateId } from '$lib/server/db';
-import { deriveReplyThreading } from '$lib/server/message-threading';
-import { sanitizeSenderDisplayName, sendEmail } from '$lib/server/outbound';
-import { consumeCalendarOutboundLimits } from '$lib/server/calendar-outbound';
-import { messageOwnershipPredicate } from '$lib/server/message-access';
+} from '#lib/server/calendar.js';
+import { audit, generateId } from '#lib/server/db.js';
+import { deriveReplyThreading } from '#lib/server/message-threading.js';
+import { sanitizeSenderDisplayName, sendEmail } from '#lib/server/outbound.js';
+import { consumeCalendarOutboundLimits } from '#lib/server/calendar-outbound.js';
+import { messageOwnershipPredicate } from '#lib/server/message-access.js';
 
 interface InviteViewModel {
   eventId: string | null;

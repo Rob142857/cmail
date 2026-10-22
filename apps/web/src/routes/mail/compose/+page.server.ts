@@ -5,7 +5,7 @@ import { sendNewMailNotifications } from '@cmail/shared/push';
 import { normalizeMessageImportance } from '@cmail/shared/message-importance';
 import { sanitizeParticipantName } from '@cmail/shared/message-participants';
 import { contactUpsertStatements } from '@cmail/shared/contacts';
-import { buildReplyRecipients } from '$lib/server/reply-recipients';
+import { buildReplyRecipients } from '#lib/server/reply-recipients.js';
 import {
   releaseMailboxStorageReservations,
   reserveMailboxStorage,
@@ -18,15 +18,15 @@ import {
   outboundRateLimitPerHour,
   outboundWorkLimitPerHour,
   publicRuntimeConfig,
-} from '$lib/server/config';
+} from '#lib/server/config.js';
 import {
   calculateComposeWorkload,
   draftStorageReservationBytes,
   MAX_DELIVERY_BYTES_PER_SEND,
   MAX_PERSISTED_BYTES_PER_SEND,
   MAX_PERSISTED_OBJECTS_PER_SEND,
-} from '$lib/server/compose-limits';
-import { audit, generateId, traceEmail } from '$lib/server/db';
+} from '#lib/server/compose-limits.js';
+import { audit, generateId, traceEmail } from '#lib/server/db.js';
 import {
   acceptInternalJournal,
   applyProviderResult,
@@ -47,7 +47,7 @@ import {
   releaseJournalReservations,
   stageJournalPayload,
   type OutboundJournalRow,
-} from '$lib/server/outbound-journal';
+} from '#lib/server/outbound-journal.js';
 import {
   getProviderInfo,
   preflightEmail,
@@ -56,16 +56,16 @@ import {
   supportsSeparatedEnvelope,
   type OutboundAttachment,
   type OutboundEmail,
-} from '$lib/server/outbound';
-import { consumeRateLimit } from '$lib/server/rate-limit';
-import { planRecipientDelivery } from '$lib/server/recipient-delivery';
+} from '#lib/server/outbound.js';
+import { consumeRateLimit } from '#lib/server/rate-limit.js';
+import { planRecipientDelivery } from '#lib/server/recipient-delivery.js';
 import {
   deriveReplyThreading,
   safeMessageId,
   safeReferences,
-} from '$lib/server/message-threading';
-import { sendIdempotencyKey } from '$lib/server/send-idempotency';
-import { normalizeDomain, normalizeEmail, parseRecipientList } from '$lib/server/validation';
+} from '#lib/server/message-threading.js';
+import { sendIdempotencyKey } from '#lib/server/send-idempotency.js';
+import { normalizeDomain, normalizeEmail, parseRecipientList } from '#lib/server/validation.js';
 import {
   buildQuotedMessageHtml,
   composeBodyFormat,
@@ -74,12 +74,12 @@ import {
   splitStoredComposeBody,
   type ComposeBodyFailureReason,
   type ComposeBodyFormat,
-} from '$lib/server/compose-body';
-import { formatQuoteDate } from '$lib/dates';
-import { appendSignatureToAuthoredHtml, getEffectiveSignature } from '$lib/server/signatures';
-import { getComposeDefaults } from '$lib/server/compose-preferences';
+} from '#lib/server/compose-body.js';
+import { formatQuoteDate } from '#lib/dates.js';
+import { appendSignatureToAuthoredHtml, getEffectiveSignature } from '#lib/server/signatures.js';
+import { getComposeDefaults } from '#lib/server/compose-preferences.js';
 import { wrapWithComposeDefaults } from '@cmail/shared/compose-style';
-import { messageOwnershipPredicate } from '$lib/server/message-access';
+import { messageOwnershipPredicate } from '#lib/server/message-access.js';
 
 const BLOCKED_EXTENSIONS = new Set([
   '.exe', '.bat', '.cmd', '.scr', '.js', '.vbs', '.ps1', '.msi',

@@ -1,15 +1,15 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { audit } from '$lib/server/db';
-import { hasSignedLatestPolicy } from '$lib/server/mcp/access';
-import { verifiedClientHost } from '$lib/server/mcp/clients';
+import { audit } from '#lib/server/db.js';
+import { hasSignedLatestPolicy } from '#lib/server/mcp/access.js';
+import { verifiedClientHost } from '#lib/server/mcp/clients.js';
 import {
   DEFAULT_CONSENT_SCOPES,
   SCOPE_DESCRIPTIONS,
   isMcpEnabled,
   mcpIssuer,
   mcpResource,
-} from '$lib/server/mcp/config';
+} from '#lib/server/mcp/config.js';
 import {
   AuthorizePageError,
   AuthorizeRedirectError,
@@ -19,10 +19,10 @@ import {
   loadAuthorizationRequest,
   storeAuthorizationRequest,
   validateAuthorizationRequest,
-} from '$lib/server/mcp/oauth';
-import { MCP_AUTHORIZE_COOKIE, MCP_RESUME_PATH, mcpAuthorizeCookieOptions } from '$lib/server/mcp/resume';
-import { redirectDisplay } from '$lib/server/mcp/redirect-uri';
-import { consumeRateLimit } from '$lib/server/rate-limit';
+} from '#lib/server/mcp/oauth.js';
+import { MCP_AUTHORIZE_COOKIE, MCP_RESUME_PATH, mcpAuthorizeCookieOptions } from '#lib/server/mcp/resume.js';
+import { redirectDisplay } from '#lib/server/mcp/redirect-uri.js';
+import { consumeRateLimit } from '#lib/server/rate-limit.js';
 
 type View =
   | { view: 'error'; message: string }
@@ -64,7 +64,8 @@ export const load: PageServerLoad = async ({ url, locals, platform, cookies, req
     try {
       validated = await validateAuthorizationRequest(env.DB, url.searchParams, issuer, resource);
     } catch (caught) {
-      if (caught instanceof AuthorizeRedirectError) throw redirect(303, caught.redirectTo);
+      // The target is the client's registered redirect_uri, validated by oauth.ts; kit 3 requires external redirects to be opted in.
+      if (caught instanceof AuthorizeRedirectError) throw redirect(303, caught.redirectTo, { external: true });
       if (caught instanceof AuthorizePageError) return { view: 'error', message: caught.message } satisfies View;
       throw caught;
     }

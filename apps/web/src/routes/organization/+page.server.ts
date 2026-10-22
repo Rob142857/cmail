@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
-import { loadOrgSettings } from '$lib/server/org-settings';
-import { loadPublicDirectory } from '$lib/server/public-directory';
+import { loadOrgSettings } from '#lib/server/org-settings.js';
+import { loadPublicDirectory } from '#lib/server/public-directory.js';
 
 export const load: PageServerLoad = async ({ platform }) => {
   const env = platform?.env;

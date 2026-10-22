@@ -1,15 +1,15 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { getOAuthCallbackUrl, getProviderConfig, isAuthProvider } from '$lib/server/auth';
-import { BOOTSTRAP_PROOF_COOKIE } from '$lib/server/bootstrap';
-import { emailOtpEnabled } from '$lib/server/config';
+import { getOAuthCallbackUrl, getProviderConfig, isAuthProvider } from '#lib/server/auth.js';
+import { BOOTSTRAP_PROOF_COOKIE } from '#lib/server/bootstrap.js';
+import { emailOtpEnabled } from '#lib/server/config.js';
 import {
   ENROLLMENT_COOKIE,
   ENROLLMENT_COOKIE_TTL_SECONDS,
   findEnrollment,
   validEnrollmentToken,
-} from '$lib/server/identity';
-import { consumeRateLimit } from '$lib/server/rate-limit';
+} from '#lib/server/identity.js';
+import { consumeRateLimit } from '#lib/server/rate-limit.js';
 
 type EnrollProvider = 'google' | 'microsoft' | 'email';
 

@@ -1,4 +1,4 @@
-import { escapeLike, normalizeDomain } from '$lib/server/validation';
+import { escapeLike, normalizeDomain } from '#lib/server/validation.js';
 
 export interface MailboxAssignee {
   userId: string;

@@ -1,8 +1,8 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { generateId } from '$lib/server/db';
-import { messageOwnershipPredicate } from '$lib/server/message-access';
-import { MOVE_SOURCES, isMoveFolder, type MoveFolder } from '$lib/server/message-moves';
+import { generateId } from '#lib/server/db.js';
+import { messageOwnershipPredicate } from '#lib/server/message-access.js';
+import { MOVE_SOURCES, isMoveFolder, type MoveFolder } from '#lib/server/message-moves.js';
 
 const MAX_IDS = 100;
 const MAX_BODY_BYTES = 16_384;

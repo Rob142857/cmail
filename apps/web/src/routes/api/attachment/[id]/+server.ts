@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { canRenderAttachmentInline } from '$lib/server/inline-images';
-import { messageOwnershipPredicate } from '$lib/server/message-access';
+import { canRenderAttachmentInline } from '#lib/server/inline-images.js';
+import { messageOwnershipPredicate } from '#lib/server/message-access.js';
 
 const SAFE_CONTENT_TYPE_RX = /^[\w.+/-]+(?:;\s*[\w.+/-]+=[\w.+/"-]+)*$/;
 

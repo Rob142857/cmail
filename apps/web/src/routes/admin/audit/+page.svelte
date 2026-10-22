@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { formatDateTime } from '$lib/dates';
-  import MessageBar from '$lib/ui/MessageBar.svelte';
+  import { formatDateTime } from '#lib/dates.js';
+  import MessageBar from '#lib/ui/MessageBar.svelte';
   let { data } = $props();
 
   function actorLabel(entry: typeof data.entries[number]): string {

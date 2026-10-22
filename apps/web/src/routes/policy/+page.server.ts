@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { audit, generateId } from '$lib/server/db';
-import { MCP_AUTHORIZE_COOKIE, mcpResumeLocation } from '$lib/server/mcp/resume';
+import { audit, generateId } from '#lib/server/db.js';
+import { MCP_AUTHORIZE_COOKIE, mcpResumeLocation } from '#lib/server/mcp/resume.js';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
   const env = platform?.env;

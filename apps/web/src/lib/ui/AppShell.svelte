@@ -15,7 +15,7 @@
   the toggle on close, and Escape closes search before navigation.
 -->
 <script>
-  import { browser } from '$app/environment';
+  import { browser } from '$app/env';
   import { afterNavigate, beforeNavigate } from '$app/navigation';
   import { onMount } from 'svelte';
   import Brand from './Brand.svelte';

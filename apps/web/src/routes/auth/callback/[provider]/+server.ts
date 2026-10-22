@@ -1,28 +1,28 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import type { User } from '@cmail/shared/types';
-import { exchangeCode, fetchUserInfo, getOAuthCallbackUrl, isAuthProvider } from '$lib/server/auth';
+import { exchangeCode, fetchUserInfo, getOAuthCallbackUrl, isAuthProvider } from '#lib/server/auth.js';
 import {
   BOOTSTRAP_PROOF_COOKIE,
   bootstrapConfiguration,
   provisionBootstrapManager,
   verifyBootstrapProof,
-} from '$lib/server/bootstrap';
+} from '#lib/server/bootstrap.js';
 import {
   ENROLLMENT_COOKIE,
   bindEnrolledIdentity,
   enrollmentFailure,
   findBoundUser,
   findEnrollment,
-} from '$lib/server/identity';
-import { loadOrgSettings } from '$lib/server/org-settings';
-import { buildSessionCookie, createSessionToken } from '$lib/server/session';
-import { assertStrongSessionSecret, maxSessionsPerUser, sessionTtlMs } from '$lib/server/config';
-import { recordTravelRequest, requestCountry, signInCountryGate } from '$lib/server/travel';
-import { normalizeDomain, normalizeEmail } from '$lib/server/validation';
-import { audit } from '$lib/server/db';
-import { providerPreferenceCookie } from '$lib/server/provider-preference';
-import { MCP_AUTHORIZE_COOKIE, mcpResumeLocation } from '$lib/server/mcp/resume';
+} from '#lib/server/identity.js';
+import { loadOrgSettings } from '#lib/server/org-settings.js';
+import { buildSessionCookie, createSessionToken } from '#lib/server/session.js';
+import { assertStrongSessionSecret, maxSessionsPerUser, sessionTtlMs } from '#lib/server/config.js';
+import { recordTravelRequest, requestCountry, signInCountryGate } from '#lib/server/travel.js';
+import { normalizeDomain, normalizeEmail } from '#lib/server/validation.js';
+import { audit } from '#lib/server/db.js';
+import { providerPreferenceCookie } from '#lib/server/provider-preference.js';
+import { MCP_AUTHORIZE_COOKIE, mcpResumeLocation } from '#lib/server/mcp/resume.js';
 
 async function denySignIn(
   db: D1Database,

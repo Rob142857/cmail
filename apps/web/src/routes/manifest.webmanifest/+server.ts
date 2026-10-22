@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
-import { publicRuntimeConfig } from '$lib/server/config';
-import { loadOrgSettings } from '$lib/server/org-settings';
+import { publicRuntimeConfig } from '#lib/server/config.js';
+import { loadOrgSettings } from '#lib/server/org-settings.js';
 
 export const GET: RequestHandler = async ({ platform }) => {
   const env = platform?.env;

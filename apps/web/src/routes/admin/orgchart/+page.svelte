@@ -94,10 +94,10 @@
     | { key: string; kind: 'role'; label: string; subtitle: string; meta: string; item: RoleDefinition }
     | { key: string; kind: 'position'; label: string; subtitle: string; meta: string; item: Position };
 
-  let { data, form } = $props<{
+  let { data, form }: {
     data: PageData;
     form?: { error?: string; success?: string } | null;
-  }>();
+  } = $props();
 
   const organization: OrganizationData = $derived(data.organization ?? data);
   const layers: Layer[] = $derived(organization.layers ?? []);

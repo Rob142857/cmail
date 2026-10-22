@@ -1,4 +1,4 @@
-import { normalizeDomain, normalizeEmail } from '$lib/server/validation';
+import { normalizeDomain, normalizeEmail } from '#lib/server/validation.js';
 
 export const SENDER_RULE_ACTIONS = ['allow', 'block'] as const;
 export type SenderRuleAction = (typeof SENDER_RULE_ACTIONS)[number];

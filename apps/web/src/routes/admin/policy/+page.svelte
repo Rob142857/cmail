@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { formatDateOnly } from '$lib/dates';
+  import { formatDateOnly } from '#lib/dates.js';
 
   let { data, form } = $props();
   const initialForm = untrack(() => {

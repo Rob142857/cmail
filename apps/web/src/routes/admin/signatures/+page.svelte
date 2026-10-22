@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Icon from '$lib/ui/Icon.svelte';
-  import SignatureEditor from '$lib/SignatureEditor.svelte';
+  import Icon from '#lib/ui/Icon.svelte';
+  import SignatureEditor from '#lib/SignatureEditor.svelte';
 
   let { data, form } = $props();
   let search = $state('');

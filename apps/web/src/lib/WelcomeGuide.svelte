@@ -6,12 +6,12 @@
     orgName = '',
     userId,
     isManager = false,
-  } = $props<{
+  }: {
     appName?: string;
     orgName?: string;
     userId: string;
     isManager?: boolean;
-  }>();
+  } = $props();
 
   let welcomeDialog: HTMLDialogElement | null = $state(null);
   const welcomeKey = $derived(`cmail:welcome:v1:${userId}`);

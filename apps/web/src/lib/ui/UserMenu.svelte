@@ -8,7 +8,7 @@
 <script>
   import Icon from './Icon.svelte';
   import Persona from './Persona.svelte';
-  import { submitSignOut } from '$lib/sign-out';
+  import { submitSignOut } from '#lib/sign-out.js';
 
   /**
    * @type {{

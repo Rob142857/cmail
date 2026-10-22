@@ -1,15 +1,15 @@
 <script>
   import { deserialize, enhance } from '$app/forms';
-  import { browser } from '$app/environment';
+  import { browser } from '$app/env';
   import { page } from '$app/state';
   import { afterNavigate, beforeNavigate, goto, replaceState } from '$app/navigation';
   import { onMount, untrack } from 'svelte';
-  import EmailAutocomplete from '$lib/EmailAutocomplete.svelte';
-  import Icon from '$lib/ui/Icon.svelte';
-  import { signaturePreviewDocument } from '$lib/signature-preview';
-  import EmailHtmlFrame from '$lib/mail/EmailHtmlFrame.svelte';
-  import RichTextEditor from '$lib/RichTextEditor.svelte';
-  import { plainTextToRichHtml, richDocToPlainText } from '$lib/rich-text';
+  import EmailAutocomplete from '#lib/EmailAutocomplete.svelte';
+  import Icon from '#lib/ui/Icon.svelte';
+  import { signaturePreviewDocument } from '#lib/signature-preview.js';
+  import EmailHtmlFrame from '#lib/mail/EmailHtmlFrame.svelte';
+  import RichTextEditor from '#lib/RichTextEditor.svelte';
+  import { plainTextToRichHtml, richDocToPlainText } from '#lib/rich-text.js';
   let { data, form } = $props();
 
   const FORMAT_PREFERENCE_KEY = 'cmail:compose-format';

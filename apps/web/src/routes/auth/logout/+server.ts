@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
-import { clearSessionCookie } from '$lib/server/session';
-import { audit } from '$lib/server/db';
-import { clearProviderPreferenceCookie } from '$lib/server/provider-preference';
+import { clearSessionCookie } from '#lib/server/session.js';
+import { audit } from '#lib/server/db.js';
+import { clearProviderPreferenceCookie } from '#lib/server/provider-preference.js';
 
 export const POST: RequestHandler = async ({ locals, platform, url }) => {
   const env = platform?.env;

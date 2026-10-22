@@ -4,7 +4,7 @@
 // owning its own queries, matching the rest of apps/web/src/routes/mail.
 
 import { escapeHtml } from './validation';
-import type { Partstat } from '$lib/calendar-format';
+import type { Partstat } from '#lib/calendar-format.js';
 
 export type { Partstat };
 export type EventStatus = 'confirmed' | 'cancelled';

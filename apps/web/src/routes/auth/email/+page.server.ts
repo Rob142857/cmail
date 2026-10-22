@@ -16,9 +16,9 @@ import {
   emailOtpEnabled,
   maxSessionsPerUser,
   otpSessionTtlMs,
-} from '$lib/server/config';
-import { audit } from '$lib/server/db';
-import { detectEmailProvider } from '$lib/server/email-provider';
+} from '#lib/server/config.js';
+import { audit } from '#lib/server/db.js';
+import { detectEmailProvider } from '#lib/server/email-provider.js';
 import {
   createOtpProof,
   generateOtpEmail,
@@ -28,28 +28,28 @@ import {
   verifyOtp,
   verifyOtpProof,
   type OtpPurpose,
-} from '$lib/server/email-otp';
+} from '#lib/server/email-otp.js';
 import {
   ENROLLMENT_COOKIE,
   bindEnrolledIdentity,
   findBoundUser,
   findEnrollment,
   type EnrollmentRecord,
-} from '$lib/server/identity';
-import { loadOrgSettings } from '$lib/server/org-settings';
-import { detectProvider, sendEmail } from '$lib/server/outbound';
-import { consumeRateLimit } from '$lib/server/rate-limit';
-import { SESSION_COOKIE, SESSION_COOKIE_MAX_AGE_SECONDS, createSessionToken } from '$lib/server/session';
+} from '#lib/server/identity.js';
+import { loadOrgSettings } from '#lib/server/org-settings.js';
+import { detectProvider, sendEmail } from '#lib/server/outbound.js';
+import { consumeRateLimit } from '#lib/server/rate-limit.js';
+import { SESSION_COOKIE, SESSION_COOKIE_MAX_AGE_SECONDS, createSessionToken } from '#lib/server/session.js';
 import {
   COUNTRY_PENDING_MESSAGE,
   countryAllowed,
   recordTravelRequest,
   requestCountry,
   signInCountryGate,
-} from '$lib/server/travel';
-import { turnstileEnabled, turnstileSiteKey, verifyTurnstile } from '$lib/server/turnstile';
-import { normalizeEmail } from '$lib/server/validation';
-import { MCP_AUTHORIZE_COOKIE, mcpResumeLocation } from '$lib/server/mcp/resume';
+} from '#lib/server/travel.js';
+import { turnstileEnabled, turnstileSiteKey, verifyTurnstile } from '#lib/server/turnstile.js';
+import { normalizeEmail } from '#lib/server/validation.js';
+import { MCP_AUTHORIZE_COOKIE, mcpResumeLocation } from '#lib/server/mcp/resume.js';
 
 const NEUTRAL_REQUEST_MESSAGE = 'If this address is registered for email sign-in, a code is on its way.';
 const NEUTRAL_VERIFY_MESSAGE = "That code didn't work or has expired.";

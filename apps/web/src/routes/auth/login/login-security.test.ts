@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { GET } from './[provider]/+server';
 
 const mocks = vi.hoisted(() => ({ consumeRateLimit: vi.fn() }));
-vi.mock('$lib/server/rate-limit', () => ({ consumeRateLimit: mocks.consumeRateLimit }));
+vi.mock('#lib/server/rate-limit.js', () => ({ consumeRateLimit: mocks.consumeRateLimit }));
 
 function loginEvent(provider = 'google', search = '?sso=1', cookieValues: Record<string, string> = {}) {
   const url = new URL(`https://mail.example.com/auth/login/${provider}${search}`);

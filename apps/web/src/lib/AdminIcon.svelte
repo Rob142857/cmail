@@ -1,7 +1,7 @@
 <script lang="ts">
   type IconName = 'home' | 'people' | 'mail' | 'org' | 'policy' | 'audit' | 'trace' | 'settings' | 'back' | 'menu';
 
-  let { name, size = 18 } = $props<{ name: IconName; size?: number }>();
+  let { name, size = 18 }: { name: IconName; size?: number } = $props();
 </script>
 
 <svg

@@ -8,14 +8,14 @@ import {
   MAX_EVENT_DESCRIPTION_LENGTH,
   MAX_EVENT_LOCATION_LENGTH,
   MAX_EVENT_TITLE_LENGTH,
-} from '$lib/server/calendar';
-import { audit, generateId } from '$lib/server/db';
-import { publicRuntimeConfig } from '$lib/server/config';
-import { formatEventRange } from '$lib/dates';
-import { zonedDateTimeToUtcIso } from '$lib/zoned-time';
-import { sanitizeSenderDisplayName, sendEmail } from '$lib/server/outbound';
-import { normalizeEmail, parseRecipientList } from '$lib/server/validation';
-import { consumeCalendarOutboundLimits } from '$lib/server/calendar-outbound';
+} from '#lib/server/calendar.js';
+import { audit, generateId } from '#lib/server/db.js';
+import { publicRuntimeConfig } from '#lib/server/config.js';
+import { formatEventRange } from '#lib/dates.js';
+import { zonedDateTimeToUtcIso } from '#lib/zoned-time.js';
+import { sanitizeSenderDisplayName, sendEmail } from '#lib/server/outbound.js';
+import { normalizeEmail, parseRecipientList } from '#lib/server/validation.js';
+import { consumeCalendarOutboundLimits } from '#lib/server/calendar-outbound.js';
 
 const DATE_RX = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RX = /^\d{2}:\d{2}$/;

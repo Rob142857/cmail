@@ -1,8 +1,9 @@
-import type { Handle, HandleServerError } from '@sveltejs/kit';
+import type { Handle, HandleServerError } from '@sveltejs/kit/hooks';
 import type { User } from '@cmail/shared/types';
-import { assertStrongSessionSecret, publicRuntimeConfig, sessionTtlMs } from '$lib/server/config';
-import { clearSessionCookie, getSessionTokenFromCookie, hashToken, shouldRenewSession, verifySessionToken } from '$lib/server/session';
-import { mcpMaintenanceStatements } from '$lib/server/mcp/maintenance';
+import { assertStrongSessionSecret, publicRuntimeConfig, sessionTtlMs } from '#lib/server/config.js';
+import { clearSessionCookie, getSessionTokenFromCookie, hashToken, shouldRenewSession, verifySessionToken } from '#lib/server/session.js';
+import { mcpMaintenanceStatements } from '#lib/server/mcp/maintenance.js';
+import { runtimePlatform } from '#lib/server/cloudflare-runtime.js';
 
 function appendVary(headers: Headers, value: string): void {
   const values = new Set(
@@ -71,6 +72,10 @@ function isAdminRequestPath(pathname: string): boolean {
 export const handle: Handle = async ({ event, resolve }) => {
   event.locals.user = null;
   event.locals.sessionId = null;
+  if (!event.platform) {
+    // adapter-cloudflare 8 no longer provides event.platform; RequestEvent types it read-only.
+    Object.defineProperty(event, 'platform', { value: runtimePlatform(), writable: true, configurable: true, enumerable: true });
+  }
 
   const env = event.platform?.env;
   const isHttps = event.url.protocol === 'https:';

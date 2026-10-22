@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { searchEligibleMailboxAssignees } from '$lib/server/mailbox-assignees';
-import { normalizeDomain } from '$lib/server/validation';
+import { searchEligibleMailboxAssignees } from '#lib/server/mailbox-assignees.js';
+import { normalizeDomain } from '#lib/server/validation.js';
 
 const PRIVATE_NO_STORE = { 'Cache-Control': 'private, no-store' };
 

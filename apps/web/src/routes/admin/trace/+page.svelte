@@ -1,7 +1,7 @@
 <script>
-  import { formatDateTime } from '$lib/dates';
+  import { formatDateTime } from '#lib/dates.js';
   import { tick } from 'svelte';
-  import MessageBar from '$lib/ui/MessageBar.svelte';
+  import MessageBar from '#lib/ui/MessageBar.svelte';
   let { data } = $props();
 
   /** @type {any} */

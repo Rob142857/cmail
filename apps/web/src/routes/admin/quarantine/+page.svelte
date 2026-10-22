@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { formatDateTime } from '$lib/dates';
-  import { quarantineReasonPhrase } from '$lib/quarantine-reason';
+  import { formatDateTime } from '#lib/dates.js';
+  import { quarantineReasonPhrase } from '#lib/quarantine-reason.js';
 
   let { data, form } = $props();
   let newRuleAction = $state<'allow' | 'block'>('block');

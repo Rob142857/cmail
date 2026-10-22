@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
   import type { Editor } from '@tiptap/core';
-  import Icon from '$lib/ui/Icon.svelte';
+  import Icon from '#lib/ui/Icon.svelte';
   import {
     COMPOSE_FONTS,
     COMPOSE_FONT_SIZES_PT,

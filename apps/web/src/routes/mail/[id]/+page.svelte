@@ -1,12 +1,12 @@
 <script>
   import { untrack } from 'svelte';
   import { goto, invalidateAll } from '$app/navigation';
-  import CalendarInvite from '$lib/mail/CalendarInvite.svelte';
-  import MessageAttachments from '$lib/mail/MessageAttachments.svelte';
-  import MessageBody from '$lib/mail/MessageBody.svelte';
-  import MessageMetadata from '$lib/mail/MessageMetadata.svelte';
-  import MessageSafety from '$lib/mail/MessageSafety.svelte';
-  import MessageToolbar from '$lib/mail/MessageToolbar.svelte';
+  import CalendarInvite from '#lib/mail/CalendarInvite.svelte';
+  import MessageAttachments from '#lib/mail/MessageAttachments.svelte';
+  import MessageBody from '#lib/mail/MessageBody.svelte';
+  import MessageMetadata from '#lib/mail/MessageMetadata.svelte';
+  import MessageSafety from '#lib/mail/MessageSafety.svelte';
+  import MessageToolbar from '#lib/mail/MessageToolbar.svelte';
 
   let { data, form } = $props();
   let busy = $state('');

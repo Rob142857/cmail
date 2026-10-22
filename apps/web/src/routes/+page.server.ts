@@ -1,11 +1,11 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { isPublicDirectoryEnabled } from '$lib/server/public-directory';
+import { isPublicDirectoryEnabled } from '#lib/server/public-directory.js';
 import {
   BOOTSTRAP_PROOF_COOKIE,
   bootstrapConfiguration,
   verifyBootstrapProof,
-} from '$lib/server/bootstrap';
+} from '#lib/server/bootstrap.js';
 
 export const load: PageServerLoad = async ({ locals, platform, cookies, setHeaders }) => {
   if (locals.user) throw redirect(303, '/mail');

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import Icon from '$lib/ui/Icon.svelte';
-  import SignatureEditor from '$lib/SignatureEditor.svelte';
-  import { signaturePreviewDocument } from '$lib/signature-preview';
+  import Icon from '#lib/ui/Icon.svelte';
+  import SignatureEditor from '#lib/SignatureEditor.svelte';
+  import { signaturePreviewDocument } from '#lib/signature-preview.js';
   import { COMPOSE_FONTS, COMPOSE_FONT_SIZES_PT, DEFAULT_COMPOSE_DEFAULTS, composeDefaultsStyle } from '@cmail/shared/compose-style';
 
   let { data, form: rawForm } = $props();

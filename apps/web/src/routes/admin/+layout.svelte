@@ -1,8 +1,8 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import AppShell from '$lib/ui/AppShell.svelte';
-  import Icon from '$lib/ui/Icon.svelte';
-  import SourceUpdates from '$lib/ui/SourceUpdates.svelte';
+  import AppShell from '#lib/ui/AppShell.svelte';
+  import Icon from '#lib/ui/Icon.svelte';
+  import SourceUpdates from '#lib/ui/SourceUpdates.svelte';
 
   type NavItem = { href: string; label: string; description: string; icon: string; count?: number };
   type NavGroup = { label: string; items: NavItem[] };

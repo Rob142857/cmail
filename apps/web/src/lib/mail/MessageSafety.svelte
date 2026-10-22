@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Icon from '$lib/ui/Icon.svelte';
+  import Icon from '#lib/ui/Icon.svelte';
   import type { Message } from '@cmail/shared/types';
   import type { LinkRisk } from '@cmail/shared/link-risk';
 
