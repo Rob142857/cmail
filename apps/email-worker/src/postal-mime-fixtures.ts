@@ -4,9 +4,10 @@
  * Each fixture is a raw RFC 5322 message held as a "binary" string (one char per
  * byte) so non-UTF-8 charsets and stray bytes survive exactly. The expected
  * results in `postal-mime-fixtures.expected.json` were generated with
- * postal-mime 3.0.1 (the version in production before the 4.x upgrade) and are
- * the contract the parser must keep honouring: inbound mail is stored from
- * these fields, so a parser upgrade must not change them.
+ * postal-mime 4.0.11 and are the contract the parser must keep honouring:
+ * inbound mail is stored from these fields, so a parser upgrade must not change
+ * them without review. Where 4.0.11 differs from 3.0.1 (the version in
+ * production before the upgrade), postal-mime-upgrade.test.ts says how.
  *
  * To add a case: add it here, regenerate the expected file with a known-good
  * parser (see the header of postal-mime-upgrade.test.ts), and review the diff.

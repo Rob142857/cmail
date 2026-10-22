@@ -14,9 +14,16 @@ import expected from './postal-mime-fixtures.expected.json';
  * subject, headers, attachment names, types, content-ids, dispositions and the
  * bytes of binary attachments) matched 3.0.1 exactly. The only differences were
  * the intentional 4.x corrections pinned in the 'intentional 4.x differences'
- * block below, plus a few malformed-address edge cases. To change an
- * expectation, regenerate the JSON from a known-good parser build, then review
- * the diff by hand.
+ * block below, plus a few malformed-address edge cases. One of those, a From
+ * header that leaves a quote open, would have moved the sender to the domain
+ * after the quote; inboundFromParticipant keeps the 3.0.1 envelope fallback for
+ * it (see index.test.ts). To change an expectation, regenerate the JSON from a
+ * known-good parser build, then review the diff by hand.
+ *
+ * The windows-1252 expectations assume a WHATWG TextDecoder, as workerd has.
+ * Node 20.20.0 and 22.22.0 decode windows-1252 as ISO-8859-1 (22.23 does not),
+ * so the latin1Windows1252 checks fail there; run the suite on current Node 22
+ * or Node 24.
  */
 
 async function parseFixture(name: string) {
