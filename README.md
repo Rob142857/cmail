@@ -10,7 +10,7 @@
   <a href="https://github.com/Rob142857/cmail/actions/workflows/ci.yml"><img src="https://github.com/Rob142857/cmail/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
   <a href="https://github.com/Rob142857/cmail/actions/workflows/codeql.yml"><img src="https://github.com/Rob142857/cmail/actions/workflows/codeql.yml/badge.svg" alt="CodeQL status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2563eb.svg" alt="MIT License"></a>
-  <a href="package.json"><img src="https://img.shields.io/badge/node-%3E%3D22.12-339933.svg" alt="Node.js 22.12 or newer"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/node-%3E%3D22.17-339933.svg" alt="Node.js 22.17 or newer"></a>
 </p>
 
 <p align="center">
@@ -115,7 +115,7 @@ landing/                     Optional static project landing page
 
 Prerequisites:
 
-- Node.js 24 LTS recommended (minimum 22.12), and the pinned pnpm 12.5.1
+- Node.js 24 LTS recommended (minimum 22.17), and the pinned pnpm 12.15.0
 - A Cloudflare account with a domain on Cloudflare DNS
 - A Google OAuth client, a Microsoft Entra application, or both
 - Cloudflare Email Service (recommended) or Postmark, if you need external
