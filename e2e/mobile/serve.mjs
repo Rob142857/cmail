@@ -12,7 +12,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { ASSIGNMENTS, MAILBOXES, ORG, USERS, buildMessages } from './seed-data.mjs';
+import { ASSIGNMENTS, INBOX_RULES, MAILBOXES, ORG, USERS, buildMessages } from './seed-data.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const WEB = resolve(ROOT, 'apps/web');
@@ -115,6 +115,10 @@ for (const [userId, mailboxId, permissions] of ASSIGNMENTS) {
   sql(`INSERT INTO mailbox_assignments (user_id, mailbox_id, permissions, assigned_by) VALUES (?, ?, ?, 'user-mia')`, userId, mailboxId, permissions);
 }
 sql(`INSERT INTO org_settings (key, value) VALUES ('org_name', ?), ('app_name', ?)`, ORG.name, ORG.appName);
+INBOX_RULES.forEach((rule, position) => {
+  sql(`INSERT INTO inbox_rules (id, mailbox_id, name, position, is_enabled, stop_processing, definition, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'user-mia')`,
+    rule.id, rule.mailboxId, rule.name, position, rule.enabled, rule.stopProcessing, JSON.stringify(rule.definition));
+});
 
 const messages = buildMessages();
 for (const message of messages) {

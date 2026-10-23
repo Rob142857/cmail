@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { InboxRuleRow } from '@cmail/shared/inbox-rules';
 import type { OutboundResult } from './outbound';
 import {
   applyProviderResult,
@@ -177,9 +178,11 @@ function materializationDb(
   initialJournal: OutboundJournalRow,
   targets: OutboundJournalTargetRow[],
   attachments: OutboundJournalAttachmentRow[],
+  inbox: { rules: InboxRuleRow[] | 'unavailable'; address: string } | null = null,
 ) {
   let journal = { ...initialJournal };
   const messageWrites: unknown[][] = [];
+  const messageInserts: FakeStatement[] = [];
   const attachmentWrites: unknown[][] = [];
 
   const prepare = (query: string): FakeStatement => {
@@ -196,9 +199,14 @@ function materializationDb(
           const target = targets.find((item) => item.id === statement.values[0]);
           return (target ? { materialized_at: target.materialized_at } : null) as T | null;
         }
+        if (inbox && query.includes('SELECT address FROM mailboxes')) return { address: inbox.address } as T;
         throw new Error(`Unexpected first query: ${query}`);
       },
       async all<T>() {
+        if (inbox && query.includes('FROM inbox_rules')) {
+          if (inbox.rules === 'unavailable') throw new Error('D1_ERROR: no such table: inbox_rules');
+          return { results: inbox.rules as T[] };
+        }
         if (query.includes('FROM outbound_send_targets')) return { results: targets as T[] };
         if (query.includes('FROM outbound_send_attachments')) return { results: attachments as T[] };
         throw new Error(`Unexpected all query: ${query}`);
@@ -227,6 +235,7 @@ function materializationDb(
       return statements.map((statement) => {
         if (statement.query.includes('INSERT INTO messages')) {
           messageWrites.push(statement.values);
+          messageInserts.push(statement);
           return { meta: { changes: 1 } };
         }
         if (statement.query.includes('INSERT INTO attachments')) {
@@ -244,7 +253,7 @@ function materializationDb(
     },
   } as unknown as D1Database;
 
-  return { attachmentWrites, db, getJournal: () => journal, messageWrites };
+  return { attachmentWrites, db, getJournal: () => journal, messageInserts, messageWrites };
 }
 
 afterEach(() => {
@@ -498,5 +507,79 @@ describe('outbound journal failure and recovery boundaries', () => {
       journal.text_r2_key,
       attachment.staging_r2_key,
     ]));
+  });
+});
+
+describe('inbox rules on internal delivery', () => {
+  /** Column name to bound value for a materialized message (every column has one placeholder). */
+  function insertedMessage(statement: FakeStatement | undefined): Record<string, unknown> {
+    const columns = /INSERT INTO messages\s*\(([^)]*)\)/.exec(statement?.query || '')?.[1].split(',').map((column) => column.trim()) ?? [];
+    return Object.fromEntries(columns.map((column, index) => [column, statement?.values[index]]));
+  }
+
+  function rule(id: string, definition: Record<string, unknown>): InboxRuleRow {
+    return { id, name: `Rule ${id}`, is_enabled: 1, stop_processing: 0, definition: JSON.stringify(definition) };
+  }
+
+  async function deliverInternally(rules: InboxRuleRow[] | 'unavailable') {
+    const journal = acceptedJournal({
+      html_sha256: await digest('<p>The body</p>'),
+      text_sha256: await digest('The body has the agenda'),
+      cc_addresses: JSON.stringify(['colleague@example.com']),
+    });
+    const target = journalTarget({
+      id: 'target-internal',
+      message_id: 'message-internal',
+      mailbox_id: 'mailbox-colleague',
+      direction: 'internal',
+      folder: 'inbox',
+      body_r2_key: targetBodyKey('mailbox-colleague', 'message-internal'),
+      reservation_id: null,
+    });
+    const attachment = { ...journalAttachment(), content_sha256: await digest('report') };
+    const { bucket, seed } = fakeBucket();
+    seed(journal.html_r2_key, '<p>The body</p>', { httpMetadata: { contentType: 'text/html; charset=utf-8' } });
+    seed(journal.text_r2_key, 'The body has the agenda');
+    seed(attachment.staging_r2_key, 'report');
+    const harness = materializationDb(journal, [target], [attachment], { rules, address: 'colleague@example.com' });
+    const result = await materializeOutboundJournal(harness.db, bucket, journal.id);
+    return { result, message: insertedMessage(harness.messageInserts[0]) };
+  }
+
+  it('files, marks read and stars the colleague copy, and raises no alert for it', async () => {
+    const { result, message } = await deliverInternally([
+      rule('r1', { conditions: { from: ['example.com'], myPosition: 'cc' }, actions: { moveTo: 'archive', markAsRead: true } }),
+      rule('r2', { conditions: { hasAttachment: true }, actions: { star: true, setImportance: 'high' } }),
+    ]);
+    expect(message).toMatchObject({ folder: 'archive', is_read: 1, is_starred: 1, importance: 'high', direction: 'internal' });
+    expect(result.newInternalDeliveries).toEqual([]);
+  });
+
+  it('reads the body only for rules that test it, and rebuilds the main headers', async () => {
+    const { message } = await deliverInternally([
+      rule('body', { conditions: { bodyContains: ['agenda'] }, actions: { star: true } }),
+      rule('header', { conditions: { headerContains: ['subject: durable delivery'] }, actions: { markAsRead: true } }),
+    ]);
+    expect(message).toMatchObject({ folder: 'inbox', is_read: 1, is_starred: 1 });
+  });
+
+  it('delivers to the Inbox with an alert when no rule applies', async () => {
+    const { result, message } = await deliverInternally([
+      rule('r1', { conditions: { from: ['elsewhere.example'] }, actions: { moveTo: 'trash' } }),
+    ]);
+    expect(message).toMatchObject({ folder: 'inbox', is_read: 0, is_starred: 0, importance: 'normal' });
+    expect(result.newInternalDeliveries).toEqual([{ mailboxId: 'mailbox-colleague', messageId: 'message-internal' }]);
+  });
+
+  it('delivers normally when the rules cannot be read', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const { result, message } = await deliverInternally('unavailable');
+      expect(message).toMatchObject({ folder: 'inbox', is_read: 0 });
+      expect(result.newInternalDeliveries).toHaveLength(1);
+      expect(error).toHaveBeenCalledWith('Inbox rules were skipped for an internal delivery');
+    } finally {
+      error.mockRestore();
+    }
   });
 });

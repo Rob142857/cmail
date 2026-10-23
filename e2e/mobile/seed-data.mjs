@@ -38,6 +38,29 @@ export const ASSIGNMENTS = [
   ['user-ivy', 'mb-desk', 'send-as'],
 ];
 
+// Mia's inbox rules. They only match senders no spec sends mail from, so they
+// never change what other specs deliver.
+export const INBOX_RULES = [
+  {
+    id: 'rule-landcare', mailboxId: 'mb-mia', name: 'Landcare bulletins', enabled: 1, stopProcessing: 1,
+    definition: {
+      version: 1, appliesToAll: false,
+      conditions: { from: ['landcare.banksia.test'] },
+      exceptions: { subjectContains: ['urgent'] },
+      actions: { moveTo: 'archive', markAsRead: true },
+    },
+  },
+  {
+    id: 'rule-big-files', mailboxId: 'mb-mia', name: 'Large attachments', enabled: 0, stopProcessing: 0,
+    definition: {
+      version: 1, appliesToAll: false,
+      conditions: { hasAttachment: true, sizeAtLeastKb: 20480 },
+      exceptions: {},
+      actions: { star: true },
+    },
+  },
+];
+
 const p = (text) => `<p>${text}</p>`;
 
 // A marketing-style HTML mail: tables, inline styles, a remote image (which the

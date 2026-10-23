@@ -1,5 +1,15 @@
 import type { MessageImportance } from '@cmail/shared/types';
 import type { MailboxStorageReservation } from '@cmail/shared/mailbox-storage';
+import {
+  evaluateInboxRules,
+  loadEnabledInboxRules,
+  outcomeNotifies,
+  ruleBodyText,
+  ruleHeaderText,
+  ruleNeedsBody,
+  ruleNeedsHeaders,
+  type InboxRuleOutcome,
+} from '@cmail/shared/inbox-rules';
 import type { OutboundAttachment, OutboundEmail, OutboundResult } from './outbound';
 
 export type OutboundJournalState =
@@ -724,13 +734,73 @@ async function copyStagedObject(
   if (!stored) throw new Error('Outbound destination write was not confirmed');
 }
 
+/**
+ * Inbox rules for mail from one mailbox of this organisation to another,
+ * which never passes through the email Worker. Rules are a convenience
+ * layered on delivery: if they cannot be read or evaluated, the message is
+ * delivered as if the mailbox had none. The header block is rebuilt from the
+ * journal, and the body is only read when a rule tests it.
+ */
+async function internalRuleOutcome(
+  db: D1Database,
+  storage: R2Bucket,
+  journal: OutboundJournalRow,
+  target: OutboundJournalTargetRow,
+  hasAttachment: boolean,
+): Promise<InboxRuleOutcome | null> {
+  try {
+    const rules = await loadEnabledInboxRules(db, target.mailbox_id);
+    if (!rules.length) return null;
+    const mailbox = await db.prepare('SELECT address FROM mailboxes WHERE id = ?')
+      .bind(target.mailbox_id).first<{ address: string }>();
+    if (!mailbox) return null;
+    const to = validStringArray(journal.to_addresses, 100);
+    const cc = validStringArray(journal.cc_addresses, 100);
+    let body: string | null = null;
+    if (rules.some((rule) => ruleNeedsBody(rule.definition))) {
+      const text = await storage.get(journal.text_r2_key);
+      body = text ? ruleBodyText(await text.text(), null) : null;
+    }
+    const sender = journal.from_name ? `"${journal.from_name.replace(/["\\]/g, '')}" <${journal.from_address}>` : journal.from_address;
+    const headers = rules.some((rule) => ruleNeedsHeaders(rule.definition))
+      ? ruleHeaderText([
+        { key: 'From', value: sender },
+        { key: 'To', value: to.join(', ') },
+        ...(cc.length ? [{ key: 'Cc', value: cc.join(', ') }] : []),
+        { key: 'Subject', value: journal.subject },
+        { key: 'Message-ID', value: journal.message_id_header || journal.proposed_message_id_header },
+        ...(journal.in_reply_to ? [{ key: 'In-Reply-To', value: journal.in_reply_to }] : []),
+        ...(journal.references_header ? [{ key: 'References', value: journal.references_header }] : []),
+        { key: 'Importance', value: journal.importance },
+      ])
+      : null;
+    const outcome = evaluateInboxRules(rules, {
+      mailboxAddress: mailbox.address,
+      from: journal.from_address,
+      to,
+      cc,
+      subject: journal.subject,
+      body,
+      headers,
+      hasAttachment,
+      importance: journal.importance,
+      sizeBytes: journal.persisted_bytes,
+    });
+    return outcome.applied.length ? outcome : null;
+  } catch {
+    console.error('Inbox rules were skipped for an internal delivery');
+    return null;
+  }
+}
+
+/** False when the target was already materialized; otherwise whether it warrants a new-mail alert. */
 async function materializeTarget(
   db: D1Database,
   storage: R2Bucket,
   journal: OutboundJournalRow,
   target: OutboundJournalTargetRow,
   attachments: readonly OutboundJournalAttachmentRow[],
-): Promise<boolean> {
+): Promise<false | { notify: boolean }> {
   if (target.materialized_at) return false;
   const attachmentIds = validStringArray(target.attachment_ids, 25);
   if (attachmentIds.length !== attachments.length) throw new Error('Outbound target attachment plan is invalid');
@@ -753,6 +823,9 @@ async function materializeTarget(
     );
   }
 
+  const ruleOutcome = target.direction === 'internal' && target.folder === 'inbox'
+    ? await internalRuleOutcome(db, storage, journal, target, attachments.length > 0)
+    : null;
   const providerIds = target.direction === 'outbound' ? journal.provider_message_ids : '[]';
   const failedRecipients = target.direction === 'outbound' ? journal.failed_recipients : '[]';
   const toParticipants = addressOnlyParticipants(journal.to_addresses);
@@ -762,9 +835,9 @@ async function materializeTarget(
       `INSERT INTO messages
        (id, mailbox_id, message_id_header, provider_message_ids, failed_recipients,
         direction, from_address, from_name, to_addresses, cc_addresses, to_participants, cc_participants, subject, snippet,
-        body_r2_key, has_attachments, size_bytes, folder, is_read, importance,
+        body_r2_key, has_attachments, size_bytes, folder, is_read, is_starred, importance,
         received_at, created_at, in_reply_to, references_header, thread_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
          COALESCE(?, datetime('now')), COALESCE(?, datetime('now')), ?, ?, ?)`,
     ).bind(
       target.message_id,
@@ -784,9 +857,10 @@ async function materializeTarget(
       target.body_r2_key,
       attachments.length ? 1 : 0,
       journal.persisted_bytes,
-      target.folder,
-      target.folder === 'sent' ? 1 : 0,
-      journal.importance,
+      ruleOutcome?.folder ?? target.folder,
+      target.folder === 'sent' || ruleOutcome?.isRead ? 1 : 0,
+      ruleOutcome?.isStarred ? 1 : 0,
+      ruleOutcome?.importance ?? journal.importance,
       journal.accepted_at,
       journal.accepted_at,
       journal.in_reply_to,
@@ -814,7 +888,9 @@ async function materializeTarget(
 
   try {
     const result = await db.batch(statements);
-    if (result.length === statements.length && Number(result.at(-1)?.meta.changes || 0) === 1) return true;
+    if (result.length === statements.length && Number(result.at(-1)?.meta.changes || 0) === 1) {
+      return { notify: !ruleOutcome || outcomeNotifies(ruleOutcome) };
+    }
   } catch {
     const recovered = await db.prepare(
       'SELECT materialized_at FROM outbound_send_targets WHERE id = ? AND journal_id = ?',
@@ -863,7 +939,9 @@ export async function materializeOutboundJournal(
   const newInternalDeliveries: Array<{ mailboxId: string; messageId: string }> = [];
   for (const target of parts.targets) {
     const created = await materializeTarget(db, storage, journal, target, parts.attachments);
-    if (created && target.direction === 'internal') {
+    // Only these get a new-mail alert; a message an inbox rule filed away or
+    // marked read does not.
+    if (created && created.notify && target.direction === 'internal') {
       newInternalDeliveries.push({ mailboxId: target.mailbox_id, messageId: target.message_id });
     }
   }
