@@ -600,6 +600,7 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
   text-transform: uppercase;
   user-select: none;
 }
+.persona::before { content: attr(data-initials); }
 .persona-sm { width: 24px; height: 24px; font-size: 10px; }
 .persona-lg { width: 40px; height: 40px; font-size: 15px; }
 .persona-xl { width: 48px; height: 48px; font-size: 17px; }

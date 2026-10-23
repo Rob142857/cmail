@@ -83,7 +83,7 @@
   </span>
   <span class="cmd-spacer"></span>
   <a href="/help/managers" class="cmd" aria-label="Manager handbook"><span class="cmd-icon"><Icon name="help" /></span><span class="cmd-label">Manager handbook</span></a>
-  <a href="/help/standards" class="cmd" aria-label="Standards and assurance"><span class="cmd-icon"><Icon name="shieldCheck" /></span><span class="cmd-label">Standards &amp; assurance</span></a>
+  <a href="/help/standards" class="cmd" aria-label="Standards &amp; assurance"><span class="cmd-icon"><Icon name="shieldCheck" /></span><span class="cmd-label">Standards &amp; assurance</span></a>
 {/snippet}
 
 <AppShell

@@ -5,6 +5,10 @@
   gets the same swatch and the list becomes scannable by colour before it is
   read. Palette is a muted Fluent set chosen to hold AA contrast against
   white text in light mode and against near-black in dark mode.
+
+  The initials are drawn by CSS from data-initials, not written as text: the
+  avatar is a graphic, so it must not count as the visible label of a control
+  it sits in (WCAG 2.5.3). The account button's name is "Account: <name>".
 -->
 <script>
   /**
@@ -60,5 +64,6 @@
   class="persona persona-{size}"
   style="background: {swatch[0]}; color: {swatch[1]};"
   title={title || label}
+  data-initials={initials}
   aria-hidden="true"
->{initials}</span>
+></span>
