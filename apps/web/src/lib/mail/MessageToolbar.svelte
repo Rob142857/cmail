@@ -17,6 +17,7 @@
     hasFullControl = false,
     folder = 'inbox',
     starred = false,
+    createRuleHref = '',
     busy = '',
     onMutate = () => {},
     onRemove = () => {},
@@ -78,6 +79,9 @@
       {#if moveAction}
         <button class="btn tb-wide" type="button" disabled={!!busy} onclick={moveAction.run}><Icon name={moveAction.icon} size={16} /><span class="tb-label">{moveAction.label}</span></button>
       {/if}
+      {#if createRuleHref}
+        <a href={createRuleHref} class="btn tb-wide"><Icon name="filter" size={16} /><span class="tb-label">Create rule</span></a>
+      {/if}
       <button class="btn btn-ghost-danger" type="button" aria-label={folder === 'trash' ? 'Delete forever' : 'Move to trash'} disabled={!!busy} onclick={onRemove}><Icon name="trash" size={16} /><span class="tb-label">{folder === 'trash' ? 'Delete forever' : 'Move to trash'}</span></button>
     {/if}
 
@@ -95,6 +99,9 @@
             <button type="button" disabled={!!busy} onclick={() => fromMenu(() => onMutate('star'))}><Icon name="star" size={16} filled={starred} /> {starred ? 'Unstar' : 'Star'}</button>
             {#if moveAction}
               <button type="button" disabled={!!busy} onclick={() => fromMenu(moveAction.run)}><Icon name={moveAction.icon} size={16} /> {moveAction.label}</button>
+            {/if}
+            {#if createRuleHref}
+              <a href={createRuleHref}><Icon name="filter" size={16} /> Create rule</a>
             {/if}
           {/if}
         </div>

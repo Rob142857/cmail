@@ -54,6 +54,7 @@
       <div><strong>Reply / Reply all / Forward</strong><span>Needs Send as or Full access.</span></div>
       <div><strong>Star / move / archive</strong><span>Needs Full access.</span></div>
       <div><strong>Trash / restore</strong><span>Needs Full access; restore returns mail to its folder.</span></div>
+      <div><strong>Rules</strong><span>Needs Full access; <a href="/mail/rules">Settings › Rules</a> files new mail automatically, like Outlook rules.</span></div>
     </div>
   </section>
 

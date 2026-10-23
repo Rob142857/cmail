@@ -36,6 +36,10 @@
   const folder = $derived(data.message.folder || 'inbox');
   const isDraft = $derived(folder === 'drafts');
   const hasFullControl = $derived(data.message.mailbox_permissions === 'full');
+  // Outlook's "Create rule": start a rule for mail from this sender.
+  const createRuleHref = $derived(hasFullControl && !isDraft && data.message.direction !== 'outbound' && data.message.from_address
+    ? `/mail/rules/edit?mailbox=${encodeURIComponent(data.message.mailbox_id)}&from=${encodeURIComponent(data.message.from_address)}`
+    : '');
   const canMarkUnread = $derived(!['sent', 'trash'].includes(folder));
   const returnParams = $derived.by(() => {
     const params = new URLSearchParams();
@@ -124,6 +128,7 @@
     {hasFullControl}
     {folder}
     {starred}
+    {createRuleHref}
     {busy}
     onMutate={mutate}
     onRemove={removeMessage}
