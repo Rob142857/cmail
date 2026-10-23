@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { loadPublicDirectory } from '$lib/server/public-directory';
+import { loadPublicDirectory } from '#lib/server/public-directory.js';
 
 const PRIVATE_HEADERS = {
   'Cache-Control': 'no-store, max-age=0',

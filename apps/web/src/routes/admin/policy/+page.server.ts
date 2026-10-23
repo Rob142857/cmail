@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { generateId, audit } from '$lib/server/db';
+import { generateId, audit } from '#lib/server/db.js';
 
 export const load: PageServerLoad = async ({ platform }) => {
   const env = platform?.env;

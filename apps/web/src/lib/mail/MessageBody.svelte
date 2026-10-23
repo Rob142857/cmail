@@ -1,6 +1,6 @@
 <script>
   import { invalidateAll } from '$app/navigation';
-  import EmailHtmlFrame from '$lib/mail/EmailHtmlFrame.svelte';
+  import EmailHtmlFrame from '#lib/mail/EmailHtmlFrame.svelte';
 
   let { body = '', bodyUnavailable = false, messageId = '', allowRemoteImages = false, inlineImageOrigin = '' } = $props();
   let remoteImages = $state(false);

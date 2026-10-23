@@ -44,7 +44,7 @@ sits on the mark, so the symbol and the word read as one family.
 > zero-width paths, and an `objectBoundingBox` gradient over a zero-width box
 > is degenerate — those glyphs disappear entirely.
 
-In the app the lockup is a component (`$lib/ui/Brand.svelte`), which draws the
+In the app the lockup is a component (`#lib/ui/Brand.svelte`), which draws the
 wordmark when `APP_NAME` is still `cmail` and falls back to the display face
 with matching tracking for whitelabel deployments.
 

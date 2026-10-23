@@ -1,8 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { Message } from '@cmail/shared/types';
-import { escapeLike } from '$lib/server/validation';
-import { messageOwnershipPredicate } from '$lib/server/message-access';
+import { escapeLike } from '#lib/server/validation.js';
+import { messageOwnershipPredicate } from '#lib/server/message-access.js';
 
 const FOLDERS = ['inbox', 'sent', 'drafts', 'archive', 'spam', 'trash'];
 const PAGE_SIZE = 50;

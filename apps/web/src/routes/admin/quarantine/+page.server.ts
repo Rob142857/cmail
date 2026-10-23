@@ -1,8 +1,8 @@
 import { fail } from '@sveltejs/kit';
 import type { Env } from '@cmail/shared/types';
 import type { Actions, PageServerLoad } from './$types';
-import { audit, generateId } from '$lib/server/db';
-import { textField } from '$lib/server/validation';
+import { audit, generateId } from '#lib/server/db.js';
+import { textField } from '#lib/server/validation.js';
 import { parseSenderRulePattern, type SenderRuleAction } from './quarantine-rules';
 
 const PAGE_SIZE = 50;

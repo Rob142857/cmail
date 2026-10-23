@@ -1,5 +1,5 @@
 <script>
-  import { submitSignOut } from '$lib/sign-out';
+  import { submitSignOut } from '#lib/sign-out.js';
   let { data, form } = $props();
   let signingOut = $state(false);
 

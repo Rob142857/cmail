@@ -9,12 +9,12 @@ import {
   type CalendarAttendeeRow,
   type CalendarEventRow,
   type CalendarMailboxOption,
-} from '$lib/server/calendar';
-import { audit } from '$lib/server/db';
-import { publicRuntimeConfig } from '$lib/server/config';
-import { formatEventRange } from '$lib/dates';
-import { sanitizeSenderDisplayName, sendEmail } from '$lib/server/outbound';
-import { consumeCalendarOutboundLimits } from '$lib/server/calendar-outbound';
+} from '#lib/server/calendar.js';
+import { audit } from '#lib/server/db.js';
+import { publicRuntimeConfig } from '#lib/server/config.js';
+import { formatEventRange } from '#lib/dates.js';
+import { sanitizeSenderDisplayName, sendEmail } from '#lib/server/outbound.js';
+import { consumeCalendarOutboundLimits } from '#lib/server/calendar-outbound.js';
 
 const MONTH_RX = /^(\d{4})-(0[1-9]|1[0-2])$/;
 

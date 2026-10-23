@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
-import { loadOrgSettings } from '$lib/server/org-settings';
-import { metadataResponse, protectedResourceMetadata } from '$lib/server/mcp/metadata';
+import { loadOrgSettings } from '#lib/server/org-settings.js';
+import { metadataResponse, protectedResourceMetadata } from '#lib/server/mcp/metadata.js';
 
 // RFC 9728 metadata, served at the root form and at the path-suffixed form
 // (/.well-known/oauth-protected-resource/mcp) that clients derive from the

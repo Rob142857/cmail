@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { formatDateTime } from '$lib/dates';
+  import { formatDateTime } from '#lib/dates.js';
 
   let { data, form } = $props();
 </script>

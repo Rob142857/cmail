@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { checkSourceUpdates } from '$lib/server/source-updates';
+import { checkSourceUpdates } from '#lib/server/source-updates.js';
 
-vi.mock('$lib/server/source-updates', async (original) => ({
-  ...(await original<typeof import('$lib/server/source-updates')>()),
+vi.mock('#lib/server/source-updates.js', async (original) => ({
+  ...(await original<typeof import('#lib/server/source-updates.js')>()),
   checkSourceUpdates: vi.fn(),
 }));
 vi.stubGlobal('__CMAIL_BUILD__', { revision: 'a'.repeat(40), modified: false });

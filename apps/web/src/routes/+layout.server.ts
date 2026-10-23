@@ -1,7 +1,7 @@
 import type { LayoutServerLoad } from './$types';
-import { getEnabledProviders } from '$lib/server/auth';
-import { emailOtpEnabled, publicRuntimeConfig } from '$lib/server/config';
-import { loadOrgSettings } from '$lib/server/org-settings';
+import { getEnabledProviders } from '#lib/server/auth.js';
+import { emailOtpEnabled, publicRuntimeConfig } from '#lib/server/config.js';
+import { loadOrgSettings } from '#lib/server/org-settings.js';
 
 export const load: LayoutServerLoad = async ({ locals, platform }) => {
   const env = platform?.env;

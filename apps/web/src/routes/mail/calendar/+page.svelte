@@ -1,8 +1,8 @@
 <script>
   import { goto } from '$app/navigation';
   import { enhance } from '$app/forms';
-  import { eventDayKey, formatDayHeading, formatEventRange } from '$lib/dates';
-  import { partstatBadgeClass, partstatLabel } from '$lib/calendar-format';
+  import { eventDayKey, formatDayHeading, formatEventRange } from '#lib/dates.js';
+  import { partstatBadgeClass, partstatLabel } from '#lib/calendar-format.js';
 
   let { data, form } = $props();
   const d = $derived(data);

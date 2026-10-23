@@ -1,11 +1,11 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { countryName } from '$lib/countries';
-import { audit, generateId } from '$lib/server/db';
-import { loadOrgSettings } from '$lib/server/org-settings';
-import { detectProvider, sendEmail } from '$lib/server/outbound';
-import { formatUtcTimestamp } from '$lib/server/travel';
-import { escapeHtml, textField } from '$lib/server/validation';
+import { countryName } from '#lib/countries.js';
+import { audit, generateId } from '#lib/server/db.js';
+import { loadOrgSettings } from '#lib/server/org-settings.js';
+import { detectProvider, sendEmail } from '#lib/server/outbound.js';
+import { formatUtcTimestamp } from '#lib/server/travel.js';
+import { escapeHtml, textField } from '#lib/server/validation.js';
 
 const PENDING_LIMIT = 200;
 const RECENT_LIMIT = 20;

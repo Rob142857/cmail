@@ -1,6 +1,6 @@
 <script>
   import { goto } from '$app/navigation';
-  import Icon from '$lib/ui/Icon.svelte';
+  import Icon from '#lib/ui/Icon.svelte';
 
   let {
     messageId,

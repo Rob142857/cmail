@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from '@cmail/shared/types';
-import { PROVIDER_PREFERENCE_COOKIE } from '$lib/server/provider-preference';
+import { PROVIDER_PREFERENCE_COOKIE } from '#lib/server/provider-preference.js';
 
 const mocks = vi.hoisted(() => ({
   exchangeCode: vi.fn(),
@@ -20,41 +20,41 @@ const mocks = vi.hoisted(() => ({
   recordTravelRequest: vi.fn(),
 }));
 
-vi.mock('$lib/server/auth', () => ({
+vi.mock('#lib/server/auth.js', () => ({
   exchangeCode: mocks.exchangeCode,
   fetchUserInfo: mocks.fetchUserInfo,
   getOAuthCallbackUrl: vi.fn(() => 'https://mail.example.com/auth/callback/google'),
   isAuthProvider: vi.fn((value: string) => value === 'google' || value === 'microsoft'),
 }));
-vi.mock('$lib/server/identity', () => ({
+vi.mock('#lib/server/identity.js', () => ({
   ENROLLMENT_COOKIE: 'cmail_enrollment',
   bindEnrolledIdentity: mocks.bindEnrolledIdentity,
   enrollmentFailure: mocks.enrollmentFailure,
   findBoundUser: mocks.findBoundUser,
   findEnrollment: mocks.findEnrollment,
 }));
-vi.mock('$lib/server/bootstrap', () => ({
+vi.mock('#lib/server/bootstrap.js', () => ({
   BOOTSTRAP_PROOF_COOKIE: 'cmail_bootstrap_proof',
   bootstrapConfiguration: mocks.bootstrapConfiguration,
   provisionBootstrapManager: mocks.provisionBootstrapManager,
   verifyBootstrapProof: mocks.verifyBootstrapProof,
 }));
-vi.mock('$lib/server/session', () => ({
+vi.mock('#lib/server/session.js', () => ({
   buildSessionCookie: vi.fn(() => 'cmail_session=signed; Path=/; HttpOnly'),
   createSessionToken: mocks.createSessionToken,
 }));
-vi.mock('$lib/server/config', () => ({
+vi.mock('#lib/server/config.js', () => ({
   assertStrongSessionSecret: vi.fn(),
   maxSessionsPerUser: vi.fn(() => 5),
   sessionTtlMs: vi.fn(() => 3_600_000),
 }));
-vi.mock('$lib/server/validation', () => ({
+vi.mock('#lib/server/validation.js', () => ({
   normalizeDomain: vi.fn((value: unknown) => typeof value === 'string' ? value.trim().toLowerCase() : null),
   normalizeEmail: vi.fn((value: unknown) => typeof value === 'string' && value.includes('@') ? value.trim().toLowerCase() : null),
 }));
-vi.mock('$lib/server/db', () => ({ audit: mocks.audit }));
-vi.mock('$lib/server/org-settings', () => ({ loadOrgSettings: mocks.loadOrgSettings }));
-vi.mock('$lib/server/travel', () => ({
+vi.mock('#lib/server/db.js', () => ({ audit: mocks.audit }));
+vi.mock('#lib/server/org-settings.js', () => ({ loadOrgSettings: mocks.loadOrgSettings }));
+vi.mock('#lib/server/travel.js', () => ({
   requestCountry: mocks.requestCountry,
   signInCountryGate: mocks.signInCountryGate,
   recordTravelRequest: mocks.recordTravelRequest,

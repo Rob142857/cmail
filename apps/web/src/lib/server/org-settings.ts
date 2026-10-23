@@ -4,7 +4,7 @@
 // display name", org name, support email, landing URL, etc. without redeploy.
 // Values live in the `org_settings` table; this helper merges DB overrides on
 // top of process env defaults and exposes a typed object.
-import { isValidCountryCode } from '$lib/countries';
+import { isValidCountryCode } from '#lib/countries.js';
 import { normalizeEmail } from './validation';
 
 export interface OrgSettings {

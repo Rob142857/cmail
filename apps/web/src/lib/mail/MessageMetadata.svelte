@@ -1,7 +1,7 @@
 <script>
-  import { dateTimeAttribute, formatDateTime, formatDate } from '$lib/dates';
+  import { dateTimeAttribute, formatDateTime, formatDate } from '#lib/dates.js';
   import { sanitizeParticipantName } from '@cmail/shared/message-participants';
-  import { quarantineReasonPhrase } from '$lib/quarantine-reason';
+  import { quarantineReasonPhrase } from '#lib/quarantine-reason.js';
 
   let { message, locale, timeZone, mailboxHref } = $props();
 

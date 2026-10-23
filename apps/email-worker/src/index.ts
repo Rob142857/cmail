@@ -342,9 +342,42 @@ export function flattenParsedParticipants(values: ReadonlyArray<ParsedMailbox> |
   return normalizeParticipants(flattened);
 }
 
-export function inboundFromParticipant(value: Pick<ParsedMailbox, 'address' | 'name'> | undefined, envelopeFrom: string): MessageParticipant {
+/** Whether a raw header value leaves a quoted string open. A backslash escapes
+ * the next character inside a quoted string or a comment, and a quote inside a
+ * comment is ordinary text (RFC 5322 3.2.2 and 3.2.4). */
+function leavesQuoteOpen(value: string): boolean {
+  let quoted = false;
+  let commentDepth = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    const char = value[i];
+    if ((quoted || commentDepth > 0) && char === '\\') {
+      i += 1;
+    } else if (quoted) {
+      if (char === '"') quoted = false;
+    } else if (commentDepth > 0) {
+      if (char === '(') commentDepth += 1;
+      else if (char === ')') commentDepth -= 1;
+    } else if (char === '"') {
+      quoted = true;
+    } else if (char === '(') {
+      commentDepth = 1;
+    }
+  }
+  return quoted;
+}
+
+export function inboundFromParticipant(
+  value: Pick<ParsedMailbox, 'address' | 'name'> | undefined,
+  envelopeFrom: string,
+  rawFromHeader = '',
+): MessageParticipant {
   const address = normalizeParticipantAddress(value?.address);
-  return address
+  // postal-mime 4 reads an unclosed quote as a quoted local-part that runs on
+  // into the display name: `"CEO <ceo@partner.example` comes back as
+  // `"ceo <ceo"@partner.example`, a domain the sender never used and one a
+  // sender rule may allow. postal-mime 3 rejected it; keep that fallback.
+  const unclosedQuotedLocal = !!address?.startsWith('"') && leavesQuoteOpen(rawFromHeader);
+  return address && !unclosedQuotedLocal
     ? { address, name: sanitizeParticipantName(value?.name) }
     : { address: envelopeFrom, name: '' };
 }
@@ -965,7 +998,8 @@ export default {
     }
     // A syntactically malformed From must not suppress the verified envelope
     // fallback. Its display name is meaningful only alongside a valid address.
-    const parsedFrom = inboundFromParticipant(parsed.from, senderAddress);
+    const rawFromHeader = parsed.headers?.find((header) => header.key.toLowerCase() === 'from')?.value;
+    const parsedFrom = inboundFromParticipant(parsed.from, senderAddress, rawFromHeader);
     const headerFrom = parsedFrom.address;
     const fromName = parsedFrom.name;
     const subject = cleanHeaderValue(parsed.subject, MAX_SUBJECT_CHARS) || '(no subject)';

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { load as mailEntry } from './+layout.server';
 import { load as chooser } from '../+page.server';
 import { POST as logout } from '../auth/logout/+server';
-import { PROVIDER_PREFERENCE_COOKIE } from '$lib/server/provider-preference';
+import { PROVIDER_PREFERENCE_COOKIE } from '#lib/server/provider-preference.js';
 
 function entry(preference = 'google') {
   const values: Record<string, string> = { [PROVIDER_PREFERENCE_COOKIE]: preference };

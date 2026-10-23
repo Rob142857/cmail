@@ -15,7 +15,7 @@
 // deliberately exempt from this gate — see the comment at its call site.
 import { escapeHtml } from './validation';
 import { generateId } from './db';
-import { countryName } from '$lib/countries';
+import { countryName } from '#lib/countries.js';
 import { notifyManagers } from './notify-managers';
 import type { OrgSettings } from './org-settings';
 import type { Env, User } from '@cmail/shared/types';

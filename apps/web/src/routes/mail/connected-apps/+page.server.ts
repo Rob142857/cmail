@@ -1,9 +1,9 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { audit } from '$lib/server/db';
-import { isMcpEnabled, mcpResource } from '$lib/server/mcp/config';
-import { listConnectedApps } from '$lib/server/mcp/grants';
-import { revokeGrant } from '$lib/server/mcp/oauth';
+import { audit } from '#lib/server/db.js';
+import { isMcpEnabled, mcpResource } from '#lib/server/mcp/config.js';
+import { listConnectedApps } from '#lib/server/mcp/grants.js';
+import { revokeGrant } from '#lib/server/mcp/oauth.js';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
   if (!locals.user) throw redirect(303, '/');

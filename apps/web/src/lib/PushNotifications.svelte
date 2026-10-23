@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getPushPreference, pushDeviceId, setPushPreference } from '$lib/push-client';
-  import { applicationServerKey, subscriptionUsesCurrentVapidKey } from '$lib/push-subscription';
+  import { getPushPreference, pushDeviceId, setPushPreference } from '#lib/push-client.js';
+  import { applicationServerKey, subscriptionUsesCurrentVapidKey } from '#lib/push-subscription.js';
 
-  let { publicKey } = $props<{ publicKey: string }>();
+  let { publicKey }: { publicKey: string } = $props();
   let supported = $state(false);
   let installationRequired = $state(false);
   let enabled = $state(false);

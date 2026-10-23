@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { enhance } from '$app/forms';
-  import type { SubmitFunction } from '@sveltejs/kit';
-  import MailboxAssigneePicker from '$lib/MailboxAssigneePicker.svelte';
-  import { formatDateTime } from '$lib/dates';
+  import { enhance, type SubmitFunction } from '$app/forms';
+  import MailboxAssigneePicker from '#lib/MailboxAssigneePicker.svelte';
+  import { formatDateTime } from '#lib/dates.js';
   import {
     mailboxPermissionDescription,
     mailboxPermissionLabel,

@@ -1,11 +1,11 @@
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { audit, generateId } from '$lib/server/db';
+import { audit, generateId } from '#lib/server/db.js';
 import {
   ELIGIBLE_MAILBOX_ASSIGNEE_EXISTS_SQL,
   getEligibleMailboxAssignee,
-} from '$lib/server/mailbox-assignees';
-import { isAddressAtDomain, normalizeDomain, normalizeEmail } from '$lib/server/validation';
+} from '#lib/server/mailbox-assignees.js';
+import { isAddressAtDomain, normalizeDomain, normalizeEmail } from '#lib/server/validation.js';
 
 const ID_RX = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/;
 const LOCAL_PART_RX = /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/;

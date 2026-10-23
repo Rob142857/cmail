@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
   import type { Editor } from '@tiptap/core';
-  import Icon from '$lib/ui/Icon.svelte';
+  import Icon from '#lib/ui/Icon.svelte';
   import {
     COMPOSE_FONTS,
     COMPOSE_FONT_SIZES_PT,
@@ -411,7 +411,7 @@
       <button type="button" class="tb" data-control="bold" tabindex={stop('bold')} onmousedown={keepFocus} onclick={() => run((c) => c.toggleBold())} disabled={off} aria-pressed={current.bold} aria-label="Bold" title={`Bold (${keys('Ctrl+B')})`}><strong class="glyph">B</strong></button>
       <button type="button" class="tb" data-control="italic" tabindex={stop('italic')} onmousedown={keepFocus} onclick={() => run((c) => c.toggleItalic())} disabled={off} aria-pressed={current.italic} aria-label="Italic" title={`Italic (${keys('Ctrl+I')})`}><em class="glyph glyph-serif">I</em></button>
       <button type="button" class="tb" data-control="underline" tabindex={stop('underline')} onmousedown={keepFocus} onclick={() => run((c) => c.toggleUnderline())} disabled={off} aria-pressed={current.underline} aria-label="Underline" title={`Underline (${keys('Ctrl+U')})`}><u class="glyph">U</u></button>
-      <button type="button" class="tb wide-only" data-control="strike" tabindex={stop('strike')} onmousedown={keepFocus} onclick={() => run((c) => c.toggleStrike())} disabled={off} aria-pressed={current.strike} aria-label="Strikethrough" title={`Strikethrough (${keys('Ctrl+Shift+S')})`}><s class="glyph">ab</s></button>
+      <button type="button" class="tb wide-only" data-control="strike" tabindex={stop('strike')} onmousedown={keepFocus} onclick={() => run((c) => c.toggleStrike())} disabled={off} aria-pressed={current.strike} aria-label="Strikethrough" title={`Strikethrough (${keys('Ctrl+Shift+S')})`}><s class="glyph" data-glyph="ab"></s></button>
       {@render sizeSelect('phone-only')}
       <span class="sep" aria-hidden="true"></span>
       <button type="button" class="tb tb-swatch" data-control="color" tabindex={stop('color')} onmousedown={keepFocus} onclick={(event) => openMenu('color', event.currentTarget, event)} disabled={off} aria-haspopup="true" aria-expanded={menu === 'color'} aria-label="Font colour" title="Font colour">
@@ -443,7 +443,7 @@
       <div class="more-sheet" id={`${id}-more`} data-menu="more" role="group" aria-label="More formatting">
         <div class="sheet-row">{@render fontSelect('sheet-select')}</div>
         <div class="sheet-grid">
-          <button type="button" class="tb" onmousedown={keepFocus} onclick={() => run((c) => c.toggleStrike())} aria-pressed={current.strike} aria-label="Strikethrough"><s class="glyph">ab</s></button>
+          <button type="button" class="tb" onmousedown={keepFocus} onclick={() => run((c) => c.toggleStrike())} aria-pressed={current.strike} aria-label="Strikethrough"><s class="glyph" data-glyph="ab"></s></button>
           <button type="button" class="tb tb-swatch" onmousedown={keepFocus} onclick={(event) => openMenu('highlight', event.currentTarget, event)} aria-haspopup="true" aria-label="Highlight colour"><Icon name="highlight" size={16} /><span class="bar" style={`background: ${current.highlight || '#ffff00'}`}></span></button>
           <button type="button" class="tb" onmousedown={keepFocus} onclick={() => run((c) => c.toggleOrderedList())} aria-pressed={current.orderedList} aria-label="Numbered list"><Icon name="listNumber" size={18} /></button>
           <button type="button" class="tb" onmousedown={keepFocus} onclick={() => run((c) => c.outdent())} aria-label="Decrease indent"><Icon name="indentDecrease" size={18} /></button>
@@ -566,6 +566,9 @@
   .tb[aria-pressed='true'], .tb[aria-expanded='true'] { border-color: var(--primary-border); background: var(--primary-soft, var(--bg-hover)); color: var(--primary-text); }
   .tb:disabled { opacity: 0.45; }
   .glyph { font-size: 15px; line-height: 1; }
+  /* Symbolic text such as the struck-through "ab" is an icon, not the button's
+     label (WCAG 2.5.3), so CSS draws it and it stays out of the visible text. */
+  .glyph[data-glyph]::before { content: attr(data-glyph); }
   .glyph-serif { font-family: Georgia, 'Times New Roman', serif; }
   .tb-swatch { flex-direction: column; gap: 1px; padding-top: 4px; }
   .tb-swatch .bar { display: block; width: 16px; height: 4px; border: 1px solid rgba(0, 0, 0, 0.25); border-radius: 1px; }

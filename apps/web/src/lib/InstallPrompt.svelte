@@ -3,7 +3,7 @@
   Uses the beforeinstallprompt event (Chrome/Edge/Samsung) + a manual fallback hint for Safari.
 -->
 <script>
-  import { browser } from '$app/environment';
+  import { browser } from '$app/env';
   import { page } from '$app/state';
   import { onMount } from 'svelte';
 

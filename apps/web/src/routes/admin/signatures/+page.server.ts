@@ -1,12 +1,12 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { audit } from '$lib/server/db';
+import { audit } from '#lib/server/db.js';
 import {
   getOrganisationSignature,
   sanitizeSignature,
   saveOrganisationSignature,
   savePersonalSignature,
-} from '$lib/server/signatures';
+} from '#lib/server/signatures.js';
 
 interface UserSignatureRow {
   id: string;

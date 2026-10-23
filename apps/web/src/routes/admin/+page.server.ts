@@ -1,9 +1,9 @@
 import type { PageServerLoad } from './$types';
-import { getEnabledProviders } from '$lib/server/auth';
-import { assertStrongSessionSecret, publicRuntimeConfig } from '$lib/server/config';
-import { getProviderInfo } from '$lib/server/outbound';
-import { loadOrgSettings } from '$lib/server/org-settings';
-import { adminLoaderFailure } from '$lib/server/admin-loader-error';
+import { getEnabledProviders } from '#lib/server/auth.js';
+import { assertStrongSessionSecret, publicRuntimeConfig } from '#lib/server/config.js';
+import { getProviderInfo } from '#lib/server/outbound.js';
+import { loadOrgSettings } from '#lib/server/org-settings.js';
+import { adminLoaderFailure } from '#lib/server/admin-loader-error.js';
 
 export const load: PageServerLoad = async ({ platform }) => {
   const env = platform?.env;

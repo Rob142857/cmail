@@ -1,8 +1,8 @@
 <script>
   import { enhance } from '$app/forms';
-  import { formatEventRange } from '$lib/dates';
-  import { partstatBadgeClass, partstatLabel } from '$lib/calendar-format';
-  import Icon from '$lib/ui/Icon.svelte';
+  import { formatEventRange } from '#lib/dates.js';
+  import { partstatBadgeClass, partstatLabel } from '#lib/calendar-format.js';
+  import Icon from '#lib/ui/Icon.svelte';
 
   /**
    * @type {{

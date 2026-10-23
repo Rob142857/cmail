@@ -1,8 +1,8 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { dateTimeAttribute, formatDateTime } from '$lib/dates';
-  import Icon from '$lib/ui/Icon.svelte';
-  import MessageBar from '$lib/ui/MessageBar.svelte';
+  import { dateTimeAttribute, formatDateTime } from '#lib/dates.js';
+  import Icon from '#lib/ui/Icon.svelte';
+  import MessageBar from '#lib/ui/MessageBar.svelte';
   import type { PageData } from './$types';
 
   type EventRow = PageData['events'][number];

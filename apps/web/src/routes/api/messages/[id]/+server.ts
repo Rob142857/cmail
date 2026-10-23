@@ -1,8 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { audit } from '$lib/server/db';
-import { messageOwnershipPredicate } from '$lib/server/message-access';
-import { MOVE_SOURCES, isMoveFolder } from '$lib/server/message-moves';
+import { audit } from '#lib/server/db.js';
+import { messageOwnershipPredicate } from '#lib/server/message-access.js';
+import { MOVE_SOURCES, isMoveFolder } from '#lib/server/message-moves.js';
 
 export const PATCH: RequestHandler = async ({ locals, platform, params, request }) => {
   if (!locals.user) throw error(401);

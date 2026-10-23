@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { UpdateStatus } from '$lib/server/source-updates';
+  import type { UpdateStatus } from '#lib/server/source-updates.js';
 
   let { supportEmail = '' }: { supportEmail?: string } = $props();
   let update = $state<UpdateStatus | null>(null);

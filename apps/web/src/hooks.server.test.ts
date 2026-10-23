@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { User } from '@cmail/shared/types';
-import { handle } from './hooks.server';
+import { handle, handleError } from './hooks.server';
 import { buildSessionCookie, createSessionToken } from './lib/server/session';
 
 const SESSION_SECRET = 'f19c9967e0db9ad12f9c9b78f130f4a768d3517ddcf6c8cf';
@@ -197,4 +197,58 @@ describe('central ICT policy gate', () => {
       expect(resolve).toHaveBeenCalledOnce();
     },
   );
+});
+
+describe('Workers runtime platform (adapter-cloudflare 8)', () => {
+  it('fills event.platform from the runtime module when the adapter provides none', async () => {
+    const runtime = { env: { DB: {} as D1Database, STORAGE: {} as R2Bucket, SESSION_SECRET }, context: { waitUntil: vi.fn() } };
+    vi.resetModules();
+    vi.doMock('#lib/server/cloudflare-runtime.js', () => ({ runtimePlatform: () => runtime }));
+    const { handle: freshHandle } = await import('./hooks.server');
+
+    const requestUrl = new URL('/', 'https://mail.example.com');
+    const event: { url: URL; request: Request; locals: Record<string, unknown>; platform?: unknown } = {
+      url: requestUrl,
+      request: new Request(requestUrl),
+      locals: { user: null, sessionId: null },
+    };
+    await (freshHandle as any)({ event, resolve: vi.fn(async () => new Response('ok')) });
+    expect(event.platform).toBe(runtime);
+
+    vi.doUnmock('#lib/server/cloudflare-runtime.js');
+    vi.resetModules();
+  });
+
+  it('keeps a platform the caller already supplied', async () => {
+    const { response } = await invoke({ path: '/' });
+    expect(response.status).toBe(200);
+  });
+});
+
+describe('handleError (SvelteKit 3 passes every error kind)', () => {
+  const url = new URL('/mail/missing', 'https://mail.example.com');
+  const event = { url, request: new Request(url) };
+
+  it('keeps the status and message of an error thrown with error()', () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const result = (handleError as any)({ kind: 'app', error: { message: 'Message not found' }, event });
+    expect(result).toBeUndefined();
+    expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
+
+  it.each([
+    { kind: 'unknown', error: new Error('D1_ERROR: no such table'), logged: 'D1_ERROR: no such table' },
+    { kind: 'framework', error: { status: 404, message: 'Not Found' }, logged: 'Not Found' },
+  ])('replaces a $kind error with a logged support reference', ({ kind, error, logged }) => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const result = (handleError as any)({ kind, error, event });
+    expect(result).toEqual({ message: 'An unexpected error occurred', reference: expect.any(String) });
+    expect(log).toHaveBeenCalledWith('Unhandled request error', expect.objectContaining({
+      reference: result.reference,
+      path: '/mail/missing',
+      error: logged,
+    }));
+    log.mockRestore();
+  });
 });

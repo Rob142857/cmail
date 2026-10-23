@@ -1,12 +1,12 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { isValidCountryCode } from '$lib/countries';
-import { audit } from '$lib/server/db';
-import { loadOrgSettings, ORG_SETTINGS_KEYS, type OrgSettingsKey } from '$lib/server/org-settings';
-import { normalizeDomain, normalizeEmail } from '$lib/server/validation';
-import { ORG_SETTING_MCP_ENABLED, isMcpEnabled, mcpResource } from '$lib/server/mcp/config';
-import { adminMcpOverview } from '$lib/server/mcp/grants';
-import { revokeAllGrantsStatements } from '$lib/server/mcp/oauth';
+import { isValidCountryCode } from '#lib/countries.js';
+import { audit } from '#lib/server/db.js';
+import { loadOrgSettings, ORG_SETTINGS_KEYS, type OrgSettingsKey } from '#lib/server/org-settings.js';
+import { normalizeDomain, normalizeEmail } from '#lib/server/validation.js';
+import { ORG_SETTING_MCP_ENABLED, isMcpEnabled, mcpResource } from '#lib/server/mcp/config.js';
+import { adminMcpOverview } from '#lib/server/mcp/grants.js';
+import { revokeAllGrantsStatements } from '#lib/server/mcp/oauth.js';
 
 export const load: PageServerLoad = async ({ platform }) => {
   const env = platform?.env;

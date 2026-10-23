@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import {
   checkSourceUpdates, DEFAULT_REPOSITORY, procedureUrl, type Build, type UpdateStatus,
-} from '$lib/server/source-updates';
+} from '#lib/server/source-updates.js';
 import type { RequestHandler } from './$types';
 
 declare const __CMAIL_BUILD__: Build;

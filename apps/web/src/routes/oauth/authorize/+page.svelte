@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Icon from '$lib/ui/Icon.svelte';
+  import Icon from '#lib/ui/Icon.svelte';
 
   let { data, form } = $props();
   const appName = $derived(data.appName || 'cmail');

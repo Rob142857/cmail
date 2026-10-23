@@ -1,11 +1,11 @@
 <script>
   import '../app.css';
   import { page, updated } from '$app/state';
-  import { browser } from '$app/environment';
+  import { browser } from '$app/env';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
-  import InstallPrompt from '$lib/InstallPrompt.svelte';
-  import { deploymentUpdateAction, shouldCheckForServiceWorkerUpdate } from '$lib/service-worker-update';
+  import InstallPrompt from '#lib/InstallPrompt.svelte';
+  import { deploymentUpdateAction, shouldCheckForServiceWorkerUpdate } from '#lib/service-worker-update.js';
   let { children } = $props();
   let updateReady = $state(false);
 

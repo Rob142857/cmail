@@ -282,6 +282,36 @@ describe('RFC 5322 participant metadata', () => {
     });
   });
 
+  it('keeps the envelope fallback when an unclosed quote runs into the address', async () => {
+    for (const from of [
+      '"CEO <ceo@partner.example',
+      '"CEO ceo@partner.example',
+      '(a "nick) "CEO <ceo@partner.example',
+      '"Bob <bob@partner.example>, other@partner.example',
+    ]) {
+      const parsed = await parseHeaders(`From: ${from}`);
+      // postal-mime 4 returns a quoted local-part at partner.example here,
+      // which a sender rule for that domain would match.
+      expect(parsed.from?.address).toMatch(/^".+"@partner\.example$/);
+      const rawFrom = parsed.headers.find((header) => header.key === 'from')?.value;
+      expect(inboundFromParticipant(parsed.from, 'envelope@example.test', rawFrom)).toEqual({
+        address: 'envelope@example.test', name: '',
+      });
+    }
+  });
+
+  it('keeps closed quoted local-parts, escaped quotes and quotes inside comments', async () => {
+    for (const [from, address] of [
+      ['"john smith"@example.test', '"john smith"@example.test'],
+      ['"x\\"y"@example.test', '"x\\"y"@example.test'],
+      ['Desk (the "team) <"desk team"@example.test>', '"desk team"@example.test'],
+    ]) {
+      const parsed = await parseHeaders(`From: ${from}`);
+      const rawFrom = parsed.headers.find((header) => header.key === 'from')?.value;
+      expect(inboundFromParticipant(parsed.from, 'envelope@example.test', rawFrom).address).toBe(address);
+    }
+  });
+
   it('removes invisible identity controls, bounds Unicode by code point, and keeps a useful duplicate name', () => {
     expect(sanitizeParticipantName('  Safe\r\n\u202Ename\u2066  ')).toBe('Safe name');
     expect(Array.from(sanitizeParticipantName('😀'.repeat(140)))).toHaveLength(120);

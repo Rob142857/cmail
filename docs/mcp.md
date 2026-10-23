@@ -244,7 +244,7 @@ No server can fully stop a model from being misled by what it reads. Keep
 SvelteKit's built-in CSRF check rejects any form-encoded POST without an
 `Origin` header. Native OAuth clients send exactly that to `/oauth/token`
 and `/oauth/revoke`. cmail therefore disables the built-in copy
-(`csrf.trustedOrigins: ['*']` in `svelte.config.js`) and re-implements the
+(`csrf.trustedOrigins: ['*']` in `vite.config.ts`) and re-implements the
 same rule in `hooks.server.ts`, exempting only those two endpoints, which never
 read cookies. Tests in `src/hooks.csrf.test.ts` cover both the exemption and
 that every other path is still protected.

@@ -1,13 +1,13 @@
 <script>
   import { page } from '$app/state';
   import { afterNavigate, goto, replaceState } from '$app/navigation';
-  import { browser } from '$app/environment';
-  import AppShell from '$lib/ui/AppShell.svelte';
-  import Icon from '$lib/ui/Icon.svelte';
-  import Persona from '$lib/ui/Persona.svelte';
-  import PushNotifications from '$lib/PushNotifications.svelte';
-  import Toast from '$lib/Toast.svelte';
-  import WelcomeGuide from '$lib/WelcomeGuide.svelte';
+  import { browser } from '$app/env';
+  import AppShell from '#lib/ui/AppShell.svelte';
+  import Icon from '#lib/ui/Icon.svelte';
+  import Persona from '#lib/ui/Persona.svelte';
+  import PushNotifications from '#lib/PushNotifications.svelte';
+  import Toast from '#lib/Toast.svelte';
+  import WelcomeGuide from '#lib/WelcomeGuide.svelte';
 
   let { data, children } = $props();
   /** @type {any} */

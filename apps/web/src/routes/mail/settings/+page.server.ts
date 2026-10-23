@@ -1,14 +1,14 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { audit } from '$lib/server/db';
+import { audit } from '#lib/server/db.js';
 import {
   getOrganisationSignature,
   getPersonalSignature,
   sanitizeSignature,
   savePersonalSignature,
   type StoredPersonalSignature,
-} from '$lib/server/signatures';
-import { getComposeDefaults, parseComposeDefaultsForm, saveComposeDefaults } from '$lib/server/compose-preferences';
+} from '#lib/server/signatures.js';
+import { getComposeDefaults, parseComposeDefaultsForm, saveComposeDefaults } from '#lib/server/compose-preferences.js';
 import { DEFAULT_COMPOSE_DEFAULTS } from '@cmail/shared/compose-style';
 
 function publicPersonalSignature(signature: StoredPersonalSignature | null) {

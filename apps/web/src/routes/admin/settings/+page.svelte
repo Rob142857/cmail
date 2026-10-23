@@ -1,5 +1,5 @@
 <script lang="ts">
-  import CountryPicker from '$lib/CountryPicker.svelte';
+  import CountryPicker from '#lib/CountryPicker.svelte';
 
   let { data, form } = $props();
   const settings = $derived(data.settings);

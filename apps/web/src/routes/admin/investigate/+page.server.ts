@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { adminLoaderFailure } from '$lib/server/admin-loader-error';
+import { adminLoaderFailure } from '#lib/server/admin-loader-error.js';
 
 /**
  * Unified investigation view: message trace and the audit log in one timeline.

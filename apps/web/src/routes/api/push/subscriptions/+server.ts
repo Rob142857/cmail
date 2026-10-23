@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { isAllowedPushEndpoint, pushConfiguration } from '@cmail/shared/push';
-import { generateId } from '$lib/server/db';
+import { generateId } from '#lib/server/db.js';
 
 const RESPONSE_HEADERS = { 'Cache-Control': 'private, no-store' };
 const MAX_SUBSCRIPTIONS_PER_USER = 5;

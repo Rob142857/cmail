@@ -1,11 +1,11 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import type { Mailbox, MailboxAssignment, UserStatus } from '@cmail/shared/types';
-import { audit, generateId } from '$lib/server/db';
+import { audit, generateId } from '#lib/server/db.js';
 import {
   ELIGIBLE_MAILBOX_ASSIGNEE_EXISTS_SQL,
   getEligibleMailboxAssignee,
-} from '$lib/server/mailbox-assignees';
+} from '#lib/server/mailbox-assignees.js';
 import {
   boundedInteger,
   escapeLike,
@@ -14,7 +14,7 @@ import {
   normalizeEmail,
   normalizeMailboxLocalPart,
   textField,
-} from '$lib/server/validation';
+} from '#lib/server/validation.js';
 import {
   MAILBOX_PERMISSIONS,
   MAILBOX_STATUSES,

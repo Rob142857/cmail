@@ -1,7 +1,7 @@
 <script>
   import { enhance } from '$app/forms';
   import { untrack } from 'svelte';
-  import EmailAutocomplete from '$lib/EmailAutocomplete.svelte';
+  import EmailAutocomplete from '#lib/EmailAutocomplete.svelte';
 
   let { data, form } = $props();
   const d = $derived(data);

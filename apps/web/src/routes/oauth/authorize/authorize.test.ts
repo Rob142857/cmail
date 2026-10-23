@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { actions, load } from './+page.server';
-import { APP_URL, createFixture, type Fixture } from '$lib/server/mcp/testing/harness';
-import { REDIRECT, authorizeParams, challenge, register, userRow } from '$lib/server/mcp/testing/flow';
-import { MCP_AUTHORIZE_COOKIE, MCP_RESUME_PATH } from '$lib/server/mcp/resume';
+import { APP_URL, createFixture, type Fixture } from '#lib/server/mcp/testing/harness.js';
+import { REDIRECT, authorizeParams, challenge, register, userRow } from '#lib/server/mcp/testing/flow.js';
+import { MCP_AUTHORIZE_COOKIE, MCP_RESUME_PATH } from '#lib/server/mcp/resume.js';
 
 function cookieJar(initial: Record<string, string> = {}) {
   const values = new Map(Object.entries(initial));

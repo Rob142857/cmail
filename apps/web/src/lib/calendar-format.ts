@@ -1,5 +1,5 @@
 // Small, client-safe formatting helpers shared between the message-view
-// invite card and the calendar agenda list. Kept out of $lib/server so
+// invite card and the calendar agenda list. Kept out of #lib/server so
 // Svelte components can import it directly.
 
 export type Partstat = 'needs-action' | 'accepted' | 'declined' | 'tentative';

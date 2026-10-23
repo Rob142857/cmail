@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import type { MailTrace } from '@cmail/shared/types';
-import { adminLoaderFailure } from '$lib/server/admin-loader-error';
+import { adminLoaderFailure } from '#lib/server/admin-loader-error.js';
 
 const VALID_PAGE_SIZES = [20, 50, 100];
 

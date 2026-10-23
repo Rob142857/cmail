@@ -1,10 +1,10 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { buildAuthorizationUrl, createPkcePair, getOAuthCallbackUrl, getProviderConfig, isAuthProvider } from '$lib/server/auth';
-import { assertStrongSessionSecret } from '$lib/server/config';
-import { consumeRateLimit } from '$lib/server/rate-limit';
-import { BOOTSTRAP_PROOF_COOKIE } from '$lib/server/bootstrap';
-import { ENROLLMENT_COOKIE } from '$lib/server/identity';
+import { buildAuthorizationUrl, createPkcePair, getOAuthCallbackUrl, getProviderConfig, isAuthProvider } from '#lib/server/auth.js';
+import { assertStrongSessionSecret } from '#lib/server/config.js';
+import { consumeRateLimit } from '#lib/server/rate-limit.js';
+import { BOOTSTRAP_PROOF_COOKIE } from '#lib/server/bootstrap.js';
+import { ENROLLMENT_COOKIE } from '#lib/server/identity.js';
 
 export const GET: RequestHandler = async ({ params, platform, url, cookies, request, locals }) => {
   if (!isAuthProvider(params.provider)) throw redirect(303, '/?error=provider_not_configured');
