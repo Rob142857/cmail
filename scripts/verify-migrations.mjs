@@ -368,7 +368,8 @@ try {
           'organization_directory_settings', 'organization_layers',
           'organization_units', 'organization_roles', 'organization_positions',
           'push_subscriptions', 'push_device_preferences', 'outbound_send_journal',
-          'outbound_send_targets', 'outbound_send_attachments', 'compose_preferences'
+          'outbound_send_targets', 'outbound_send_attachments', 'compose_preferences',
+          'inbox_rules'
         )) AS application_table_count,
       (SELECT COUNT(*) FROM sqlite_master
         WHERE type = 'index' AND name IN (
@@ -379,7 +380,8 @@ try {
           'idx_mailbox_reservations_mailbox_time',
           'idx_mailbox_reservations_sender_time',
           'idx_mailbox_reservations_pending_storage',
-          'idx_mailbox_reservations_draft_slots'
+          'idx_mailbox_reservations_draft_slots',
+          'idx_inbox_rules_mailbox_position'
         )) AS essential_index_count,
       (SELECT COUNT(*) FROM sqlite_master
         WHERE type = 'trigger' AND name IN (
@@ -408,6 +410,8 @@ try {
           'trg_outbound_send_target_reservation_extend',
           'trg_outbound_send_attachments_immutable'
         )) AS outbound_journal_trigger_count,
+      (SELECT COUNT(*) FROM sqlite_master
+        WHERE type = 'trigger' AND name = 'trg_inbox_rules_limit') AS inbox_rule_trigger_count,
       (SELECT COUNT(*) FROM retention_config
         WHERE (entity_type = 'deleted_messages' AND retention_days = 90)
            OR (entity_type = 'attachments' AND retention_days = 90)
@@ -475,8 +479,9 @@ try {
 
   assertEqual(Number(row.migration_count), expectedMigrations.length, 'Applied migration count');
   assertArrayEqual(appliedMigrations, expectedMigrations, 'Applied migration names');
-  assertEqual(Number(row.application_table_count), 28, 'Application table count');
-  assertEqual(Number(row.essential_index_count), 10, 'Essential index count');
+  assertEqual(Number(row.application_table_count), 29, 'Application table count');
+  assertEqual(Number(row.essential_index_count), 11, 'Essential index count');
+  assertEqual(Number(row.inbox_rule_trigger_count), 1, 'Inbox rule limit-trigger count');
   assertEqual(Number(row.organization_trigger_count), 2, 'Organisation cycle-trigger count');
   assertEqual(Number(row.inbound_guard_trigger_count), 5, 'Delivery reservation-trigger count');
   assertEqual(Number(row.outbound_journal_trigger_count), 11, 'Outbound journal-trigger count');
@@ -1020,10 +1025,41 @@ try {
   `);
   assertEqual(Number(pushPreferenceRow?.preference_count), 0, 'Push device preference cascade cleanup');
 
+  const ruleColumns = `(id, mailbox_id, name, position, definition)`;
+  const ruleDefinition = `'{"version":1,"appliesToAll":true,"conditions":{},"exceptions":{},"actions":{"markAsRead":true}}'`;
+  runWrangler(['d1', 'execute', ...baseArguments, '--command', `
+    INSERT INTO mailboxes (id, address, type, display_name)
+    VALUES ('rules-mailbox', 'rules@example.test', 'shared', 'Rules');
+    WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 50)
+    INSERT INTO inbox_rules ${ruleColumns}
+    SELECT 'rule-' || i, 'rules-mailbox', 'Rule ' || i, i, ${ruleDefinition} FROM n;
+  `]);
+  assertWranglerFailure(
+    ['d1', 'execute', ...baseArguments, '--command', `
+      INSERT INTO inbox_rules ${ruleColumns}
+      VALUES ('rule-over-limit', 'rules-mailbox', 'Over', 51, ${ruleDefinition});
+    `],
+    'Inbox rule per-mailbox limit guard',
+  );
+  runWrangler(['d1', 'execute', ...baseArguments, '--command', `DELETE FROM inbox_rules WHERE id = 'rule-50';`]);
+  for (const [values, label] of [
+    [`('rule-array', 'rules-mailbox', 'Array', 0, '[]')`, 'Inbox rule definition object guard'],
+    [`('rule-json', 'rules-mailbox', 'Broken', 0, '{not json')`, 'Inbox rule definition JSON guard'],
+    [`('rule-unnamed', 'rules-mailbox', '', 0, ${ruleDefinition})`, 'Inbox rule name guard'],
+    [`('rule-position', 'rules-mailbox', 'Negative', -1, ${ruleDefinition})`, 'Inbox rule position guard'],
+  ]) {
+    assertWranglerFailure(['d1', 'execute', ...baseArguments, '--command', `INSERT INTO inbox_rules ${ruleColumns} VALUES ${values};`], label);
+  }
+  runWrangler(['d1', 'execute', ...baseArguments, '--command', `DELETE FROM mailboxes WHERE id = 'rules-mailbox';`]);
+  const [inboxRuleRow] = executeJson(baseArguments, `
+    SELECT COUNT(*) AS rule_count FROM inbox_rules WHERE mailbox_id = 'rules-mailbox';
+  `);
+  assertEqual(Number(inboxRuleRow?.rule_count), 0, 'Inbox rule cascade cleanup');
+
   const migrationLabel = expectedMigrations.length === 1 ? 'migration' : 'migrations';
   console.log(
     `Fresh D1 migration verified: ${expectedMigrations.length} ${migrationLabel}, ` +
-      '27 application tables, required indexes, atomic delivery guards, triggers, and defaults.',
+      '29 application tables, required indexes, atomic delivery guards, triggers, and defaults.',
   );
 } finally {
   rmSync(persistenceDirectory, {
