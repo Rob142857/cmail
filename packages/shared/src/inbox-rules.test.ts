@@ -287,6 +287,8 @@ describe('helpers', () => {
     assert.equal(squash(ruleBodyText('', '<SCRIPT type="x">if (a > b) go()</Script ><p>kept</p>')), 'kept');
     assert.equal(squash(ruleBodyText('', '<p>before</p><style>p { color: red }')), 'before');
     assert.equal(squash(ruleBodyText('', '<p>Fish &lt; chips</p> <unterminated')), 'Fish < chips <unterminated');
+    assert.equal(squash(ruleBodyText('', '<p>Write &amp;lt; for &LT; &amp; &#39;quotes&#39;</p>')), "Write &lt; for < & 'quotes'");
+    assert.equal(squash(ruleBodyText('', '<Style>p { color: red }</STYLE><SCRIPT>go()</script >kept')), 'kept');
     // Quadratic under the old tag regex: about a minute for this input.
     assert.equal(ruleBodyText('', '<'.repeat(200_000)).length, 200_000);
     assert.equal(squash(ruleBodyText('', '<script>'.repeat(30_000))), '');

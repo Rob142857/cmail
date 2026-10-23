@@ -576,7 +576,7 @@ function htmlWithoutTags(html: string): string {
     if (close < 0) break;
     parts.push(html.slice(index, open), ' ');
     index = close + 1;
-    const element = /^<(script|style)[\s/>]/.exec(html.slice(open, open + 8).toLowerCase())?.[1] as keyof typeof END_TAGS | undefined;
+    const element = /^<(script|style)[\s/>]/i.exec(html.slice(open, open + 8))?.[1].toLowerCase() as keyof typeof END_TAGS | undefined;
     if (element) {
       const endTag = END_TAGS[element];
       endTag.lastIndex = index;
@@ -589,17 +589,15 @@ function htmlWithoutTags(html: string): string {
   return parts.join('');
 }
 
+const ENTITIES: Record<string, string> = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" };
+
 /** Plain text from a body for "Body includes": the text part, else the HTML with tags removed. */
 export function ruleBodyText(text: string | null | undefined, html: string | null | undefined): string {
   if (text) return text.slice(0, MAX_RULE_BODY_CHARS);
   if (!html) return '';
+  // One pass, so "&amp;lt;" decodes to "&lt;", not "<".
   return htmlWithoutTags(html.slice(0, MAX_RULE_BODY_CHARS * 2))
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
+    .replace(/&(nbsp|amp|lt|gt|quot|#39);/gi, (_, name: string) => ENTITIES[name.toLowerCase()])
     .slice(0, MAX_RULE_BODY_CHARS);
 }
 
