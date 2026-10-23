@@ -68,6 +68,9 @@ by default, with Postmark as an alternative.
 - **Inbound protection** — a spam score recorded on every message, quarantine
   only once a Manager sets an explicit threshold, organisation-wide sender
   allow/block rules, and warnings on disguised or punycode links.
+- **Inbox rules** — Outlook-style rules per mailbox that file new mail to
+  Archive, Junk or Deleted, mark it read, star it or set its importance, with
+  exceptions, ordering, and "run now" on the Inbox.
 - **Durable outbound journaling** — prevents a message from resending while
   recovering any missing Sent or internal copy.
 - **Signatures** — personal, with safe rich formatting, optional organisation

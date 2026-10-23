@@ -247,6 +247,8 @@ export const MIA_PAGES: Array<{ name: string; path: string; ready: string }> = [
   { name: 'message plain', path: '/mail/msg-grant', ready: 'article h1' },
   { name: 'settings', path: '/mail/settings', ready: 'h1' },
   { name: 'connected apps', path: '/mail/connected-apps', ready: 'h1' },
+  { name: 'rules', path: '/mail/rules', ready: 'h1' },
+  { name: 'rule editor', path: '/mail/rules/edit?mailbox=mb-mia&rule=rule-landcare', ready: 'h1' },
   { name: 'calendar', path: '/mail/calendar', ready: 'h1' },
   { name: 'admin home', path: '/admin', ready: 'h1' },
   { name: 'admin users', path: '/admin/users', ready: 'h1' },

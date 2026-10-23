@@ -228,6 +228,17 @@ After sending, cmail stores a Sent copy in the mailbox you sent from. If a
 message is accepted by the provider but the Sent copy fails to save, do not
 resend it — ask a manager to check Mail trace.
 
+## Inbox rules
+
+Rules file new mail for you, like rules in Outlook: for example, move
+newsletters to **Archive** or star everything from your manager. Open
+**Settings > Rules**, choose **New rule**, then add conditions (such as
+**From** or **Subject includes**) and actions (**Move to**, **Mark as read**,
+**Star it**, **Mark with importance**). To start from a message, open it and
+choose **Create rule**. Rules run in order on mail arriving in the Inbox, after
+your organisation's junk filtering. They never forward mail. See
+[Inbox rules](inbox-rules.md).
+
 ## New-mail alerts
 
 When your operator has set up Web Push and your browser supports it, the mail

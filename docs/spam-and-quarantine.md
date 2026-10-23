@@ -52,6 +52,10 @@ is either a full address (`person@example.com`) or a bare domain
 - Rules take effect on the next inbound message. They aren't retroactive and
   don't move mail that already arrived.
 
+Each mailbox can also have its own [inbox rules](inbox-rules.md). They run
+after these organisation-wide rules and only on mail that reached the Inbox,
+so they can file mail away but never bring quarantined mail back.
+
 ## The quarantine page
 
 **Management > Quarantine** lists messages currently sitting in Spam, across
