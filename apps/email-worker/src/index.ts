@@ -8,6 +8,18 @@ import { sanitizeBoundedEmailHtml } from '@cmail/shared/sanitize-email';
 import { parseMessageImportance } from '@cmail/shared/message-importance';
 import { contactUpsertStatements } from '@cmail/shared/contacts';
 import {
+  evaluateInboxRules,
+  loadEnabledInboxRules,
+  outcomeNotifies,
+  ruleBodyText,
+  ruleFolderName,
+  ruleHeaderText,
+  ruleNeedsBody,
+  ruleNeedsHeaders,
+  type InboxRuleOutcome,
+  type RuleMessageFacts,
+} from '@cmail/shared/inbox-rules';
+import {
   normalizeParticipantAddress,
   normalizeParticipants,
   sanitizeParticipantName,
@@ -555,6 +567,46 @@ export async function lookupSenderRule(db: D1Database, headerFrom: string): Prom
   }
 }
 
+type ParsedHeader = { key: string; originalKey?: string; value: string };
+
+/**
+ * Runs a mailbox's inbox rules on a message bound for its Inbox. Rules are a
+ * convenience layered on delivery: if they cannot be read or evaluated, the
+ * message is delivered as if the mailbox had none. The body and header text
+ * are only built when a rule tests them.
+ */
+export async function inboundRuleOutcome(
+  db: D1Database,
+  mailboxId: string,
+  facts: Omit<RuleMessageFacts, 'body' | 'headers'>,
+  content: { text?: string; html: string; headers?: readonly ParsedHeader[] },
+): Promise<InboxRuleOutcome | null> {
+  try {
+    const rules = await loadEnabledInboxRules(db, mailboxId);
+    if (!rules.length) return null;
+    const outcome = evaluateInboxRules(rules, {
+      ...facts,
+      body: rules.some((rule) => ruleNeedsBody(rule.definition)) ? ruleBodyText(content.text, content.html) : null,
+      headers: rules.some((rule) => ruleNeedsHeaders(rule.definition)) ? ruleHeaderText(content.headers) : null,
+    });
+    return outcome.applied.length ? outcome : null;
+  } catch {
+    console.error('Inbox rules were skipped for a delivery');
+    return null;
+  }
+}
+
+/** The mail trace line for a delivery that inbox rules acted on. */
+export function inboxRuleTraceDetail(outcome: InboxRuleOutcome): string {
+  const effects = [
+    outcome.folder === 'inbox' ? '' : `moved to ${ruleFolderName(outcome.folder)}`,
+    outcome.isRead ? 'marked read' : '',
+    outcome.isStarred ? 'starred' : '',
+  ].filter(Boolean);
+  const names = outcome.applied.map((rule) => `"${rule.name}"`).join(', ');
+  return `Inbox rules ${names}${effects.length ? `: ${effects.join(', ')}` : ''}`;
+}
+
 async function findExistingDelivery(
   db: D1Database,
   id: string,
@@ -990,6 +1042,8 @@ export default {
       return;
     }
 
+    // Rules test the To line as sent, before the Bcc fallback below.
+    const headerToAddresses = toAddresses.slice();
     if (toAddresses.length === 0) {
       // Bcc-only and malformed To headers still need a useful delivery
       // context. Keep the routing and display metadata arrays in lockstep.
@@ -1021,6 +1075,18 @@ export default {
     });
     const quarantined = placement.folder === 'spam';
     const firstContact = await isFirstContact(env.DB, mailbox.id, headerFrom);
+    // Inbox rules only see mail the organisation filed to the Inbox: a
+    // mailbox rule never pulls quarantined mail back out of Junk.
+    const ruleOutcome = quarantined ? null : await inboundRuleOutcome(env.DB, mailbox.id, {
+      mailboxAddress: recipientAddress,
+      from: headerFrom,
+      to: headerToAddresses,
+      cc: ccAddresses,
+      subject,
+      hasAttachment: preparedAttachments.some((attachment) => attachment.disposition === 'attachment'),
+      importance,
+      sizeBytes: messageSize,
+    }, { text: parsed.text, html: preparedBody.html, headers: parsed.headers });
 
     const storageNamespace = generateId();
     const bodyKey = messageBodyR2Key(storageNamespace, generateId());
@@ -1046,7 +1112,7 @@ export default {
 
     const messageInsert = env.DB.prepare(
       `INSERT INTO messages (id, mailbox_id, message_id_header, direction, from_address, from_name, to_addresses, cc_addresses, reply_to_addresses, to_participants, cc_participants, reply_to_participants, subject, snippet, body_r2_key, has_attachments, size_bytes, folder, is_read, is_starred, importance, in_reply_to, references_header, thread_id, spam_score, sender_first_contact, quarantine_reason, received_at, created_at)
-       VALUES (?, ?, ?, 'inbound', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+       VALUES (?, ?, ?, 'inbound', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
     ).bind(
       messageId,
       mailbox.id,
@@ -1064,8 +1130,10 @@ export default {
       bodyKey,
       preparedAttachments.some((attachment) => attachment.disposition === 'attachment') ? 1 : 0,
       messageSize,
-      placement.folder,
-      importance,
+      ruleOutcome?.folder ?? placement.folder,
+      ruleOutcome?.isRead ? 1 : 0,
+      ruleOutcome?.isStarred ? 1 : 0,
+      ruleOutcome?.importance ?? importance,
       inReplyTo,
       referencesHeader,
       threadId,
@@ -1132,14 +1200,17 @@ export default {
       status: quarantined ? 'quarantined' : 'delivered',
       status_detail: quarantined
         ? (placement.reason === 'blocked-sender' ? 'Filed to Spam by sender rule' : 'Filed to Spam by spam score')
-        : 'OK',
+        : ruleOutcome ? inboxRuleTraceDetail(ruleOutcome) : 'OK',
       spf_result: auth.spf,
       dkim_result: auth.dkim,
       dmarc_result: auth.dmarc,
       spam_score: spamScore,
       source_ip: sourceIp,
     });
-    ctx.waitUntil(sendNewMailNotifications(env, mailbox.id, messageId));
+    // A message a rule filed away or marked read raises no new-mail alert.
+    if (!ruleOutcome || outcomeNotifies(ruleOutcome)) {
+      ctx.waitUntil(sendNewMailNotifications(env, mailbox.id, messageId));
+    }
 
     // Recipient-suggestion history is a bonus feature layered on top of an
     // already durably stored message: only the sender is recorded (never
