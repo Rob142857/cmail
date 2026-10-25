@@ -231,7 +231,7 @@
   .faq dt { font-weight: 500; color: var(--text); margin-top: 8px; }
   .faq dd { margin: 4px 0 0 0; }
   .login-links { display: flex; min-width: 0; flex-wrap: wrap; justify-content: center; gap: 8px 14px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; }
-  .login-links a { overflow-wrap: anywhere; }
+  .login-links a { overflow-wrap: anywhere; color: var(--primary-text); }
   .product-credit { margin: 13px 0 0; color: var(--text-faint); font-size: 10px; }
   @media (max-width: 420px) {
     .login-page { padding: 12px; align-items: flex-start; }
