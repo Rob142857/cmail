@@ -117,23 +117,29 @@ export async function open(page: Page, path: string): Promise<void> {
 
 /**
  * How far content reaches past the right edge of the screen, in px: the
- * document's sideways scroll, or any element sticking out (cmail's shell
- * clips overflow, which would otherwise hide a too-wide header or list).
- * Content inside its own sideways scroller (tables, toolbars) is fine.
+ * document's sideways scroll, a page pane that scrolls sideways as well as
+ * down (the page "stretches"), or any element sticking out, fixed and sticky
+ * bars included (cmail's shell clips overflow, which would otherwise hide a
+ * too-wide header or list). Content inside a sideways-only scroller (tables,
+ * toolbars) is fine.
  */
 export async function horizontalOverflow(page: Page): Promise<number> {
   return page.evaluate(() => {
     const width = document.documentElement.clientWidth;
     let worst = document.documentElement.scrollWidth - width;
+    const scrolls = (element: Element) => ['auto', 'scroll'].includes(getComputedStyle(element).overflowX);
+    const scrollsDown = (element: Element) => element.scrollHeight > element.clientHeight + 1;
     for (const element of document.querySelectorAll('body *')) {
+      if (scrolls(element) && scrollsDown(element) && !element.matches('input, textarea, select')) {
+        worst = Math.max(worst, element.scrollWidth - element.clientWidth);
+      }
       const rect = element.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) continue;
-      if (element.closest('[inert], .sr-only') || getComputedStyle(element).position === 'fixed') continue;
+      if (element.closest('[inert], .sr-only') || getComputedStyle(element).visibility === 'hidden') continue;
       let scroller = element.parentElement;
       let insideScroller = false;
       while (scroller && scroller !== document.body) {
-        const overflowX = getComputedStyle(scroller).overflowX;
-        if ((overflowX === 'auto' || overflowX === 'scroll') && scroller.getBoundingClientRect().right <= width + 1) { insideScroller = true; break; }
+        if (scrolls(scroller) && !scrollsDown(scroller) && scroller.getBoundingClientRect().right <= width + 1) { insideScroller = true; break; }
         scroller = scroller.parentElement;
       }
       if (!insideScroller) worst = Math.max(worst, Math.round(rect.right - width));
@@ -196,14 +202,17 @@ export async function openVirtualKeyboard(page: Page, fraction = 0.55): Promise<
   return shrunk;
 }
 
-/** At least `minVisiblePx` of the element is inside the visual viewport. */
+/** At least `minVisiblePx` of the element, across and down, is inside the visual viewport. */
 export async function isInViewport(page: Page, selector: string, minVisiblePx = 24): Promise<boolean> {
   return page.$eval(selector, (element, minVisiblePx) => {
     const rect = element.getBoundingClientRect();
     const viewport = window.visualViewport;
     const top = viewport ? viewport.offsetTop : 0;
     const bottom = top + (viewport ? viewport.height : window.innerHeight);
-    return Math.min(rect.bottom, bottom) - Math.max(rect.top, top) >= Math.min(minVisiblePx, rect.height);
+    const left = viewport ? viewport.offsetLeft : 0;
+    const right = left + (viewport ? viewport.width : window.innerWidth);
+    return Math.min(rect.bottom, bottom) - Math.max(rect.top, top) >= Math.min(minVisiblePx, rect.height)
+      && Math.min(rect.right, right) - Math.max(rect.left, left) >= Math.min(minVisiblePx, rect.width);
   }, minVisiblePx);
 }
 

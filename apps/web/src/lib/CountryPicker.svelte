@@ -87,6 +87,8 @@
   .reset-default { justify-self: start; }
   .country-list {
     display: grid;
+    /* Long names shorten with an ellipsis instead of widening the list. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 1px;
     max-height: 220px;
     overflow-y: auto;

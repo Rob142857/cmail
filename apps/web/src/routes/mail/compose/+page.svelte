@@ -913,12 +913,14 @@
 
     <div class="compose-actions">
       <div class="left">
-        <button type="button" class="btn btn-ghost" onclick={() => saveAndNavigate(d.returnHref, true, true)} disabled={sending || discarding || navigationInProgress || !!recoveryConflict || saveConflict}>
-          {navigationInProgress ? 'Saving…' : d.replyTo ? '← Back to message' : '← Back to mail'}
+        <button type="button" class="btn btn-ghost secondary-action" onclick={() => saveAndNavigate(d.returnHref, true, true)} disabled={sending || discarding || navigationInProgress || !!recoveryConflict || saveConflict}>
+          <Icon name="arrowLeft" size={16} />
+          <span class="action-label">{navigationInProgress ? 'Saving…' : d.replyTo ? 'Back to message' : 'Back to mail'}</span>
         </button>
         {#if draftId}
-          <button type="submit" formaction="?/discard" class="btn btn-ghost-danger" onclick={confirmDiscard} disabled={sending || discarding || navigationInProgress || !!recoveryConflict || saveConflict}>
-            {discarding ? 'Discarding…' : 'Discard draft'}
+          <button type="submit" formaction="?/discard" class="btn btn-ghost-danger secondary-action" onclick={confirmDiscard} disabled={sending || discarding || navigationInProgress || !!recoveryConflict || saveConflict}>
+            <Icon name="trash" size={16} />
+            <span class="action-label">{discarding ? 'Discarding…' : 'Discard draft'}</span>
           </button>
         {/if}
       </div>
@@ -1051,11 +1053,14 @@
   @media (max-width: 768px) {
     .compose-form { padding: 14px; }
     /* The action bar sticks to the bottom of the screen (and above the
-       on-screen keyboard), so Send never needs a scroll to the end. */
+       on-screen keyboard), so Send never needs a scroll to the end. Back
+       and Discard shrink to icons so Save draft and Send always fit; at
+       very large text sizes the bar wraps rather than running off-screen. */
     .compose-actions {
       position: sticky;
       bottom: 0;
       z-index: 5;
+      flex-wrap: wrap;
       margin: 4px -14px -14px;
       padding: 8px 14px max(8px, env(safe-area-inset-bottom));
       background: var(--bg-surface);
@@ -1064,6 +1069,8 @@
     }
     .compose-actions .left { gap: 4px; }
     .compose-actions .right { margin-left: auto; }
+    .secondary-action { min-width: 44px; padding-inline: 10px; }
+    .action-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     .quoted-heading { align-items:flex-start; flex-direction:column; gap:2px; }
     .recovery-warning { align-items:flex-start; flex-direction:column; }
     .recovery-actions { flex-wrap:wrap; }

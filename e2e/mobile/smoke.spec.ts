@@ -39,12 +39,22 @@ test.describe('signed in as a manager', () => {
   });
 });
 
+// Checked for width only; their other checks live in their own specs.
+const WIDTH_ONLY_PAGES = [
+  { name: 'new message', path: '/mail/compose', ready: 'h1' },
+  { name: 'reply', path: '/mail/compose?reply=msg-roster', ready: 'h1' },
+  { name: 'forward', path: '/mail/compose?forward=msg-newsletter', ready: 'h1' },
+  { name: 'admin quarantine', path: '/admin/quarantine', ready: 'h1' },
+  { name: 'help getting started', path: '/help/getting-started', ready: 'h1' },
+  { name: 'help shared mailboxes', path: '/help/shared-mailboxes', ready: 'h1' },
+];
+
 test.describe('no sideways scroll on narrow phones', () => {
   test.skip(({ isMobile }) => !isMobile, 'phone widths only');
   test.use({ as: 'user-mia' });
 
-  for (const width of [360, 375]) {
-    for (const p of [...MIA_PAGES, ...SIGNED_OUT_PAGES.slice(0, 1)]) {
+  for (const width of [320, 360, 375]) {
+    for (const p of [...MIA_PAGES, ...WIDTH_ONLY_PAGES, ...SIGNED_OUT_PAGES.slice(0, 1)]) {
       test(`${p.name} at ${width}px`, async ({ page }) => {
         await page.setViewportSize({ width, height: page.viewportSize()!.height });
         await open(page, p.path);

@@ -1,4 +1,4 @@
-import { test, expect, open, openVirtualKeyboard, isInViewport, smallTapTargets } from './fixtures';
+import { test, expect, open, openVirtualKeyboard, isInViewport, smallTapTargets, horizontalOverflow } from './fixtures';
 
 // Compose writes drafts and sends, so it runs as Sam and sends only to the
 // internal Records mailbox (records@wattle.test). OUTBOUND_PROVIDER is "none":
@@ -103,6 +103,29 @@ test.describe('on a phone', () => {
     await page.keyboard.type('Ready to send.');
     expect(await isInViewport(page, 'button.send-button')).toBe(true);
   });
+
+  for (const [surface, path] of [
+    ['new message', '/mail/compose'],
+    ['reply', '/mail/compose?reply=msg-sam-1&returnTo=%2Fmail%2Fmsg-sam-1'],
+    ['forward', '/mail/compose?forward=msg-sam-1&returnTo=%2Fmail%2Fmsg-sam-1'],
+  ]) {
+    test(`${surface}: once the draft saves, every action fits on a 320px screen`, async ({ page }) => {
+      await page.setViewportSize({ width: 320, height: page.viewportSize()!.height });
+      await open(page, path);
+      await page.locator('.rich-text-surface').click();
+      await page.keyboard.type('Draft text.');
+      // Saving the draft adds Discard draft, the widest the bar gets.
+      await expect(page.getByRole('button', { name: 'Discard draft' })).toBeVisible({ timeout: 15_000 });
+      expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+      for (const name of ['Send', 'Save draft', 'Discard draft', /^Back to/]) {
+        const box = (await page.locator('.compose-actions').getByRole('button', { name }).boundingBox())!;
+        expect(box.x, String(name)).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width, String(name)).toBeLessThanOrEqual(320);
+      }
+      const small = await smallTapTargets(page, '.compose-actions button');
+      expect(small, small.join('\n')).toEqual([]);
+    });
+  }
 
   test('formatting toolbar and attachment controls are at least 44px', async ({ page }) => {
     await newMessage(page);
