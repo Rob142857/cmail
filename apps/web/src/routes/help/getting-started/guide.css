@@ -1,4 +1,5 @@
-:global(.guide) { display: grid; gap: 30px; }
+:global(.guide) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 30px; }
+:global(.guide .btn) { white-space: normal; text-align: center; }
 :global(.guide > header) { max-width: 760px; }
 :global(.guide .eyebrow) { margin: 0 0 6px; color: var(--primary-text); font-size: 11px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
 :global(.guide h1) { margin: 0; font-size: clamp(30px, 6vw, 44px); letter-spacing: -.035em; }

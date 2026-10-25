@@ -182,7 +182,8 @@
 </section>
 
 <style>
-  .admin-page { display: grid; gap: 26px; }
+  /* minmax(0, 1fr): the wide tables scroll inside their cards instead of widening the page. */
+  .admin-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 26px; }
   .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
   .page-header h1 { margin: 3px 0 5px; font-size: var(--fs-title-2); }
   .page-header p:last-child { margin: 0; max-width: 74ch; color: var(--text-muted); font-size: 13px; }

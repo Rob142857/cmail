@@ -18,6 +18,7 @@ Notable changes to cmail are recorded here. The project follows
 - Mail > Settings > Email signature is now **Font and signature**.
 
 ### Fixed
+- On phones, the bottom bar in new message, reply, reply all and forward ran off the right edge once a draft saved: Send and Save draft were pushed off-screen and the page scrolled sideways. Back and Discard draft are now icon buttons on phones (named for screen readers), and the bar wraps rather than overflowing at very large text sizes. The same sideways stretch is fixed on Management > Quarantine (its tables now scroll inside their cards), in the approved sign-in country list, and in the help guides.
 - Manager update notices showed "Update status unavailable" on Cloudflare because GitHub's unauthenticated REST limit is shared across Cloudflare egress addresses. The check now reads upstream `main` from Git's ref advertisement, shows "Up to date" or "Update available: <version>", caches at the edge, explains any failure, links the procedure for the configured `REPO_URL`, and can be turned off with `UPDATE_CHECK = "off"`.
 - `deploy:landing` now requires `--project-name` and passes it to Wrangler, so a stray `wrangler.toml` in the checkout can't send the product page to another Pages project.
 
