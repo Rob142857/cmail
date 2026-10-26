@@ -66,25 +66,9 @@
 </article>
 
 <style>
-  :global(.guide) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 30px; }
-  :global(.guide .btn) { white-space: normal; text-align: center; }
-  :global(.guide > header) { max-width: 760px; }
-  :global(.guide .eyebrow) { margin: 0 0 6px; color: var(--primary-text); font-size: 11px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
-  :global(.guide h1) { margin: 0; font-size: clamp(30px, 6vw, 44px); letter-spacing: -.035em; }
-  :global(.guide > header > p:last-child) { margin-top: 12px; color: var(--text-muted); font-size: 17px; line-height: 1.65; }
-  :global(.guide section) { scroll-margin-top: 92px; padding-top: 27px; border-top: 1px solid var(--border); }
-  :global(.guide section h2) { margin: 0 0 10px; font-size: 23px; }
-  :global(.guide section h3) { margin: 20px 0 7px; font-size: 16px; }
-  :global(.guide section p), :global(.guide li) { color: var(--text-muted); font-size: 14px; line-height: 1.7; }
-  :global(.guide section p + p) { margin-top: 10px; }
-  :global(.guide ul), :global(.guide ol) { display: grid; gap: 7px; margin: 12px 0 0; padding-left: 23px; }
-  :global(.guide strong) { color: var(--text); }
-  :global(.on-this-page) { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-surface); font-size: 12px; }
-  :global(.on-this-page strong) { margin-right: 3px; }
-  :global(.callout) { margin-top: 14px; padding: 14px 16px; border-left: 4px solid var(--primary); border-radius: 8px; background: var(--primary-soft); }
-  :global(.callout p) { margin: 3px 0 0; font-size: 12px; }
+  @import './guide.css';
   .term-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
-  .term-grid div { display: flex; flex-direction: column; gap: 3px; padding: 13px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-surface); }
+  .term-grid div { display: flex; flex-direction: column; gap: 3px; padding: 13px; border: 1px solid var(--divider, var(--border)); border-radius: 9px; background: transparent; }
   .term-grid span { color: var(--text-muted); font-size: 12px; line-height: 1.5; }
   @media (max-width: 600px) { .term-grid { grid-template-columns: 1fr; } }
 </style>

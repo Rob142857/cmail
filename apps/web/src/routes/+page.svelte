@@ -148,10 +148,12 @@
     width: 100%;
     text-align: center;
     padding: 32px;
+    box-shadow: none;
+    border-color: var(--divider, var(--border));
   }
   .login-card > * { min-width: 0; }
   .brand-logo { display: block; width: min(240px, 100%); height: auto; max-width: 100%; margin: 0 auto 12px; object-fit: contain; }
-  h1 { margin: 0; font-size: 22px; }
+  h1 { margin: 0; font-size: 22px; font-weight: 600; }
   .subtitle { color: var(--text-muted); margin-bottom: 24px; }
   .providers { display: flex; min-width: 0; flex-direction: column; gap: 10px; }
   .provider-btn { flex-direction: column; justify-content: center; padding: 11px 12px; }
@@ -230,7 +232,7 @@
   .faq dl { margin-top: 12px; }
   .faq dt { font-weight: 500; color: var(--text); margin-top: 8px; }
   .faq dd { margin: 4px 0 0 0; }
-  .login-links { display: flex; min-width: 0; flex-wrap: wrap; justify-content: center; gap: 8px 14px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; }
+  .login-links { display: flex; min-width: 0; flex-wrap: wrap; justify-content: center; gap: 8px 14px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--divider, var(--border)); font-size: 12px; }
   .login-links a { overflow-wrap: anywhere; color: var(--primary-text); }
   .product-credit { margin: 13px 0 0; color: var(--text-faint); font-size: 10px; }
   @media (max-width: 420px) {

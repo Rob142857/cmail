@@ -94,10 +94,14 @@
 
 <style>
   .otp-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
-  .otp-card { width: min(100%, 420px); padding: 32px; text-align: center; }
-  h1 { margin: 0 0 8px; font-size: 22px; }
+  .otp-card { width: min(100%, 420px); padding: 32px; text-align: center; box-shadow: none; border-color: var(--divider, var(--border)); }
+  h1 { margin: 0 0 8px; font-size: 22px; font-weight: 600; }
   .subtitle { color: var(--text-muted); line-height: 1.55; margin: 0 0 20px; }
-  .field { text-align: left; margin-bottom: 16px; }
+  .field { text-align: left; margin-bottom: 16px; gap: 0; border-bottom: 1px solid var(--border); }
+  .field:focus-within { border-bottom-color: var(--primary); }
+  .field > label { margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+  .field input { min-height: 40px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  .field input:focus { border: 0; padding-bottom: 0; }
   .notice {
     margin: 0 0 16px;
     padding: 11px 12px;
@@ -110,7 +114,7 @@
   }
   .cf-turnstile { margin: 4px 0 16px; display: flex; justify-content: center; }
   .resend-hint { margin-top: 16px; font-size: 13px; color: var(--text-muted); }
-  .back-link { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 12px; }
+  .back-link { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--divider, var(--border)); font-size: 12px; }
   .back-link a, .resend-hint a { color: var(--text-muted); }
   @media (max-width: 420px) {
     .otp-page { padding: 12px; align-items: flex-start; }
