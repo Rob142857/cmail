@@ -14,6 +14,7 @@ Notable changes to cmail are recorded here. The project follows
 
 ### Changed
 - Sleek uplift: sign-in, email-code sign-in and the help centre are lighter: hairline cards, typed-on-line code fields, one title size and plain section labels. Styling only.
+- Calendar looks lighter: the agenda is one hairline-edged surface with quiet day headings and thin row separators instead of a shadowed card with grey day bars, and the new-meeting form uses single typed-on lines with a hairline rule instead of boxed fields.
 - Reading a message looks lighter, like Outlook on the web: the toolbar is a quiet command bar (Reply is the one filled button), the message sits on one surface with a hairline edge instead of a shadowed card, attachments are plain file chips without a grey panel, the message body no longer has a second box around it (dark mode keeps a hairline edge on the white sheet), and the Details list and safety notices drop their heavy borders.
 - Sleek uplift for settings: Font and signature, Rules (list and editor) and Connected AI apps use typed-on-line fields, hairline rules and a quiet list instead of boxed cards and fields. Restyle only.
 - Compose, reply and forward look like Outlook: From, To, Cc, Bcc and Subject are single typed-on lines with a hairline rule instead of boxed fields, importance sits at the end of the subject line, and the message body fills the rest of the page without a heavy border.

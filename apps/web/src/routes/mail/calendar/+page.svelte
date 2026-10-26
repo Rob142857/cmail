@@ -93,17 +93,17 @@
   {#if form?.cancelled}<p class="bulk-feedback success" role="status">Meeting cancelled.</p>{/if}
 
   {#if !d.mailboxId}
-    <div class="card empty-state">
+    <div class="empty-state">
       <h2>No mailbox available</h2>
       <p>You need an assigned mailbox to see a calendar.</p>
     </div>
   {:else if d.events.length === 0}
-    <div class="card empty-state">
+    <div class="empty-state">
       <h2>No meetings this month</h2>
       <p>Invitations you organise or receive for {d.mailboxAddress} appear here.</p>
     </div>
   {:else}
-    <div class="agenda card">
+    <div class="agenda">
       {#each groups as [day, events] (day)}
         <div class="agenda-day">
           <h2 class="day-heading">{formatDayHeading(day, d.locale)}</h2>
@@ -185,34 +185,39 @@
   .month-nav [aria-disabled='true'] { pointer-events: none; opacity: 0.45; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
+  .empty-state { padding: 40px 20px; text-align: center; background: var(--bg-surface); border: 1px solid var(--divider); border-radius: var(--radius-lg); }
+  .empty-state h2 { font-size: 16px; font-weight: 500; }
+  .empty-state p { margin-top: 4px; color: var(--text-muted); font-size: 13px; }
+
   .bulk-feedback { padding: 10px 12px; margin-bottom: 12px; border: 1px solid transparent; border-radius: var(--radius); font-size: 13px; }
   .bulk-feedback.error { color: var(--danger); background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 25%, transparent); }
   .bulk-feedback.success { color: var(--success); background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 25%, transparent); }
 
-  .agenda { padding: 0; overflow: hidden; }
-  .agenda-day { border-bottom: 1px solid var(--border); }
+  .agenda { background: var(--bg-surface); border: 1px solid var(--divider); border-radius: var(--radius-lg); overflow: hidden; }
+  .agenda-day { border-bottom: 1px solid var(--divider); }
   .agenda-day:last-child { border-bottom: 0; }
-  .day-heading { padding: 10px 16px; margin: 0; font-size: 13px; font-weight: 600; color: var(--text-muted); background: var(--bg-subtle); }
+  .day-heading { padding: 16px 20px 4px; margin: 0; font-size: 13px; font-weight: 500; color: var(--text-muted); }
 
-  .event-row { border-bottom: 1px solid var(--divider); }
+  .event-row { border-bottom: 1px solid var(--divider); margin: 0 20px; }
   .event-row:last-child { border-bottom: 0; }
   .event-row summary {
     display: grid;
     grid-template-columns: minmax(120px, 200px) minmax(160px, 1fr) minmax(0, 200px) auto;
     align-items: center;
     gap: 12px;
-    padding: 10px 16px;
+    padding: 12px 0;
+    min-height: 44px;
     cursor: pointer;
     list-style: none;
   }
   .event-row summary::-webkit-details-marker { display: none; }
-  .event-row:hover summary { background: var(--bg-hover); }
+  .event-row:hover summary { background: var(--bg-hover); box-shadow: -20px 0 0 var(--bg-hover), 20px 0 0 var(--bg-hover); }
   .event-time { color: var(--text-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .event-summary { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .event-summary.cancelled-text { text-decoration: line-through; color: var(--text-muted); }
   .event-location { color: var(--text-muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .event-chips { display: flex; justify-content: flex-end; }
-  .event-detail { padding: 0 16px 14px 16px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+  .event-detail { padding: 0 0 16px 0; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
   .event-description { white-space: pre-wrap; overflow-wrap: anywhere; }
   .attendee-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
   .attendee-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
