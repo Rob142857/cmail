@@ -62,7 +62,7 @@
     <form
       method="POST"
       action="?/create"
-      class="card"
+      class="sheet"
       use:enhance={() => {
         submitting = true;
         return async ({ update }) => {
@@ -139,8 +139,13 @@
   .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
   .heading-group h1 { font-size: 22px; }
   .heading-group p { margin-top: 4px; color: var(--text-muted); font-size: 13px; }
-  form.card { display: flex; flex-direction: column; }
-  fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px; }
+  form.sheet { display: flex; flex-direction: column; background: var(--bg-surface); border: 1px solid var(--divider); border-radius: var(--radius-lg); padding: 8px 20px 20px; }
+  .field > label { font-size: 13px; font-weight: 500; }
+  .field input:not([type='checkbox']), .field select, .field textarea, .field :global(.ac-wrap input) {
+    border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; box-shadow: none; padding-left: 0; padding-right: 0;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus, .field :global(.ac-wrap input:focus) { border-bottom-color: var(--primary); box-shadow: none; outline: 0; }
+  fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px; }
   .field-row { display: flex; gap: 12px; align-items: flex-end; }
   .field-row .field { flex: 1 1 auto; }
   .all-day-toggle { display: flex; align-items: center; gap: 6px; padding-bottom: 7px; font-size: 13px; white-space: nowrap; }
