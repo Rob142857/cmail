@@ -297,44 +297,35 @@
 
 <style>
   .header { display: flex; align-items: end; gap: 12px; margin-bottom: 16px; }
-  .header h1 { margin: 2px 0 0; font-size: clamp(25px, 3vw, 34px); }
-  .eyebrow { margin: 0; color: var(--primary-text); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
-  .total-badge {
-    font-size: 12px; color: var(--text-muted); background: var(--bg-hover);
-    padding: 2px 8px; border-radius: 10px;
-  }
+  .header h1 { margin: 2px 0 0; font-size: var(--fs-title-2); font-weight: 600; }
+  .eyebrow { margin: 0; }
+  .total-badge { font-size: 13px; color: var(--text-muted); }
 
   .filters {
     display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: end;
   }
-  .journal-alert { margin-bottom:16px; padding:14px; border:1px solid color-mix(in srgb, var(--warning) 38%, var(--border)); border-radius:var(--radius); background:var(--warning-soft); }
+  .journal-alert { margin-bottom:16px; padding:12px 14px; border:0; border-left:3px solid var(--warning); background:var(--warning-soft); }
   .journal-alert-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
   .journal-alert-head h2 { margin:2px 0 0; font-size:17px; }
   .journal-alert-head > span { max-width:52ch; color:var(--text-muted); font-size:12px; line-height:1.5; text-align:right; }
   .journal-list { display:grid; gap:7px; margin-top:12px; }
-  .journal-list article { display:grid; grid-template-columns:minmax(0, 1fr) minmax(230px, .75fr); gap:18px; padding:10px 12px; border:1px solid color-mix(in srgb, var(--warning) 25%, var(--border)); border-radius:var(--radius-sm); background:var(--bg-surface); }
+  .journal-list article { display:grid; grid-template-columns:minmax(0, 1fr) minmax(230px, .75fr); gap:18px; padding:10px 0; border-top:1px solid color-mix(in srgb, var(--warning) 25%, var(--border)); }
   .journal-main, .journal-state { display:flex; min-width:0; flex-direction:column; gap:3px; }
   .journal-main span, .journal-state span, .journal-more { color:var(--text-muted); font-size:11px; overflow-wrap:anywhere; }
   .journal-state strong { color:var(--warning); font-size:12px; }
   .journal-state.journal-danger strong { color:var(--danger); }
   .journal-state code { color:var(--text-muted); font-size:10px; overflow-wrap:anywhere; }
   .journal-more { margin:9px 2px 0; }
-  .filters label { display: grid; gap: 4px; color: var(--text-muted); font-size: 11px; font-weight: 650; }
+  .filters label { display: grid; gap: 4px; color: var(--text-muted); font-size: 13px; font-weight: 400; }
   .search-field { flex: 1; min-width: 220px; }
   .search-input { width: 100%; }
-  .filters select, .filters input, .filters button {
-    padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    background: var(--bg-surface); color: var(--text); font-size: 13px;
-  }
+  .filters select, .filters input { padding: 6px 30px 6px 2px; font-size: 13px; }
+  .filters input { padding-right: 2px; }
+  .card { border: 0; border-radius: 0; background: none; }
 
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th {
-    text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border);
-    font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase;
-    letter-spacing: 0.03em;
-  }
-  td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
-  tr:hover { background: var(--bg-hover); }
+  th { text-align: left; padding: 10px 12px; }
+  td { padding: 12px; }
   .nowrap { white-space: nowrap; }
   .ellipsis { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ellipsis-wide { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -354,11 +345,6 @@
   }
   .btn-link:hover { color: var(--primary-hover); }
 
-  .btn { display: inline-flex; align-items: center; padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text); font-size: 13px; text-decoration: none; cursor: pointer; }
-  .btn:hover { background: var(--bg-hover); }
-  .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
-  .btn-primary:hover { background: var(--primary-hover); }
-  .btn-sm { padding: 4px 10px; font-size: 12px; }
 
   .pagination {
     display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px;

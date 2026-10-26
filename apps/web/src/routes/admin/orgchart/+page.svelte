@@ -1010,7 +1010,7 @@
     gap: 24px;
     margin-bottom: 20px;
   }
-  .page-heading h1 { margin: 2px 0 7px; font-size: clamp(26px, 4vw, 34px); letter-spacing: -.03em; }
+  .page-heading h1 { margin: 2px 0 7px; font-size: var(--fs-title-2); font-weight: 600; }
   .page-heading p:not(.eyebrow) { max-width: 720px; color: var(--text-muted); }
   .public-link-line { margin-top: 6px; font-size: 13px; color: var(--text-muted); }
   .public-link-line a { color: var(--primary-text); overflow-wrap: anywhere; }

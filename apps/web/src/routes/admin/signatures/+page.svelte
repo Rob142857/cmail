@@ -149,7 +149,7 @@
   .page-header h1 { font-size: var(--fs-title-2); }
   .page-header p:last-child, .section-heading > div > p:last-child { margin: 0; color: var(--text-muted); font-size: 13px; }
   .notice { margin-bottom: 14px; }
-  .eyebrow { margin: 0; color: var(--primary-text); font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+  .eyebrow { margin: 0; }
   .order-banner { display: flex; align-items: center; gap: 13px; margin-bottom: 16px; padding: 14px 16px; border: 1px solid var(--primary-border); border-radius: var(--radius-lg); background: var(--primary-soft); color: var(--primary-text); }
   .order-banner > :global(svg) { flex: 0 0 auto; }
   .order-banner div { flex: 1; }

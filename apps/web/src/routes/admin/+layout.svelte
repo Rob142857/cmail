@@ -150,7 +150,8 @@
     </div>
   {/snippet}
 
-  {@render children()}
+  <!-- display: contents — a styling hook only; it adds no box to the layout. -->
+  <div class="mgmt">{@render children()}</div>
 </AppShell>
 
 <style>
@@ -186,4 +187,56 @@
   .crumb :global(svg) { flex: 0 0 auto; }
   .crumb strong { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .crumb :global(svg) { color: var(--text-faint); }
+
+  /* Sleek uplift (management): one light layer shared by every management
+     page — white canvas, typed-on-line fields, hairline cards and quiet
+     tables. Page styles keep layout; this layer sets the surface. */
+  .mgmt { display: contents; }
+  :global(.content:has(.mgmt)) { background: var(--bg-surface); }
+
+  .mgmt :global(:is(input:not([type='checkbox'], [type='radio'], [type='file'], [type='color'], [type='range']), select, textarea)) {
+    border: 0;
+    border-bottom: 1px solid var(--border-strong);
+    border-radius: 0;
+    background-color: transparent;
+    padding-left: 2px;
+    box-shadow: none;
+  }
+  .mgmt :global(textarea) { border: 1px solid var(--border-strong); border-radius: var(--radius); padding-left: 10px; }
+  .mgmt :global(:is(input, select, textarea):hover:not(:disabled)) { border-color: var(--text-muted); }
+  .mgmt :global(:is(input, select, textarea):focus) {
+    border-color: var(--primary);
+    box-shadow: 0 1px 0 var(--primary);
+    padding-bottom: 5px;
+  }
+  .mgmt :global(:is(input, select, textarea):disabled) { background-color: transparent; border-color: var(--divider); }
+
+  .mgmt :global(:is(.field > label, .field > .field-label)) { font-size: 13px; font-weight: 400; color: var(--text-muted); text-transform: none; letter-spacing: 0; }
+  /* Some page headers reuse the global .page-heading title class; keep their
+     intro text at body size (the h1 inside sets its own size). */
+  .mgmt :global(.page-heading:not(h1, h2)) { font-size: var(--fs-body); font-weight: 400; }
+  .mgmt :global(.eyebrow) { color: var(--text-muted); font-size: 13px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+
+  .mgmt :global(.card) { box-shadow: none; border-color: var(--divider); }
+  .mgmt :global(.card.empty-state) { border: 0; background: none; }
+  .mgmt :global(fieldset) { border: 0; border-radius: 0; padding: 0; margin: 0; box-shadow: none; background: none; }
+  .mgmt :global(legend) { padding: 0; margin-bottom: 4px; font-size: 16px; font-weight: 600; }
+
+  .mgmt :global(.table-wrap) { box-shadow: none; border-color: var(--divider); }
+  /* Tables sit straight on the canvas; they still scroll sideways in place. */
+  .mgmt :global(.table-card) { padding: 0; border: 0; border-radius: 0; background: none; }
+  .mgmt :global(th) {
+    background: transparent;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .mgmt :global(td) { border-bottom: 1px solid var(--divider); }
+  .mgmt :global(tbody tr:last-child td) { border-bottom: 0; }
+  .mgmt :global(tbody tr:hover) { background: var(--bg-subtle); }
+  .mgmt :global(td .btn:not(.btn-primary, .btn-danger)) { border-color: transparent; background: transparent; }
+  .mgmt :global(td .btn:not(.btn-primary, .btn-danger, :disabled):hover) { background: var(--bg-hover); }
 </style>

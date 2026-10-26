@@ -338,7 +338,7 @@
 <style>
   .admin-page { display: grid; gap: 16px; }
   .page-header { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
-  .page-header h1 { margin: 0; font-size: var(--fs-title-2); }
+  .page-header h1 { margin: 0; font-size: var(--fs-title-2); font-weight: 600; }
   .search-form {
     display: flex;
     align-items: center;
@@ -353,42 +353,47 @@
   .search-form { display: flex; flex-wrap: wrap; gap: 8px; width: min(100%, 720px); justify-content: flex-end; }
   .search-form input { min-width: 180px; }
   .search-form select { min-width: 128px; }
-  .notice { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
+  .notice { border: 0; border-left: 3px solid; border-radius: 0; padding: 8px 12px; }
   .notice-error { color: var(--danger); background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 25%, var(--border)); }
   .notice-success { color: var(--success); background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 25%, var(--border)); }
   .notice-warning { color: var(--warning); background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 25%, var(--border)); }
-  .create-card summary { cursor: pointer; font-weight: 600; }
+  .create-card { border: 0; border-block: 1px solid var(--divider); border-radius: 0; padding: 12px 4px; }
+  .create-card summary { cursor: pointer; font-weight: 600; min-height: 24px; }
   .create-form { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 14px; margin-top: 16px; align-items: start; }
   .field { display: grid; gap: 5px; }
-  .field label, .invite-field label { font-size: 13px; font-weight: 600; }
+  .field label { color: var(--text-muted); font-size: 13px; font-weight: 400; }
+  .invite-field label { font-size: 13px; font-weight: 600; }
   .field small, .invite-field small { color: var(--text-muted); font-size: 12px; }
   .compact-field { max-width: 220px; }
   .suffix-control { display: flex; align-items: stretch; }
   .suffix-control input { border-radius: var(--radius) 0 0 var(--radius); }
-  .suffix-control span { display: inline-flex; align-items: center; padding: 0 10px; border: 1px solid var(--border); border-left: 0; border-radius: 0 var(--radius) var(--radius) 0; background: var(--bg-subtle); color: var(--text-muted); font-size: 13px; white-space: nowrap; }
+  .suffix-control span { display: inline-flex; align-items: center; padding: 0 10px; border-bottom: 1px solid var(--border-strong); color: var(--text-muted); font-size: 13px; white-space: nowrap; }
+  .suffix-control:focus-within span { border-bottom-color: var(--primary); box-shadow: 0 1px 0 var(--primary); }
   .invite-field { grid-column: 1 / -1; display: flex; gap: 9px; align-items: start; }
   .invite-field input { width: auto; margin-top: 3px; }
   .invite-field div { display: grid; gap: 2px; }
   .submit-row { grid-column: 1 / -1; }
   .results-meta { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 13px; }
-  .table-card { padding: 0; overflow-x: auto; }
+  .table-card { padding: 0; overflow-x: auto; border: 0; border-radius: 0; background: none; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th { text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border); color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
-  td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { text-align: left; padding: 10px 12px; }
+  td { padding: 14px 12px; vertical-align: top; }
   tbody tr:last-child td { border-bottom: 0; }
+  td strong { font-weight: 600; }
   td strong, .secondary, .provider { display: block; }
   .secondary, .provider, .last-sign-in { color: var(--text-muted); font-size: 12px; }
   .provider { margin-top: 3px; }
   .identity-pending { color: var(--warning); font-weight: 600; }
-  .status-badge { border: 1px solid var(--border-strong); color: var(--text); text-transform: capitalize; }
-  .status-badge.badge-success { border-color: color-mix(in srgb, var(--success) 55%, var(--border)); }
-  .status-badge.badge-warning { border-color: color-mix(in srgb, var(--warning) 55%, var(--border)); }
-  .status-badge.badge-error { border-color: color-mix(in srgb, var(--danger) 55%, var(--border)); }
+  .status-badge { border-color: transparent; text-transform: capitalize; }
   .inline-form { display: flex; align-items: center; gap: 6px; min-width: 205px; }
   .inline-form select { min-width: 112px; padding-block: 5px; }
   .actions { display: grid; gap: 5px; min-width: 250px; }
   .button-group { display: flex; flex-wrap: wrap; gap: 5px; }
-  .danger-outline { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+  .danger-outline { color: var(--danger-text); }
+  /* Row actions stay quiet until the row is hovered or focused (mouse only). */
+  @media (hover: hover) and (pointer: fine) {
+    tbody tr:not(:hover, :focus-within) .actions { opacity: 0; }
+  }
   .action-note { padding-block: 4px; }
   .empty-state { text-align: center; padding-block: 36px; }
   .empty-state h3 { margin: 0; }

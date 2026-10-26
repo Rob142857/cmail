@@ -92,16 +92,14 @@
     gap: 1px;
     max-height: 220px;
     overflow-y: auto;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg-surface);
-    padding: 4px;
+    border-block: 1px solid var(--divider);
+    padding: 4px 0;
   }
   .country-option {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 5px 8px;
+    padding: 7px 6px;
     border-radius: var(--radius-sm);
     cursor: pointer;
     font-size: 13px;
