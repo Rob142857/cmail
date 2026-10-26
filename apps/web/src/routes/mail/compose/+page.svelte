@@ -757,55 +757,51 @@
       {/if}
 
     <fieldset class="compose-fields" disabled={sending || discarding || navigationInProgress || !!recoveryConflict || saveConflict || d.mailboxes.length === 0}>
-    <div class="field">
-      <label for="from">From</label>
-      <select name="from" id="from" bind:value={from} oninput={markDirty} required disabled={d.mailboxes.length === 0}>
-        {#each d.mailboxes as mb}
-          <option value={mb.address}>{mb.display_name ? `${mb.display_name} <${mb.address}>` : mb.address}</option>
-        {/each}
-      </select>
-    </div>
+    <div class="header-lines">
+      <div class="line">
+        <label for="from">From</label>
+        <select name="from" id="from" bind:value={from} oninput={markDirty} required disabled={d.mailboxes.length === 0}>
+          {#each d.mailboxes as mb}
+            <option value={mb.address}>{mb.display_name ? `${mb.display_name} <${mb.address}>` : mb.address}</option>
+          {/each}
+        </select>
+      </div>
 
-    <div class="field">
-      <label for="to">To</label>
-      <EmailAutocomplete bind:value={to} name="to" id="to" placeholder="recipient@example.com, another@example.com" required multi mailbox={from} oninput={markDirty} />
-    </div>
+      <div class="line">
+        <label for="to">To</label>
+        <EmailAutocomplete bind:value={to} name="to" id="to" placeholder="" required multi mailbox={from} oninput={markDirty} />
+      </div>
 
-    <div class="field">
-      <div class="field-label-row">
+      <div class="line">
         <label for="cc">Cc</label>
+        <EmailAutocomplete bind:value={cc} name="cc" id="cc" placeholder="" multi mailbox={from} oninput={markDirty} />
         {#if !showBcc}
           <button type="button" class="bcc-toggle" onclick={() => (showBcc = true)}>Bcc</button>
         {/if}
       </div>
-      <EmailAutocomplete bind:value={cc} name="cc" id="cc" placeholder="optional" multi mailbox={from} oninput={markDirty} />
-    </div>
 
-    {#if showBcc}
-      <div class="field">
-        <label for="bcc">Bcc</label>
-        <EmailAutocomplete bind:value={bcc} name="bcc" id="bcc" placeholder="optional" multi mailbox={from} oninput={markDirty} />
+      {#if showBcc}
+        <div class="line">
+          <label for="bcc">Bcc</label>
+          <EmailAutocomplete bind:value={bcc} name="bcc" id="bcc" placeholder="" multi mailbox={from} oninput={markDirty} />
+        </div>
+      {/if}
+
+      <div class="line">
+        <label for="subject" class="sr-only">Subject</label>
+        <input type="text" name="subject" id="subject" class="subject-input" bind:value={subject} oninput={markDirty} maxlength="500" placeholder="Add a subject" spellcheck="true" autocapitalize="sentences" />
+        <label for="importance" class="sr-only">Importance</label>
+        <select name="importance" id="importance" class="importance-select" class:raised={importance !== 'normal'} bind:value={importance} oninput={markDirty} title="Importance is shown in compatible email clients; it doesn't speed up delivery.">
+          <option value="normal">Normal</option>
+          <option value="high">High</option>
+          <option value="low">Low</option>
+        </select>
       </div>
-    {/if}
-
-    <div class="field">
-      <label for="subject">Subject</label>
-      <input type="text" name="subject" id="subject" bind:value={subject} oninput={markDirty} maxlength="500" placeholder="Subject (optional)" spellcheck="true" autocapitalize="sentences" />
     </div>
 
-    <div class="field importance-field">
-      <label for="importance">Importance</label>
-      <select name="importance" id="importance" bind:value={importance} oninput={markDirty}>
-        <option value="normal">Normal</option>
-        <option value="high">High</option>
-        <option value="low">Low</option>
-      </select>
-      <small>Shown in compatible email clients; doesn't speed up delivery.</small>
-    </div>
-
-    <div class="field">
+    <div class="field body-field">
       <div class="field-label-row">
-        <label for="body" id="body-label">Message</label>
+        <label for="body" id="body-label" class="sr-only">Message</label>
         <div class="format-toggle" role="group" aria-label="Message format">
           <button type="button" aria-pressed={bodyFormat === 'html'} onclick={() => switchFormat('html')} disabled={richEditorFailed}>Rich text</button>
           <button type="button" aria-pressed={bodyFormat === 'text'} onclick={() => switchFormat('text')}>Plain text</button>
@@ -976,13 +972,32 @@
   }
   .bcc-toggle:hover { text-decoration: underline; }
   .compose-form textarea { font-family: inherit; resize: vertical; min-height: 240px; }
+
+  /* Outlook-style header: each field is one typed-on line with a hairline
+     rule, not a boxed input; the message body takes the rest of the page. */
+  .header-lines { margin: -4px 0 12px; }
+  .line { display: flex; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--border); }
+  .line:focus-within { border-bottom-color: var(--primary); }
+  .compose-form .line > label { flex: 0 0 44px; margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+  .line > :global(.ac-wrap) { flex: 1 1 auto; min-width: 0; }
+  .line select, .line input, .line :global(.ac-wrap input) {
+    min-height: 40px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none;
+  }
+  .line select:focus, .line input:focus, .line :global(.ac-wrap input:focus) { border: 0; padding-bottom: 0; }
+  .line #from { flex: 1 1 auto; min-width: 0; text-overflow: ellipsis; cursor: pointer; }
+  .subject-input { flex: 1 1 auto; min-width: 0; font-size: 15px; font-weight: 600; }
+  .importance-select { flex: 0 0 auto; width: auto; color: var(--text-muted); font-size: 12px; cursor: pointer; }
+  .importance-select.raised { color: var(--warning); font-weight: 600; }
+  .body-field .field-label-row { justify-content: flex-end; }
+  .body-field :global(.rich-text) { border-color: transparent; }
+  .body-field :global(.rich-text:focus-within) { border-color: transparent; box-shadow: none; }
+  .body-field :global(.rich-text-surface) { min-height: max(240px, 45vh); padding-inline: 2px; }
+  .body-field textarea { min-height: max(240px, 45vh); border-color: transparent; padding-inline: 2px; }
   .format-toggle { display:inline-flex; gap:2px; padding:2px; border:1px solid var(--border); border-radius:var(--radius-pill); background:var(--bg-subtle); }
   .format-toggle button { min-height:26px; padding:2px 10px; border:0; border-radius:var(--radius-pill); background:transparent; color:var(--text-muted); font-size:11.5px; font-weight:600; cursor:pointer; }
   .format-toggle button[aria-pressed='true'] { background:var(--bg-surface); color:var(--text); box-shadow:0 0 0 1px var(--border); }
   .format-toggle button:disabled { opacity:.5; cursor:not-allowed; }
   .format-note { color:var(--text-muted); font-size:11px; }
-  .importance-field { max-width:260px; }
-  .importance-field small { color:var(--text-muted); font-size:11px; line-height:1.35; }
   .quoted-message { margin: 0 0 14px; }
   .quoted-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:6px; font-size:12px; }
   .quoted-heading strong { color:var(--text); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
