@@ -73,17 +73,18 @@
 <style>
   .audit-page { display: grid; gap: 16px; }
   .page-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
-  .page-heading h1 { margin: 2px 0 5px; font-size: clamp(25px, 3vw, 34px); }
+  .page-heading h1 { margin: 2px 0 5px; font-size: var(--fs-title-2); font-weight: 600; }
   .page-heading > div > p:last-child { color: var(--text-muted); }
-  .eyebrow { margin: 0; color: var(--primary-text); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+  .eyebrow { margin: 0; }
   .filters { display: grid; gap: 4px; width: min(100%, 430px); }
-  .filters > label { color: var(--text-muted); font-size: 11px; font-weight: 650; }
+  .filters > label { color: var(--text-muted); font-size: 13px; }
   .filters > div { display: flex; gap: 7px; }
   .filters select { min-width: 180px; }
   .table-card { padding: 0; overflow-x: auto; }
   table { min-width: 900px; }
   td strong, td span, td small { display: block; }
-  td > span, td small { color: var(--text-muted); font-size: 11px; }
+  td strong { font-weight: 600; }
+  td > span, td small { color: var(--text-muted); font-size: 12px; }
   td code { overflow-wrap: anywhere; font-size: 11px; }
   td:nth-child(4) code { margin-bottom: 3px; }
   .nowrap { white-space: nowrap; }

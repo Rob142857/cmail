@@ -181,7 +181,7 @@
 <style>
   .admin-page { display: grid; gap: 26px; }
   .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
-  .page-header h1 { margin: 3px 0 5px; font-size: var(--fs-title-2); }
+  .page-header h1 { margin: 3px 0 5px; font-size: var(--fs-title-2); font-weight: 600; }
   .page-header p:last-child { margin: 0; max-width: 74ch; color: var(--text-muted); font-size: 13px; }
 
   .notice { display: grid; gap: 2px; }
@@ -192,7 +192,7 @@
   .section-row > span { color: var(--text-muted); font-size: 12px; }
 
   .table-card { padding: 0; overflow-x: auto; }
-  .secondary { display: block; color: var(--text-muted); font-size: 11px; }
+  .secondary { display: block; color: var(--text-muted); font-size: 12px; }
   .nowrap { white-space: nowrap; }
 
   .button-group { display: flex; flex-wrap: wrap; gap: 6px; }

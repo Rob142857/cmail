@@ -185,7 +185,7 @@
   /* minmax(0, 1fr): the wide tables scroll inside their cards instead of widening the page. */
   .admin-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 26px; }
   .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
-  .page-header h1 { margin: 3px 0 5px; font-size: var(--fs-title-2); }
+  .page-header h1 { margin: 3px 0 5px; font-size: var(--fs-title-2); font-weight: 600; }
   .page-header p:last-child { margin: 0; max-width: 74ch; color: var(--text-muted); font-size: 13px; }
 
   .notice { display: grid; gap: 2px; }
@@ -196,14 +196,14 @@
   .section-row > span { color: var(--text-muted); font-size: 12px; }
 
   .table-card { padding: 0; overflow-x: auto; }
-  .secondary { display: block; color: var(--text-muted); font-size: 11px; }
+  .secondary { display: block; color: var(--text-muted); font-size: 12px; }
   .ellipsis-wide { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .nowrap { white-space: nowrap; }
   code { font-size: 12px; }
 
   .button-group { display: flex; flex-wrap: wrap; gap: 6px; }
 
-  .rule-form { display: grid; grid-template-columns: minmax(220px, 1fr) 120px minmax(180px, 1fr) auto; gap: 14px; align-items: end; padding: 16px; margin-bottom: 14px; }
+  .rule-form { display: grid; grid-template-columns: minmax(220px, 1fr) 120px minmax(180px, 1fr) auto; gap: 20px; align-items: end; padding: 4px 0 8px; margin-bottom: 14px; border: 0; border-radius: 0; background: none; }
   .rule-form .field span { color: var(--text-muted); font-weight: 400; }
 
   .empty-state { text-align: center; padding-block: 40px; }

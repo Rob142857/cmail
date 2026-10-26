@@ -157,29 +157,30 @@
 </section>
 
 <style>
-  .settings-page { display: grid; gap: 16px; max-width: 960px; }
-  .page-heading h1 { margin: 2px 0 7px; font-size: clamp(25px, 3vw, 34px); }
-  .page-heading > p:last-child { max-width: 760px; color: var(--text-muted); }
-  .eyebrow { margin: 0; color: var(--primary-text); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
-  .notice { padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--radius); }
+  .settings-page { display: grid; gap: 20px; max-width: 960px; }
+  .page-heading { display: block; }
+  .page-heading h1 { margin: 2px 0 6px; font-size: var(--fs-title-2); font-weight: 600; }
+  .page-heading > p:last-child { max-width: 760px; color: var(--text-muted); font-size: var(--fs-body); font-weight: 400; }
+  .eyebrow { margin: 0; }
+  .notice { padding: 8px 12px; border: 0; border-left: 3px solid; border-radius: 0; }
   .notice-error { color: var(--danger); background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 28%, var(--border)); }
   .notice-success { color: var(--success); background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 28%, var(--border)); }
-  .settings-form { display: grid; gap: 16px; }
-  fieldset.card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px 18px; margin: 0; padding: 20px; }
-  legend { padding: 0 8px; color: var(--text); font-size: 16px; font-weight: 650; }
+  .settings-form { display: grid; gap: 36px; }
+  fieldset.card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 24px; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; }
+  legend { padding: 0; margin-bottom: 4px; color: var(--text); font-size: var(--fs-subtitle); font-weight: 600; }
   .group-intro { grid-column: 1 / -1; margin: -2px 0 2px; color: var(--text-muted); font-size: 13px; }
   .field { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
   .field-wide { grid-column: 1 / -1; }
-  .field label, .deployment-value > span { font-size: 13px; font-weight: 650; }
-  .field label span { color: var(--text-muted); font-size: 11px; font-weight: 500; }
+  .field label, .deployment-value > span { color: var(--text-muted); font-size: 13px; font-weight: 400; }
+  .field label span { color: var(--text-faint); font-size: 12px; }
   .field small { color: var(--text-muted); font-size: 11px; line-height: 1.45; }
-  .deployment-value code { min-height: 40px; padding: 9px 11px; overflow-wrap: anywhere; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-subtle); color: var(--text-muted); font-size: 13px; }
-  .form-actions { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--bg-surface) 94%, transparent); box-shadow: var(--shadow); backdrop-filter: blur(10px); }
+  .deployment-value code { min-height: 36px; padding: 8px 2px; overflow-wrap: anywhere; border-bottom: 1px dashed var(--border); background: none; color: var(--text-muted); font-size: 13px; }
+  .form-actions { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--divider); background: color-mix(in srgb, var(--bg-surface) 94%, transparent); backdrop-filter: blur(10px); }
   .form-actions p { color: var(--text-muted); font-size: 12px; }
   .empty-state { padding: 42px 24px; text-align: center; }
-  .mcp-card { display: grid; gap: 12px; padding: 20px; }
+  .mcp-card { display: grid; gap: 12px; padding: 0 0 28px; border: 0; border-bottom: 1px solid var(--divider); border-radius: 0; background: none; }
   .mcp-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
-  .mcp-head h2 { margin: 0 0 4px; font-size: 16px; }
+  .mcp-head h2 { margin: 0 0 4px; font-size: var(--fs-subtitle); font-weight: 600; }
   .mcp-head .group-intro { margin: 0; }
   .state-badge { flex: 0 0 auto; padding: 3px 10px; border-radius: var(--radius-pill); background: var(--bg-subtle); color: var(--text-muted); font-size: 12px; font-weight: 650; }
   .state-badge.on { background: var(--success-soft); color: var(--success); }
@@ -192,7 +193,7 @@
   .mcp-log th, .mcp-log td { padding: 5px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
   .empty-state p { margin-top: 6px; color: var(--text-muted); }
   @media (max-width: 680px) {
-    fieldset.card { grid-template-columns: 1fr; padding: 16px; }
+    fieldset.card { grid-template-columns: 1fr; }
     .group-intro, .field-wide { grid-column: auto; }
     .form-actions { align-items: stretch; flex-direction: column; }
     .form-actions .btn { width: 100%; }

@@ -121,9 +121,9 @@
 
 <style>
   .policy-page { display: grid; gap: 22px; max-width: 980px; }
-  .page-heading h1 { margin: 2px 0 7px; font-size: clamp(25px, 3vw, 34px); }
+  .page-heading h1 { margin: 2px 0 7px; font-size: var(--fs-title-2); font-weight: 600; }
   .page-heading > p:last-child { max-width: 760px; color: var(--text-muted); }
-  .eyebrow { margin: 0; color: var(--primary-text); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+  .eyebrow { margin: 0; }
   .notice { padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--radius); }
   .notice-error { color: var(--danger); background: var(--danger-soft); }
   .notice-success { color: var(--success); background: var(--success-soft); }

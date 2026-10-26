@@ -149,7 +149,7 @@
   .page-header h1 { font-size: var(--fs-title-2); }
   .page-header p:last-child, .section-heading > div > p:last-child { margin: 0; color: var(--text-muted); font-size: 13px; }
   .notice { margin-bottom: 14px; }
-  .eyebrow { margin: 0; color: var(--primary-text); font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+  .eyebrow { margin: 0; }
   .order-banner { display: flex; align-items: center; gap: 13px; margin-bottom: 16px; padding: 14px 16px; border: 1px solid var(--primary-border); border-radius: var(--radius-lg); background: var(--primary-soft); color: var(--primary-text); }
   .order-banner > :global(svg) { flex: 0 0 auto; }
   .order-banner div { flex: 1; }
@@ -174,10 +174,9 @@
   .switch-row small, .lock-control small { color: var(--text-muted); font-size: 10.5px; }
   .people-section { margin-top: 4px; }
   .people-heading { align-items: flex-end; }
-  .search-box { display: flex; align-items: center; width: min(310px, 100%); padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-muted); }
-  .search-box:focus-within { border-color: var(--primary); box-shadow: 0 0 0 1px var(--focus-inner), 0 0 0 3px var(--primary-border); }
-  .search-box input { min-height: 34px; padding: 0 0 0 8px; border: 0; background: transparent; box-shadow: none; font-size: 12px; }
-  .search-box input:focus { border: 0; box-shadow: none; }
+  .search-box { display: flex; align-items: center; width: min(310px, 100%); padding: 0 2px; border-bottom: 1px solid var(--border-strong); color: var(--text-muted); }
+  .search-box:focus-within { border-color: var(--primary); box-shadow: 0 1px 0 var(--primary); }
+  .search-box input[type='search'], .search-box input[type='search']:is(:hover, :focus) { min-height: 34px; padding: 0 0 0 8px; border: 0; background: transparent; box-shadow: none; font-size: 13px; }
   .signature-list { display: flex; flex-direction: column; gap: 8px; }
   .person-card { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-surface); box-shadow: var(--shadow-2); }
   .person-card > summary { display: flex; align-items: center; gap: 11px; min-height: 62px; padding: 9px 14px; cursor: pointer; list-style: none; }
