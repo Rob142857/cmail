@@ -490,15 +490,17 @@
   .message-list {
     padding: 0;
     overflow: hidden;
+    border-color: var(--divider, var(--border));
+    box-shadow: none;
   }
   .bulk-bar {
     display: flex;
     align-items: center;
     gap: 10px;
     min-height: 50px;
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-subtle);
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--divider, var(--border));
+    background: transparent;
   }
   .select-all {
     display: inline-flex;
@@ -507,7 +509,7 @@
     min-height: 32px;
     padding: 0 6px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
     white-space: nowrap;
     cursor: pointer;
   }
@@ -536,7 +538,15 @@
     min-width: 0;
     margin-left: auto;
   }
-  .bulk-commands .btn { padding-inline: 9px; }
+  /* Quiet command bar: text actions, no boxes; disabled ones fade rather than grey out. */
+  .bulk-commands .btn {
+    padding-inline: 10px;
+    border-color: transparent;
+    background: transparent;
+    font-weight: 400;
+  }
+  .bulk-commands .btn:hover:not(:disabled) { background: var(--bg-hover); }
+  .bulk-commands .btn:disabled { background: transparent; border-color: transparent; opacity: 0.55; }
   .danger-command { color: var(--danger); }
   .permission-note {
     padding: 7px 14px;
@@ -559,8 +569,8 @@
     position: relative;
     display: grid;
     grid-template-columns: 44px minmax(0, 1fr);
-    min-height: 48px;
-    border-bottom: 1px solid var(--border);
+    min-height: 52px;
+    border-bottom: 1px solid var(--divider, var(--border));
     transition: background 0.12s ease;
   }
   .mail-row:last-child { border-bottom: 0; }
@@ -574,7 +584,7 @@
     background: var(--primary);
   }
   .mail-row.unread .participant,
-  .mail-row.unread .subject { font-weight: 650; color: var(--text); }
+  .mail-row.unread .subject { font-weight: 600; color: var(--text); }
   .message-selector {
     display: flex;
     align-items: center;
@@ -609,14 +619,15 @@
   .mailbox-tag {
     min-width: 0;
     overflow: hidden;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: var(--bg-active);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    display: block;
     color: var(--text-muted);
-    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-    font-size: 11px;
-    font-weight: 500;
-    text-align: center;
+    font-size: 12px;
+    font-weight: 400;
+    text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
