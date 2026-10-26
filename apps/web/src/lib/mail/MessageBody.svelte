@@ -55,10 +55,10 @@
 {/if}
 
 <style>
-  .privacy-bar { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius); color:var(--text-muted); font-size:12px; }
+  .privacy-bar { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:8px 12px; border-radius:var(--radius-md); background:var(--bg-subtle); color:var(--text-muted); font-size:12px; }
   .message-frame { margin-top:10px; }
   .link-safety { margin:10px 2px 0; color:var(--text-muted); font-size:12px; }
-  .body-state { padding:28px 20px; margin-top:10px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-subtle); text-align:center; }
+  .body-state { padding:28px 20px; margin-top:10px; border-radius:var(--radius-md); background:var(--bg-subtle); text-align:center; }
   .body-state h2 { font-size:16px; }
   .body-state p { margin:6px auto 0; max-width:62ch; color:var(--text-muted); font-size:13px; }
   .body-state .btn { margin-top:14px; }

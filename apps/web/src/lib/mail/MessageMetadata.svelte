@@ -179,11 +179,11 @@
   .chevron.open { transform:rotate(180deg); }
   .compact-flag { margin:3px 0 0; font-size:12.5px; }
 
-  .message-meta { display:flex; flex-direction:column; gap:4px; margin:0 0 14px 46px; padding:10px 12px; font-size:13px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-subtle); }
+  .message-meta { display:flex; flex-direction:column; gap:4px; margin:0 0 14px 46px; padding:2px 0 2px 12px; font-size:13px; border-left:2px solid var(--divider); }
   /* The label column has to clear the longest label ("Importance"), otherwise
      it collides with its own value. */
   .message-meta div { display:grid; grid-template-columns:80px minmax(0,1fr); gap:8px; }
-  .message-meta dt { color:var(--text-muted); font-weight:600; }
+  .message-meta dt { color:var(--text-muted); font-weight:500; }
   .message-meta dd { overflow-wrap:anywhere; }
   .mailbox-context { display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; }
   .mailbox-context > span { color:var(--text-muted); }

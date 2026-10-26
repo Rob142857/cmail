@@ -58,9 +58,10 @@
 {/if}
 
 <style>
-  .attachments { padding:12px; margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-hover); }
-  .attachment-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:9px; }
-  .attachment-heading h2 { font-size:14px; }
+  /* No panel: a small heading and quiet file chips, grouped by whitespace. */
+  .attachments { margin:4px 0 16px; }
+  .attachment-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:8px; }
+  .attachment-heading h2 { font-size:13px; font-weight:600; color:var(--text-muted); }
   .attachment-heading p { color:var(--text-muted); font-size:12px; }
   .attachment-toggle { display:inline-flex; align-items:center; gap:5px; padding:0; border:0; background:none; color:var(--text); cursor:pointer; }
   .attachment-toggle:hover h2 { text-decoration:underline; }
@@ -68,7 +69,8 @@
   .chevron.open { transform:rotate(180deg); }
   .attachment-list { display:flex; gap:8px; flex-wrap:wrap; }
   .attachment-item { display:flex; flex-direction:column; gap:3px; max-width:100%; }
-  .attachment { display:flex; flex-direction:column; align-items:flex-start; gap:2px; max-width:100%; padding:7px 9px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-surface); font-size:13px; }
+  .attachment { display:flex; flex-direction:column; align-items:flex-start; gap:2px; max-width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:var(--radius-md); background:var(--bg-surface); font-size:13px; text-decoration:none; transition:background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease); }
+  .attachment:hover { background:var(--bg-hover); border-color:var(--border-strong); text-decoration:none; }
   .attachment-name { max-width:100%; color:var(--text); font-weight:600; overflow-wrap:anywhere; }
   .attachment > span:last-child { color:var(--text-muted); font-size:11px; overflow-wrap:anywhere; }
   .attachment-help { max-width:100%; margin:0; padding:0 2px; color:var(--text-muted); font-size:11px; overflow-wrap:anywhere; }
