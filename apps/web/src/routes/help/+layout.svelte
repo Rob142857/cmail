@@ -64,10 +64,10 @@
   }
   .help-brand { display: flex; align-items: center; gap: 9px; min-width: 0; color: var(--text); text-decoration: none; }
   .help-brand span { min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
-  .help-brand strong { font-size: 14px; }
+  .help-brand strong { font-size: 14px; font-weight: 600; }
   .help-brand small { color: var(--text-muted); font-size: 10px; }
   .help-header nav { display: flex; justify-content: center; gap: 3px; overflow-x: auto; scrollbar-width: thin; }
-  .help-header nav a { padding: 8px 10px; border-radius: var(--radius); color: var(--text-muted); font-size: 12px; font-weight: 550; text-decoration: none; white-space: nowrap; }
+  .help-header nav a { padding: 8px 10px; border-radius: var(--radius); color: var(--text-muted); font-size: 13px; font-weight: 500; text-decoration: none; white-space: nowrap; }
   .help-header nav a:hover { background: var(--bg-hover); color: var(--text); }
   .help-header nav a.active { background: var(--primary-soft); color: var(--primary-text); }
   .return-link { font-size: 12px; }

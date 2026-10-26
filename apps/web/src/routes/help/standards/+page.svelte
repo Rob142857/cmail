@@ -380,8 +380,8 @@
   .title-row .eyebrow { margin: 0; }
   .print-button { white-space: nowrap; }
   header { max-width: 720px; }
-  .eyebrow { margin: 0 0 6px; color: var(--primary-text); font-size: 11px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
-  h1 { margin: 0; font-size: clamp(30px, 6vw, 46px); letter-spacing: -.035em; }
+  .eyebrow { margin: 0 0 6px; color: var(--primary-text); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+  h1 { margin: 0; font-size: clamp(26px, 5vw, 32px); font-weight: 600; letter-spacing: -.02em; }
   .document-meta { margin: 7px 0 0; color: var(--text-faint); font-size: 11.5px; line-height: 1.5; }
   .lede { margin-top: 12px; color: var(--text-muted); font-size: 17px; line-height: 1.65; }
   .lede em { color: var(--text); font-style: normal; font-weight: 600; }
@@ -450,7 +450,7 @@
   .gaps h3 { margin: 0 0 10px; font-size: 15px; }
   .gaps dl { display: grid; gap: 6px; margin: 0; }
   .gaps dl > div { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 10px; }
-  .gaps dt { color: var(--text-faint); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding-top: 2px; }
+  .gaps dt { color: var(--text-faint); font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; padding-top: 2px; }
   .gaps dd { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
   .evidence-checklist ul { margin: 16px 0 0; padding-left: 21px; display: grid; gap: 8px; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
 
