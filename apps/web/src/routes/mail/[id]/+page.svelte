@@ -136,7 +136,7 @@
 
   {#if actionError}<p class="action-error" role="alert">{actionError}</p>{/if}
 
-  <article class="card">
+  <article class="card reading">
     <h1>{data.message.subject || '(no subject)'}</h1>
     <MessageMetadata message={data.message} locale={data.locale} timeZone={data.timeZone} {mailboxHref} />
     <MessageSafety message={data.message} riskyLinks={data.riskyLinks} />
@@ -149,6 +149,12 @@
 </div>
 
 <style>
-  h1 { margin-bottom:12px; font-size:24px; overflow-wrap:anywhere; }
+  h1 { margin-bottom:10px; font-size:22px; font-weight:600; line-height:1.3; overflow-wrap:anywhere; }
+  /* Sleek reading pane: one quiet surface, hairline edge, no shadow. */
+  .reading { border-color:var(--divider); box-shadow:none; padding:20px 24px 24px; }
+  @media (max-width:600px) {
+    .reading { padding:14px 14px 16px; border-color:transparent; }
+    h1 { font-size:20px; }
+  }
   .action-error { padding:10px 12px; margin-bottom:12px; color:var(--danger); background:var(--danger-soft); border-radius:var(--radius); }
 </style>

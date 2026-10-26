@@ -115,7 +115,15 @@
 </div>
 
 <style>
-  .toolbar { position: relative; display:flex; align-items:center; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .toolbar { position: relative; display:flex; align-items:center; gap:2px; margin-bottom:12px; flex-wrap:wrap; }
+  /* Command-bar style: secondary actions are quiet until hovered; Reply stays the one filled button. */
+  .toolbar > .btn:not(.btn-primary), .toolbar form > .btn:not(.btn-primary), .tb-more > summary {
+    border-color: transparent;
+    background: transparent;
+    font-weight: 500;
+  }
+  .toolbar > .btn:not(.btn-primary):hover, .toolbar form > .btn:not(.btn-primary):hover, .tb-more > summary:hover { background: var(--bg-hover); }
+  .toolbar > .btn-primary { margin: 0 6px 0 4px; }
   .toolbar form { display:inline-flex; }
   .toolbar-status { color:var(--text-muted); font-size:12px; }
   .btn-ghost-danger { background:transparent; border-color:transparent; color:var(--danger-text); }

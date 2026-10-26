@@ -83,8 +83,8 @@
     align-items: flex-start;
     gap: 9px;
     padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
     font-size: 13px;
     line-height: 1.5;
   }
