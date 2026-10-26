@@ -258,39 +258,49 @@
 </section>
 
 <style>
+  /* Sleek uplift (settings): typed-on-line fields, hairline sections, no boxed panels. */
   .editor-page { display: grid; gap: 14px; max-width: 880px; margin: 0 auto; }
-  .page-header h1 { margin: 6px 0 5px; font-size: var(--fs-title-2); }
+  .page-header h1 { margin: 6px 0 4px; font-size: var(--fs-title-2); font-weight: 600; }
   .page-header p { margin: 0; color: var(--text-muted); font-size: 13px; overflow-wrap: anywhere; }
-  .back { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; }
-  .editor { display: grid; gap: 16px; padding: 18px 20px; }
-  .name-field input { max-width: 420px; }
-  fieldset { display: grid; gap: 10px; margin: 0; min-width: 0; }
-  legend { padding: 0 6px; font-weight: 600; font-size: 13px; }
+  .back { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+  .editor { display: grid; gap: 24px; padding: 16px 20px 20px; box-shadow: none; border-color: var(--divider, var(--border)); }
+  .name-field { display: flex; flex-direction: row; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--border); }
+  .name-field:focus-within { border-bottom-color: var(--primary); }
+  .editor .name-field > label { flex: 0 0 auto; text-align: left; margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+  .name-field input { flex: 1 1 auto; min-width: 0; max-width: none; min-height: 40px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; font-size: 15px; font-weight: 600; }
+  .name-field input:focus { border: 0; box-shadow: none; }
+  fieldset { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; min-width: 0; }
+  legend { float: left; width: 100%; margin: 0 0 10px; padding: 0; font-weight: 600; font-size: 14px; }
+  legend + * { clear: left; }
   .optional { color: var(--text-muted); font-weight: 400; }
-  .rows { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-  .row { display: grid; grid-template-columns: minmax(180px, 230px) minmax(0, 1fr) auto; gap: 8px; align-items: start; }
-  .row > select, .value input, .value select { width: 100%; min-width: 0; }
-  .value { display: grid; gap: 3px; min-width: 0; }
-  .remove { margin-top: 2px; }
-  .add { justify-self: start; max-width: 100%; color: var(--text-muted); }
-  .switches { display: grid; gap: 10px; }
+  .rows { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+  .row { display: grid; grid-template-columns: minmax(180px, 230px) minmax(0, 1fr) auto; gap: 12px; align-items: start; border-bottom: 1px solid var(--border); }
+  .row:focus-within { border-bottom-color: var(--primary); }
+  .row > select, .value input, .value select { width: 100%; min-width: 0; min-height: 40px; padding: 0; border: 0; border-radius: 0; background-color: transparent; box-shadow: none; }
+  .row > select, .value select { cursor: pointer; }
+  .value { display: grid; gap: 0; min-width: 0; }
+  .value .field-hint { margin: -4px 0 6px; }
+  .row > select:focus, .value input:focus, .value select:focus, .add:focus { border: 0; padding-bottom: 0; }
+  .remove { margin-top: 0; border-color: transparent; background: transparent; box-shadow: none; }
+  .add { justify-self: start; max-width: 100%; min-height: 36px; padding: 0; border: 0; border-radius: 0; background-color: transparent; box-shadow: none; color: var(--primary-text); cursor: pointer; }
+  .switches { display: grid; gap: 12px; }
   .switch { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
   .switch input { margin-top: 3px; flex: 0 0 auto; }
   .switch span { display: grid; gap: 1px; }
   .switch small { color: var(--text-muted); font-size: 12px; }
   .switch.disabled { cursor: default; opacity: .7; }
-  .preview { padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-subtle); font-size: 13px; }
-  .preview-title { margin: 0 0 8px; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .preview { padding: 12px 0 0; border-top: 1px solid var(--divider, var(--border)); font-size: 13px; }
+  .preview-title { margin: 0 0 8px; color: var(--text-muted); font-size: 13px; font-weight: 500; }
   .preview dl { display: grid; gap: 6px; margin: 0; }
   .preview dl div { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; }
-  .preview dt { color: var(--text-muted); font-weight: 600; }
+  .preview dt { color: var(--text-muted); font-weight: 500; }
   .preview dd { display: flex; flex-direction: column; gap: 2px; margin: 0; overflow-wrap: anywhere; }
   .muted { margin: 0; color: var(--text-muted); }
   .form-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
   @media (max-width: 600px) {
     .editor { padding: 14px; }
-    .row { grid-template-columns: minmax(0, 1fr) auto; }
+    .row { grid-template-columns: minmax(0, 1fr) auto; gap: 0 8px; }
     .row > select { grid-column: 1; }
     .row .value { grid-column: 1; }
     .row .remove { grid-column: 2; grid-row: 1; }

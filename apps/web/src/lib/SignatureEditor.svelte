@@ -136,24 +136,22 @@
 <style>
   .signature-field { display: flex; flex-direction: column; gap: 8px; }
   .field-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-  .field-label { display: block; font-size: 13px; font-weight: 650; color: var(--text); }
+  .field-label { display: block; font-size: 13px; font-weight: 500; color: var(--text-muted); }
   .field-heading p { margin: 3px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
   .format-note {
     flex: 0 0 auto;
-    padding: 3px 8px;
-    border-radius: var(--radius-pill);
-    background: var(--success-soft);
+    padding: 2px 0;
     color: var(--success);
-    font-size: 10.5px;
-    font-weight: 650;
+    font-size: 12px;
+    font-weight: 500;
   }
   .editor-shell {
     overflow: hidden;
-    border: 1px solid var(--border-strong);
+    border: 1px solid var(--divider, var(--border));
     border-radius: var(--radius-md);
     background: var(--bg-surface);
   }
-  .editor-shell:focus-within { border-color: var(--primary); box-shadow: 0 0 0 1px var(--focus-inner), 0 0 0 3px var(--primary-border); }
+  .editor-shell:focus-within { border-color: var(--primary); box-shadow: none; }
   .toolbar {
     display: flex;
     align-items: center;
@@ -161,8 +159,8 @@
     gap: 3px;
     min-height: 40px;
     padding: 4px 6px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--divider, var(--border));
+    background: transparent;
   }
   .toolbar button {
     min-width: 30px;
@@ -193,7 +191,7 @@
   .editor :global(a) { color: #2563eb; }
   .editor:empty::before { content: attr(data-placeholder); color: #8a8a8a; pointer-events: none; }
   .editor-readonly-frame { display: block; width: 100%; padding: 0; border: 0; background: #fff; }
-  .editor-foot { display: flex; justify-content: space-between; gap: 12px; color: var(--text-faint); font-size: 10.5px; }
+  .editor-foot { display: flex; justify-content: space-between; gap: 12px; color: var(--text-faint); font-size: 12px; }
   .is-disabled .editor-shell { border-color: var(--border); background: var(--bg-subtle); }
   .is-disabled .editor { cursor: not-allowed; }
   .is-disabled .toolbar { opacity: 0.58; }

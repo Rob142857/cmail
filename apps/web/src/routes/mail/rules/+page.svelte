@@ -152,30 +152,36 @@
 </section>
 
 <style>
+  /* Sleek uplift (settings): one hairline list, no card per rule. */
   .rules-page { display: grid; gap: 14px; max-width: 880px; margin: 0 auto; }
   .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
-  .page-header h1 { margin: 3px 0 5px; font-size: var(--fs-title-2); }
+  .page-header h1 { margin: 2px 0 4px; font-size: var(--fs-title-2); font-weight: 600; }
   .page-header p:last-child { margin: 0; max-width: 640px; color: var(--text-muted); font-size: 13px; }
+  .eyebrow { margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .page-header .btn { flex: 0 0 auto; }
   .limit-note { flex: 0 0 auto; color: var(--text-muted); font-size: 12px; }
-  .mailbox-picker { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .mailbox-picker label { color: var(--text-muted); font-size: var(--fs-caption); font-weight: 600; }
-  .mailbox-picker select { min-width: 0; max-width: 100%; }
+  .mailbox-picker { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+  .mailbox-picker:focus-within { border-bottom-color: var(--primary); }
+  .mailbox-picker label { margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+  .mailbox-picker select { min-width: 0; max-width: 100%; min-height: 40px; padding: 0; border: 0; border-radius: 0; background-color: transparent; box-shadow: none; cursor: pointer; }
+  .mailbox-picker select:focus { border: 0; padding-bottom: 0; }
+  .empty-state { box-shadow: none; }
   .empty-state .btn { margin-top: 6px; }
-  .rule-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-  .rule { padding: 14px 16px; }
-  .rule.off { border-style: dashed; background: var(--bg-subtle); }
+  .rule-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--divider, var(--border)); }
+  .rule { padding: 14px 4px; border: 0; border-bottom: 1px solid var(--divider, var(--border)); border-radius: 0; background: transparent; box-shadow: none; }
+  .rule.off { background: transparent; }
+  .rule.off .rule-head h2, .rule.off .summary { color: var(--text-muted); }
   .rule-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .order { display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 auto; border-radius: 50%; background: var(--primary-soft); color: var(--primary-text); font-size: 11.5px; font-weight: 700; }
-  .rule-head h2 { margin: 0; min-width: 0; font-size: var(--fs-subtitle); overflow-wrap: anywhere; }
+  .order { display: grid; place-items: center; width: 22px; height: 22px; flex: 0 0 auto; border-radius: 50%; background: var(--primary-soft); color: var(--primary-text); font-size: 12px; font-weight: 600; }
+  .rule-head h2 { margin: 0; min-width: 0; font-size: var(--fs-subtitle); font-weight: 600; overflow-wrap: anywhere; }
   .rule-head .badge { margin-left: auto; flex: 0 0 auto; }
-  .summary { display: grid; gap: 6px; margin: 10px 0 0; font-size: 13px; }
+  .summary { display: grid; gap: 4px; margin: 8px 0 0 32px; font-size: 13px; }
   .summary div { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; }
-  .summary dt { color: var(--text-muted); font-weight: 600; }
+  .summary dt { color: var(--text-muted); font-weight: 500; }
   .summary dd { display: flex; flex-direction: column; gap: 2px; margin: 0; overflow-wrap: anywhere; }
   .stop { color: var(--text-muted); font-size: 12px; }
-  .invalid { margin: 10px 0 0; color: var(--danger-text); font-size: 13px; }
-  .rule-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
+  .invalid { margin: 8px 0 0 32px; color: var(--danger-text); font-size: 13px; }
+  .rule-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 0 32px; }
   .rule-actions form { display: inline-flex; }
   .reorder { display: inline-flex; gap: 4px; margin-left: auto; }
   .reorder :global(.up) { transform: rotate(180deg); }
@@ -183,6 +189,7 @@
 
   @media (max-width: 600px) {
     .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .summary, .invalid, .rule-actions { margin-left: 0; }
     .summary div { grid-template-columns: 1fr; gap: 2px; }
     .reorder { margin-left: 0; }
   }

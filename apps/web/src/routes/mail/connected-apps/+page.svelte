@@ -109,42 +109,42 @@
 
 <style>
   .apps-page { display: grid; gap: 14px; max-width: 880px; margin: 0 auto; }
-  .page-header h1 { margin: 3px 0 5px; font-size: var(--fs-title-2); }
+  .page-header h1 { margin: 2px 0 4px; font-size: var(--fs-title-2); font-weight: 600; }
   .page-header > p:last-child { margin: 0; color: var(--text-muted); font-size: 13px; max-width: 700px; }
-  .eyebrow { margin: 0; color: var(--primary-text); font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+  .eyebrow { margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .notice { padding: 10px 12px; border-radius: var(--radius); }
   .notice-error { border: 1px solid var(--danger-border); background: var(--danger-soft); color: var(--danger-text); }
   .notice-success { border: 1px solid var(--success-border); background: var(--success-soft); color: var(--success-text); }
-  .callout { display: flex; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-subtle); font-size: 13px; }
+  .callout { display: flex; gap: 10px; padding: 4px 0 4px 12px; border-left: 2px solid var(--primary); font-size: 13px; }
   .callout :global(svg) { flex: 0 0 auto; margin-top: 2px; color: var(--primary-text); }
   .callout p { margin: 0; }
-  .callout code { display: inline-block; margin-top: 6px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-surface); font-size: 12.5px; overflow-wrap: anywhere; user-select: all; }
-  .empty { display: grid; justify-items: center; gap: 6px; padding: 32px 20px; text-align: center; }
+  .callout code { display: inline-block; margin-top: 6px; padding: 4px 8px; border-radius: var(--radius); background: var(--bg-subtle); font-size: 12.5px; overflow-wrap: anywhere; user-select: all; }
+  .empty { display: grid; justify-items: center; gap: 6px; padding: 32px 20px; text-align: center; box-shadow: none; border-color: var(--divider, var(--border)); }
   .empty :global(svg) { color: var(--success); }
   .empty h2 { margin: 0; font-size: var(--fs-subtitle); }
   .empty p { margin: 0; color: var(--text-muted); font-size: 13px; }
-  .app { padding: 16px 18px; }
+  .app { padding: 16px 4px; border: 0; border-bottom: 1px solid var(--divider, var(--border)); border-radius: 0; background: transparent; box-shadow: none; }
   .app-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
-  .app h2, .app h3 { margin: 0; font-size: var(--fs-subtitle); overflow-wrap: anywhere; }
+  .app h2, .app h3 { margin: 0; font-size: var(--fs-subtitle); font-weight: 600; overflow-wrap: anywhere; }
   .meta { margin: 3px 0 0; color: var(--text-muted); font-size: 12px; }
   .verified { color: var(--success-text); display: inline-flex; gap: 4px; align-items: center; }
   .unverified { color: var(--warning-text); }
   .facts { display: grid; gap: 6px; margin: 12px 0 0; font-size: 13px; }
   .facts div { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 8px; }
-  .facts dt { color: var(--text-muted); }
+  .facts dt { color: var(--text-muted); font-weight: 500; }
   .facts dd { margin: 0; display: flex; flex-wrap: wrap; gap: 5px; overflow-wrap: anywhere; }
-  .chip { padding: 1px 8px; border-radius: var(--radius-pill); background: var(--primary-soft); color: var(--primary-text); font-size: 11.5px; }
+  .chip { padding: 1px 8px; border-radius: var(--radius-pill); background: var(--primary-soft); color: var(--primary-text); font-size: 12px; }
   .chip.send { background: var(--warning-soft); color: var(--warning-text); }
   details { margin-top: 10px; font-size: 12.5px; }
   summary { cursor: pointer; color: var(--text-muted); }
   .calls { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; }
   .calls li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; }
   .calls time { color: var(--text-faint); }
-  .result { font-weight: 600; }
+  .result { font-weight: 500; }
   .result-ok { color: var(--success-text); }
   .result-denied, .result-rate_limited, .result-invalid { color: var(--warning-text); }
   .result-error { color: var(--danger-text); }
-  .section-title { margin: 8px 0 0; font-size: 14px; color: var(--text-muted); }
+  .section-title { margin: 8px 0 0; font-size: 14px; font-weight: 600; color: var(--text-muted); }
   .inactive { opacity: .8; }
   @media (max-width: 600px) {
     .app-head { flex-direction: column; }
