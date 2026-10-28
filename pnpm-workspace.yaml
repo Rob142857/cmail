@@ -46,3 +46,10 @@ minimumReleaseAgeExclude:
   - typescript-eslint@8.70.1
   - workerd@1.20260921.1
   - wrangler@4.136.1
+
+# Audit exceptions. Keep each one narrow and remove it as soon as a fix ships.
+auditConfig:
+  ignoreGhsas:
+    # deepmerge (low), pulled in only by @sveltejs/vite-plugin-svelte at build time.
+    # No patched version yet. Expires when a fix ships: then drop this line and update.
+    - GHSA-gcqx-w48m-w2h4
