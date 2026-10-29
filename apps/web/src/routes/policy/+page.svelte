@@ -17,7 +17,7 @@
 
 <svelte:head><title>Usage policy · {data.appName || 'cmail'}</title></svelte:head>
 
-<main id="main-content" class="policy-wrap" tabindex="-1">
+<main id="main-content" class="policy-wrap nb-quiet" tabindex="-1">
   {#if data.user}
     <div class="account-bar">
       <span>Signed in as <strong>{data.user.display_name || data.user.email}</strong></span>
@@ -81,7 +81,7 @@
     padding: 0 16px;
   }
   .policy-card {
-    padding: 24px;
+    padding: 0;
   }
   .account-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; color: var(--text-muted); font-size: 12px; }
   .account-bar form { display: inline-flex; }
@@ -102,10 +102,7 @@
   .policy-body {
     max-height: 50vh;
     overflow-y: auto;
-    padding: 16px 20px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg-hover);
+    padding: 4px 2px;
     margin-bottom: 20px;
     line-height: 1.55;
   }
@@ -143,9 +140,10 @@
     margin-bottom: 12px;
   }
   .policy-info {
-    padding: 14px 16px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    padding: 8px 12px;
+    border: 0;
+    border-left: 3px solid var(--border-strong);
+    border-radius: 0;
     background: var(--bg-hover);
     font-size: 14px;
     color: var(--text-muted);
@@ -166,10 +164,7 @@
     align-items: flex-start;
     gap: 10px;
     cursor: pointer;
-    padding: 12px 14px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg-hover);
+    padding: 4px 0;
     line-height: 1.4;
   }
   .policy-accept input[type="checkbox"] {

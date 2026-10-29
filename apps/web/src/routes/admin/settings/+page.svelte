@@ -178,7 +178,7 @@
   .form-actions { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--divider); background: color-mix(in srgb, var(--bg-surface) 94%, transparent); backdrop-filter: blur(10px); }
   .form-actions p { color: var(--text-muted); font-size: 12px; }
   .empty-state { padding: 42px 24px; text-align: center; }
-  .mcp-card { display: grid; gap: 12px; padding: 0 0 28px; border: 0; border-bottom: 1px solid var(--divider); border-radius: 0; background: none; }
+  .mcp-card { display: grid; gap: 12px; padding: 0 0 8px; border: 0; border-radius: 0; background: none; }
   .mcp-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
   .mcp-head h2 { margin: 0 0 4px; font-size: var(--fs-subtitle); font-weight: 600; }
   .mcp-head .group-intro { margin: 0; }

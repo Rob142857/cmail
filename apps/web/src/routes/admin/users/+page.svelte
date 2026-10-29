@@ -357,7 +357,7 @@
   .notice-error { color: var(--danger); background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 25%, var(--border)); }
   .notice-success { color: var(--success); background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 25%, var(--border)); }
   .notice-warning { color: var(--warning); background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 25%, var(--border)); }
-  .create-card { border: 0; border-block: 1px solid var(--divider); border-radius: 0; padding: 12px 4px; }
+  .create-card { border: 0; border-radius: 0; padding: 8px 0; }
   .create-card summary { cursor: pointer; font-weight: 600; min-height: 24px; }
   .create-form { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 14px; margin-top: 16px; align-items: start; }
   .field { display: grid; gap: 5px; }

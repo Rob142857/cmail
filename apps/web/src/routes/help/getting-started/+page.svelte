@@ -67,8 +67,8 @@
 
 <style>
   @import './guide.css';
-  .term-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
-  .term-grid div { display: flex; flex-direction: column; gap: 3px; padding: 13px; border: 1px solid var(--divider, var(--border)); border-radius: 9px; background: transparent; }
+  .term-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 40px; margin-top: 14px; }
+  .term-grid div { display: flex; flex-direction: column; gap: 3px; padding: 0; }
   .term-grid span { color: var(--text-muted); font-size: 12px; line-height: 1.5; }
   @media (max-width: 600px) { .term-grid { grid-template-columns: 1fr; } }
 </style>

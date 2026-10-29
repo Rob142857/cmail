@@ -30,7 +30,7 @@
 
 <svelte:head><title>Connected AI apps · {data.appName || 'cmail'}</title></svelte:head>
 
-<section class="apps-page" aria-labelledby="apps-heading">
+<section class="apps-page nb-quiet" aria-labelledby="apps-heading">
   <header class="page-header">
     <p class="eyebrow">Mail settings</p>
     <h1 id="apps-heading">Connected AI apps</h1>
@@ -113,13 +113,13 @@
   .page-header > p:last-child { margin: 0; color: var(--text-muted); font-size: 13px; max-width: 700px; }
   .eyebrow { margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .notice { padding: 10px 12px; border-radius: var(--radius); }
-  .notice-error { border: 1px solid var(--danger-border); background: var(--danger-soft); color: var(--danger-text); }
-  .notice-success { border: 1px solid var(--success-border); background: var(--success-soft); color: var(--success-text); }
+  .notice-error { border: 0; border-left: 3px solid var(--danger); border-radius: 0; background: var(--danger-soft); color: var(--danger-text); }
+  .notice-success { border: 0; border-left: 3px solid var(--success); border-radius: 0; background: var(--success-soft); color: var(--success-text); }
   .callout { display: flex; gap: 10px; padding: 4px 0 4px 12px; border-left: 2px solid var(--primary); font-size: 13px; }
   .callout :global(svg) { flex: 0 0 auto; margin-top: 2px; color: var(--primary-text); }
   .callout p { margin: 0; }
   .callout code { display: inline-block; margin-top: 6px; padding: 4px 8px; border-radius: var(--radius); background: var(--bg-subtle); font-size: 12.5px; overflow-wrap: anywhere; user-select: all; }
-  .empty { display: grid; justify-items: center; gap: 6px; padding: 32px 20px; text-align: center; box-shadow: none; border-color: var(--divider, var(--border)); }
+  .empty { display: grid; justify-items: center; gap: 6px; padding: 32px 20px; text-align: center; border: 0; background: transparent; box-shadow: none; }
   .empty :global(svg) { color: var(--success); }
   .empty h2 { margin: 0; font-size: var(--fs-subtitle); }
   .empty p { margin: 0; color: var(--text-muted); font-size: 13px; }

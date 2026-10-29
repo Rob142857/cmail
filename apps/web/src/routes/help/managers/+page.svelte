@@ -115,8 +115,8 @@
 
 <style>
   @import '../getting-started/guide.css';
-  .area-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 14px; }
-  .area-grid div { display: flex; flex-direction: column; gap: 3px; padding: 13px; border: 1px solid var(--divider, var(--border)); border-radius: 9px; }
+  .area-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 40px; margin-top: 14px; }
+  .area-grid div { display: flex; flex-direction: column; gap: 3px; padding: 0; }
   .area-grid span { color: var(--text-muted); font-size: 12px; line-height: 1.5; }
   @media (max-width: 600px) { .area-grid { grid-template-columns: 1fr; } }
 </style>

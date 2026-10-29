@@ -151,7 +151,7 @@
   {/snippet}
 
   <!-- display: contents — a styling hook only; it adds no box to the layout. -->
-  <div class="mgmt">{@render children()}</div>
+  <div class="mgmt nb-quiet">{@render children()}</div>
 </AppShell>
 
 <style>
@@ -160,9 +160,6 @@
     align-items: center;
     gap: 9px;
     padding: 8px 10px;
-    border: 1px solid var(--primary-border);
-    border-radius: var(--radius-md);
-    background: var(--primary-soft);
     color: var(--primary-text);
   }
   .workspace-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }

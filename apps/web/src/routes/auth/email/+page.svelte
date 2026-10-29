@@ -21,7 +21,7 @@
   {/if}
 </svelte:head>
 
-<main id="main-content" class="otp-page" tabindex="-1">
+<main id="main-content" class="otp-page nb-quiet" tabindex="-1">
   <section class="card otp-card" aria-labelledby="otp-heading">
     <h1 id="otp-heading">{data.enroll ? 'Activate your mailbox' : 'Sign in with an email code'}</h1>
 
@@ -93,8 +93,8 @@
 </main>
 
 <style>
-  .otp-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
-  .otp-card { width: min(100%, 420px); padding: 32px; text-align: center; box-shadow: none; border-color: var(--divider, var(--border)); }
+  .otp-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--bg-surface); }
+  .otp-card { width: min(100%, 420px); padding: 32px; text-align: center; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
   h1 { margin: 0 0 8px; font-size: 22px; font-weight: 600; }
   .subtitle { color: var(--text-muted); line-height: 1.55; margin: 0 0 20px; }
   .field { text-align: left; margin-bottom: 16px; gap: 0; border-bottom: 1px solid var(--border); }
@@ -104,9 +104,10 @@
   .field input:focus { border: 0; padding-bottom: 0; }
   .notice {
     margin: 0 0 16px;
-    padding: 11px 12px;
-    border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
-    border-radius: var(--radius);
+    padding: 8px 12px;
+    border: 0;
+    border-left: 3px solid var(--danger);
+    border-radius: 0;
     background: var(--danger-soft);
     color: var(--danger);
     text-align: left;
@@ -114,7 +115,7 @@
   }
   .cf-turnstile { margin: 4px 0 16px; display: flex; justify-content: center; }
   .resend-hint { margin-top: 16px; font-size: 13px; color: var(--text-muted); }
-  .back-link { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--divider, var(--border)); font-size: 12px; }
+  .back-link { margin-top: 24px; font-size: 12px; }
   .back-link a, .resend-hint a { color: var(--text-muted); }
   @media (max-width: 420px) {
     .otp-page { padding: 12px; align-items: flex-start; }

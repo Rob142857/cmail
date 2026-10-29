@@ -22,7 +22,7 @@
   <title>Help · {page.data?.appName || 'cmail'}</title>
 </svelte:head>
 
-<div class="help-shell">
+<div class="help-shell nb-quiet">
   <header class="help-header">
     <a class="help-brand" href={page.data?.user ? '/mail' : '/'}>
       <img src={page.data?.brandIconUrl || '/icon.svg'} alt="" width="28" height="28" />
@@ -72,7 +72,7 @@
   .help-header nav a.active { background: var(--primary-soft); color: var(--primary-text); }
   .return-link { font-size: 12px; }
   .help-content { width: min(100% - 40px, 920px); flex: 1; margin: 0 auto; padding: 44px 0 64px; }
-  .help-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; padding: 22px max(20px, calc((100vw - 1240px) / 2)); border-top: 1px solid var(--border); color: var(--text-muted); font-size: 11px; }
+  .help-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; padding: 22px max(20px, calc((100vw - 1240px) / 2)); color: var(--text-muted); font-size: 11px; }
   @media (max-width: 880px) {
     .help-header { position: static; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 10px 14px; }
     .help-header nav { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; padding-bottom: 2px; }

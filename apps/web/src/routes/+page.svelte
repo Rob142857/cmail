@@ -39,7 +39,7 @@
 
 <svelte:head><title>Sign in · {data.appName || 'cmail'}</title></svelte:head>
 
-<main id="main-content" class="login-page" tabindex="-1">
+<main id="main-content" class="login-page nb-quiet" tabindex="-1">
     <div class="login-card card">
       <img src={data.brandLogoUrl || '/logo.svg'} alt="" class="brand-logo" width="240" height="82" />
       <h1>Connect to your {data.orgName || 'organisation'} email</h1>
@@ -141,6 +141,7 @@
     min-height: 100vh;
     padding: 24px;
     overflow-x: clip;
+    background: var(--bg-surface);
   }
   .login-card {
     min-width: 0;
@@ -148,8 +149,10 @@
     width: 100%;
     text-align: center;
     padding: 32px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     box-shadow: none;
-    border-color: var(--divider, var(--border));
   }
   .login-card > * { min-width: 0; }
   .brand-logo { display: block; width: min(240px, 100%); height: auto; max-width: 100%; margin: 0 auto 12px; object-fit: contain; }
@@ -209,16 +212,17 @@
   .error { color: var(--danger); margin-top: 16px; }
   .login-error {
     margin-bottom: 18px;
-    padding: 11px 12px;
-    border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
-    border-radius: var(--radius);
+    padding: 8px 12px;
+    border: 0;
+    border-left: 3px solid var(--danger);
+    border-radius: 0;
     background: var(--danger-soft);
     color: var(--danger);
     font-size: 13px;
     text-align: left;
   }
   .login-error a { display: inline-block; margin-top: 5px; font-weight: 650; }
-  .setup-ready { display: grid; gap: 3px; margin: 0 0 18px; padding: 11px 12px; border: 1px solid color-mix(in srgb, var(--success) 35%, var(--border)); border-radius: var(--radius); background: var(--success-soft); text-align: left; }
+  .setup-ready { display: grid; gap: 3px; margin: 0 0 18px; padding: 8px 12px; border: 0; border-left: 3px solid var(--success); border-radius: 0; background: var(--success-soft); text-align: left; }
   .setup-ready strong { font-size: 13px; }
   .setup-ready span { color: var(--text-muted); font-size: 11px; line-height: 1.45; }
   .bootstrap-start { display: flex; justify-content: center; gap: 6px; margin-top: 14px; color: var(--text-muted); font-size: 12px; }
@@ -232,9 +236,9 @@
   .faq dl { margin-top: 12px; }
   .faq dt { font-weight: 500; color: var(--text); margin-top: 8px; }
   .faq dd { margin: 4px 0 0 0; }
-  .login-links { display: flex; min-width: 0; flex-wrap: wrap; justify-content: center; gap: 8px 14px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--divider, var(--border)); font-size: 12px; }
+  .login-links { display: flex; min-width: 0; flex-wrap: wrap; justify-content: center; gap: 8px 14px; margin-top: 28px; font-size: 12px; }
   .login-links a { overflow-wrap: anywhere; color: var(--primary-text); }
-  .product-credit { margin: 13px 0 0; color: var(--text-faint); font-size: 10px; }
+  .product-credit { margin: 13px 0 0; padding-top: 0; border-top: 0; color: var(--text-faint); font-size: 10px; }
   @media (max-width: 420px) {
     .login-page { padding: 12px; align-items: flex-start; }
     .login-card { padding: 20px 16px; }

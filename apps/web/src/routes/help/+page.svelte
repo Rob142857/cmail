@@ -44,17 +44,18 @@
   .eyebrow, .guide-card > span { margin: 0 0 6px; color: var(--primary-text); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   h1 { margin: 0; font-size: clamp(26px, 5vw, 32px); font-weight: 600; letter-spacing: -.02em; }
   header > p:last-child { margin-top: 12px; color: var(--text-muted); font-size: 17px; line-height: 1.65; }
-  .guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-  .guide-card { min-height: 180px; display: flex; flex-direction: column; padding: 20px; border: 1px solid var(--divider, var(--border)); border-radius: 12px; background: var(--bg-surface); color: var(--text); text-decoration: none; transition: border-color .15s ease, background .15s ease; }
-  .guide-card:hover { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); background: var(--bg-hover); text-decoration: none; }
+  .guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 40px; }
+  .guide-card { display: flex; flex-direction: column; padding: 0; color: var(--text); text-decoration: none; }
+  .guide-card:hover { text-decoration: none; }
+  .guide-card:hover h2, .guide-card:hover > strong { text-decoration: underline; text-underline-offset: 3px; }
   .guide-card h2 { margin: 16px 0 6px; font-size: 18px; font-weight: 600; }
   .guide-card p { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.55; }
-  .guide-card > strong { margin-top: auto; padding-top: 22px; color: var(--primary-text); font-size: 13px; }
-  .privacy-note { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; padding: 16px 0 0; border-top: 1px solid var(--divider, var(--border)); }
+  .guide-card > strong { margin-top: auto; padding-top: 14px; color: var(--primary-text); font-size: 13px; }
+  .privacy-note { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; padding: 8px 0 0; }
   .privacy-note p { margin: 4px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.55; }
   @media (max-width: 680px) {
     .guide-grid { grid-template-columns: 1fr; }
-    .guide-card { min-height: 190px; }
+    .guide-card { min-height: 0; }
     .privacy-note { grid-template-columns: 1fr; }
     .privacy-note .btn { justify-self: start; }
   }

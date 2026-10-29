@@ -384,10 +384,7 @@
 
   .verdict {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    padding: 12px 14px; margin-bottom: 18px;
-    background: var(--bg-subtle);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    padding: 0; margin-bottom: 18px;
   }
   .verdict-detail { flex-basis: 100%; margin: 0; font-size: 13px; color: var(--text-muted); }
 
@@ -402,9 +399,9 @@
   .not-recorded {
     margin: 0;
     padding: 10px 12px;
-    border: 1px solid var(--warning-border);
+    border: 0;
     border-left: 3px solid var(--warning);
-    border-radius: var(--radius);
+    border-radius: 0;
     background: var(--warning-soft);
     color: var(--text-muted);
     font-size: 12.5px;
@@ -415,7 +412,7 @@
   .auth-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .auth {
     display: inline-flex; align-items: stretch;
-    border: 1px solid var(--border); border-radius: var(--radius);
+    border-radius: var(--radius);
     overflow: hidden; font-size: 11.5px; font-family: var(--font-mono);
   }
   .auth-label { padding: 3px 8px; background: var(--bg-hover); color: var(--text-muted); font-weight: 600; }

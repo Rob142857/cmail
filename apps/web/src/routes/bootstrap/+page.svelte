@@ -7,7 +7,7 @@
   <meta name="referrer" content="strict-origin" />
 </svelte:head>
 
-<main id="main-content" class="bootstrap-page" tabindex="-1">
+<main id="main-content" class="bootstrap-page nb-quiet" tabindex="-1">
   <section class="card bootstrap-card" aria-labelledby="bootstrap-heading">
     <img src={data.brandLogoUrl || '/logo.svg'} alt="" class="brand-logo" width="220" height="75" />
     <p class="eyebrow">One-time setup</p>
@@ -49,7 +49,7 @@
   .bootstrap-form label { font-size: 13px; font-weight: 650; }
   .bootstrap-form small { color: var(--text-muted); line-height: 1.45; }
   .bootstrap-form button { margin-top: 8px; }
-  .notice { margin: 0 0 16px; padding: 11px 12px; border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border)); border-radius: var(--radius); background: var(--danger-soft); color: var(--danger); }
+  .notice { margin: 0 0 16px; padding: 8px 12px; border: 0; border-left: 3px solid var(--danger); border-radius: 0; background: var(--danger-soft); color: var(--danger); }
   .safety-note { margin: 20px 0 0; padding: 10px 12px; border-radius: var(--radius); background: var(--warning-soft); color: var(--text); font-size: 12px; line-height: 1.45; }
   .cancel-link { display: block; margin-top: 16px; text-align: center; font-size: 13px; }
 </style>

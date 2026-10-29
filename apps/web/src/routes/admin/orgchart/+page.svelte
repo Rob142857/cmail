@@ -1054,26 +1054,21 @@
   .add-menu-panel button small { color: var(--text-muted); font-size: 11px; }
   .notice {
     margin-bottom: 14px;
-    padding: 11px 14px;
-    border: 1px solid transparent;
-    border-radius: var(--radius);
+    padding: 8px 12px;
+    border: 0;
+    border-left: 3px solid currentColor;
+    border-radius: 0;
     font-size: 13px;
   }
-  .notice.error { border-color: color-mix(in srgb, var(--danger) 28%, transparent); background: var(--danger-soft); color: var(--danger); }
-  .notice.success { border-color: color-mix(in srgb, var(--success) 28%, transparent); background: var(--success-soft); color: var(--success); }
+  .notice.error { background: var(--danger-soft); color: var(--danger); }
+  .notice.success { background: var(--success-soft); color: var(--success); }
   .directory-control {
     display: grid;
     grid-template-columns: 42px minmax(0, 1fr) auto;
     gap: 14px;
     align-items: center;
-    padding: 16px;
-    border: 1px solid var(--border);
-    border-left: 4px solid var(--text-faint);
-    border-radius: var(--radius-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-sm);
+    padding: 4px 0;
   }
-  .directory-control.enabled { border-left-color: var(--success); }
   .directory-icon {
     width: 42px;
     height: 42px;
@@ -1092,11 +1087,8 @@
     grid-template-columns: 36px minmax(0, 1fr) auto;
     gap: 12px;
     align-items: center;
-    margin-top: 10px;
-    padding: 12px 14px;
-    border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
-    border-radius: var(--radius-lg);
-    background: color-mix(in srgb, var(--primary-soft) 45%, var(--bg-surface));
+    margin-top: 14px;
+    padding: 4px 0;
   }
   .privacy-icon {
     width: 34px;
@@ -1111,24 +1103,22 @@
   .privacy-boundary p { margin: 0; color: var(--text-muted); font-size: 11px; }
   .privacy-lock {
     padding: 4px 8px;
-    border: 1px solid var(--border);
     border-radius: 999px;
-    background: var(--bg-surface);
+    background: var(--bg-hover);
     color: var(--text-muted);
     font-size: 10px;
     font-weight: 700;
     white-space: nowrap;
   }
   .directory-preflight { margin-top: -8px; padding: 0; overflow: hidden; }
-  .directory-preflight summary { padding: 13px 16px; cursor: pointer; font-size: 13px; font-weight: 650; }
-  .directory-preflight[open] summary { border-bottom: 1px solid var(--border); }
-  .preflight-summary { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 14px 16px 0; font-size: 12px; }
+  .directory-preflight summary { padding: 13px 0; cursor: pointer; font-size: 13px; font-weight: 650; }
+  .preflight-summary { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 2px 0 0; font-size: 12px; }
   .preflight-summary span { color: var(--warning); }
-  .directory-preflight ul { display: grid; gap: 0; margin: 12px 16px; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: var(--radius); }
-  .directory-preflight li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 11px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .directory-preflight ul { display: grid; gap: 0; margin: 12px 0; padding: 0; list-style: none; }
+  .directory-preflight li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--divider); font-size: 12px; }
   .directory-preflight li:last-child { border-bottom: 0; }
   .directory-preflight li span { color: var(--text-muted); text-align: right; overflow-wrap: anywhere; }
-  .directory-preflight > p { margin: 0; padding: 0 16px 15px; color: var(--text-muted); font-size: 11px; }
+  .directory-preflight > p { margin: 0; padding: 0 0 15px; color: var(--text-muted); font-size: 11px; }
   .state {
     padding: 2px 7px;
     border-radius: 999px;
@@ -1144,7 +1134,7 @@
     background: transparent;
     color: var(--text-muted);
   }
-  .master-switch:hover { border-color: var(--border); }
+  .master-switch:hover { border-color: transparent; background: var(--bg-hover); }
   .switch-track {
     width: 38px;
     height: 21px;
@@ -1169,11 +1159,8 @@
     display: grid;
     grid-template-columns: minmax(220px, .7fr) minmax(0, 1.3fr);
     gap: 30px;
-    margin-top: 18px;
-    padding: 26px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: linear-gradient(135deg, var(--primary-soft), var(--bg-surface) 52%);
+    margin-top: 32px;
+    padding: 0;
   }
   .setup-badge {
     display: inline-block;
@@ -1182,24 +1169,21 @@
     border-radius: 999px;
     background: var(--primary);
     color: var(--on-primary);
-    font-size: 10px;
-    font-weight: 750;
-    letter-spacing: .05em;
-    text-transform: uppercase;
+    font-size: 11px;
+    font-weight: 600;
   }
   .first-run h2 { margin: 0 0 9px; max-width: 360px; font-size: 23px; }
   .first-run-copy p { color: var(--text-muted); font-size: 13px; }
-  .setup-steps { display: flex; flex-direction: column; gap: 7px; list-style: none; }
+  .setup-steps { display: flex; flex-direction: column; gap: 0; list-style: none; }
   .setup-steps li {
     display: grid;
     grid-template-columns: 30px minmax(0, 1fr) auto;
     gap: 11px;
     align-items: center;
-    padding: 9px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg-surface);
+    padding: 9px 0;
+    border-bottom: 1px solid var(--divider);
   }
+  .setup-steps li:last-child { border-bottom: 0; }
   .setup-steps li > span {
     width: 28px;
     height: 28px;
@@ -1227,9 +1211,11 @@
     align-items: flex-start;
     min-height: 72px;
     padding: 12px 14px;
-    background: var(--bg-surface);
+    background: transparent;
+    color: var(--text);
   }
-  .summary-grid button.active { border-color: var(--primary); background: var(--primary-soft); }
+  .summary-grid button:hover { background: var(--bg-hover); }
+  .summary-grid button.active { border-color: transparent; background: var(--primary-soft); color: var(--text); }
   .summary-grid span { font-size: 22px; font-weight: 700; letter-spacing: -.03em; }
   .summary-grid small { color: var(--text-muted); }
   .view-toolbar {
@@ -1238,16 +1224,12 @@
     justify-content: space-between;
     gap: 12px;
     margin-top: 18px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
   }
   .view-switch {
     display: inline-flex;
     gap: 3px;
-    padding: 3px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg-subtle);
+    padding: 0;
   }
   .view-switch button {
     min-height: 34px;
@@ -1257,11 +1239,12 @@
     color: var(--text-muted);
     font-size: 12px;
   }
+  .view-switch button:hover { background: var(--bg-hover); }
   .view-switch button.active {
-    border-color: var(--border);
-    background: var(--bg-surface);
+    border-color: transparent;
+    background: var(--bg-active);
     color: var(--text);
-    box-shadow: var(--shadow-sm);
+    box-shadow: none;
   }
   .hierarchy-actions { display: flex; gap: 6px; }
   .hierarchy-actions .btn { min-height: 32px; padding: 5px 10px; font-size: 11px; }
@@ -1284,7 +1267,7 @@
     grid-template-columns: 38px minmax(0, 1fr) auto;
     gap: 13px;
     align-items: center;
-    padding: 22px;
+    padding: 22px 0;
   }
   .hierarchy-empty h3 { margin: 0; font-size: 14px; }
   .hierarchy-empty p { margin: 3px 0 0; color: var(--text-muted); font-size: 11px; }
@@ -1293,14 +1276,9 @@
     padding: 0;
     list-style: none;
   }
-  .layer-tree { display: grid; gap: 10px; }
-  .layer-branch {
-    overflow: hidden;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-sm);
-  }
+  .layer-tree { display: grid; gap: 0; }
+  .layer-branch { overflow: hidden; }
+  .layer-branch + .layer-branch { border-top: 1px solid var(--divider); }
   .tree-node {
     display: grid;
     grid-template-columns: 30px minmax(0, 1fr) auto;
@@ -1308,9 +1286,9 @@
     align-items: center;
     min-width: 0;
   }
-  .layer-node { min-height: 68px; padding: 9px 14px; background: var(--bg-subtle); }
-  .unit-node { min-height: 61px; padding: 7px 14px 7px 10px; }
-  .unit-branch + .unit-branch { border-top: 1px solid var(--border); }
+  .layer-node { min-height: 68px; padding: 9px 4px; }
+  .unit-node { min-height: 61px; padding: 7px 4px 7px 10px; }
+  .unit-branch + .unit-branch { border-top: 1px solid var(--divider); }
   .tree-expander, .tree-expander-spacer {
     width: 30px;
     height: 30px;
@@ -1366,14 +1344,14 @@
   .tree-resource-copy strong { font-size: 13px; }
   .tree-resource-copy small { color: var(--text-muted); font-size: 10px; }
   .tree-count { color: var(--text-muted); font-size: 10px; white-space: nowrap; }
-  .layer-children { border-top: 1px solid var(--border); }
+  .layer-children { border-top: 0; }
   .layer-children > .unit-tree > .unit-branch > .unit-children {
     margin-left: 24px;
     border-left: 1px solid var(--border);
   }
   .unit-children > .unit-tree { margin-left: 24px; border-left: 1px solid var(--border); }
   .position-tree { margin-left: 38px; border-left: 1px dashed var(--border); }
-  .position-tree li + li { border-top: 1px solid var(--border); }
+  .position-tree li + li { border-top: 1px solid var(--divider); }
   .position-node {
     width: 100%;
     grid-template-columns: 22px 30px minmax(180px, 1fr) auto 34px;
@@ -1456,13 +1434,7 @@
     font-size: 12px;
   }
   .filter-bar button.active { background: var(--primary-soft); color: var(--primary-text); }
-  .resource-list {
-    overflow: hidden;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-sm);
-  }
+  .resource-list { overflow: hidden; }
   .list-head, .resource-row {
     display: grid;
     grid-template-columns: 34px minmax(260px, 1.4fr) minmax(120px, .45fr) minmax(130px, .5fr) 22px;
@@ -1471,22 +1443,19 @@
   }
   .list-head {
     min-height: 36px;
-    padding: 7px 14px;
+    padding: 7px 4px;
     border-bottom: 1px solid var(--border);
-    background: var(--bg-subtle);
     color: var(--text-muted);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .06em;
-    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 400;
   }
   .list-head span:first-child { grid-column: 2; }
   .resource-row {
     width: 100%;
     min-height: 67px;
-    padding: 10px 14px;
+    padding: 10px 4px;
     border: 0;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--divider);
     border-radius: 0;
     background: transparent;
     color: var(--text);
@@ -1607,12 +1576,13 @@
     align-items: flex-start;
     min-height: 82px;
     padding: 11px;
-    border: 1px solid var(--border);
+    border: 0;
     border-radius: var(--radius);
-    background: var(--bg-subtle);
+    background: transparent;
     cursor: pointer;
   }
-  .visibility-option.checked { border-color: var(--primary); background: var(--primary-soft); }
+  .visibility-option:hover { background: var(--bg-hover); }
+  .visibility-option.checked { background: var(--primary-soft); }
   .visibility-option input { position: absolute; opacity: 0; pointer-events: none; }
   .visibility-option > span:last-child { display: flex; flex-direction: column; }
   .visibility-option strong { font-size: 12px; }
@@ -1621,7 +1591,7 @@
     width: 16px;
     height: 16px;
     margin-top: 2px;
-    border: 1px solid var(--border-strong);
+    border: 1px solid var(--border-input);
     border-radius: 50%;
     background: var(--bg-surface);
     box-shadow: inset 0 0 0 4px var(--bg-surface);
@@ -1653,11 +1623,8 @@
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    margin: 0 20px 24px;
-    padding: 14px;
-    border: 1px solid color-mix(in srgb, var(--danger) 25%, var(--border));
-    border-radius: var(--radius);
-    background: var(--danger-soft);
+    margin: 8px 20px 24px;
+    padding: 0;
   }
   .danger-zone strong { color: var(--danger); font-size: 12px; }
   .danger-zone p { margin: 3px 0 0; color: var(--text-muted); font-size: 10px; }
@@ -1675,7 +1642,7 @@
     .directory-control { grid-template-columns: 38px minmax(0, 1fr); }
     .directory-control form { grid-column: 1 / -1; }
     .master-switch { width: 100%; justify-content: flex-start; }
-    .first-run { grid-template-columns: 1fr; padding: 20px; }
+    .first-run { grid-template-columns: 1fr; padding: 0; }
     .summary-grid { grid-template-columns: 1fr 1fr; }
     .privacy-boundary { grid-template-columns: 34px minmax(0, 1fr); }
     .privacy-lock { grid-column: 2; justify-self: start; }

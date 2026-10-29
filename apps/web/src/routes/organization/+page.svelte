@@ -15,7 +15,7 @@
   <meta name="description" content={`Public position directory for ${data.orgName || 'this organisation'}.`} />
 </svelte:head>
 
-<main id="main-content" class="directory-page" tabindex="-1">
+<main id="main-content" class="directory-page nb-quiet" tabindex="-1">
   <header class="directory-header">
     <a class="brand" href="/">
       <img src={data.brandIconUrl || '/icon.svg'} alt="" width="30" height="30" />
@@ -84,7 +84,7 @@
 
 <style>
   .directory-page { width: min(1120px, calc(100% - 32px)); min-height: 100vh; min-height: 100dvh; margin: 0 auto; display: flex; flex-direction: column; }
-  .directory-header { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--divider); }
+  .directory-header { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
   .brand { min-width: 0; display: flex; align-items: center; gap: 10px; color: var(--text); font-weight: 700; text-decoration: none; }
   .brand span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .header-links { display: flex; align-items: center; gap: 14px; font-size: 13px; }
@@ -100,15 +100,15 @@
   .search-control input:focus { border-color: var(--primary); box-shadow: 0 1px 0 var(--primary); padding-bottom: 5px; }
   .directory-tools > p { color: var(--text-muted); font-size: 13px; white-space: nowrap; }
   .directory-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
-  .directory-grid li { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; padding: 16px; border-color: var(--divider); box-shadow: none; }
+  .directory-grid li { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; padding: 12px 0; }
   .avatar { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: var(--primary-soft); color: var(--primary-text); font-weight: 600; }
   .directory-grid h2 { margin: 0; font-size: 15px; font-weight: 600; }
   .directory-grid p { margin: 2px 0 5px; color: var(--text-muted); font-size: 13px; }
   .directory-grid a { overflow-wrap: anywhere; font-size: 13px; }
-  .empty-state { margin-top: 28px; padding: 40px 24px; text-align: center; border-color: var(--divider); box-shadow: none; }
+  .empty-state { margin-top: 28px; padding: 40px 24px; text-align: center; }
   .empty-state h2 { font-size: var(--fs-subtitle); font-weight: 600; }
   .empty-state p { margin: 6px auto 16px; color: var(--text-muted); }
-  footer { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-top: 1px solid var(--divider); color: var(--text-muted); font-size: 12px; }
+  footer { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 18px; color: var(--text-muted); font-size: 12px; }
   @media (max-width: 700px) {
     .directory-content { padding: 42px 0 52px; }
     .directory-grid { grid-template-columns: 1fr; }

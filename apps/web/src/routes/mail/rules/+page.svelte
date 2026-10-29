@@ -29,7 +29,7 @@
 
 <svelte:head><title>Rules · {data.appName || 'cmail'}</title></svelte:head>
 
-<section class="rules-page" aria-labelledby="rules-heading">
+<section class="rules-page nb-quiet" aria-labelledby="rules-heading">
   <header class="page-header">
     <div>
       <p class="eyebrow">Mail settings</p>
@@ -167,7 +167,7 @@
   .mailbox-picker select:focus { border: 0; padding-bottom: 0; }
   .empty-state { box-shadow: none; }
   .empty-state .btn { margin-top: 6px; }
-  .rule-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--divider, var(--border)); }
+  .rule-list { margin: 0; padding: 0; list-style: none; }
   .rule { padding: 14px 4px; border: 0; border-bottom: 1px solid var(--divider, var(--border)); border-radius: 0; background: transparent; box-shadow: none; }
   .rule.off { background: transparent; }
   .rule.off .rule-head h2, .rule.off .summary { color: var(--text-muted); }
