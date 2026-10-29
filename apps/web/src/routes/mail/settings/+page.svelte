@@ -175,8 +175,7 @@
   .font-fields select:focus { border: 0; padding-bottom: 0; }
   .font-fields .field:nth-child(2) select { min-width: 110px; }
   /* Email paper: recipients read on white, so the preview stays white in dark mode. */
-  .font-preview { margin: 14px 0 0; padding: 10px 0; border: 0; border-radius: var(--radius-md); background: #ffffff; color-scheme: light; overflow-wrap: anywhere; }
-  @media (prefers-color-scheme: dark) { .font-preview { padding: 10px 14px; } }
+  .font-preview { margin: 14px 0 0; padding: 10px 14px; border: 0; border-radius: var(--radius-md); background: #ffffff; color-scheme: light; overflow-wrap: anywhere; }
   .eyebrow { margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .signature-order {
     display: grid;

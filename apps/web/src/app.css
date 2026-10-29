@@ -1231,9 +1231,10 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
 .nb-quiet :where(.badge) { border-color: transparent; }
 .nb-quiet :where(.msgbar, .notice) { border-top: 0; border-right: 0; border-bottom: 0; border-radius: 0; }
 .nb-quiet :where(thead th) { border-bottom-color: var(--border); }
-/* Quiet pages sit on one white canvas, so dropping card frames never leaves
-   content floating on the grey app background. */
-.content:has(.nb-quiet) { background: var(--bg-surface); }
+/* Quiet pages outside the mail shell sit on one white canvas. Inside the
+   mail shell the tone step between pane and content (no-borders: mail) is
+   the divider, so mail-mode content keeps its own background. */
+.shell:not([data-mode='mail']) .content:has(.nb-quiet) { background: var(--bg-surface); }
 /* Stand-alone quiet pages (sign-in, email code, consent, policy) also sit on
    the white canvas once their card frame is gone. */
 body:has(main.nb-quiet, .help-shell.nb-quiet), main.nb-quiet { background: var(--bg-surface); }

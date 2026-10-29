@@ -182,7 +182,7 @@
      become dark-on-dark. color-scheme keeps the caret/selection light-aware. */
   .editor {
     min-height: 148px;
-    padding: 12px 0;
+    padding: 14px 16px;
     outline: none;
     color-scheme: light;
     background: #ffffff;
@@ -192,8 +192,6 @@
     line-height: 1.55;
     overflow-wrap: anywhere;
   }
-  /* Dark mode: the white paper is its own edge, so it gets an inner margin. */
-  @media (prefers-color-scheme: dark) { .editor { padding: 14px 16px; } }
   .editor :global(a) { color: #2563eb; }
   .editor:empty::before { content: attr(data-placeholder); color: #8a8a8a; pointer-events: none; }
   .editor-readonly-frame { display: block; width: 100%; padding: 0; border: 0; background: #fff; }
