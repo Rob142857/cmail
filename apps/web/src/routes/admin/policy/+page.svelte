@@ -124,7 +124,7 @@
   .page-heading h1 { margin: 2px 0 7px; font-size: var(--fs-title-2); font-weight: 600; }
   .page-heading > p:last-child { max-width: 760px; color: var(--text-muted); }
   .eyebrow { margin: 0; }
-  .notice { padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--radius); }
+  .notice { padding: 8px 12px; border: 0; border-left: 3px solid currentColor; border-radius: 0; }
   .notice-error { color: var(--danger); background: var(--danger-soft); }
   .notice-success { color: var(--success); background: var(--success-soft); }
   .current-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
@@ -133,7 +133,7 @@
   .coverage { display: flex; flex-direction: column; align-items: end; }
   .coverage strong { font-size: 26px; }
   .coverage span { color: var(--text-muted); font-size: 11px; }
-  .publish-card { padding: 20px; }
+  .publish-card { padding: 0; }
   .section-heading, .history-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 16px; }
   .section-heading h2, .history-heading h2 { margin: 0 0 3px; font-size: 19px; }
   .impact { padding: 4px 9px; border-radius: 999px; background: var(--warning-soft); color: var(--warning); font-size: 11px; font-weight: 650; white-space: nowrap; }
@@ -141,22 +141,23 @@
   .field label { font-size: 13px; font-weight: 650; }
   .field small { justify-self: end; color: var(--text-muted); font-size: 11px; }
   .field textarea { min-height: 260px; resize: vertical; line-height: 1.55; }
-  .form-actions { display: flex; justify-content: flex-end; padding-top: 13px; border-top: 1px solid var(--border); }
+  .form-actions { display: flex; justify-content: flex-end; padding-top: 4px; }
   .preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
   .preview-heading > div { display: flex; align-items: center; gap: 9px; }
   .preview-heading h3 { margin: 0; font-size: 16px; }
   .policy-preview, .policy-text { max-height: 52vh; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
-  .policy-preview { padding: 18px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-subtle); }
+  .policy-preview { padding: 4px 2px; }
   .publication-warning { display: flex; flex-direction: column; gap: 2px; margin: 13px 0; padding: 12px; border-left: 3px solid var(--warning); background: var(--warning-soft); color: var(--warning); font-size: 12px; }
   .hidden-value { display: none; }
   .history-heading { align-items: end; margin-bottom: 10px; }
   .history-heading > span { color: var(--text-muted); font-size: 12px; }
-  .history-list { display: grid; gap: 9px; }
-  .history-list details { padding: 0; overflow: hidden; }
-  .history-list summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; cursor: pointer; }
+  .history-list { display: grid; gap: 0; }
+  .history-list details { padding: 0; overflow: hidden; border-bottom: 1px solid var(--divider); }
+  .history-list details:last-child { border-bottom: 0; }
+  .history-list summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 4px; cursor: pointer; }
   .history-list summary > span:first-child { display: flex; flex-direction: column; }
   .history-list summary small, .summary-meta { color: var(--text-muted); font-size: 11px; }
-  .policy-text { padding: 16px; border-top: 1px solid var(--border); background: var(--bg-subtle); font-size: 13px; }
+  .policy-text { padding: 4px 4px 18px; font-size: 13px; }
   .empty-state { padding: 36px 20px; text-align: center; }
   .empty-state p { margin-top: 5px; color: var(--text-muted); }
   @media (max-width: 620px) {

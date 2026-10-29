@@ -69,7 +69,7 @@
 
 <style>
   @import '../getting-started/guide.css';
-  .permission-table { margin: 16px 0 10px; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-surface); }
+  .permission-table { margin: 16px 0 10px; overflow: hidden; }
   .permission-table table { min-width: 520px; }
   .permission-table th, .permission-table td { padding: 10px 12px; color: var(--text-muted); font-size: 13px; text-align: center; }
   .permission-table th:first-child { text-align: left; }

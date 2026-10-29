@@ -387,11 +387,10 @@
   .lede em { color: var(--text); font-style: normal; font-weight: 600; }
   .note {
     margin-top: 14px;
-    padding: 11px 14px;
-    border: 1px solid var(--border);
+    padding: 2px 0 2px 14px;
+    border: 0;
     border-left: 3px solid var(--warning);
-    border-radius: var(--radius-md);
-    background: var(--bg-surface);
+    border-radius: 0;
     color: var(--text-muted);
     font-size: 13px;
     line-height: 1.6;
@@ -399,23 +398,14 @@
 
   section h2 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
   .section-intro { margin: 8px 0 0; color: var(--text-muted); font-size: 14px; line-height: 1.6; max-width: 70ch; }
-  .responsibility-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
-  .responsibility-grid div { display: grid; gap: 5px; padding: 15px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); }
+  .responsibility-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 32px; margin-top: 16px; }
+  .responsibility-grid div { display: grid; gap: 5px; align-content: start; padding: 0; }
   .responsibility-grid span { color: var(--text-muted); font-size: 12px; line-height: 1.55; }
 
-  .rows { margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
-  .rows li {
-    padding: 15px 17px;
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--border-strong);
-    border-radius: var(--radius-md);
-    background: var(--bg-surface);
-  }
-  .rows li.met { border-left-color: var(--success); }
-  .rows li.operator { border-left-color: var(--primary); }
-  .rows li.delegated { border-left-color: var(--primary); }
-  .rows li.reference { border-left-color: var(--primary); }
-  .rows li.gap { border-left-color: var(--warning); }
+  /* No-borders pass: one quiet list; the status pill carries the state. */
+  .rows { margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 0; }
+  .rows li { padding: 14px 0; border-bottom: 1px solid var(--divider); }
+  .rows li:last-child { border-bottom: 0; }
 
   .row-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
   .row-head strong { font-size: 14px; }
@@ -424,29 +414,24 @@
     margin-left: auto;
     flex: 0 0 auto;
     padding: 1px 8px;
-    border: 1px solid var(--border);
+    border: 0;
     border-radius: var(--radius-pill);
     background: var(--bg-subtle);
     font-size: 11px;
     font-weight: 600;
     white-space: nowrap;
   }
-  .status-met { background: var(--success-soft); border-color: var(--success-border); color: var(--success-text); }
+  .status-met { background: var(--success-soft); color: var(--success-text); }
   .status-operator,
   .status-delegated,
-  .status-reference { background: var(--primary-soft); border-color: var(--primary-border); color: var(--primary-text); }
-  .status-gap { background: var(--warning-soft); border-color: var(--warning-border); color: var(--warning-text); }
+  .status-reference { background: var(--primary-soft); color: var(--primary-text); }
+  .status-gap { background: var(--warning-soft); color: var(--warning-text); }
 
   .rows li p { margin: 7px 0 0; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
 
-  .gaps { margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 12px; }
-  .gaps > li {
-    padding: 16px 18px;
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--warning);
-    border-radius: var(--radius-md);
-    background: var(--bg-surface);
-  }
+  .gaps { margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 0; }
+  .gaps > li { padding: 16px 0; border-bottom: 1px solid var(--divider); }
+  .gaps > li:last-child { border-bottom: 0; }
   .gaps h3 { margin: 0 0 10px; font-size: 15px; }
   .gaps dl { display: grid; gap: 6px; margin: 0; }
   .gaps dl > div { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 10px; }
@@ -459,11 +444,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 18px;
     align-items: center;
-    padding: 18px 20px;
-    border: 1px solid var(--border);
-    border-left: 4px solid var(--primary);
-    border-radius: var(--radius-md);
-    background: var(--bg-surface);
+    padding: 0;
   }
   .closing p { margin: 4px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.55; }
   .closing-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }

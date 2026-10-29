@@ -357,7 +357,7 @@
   .notice-error { color: var(--danger); background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 25%, var(--border)); }
   .notice-success { color: var(--success); background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 25%, var(--border)); }
   .notice-warning { color: var(--warning); background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 25%, var(--border)); }
-  .create-card { border: 0; border-block: 1px solid var(--divider); border-radius: 0; padding: 12px 4px; }
+  .create-card { border: 0; border-radius: 0; padding: 8px 0; }
   .create-card summary { cursor: pointer; font-weight: 600; min-height: 24px; }
   .create-form { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 14px; margin-top: 16px; align-items: start; }
   .field { display: grid; gap: 5px; }
@@ -367,7 +367,7 @@
   .compact-field { max-width: 220px; }
   .suffix-control { display: flex; align-items: stretch; }
   .suffix-control input { border-radius: var(--radius) 0 0 var(--radius); }
-  .suffix-control span { display: inline-flex; align-items: center; padding: 0 10px; border-bottom: 1px solid var(--border-strong); color: var(--text-muted); font-size: 13px; white-space: nowrap; }
+  .suffix-control span { display: inline-flex; align-items: center; padding: 0 10px; border-bottom: 1px solid var(--border-input); color: var(--text-muted); font-size: 13px; white-space: nowrap; }
   .suffix-control:focus-within span { border-bottom-color: var(--primary); box-shadow: 0 1px 0 var(--primary); }
   .invite-field { grid-column: 1 / -1; display: flex; gap: 9px; align-items: start; }
   .invite-field input { width: auto; margin-top: 3px; }
@@ -389,7 +389,7 @@
   .inline-form select { min-width: 112px; padding-block: 5px; }
   .actions { display: grid; gap: 5px; min-width: 250px; }
   .button-group { display: flex; flex-wrap: wrap; gap: 5px; }
-  .danger-outline { color: var(--danger-text); }
+  .danger-outline:not(:disabled) { color: var(--danger-text); }
   /* Row actions stay quiet until the row is hovered or focused (mouse only). */
   @media (hover: hover) and (pointer: fine) {
     tbody tr:not(:hover, :focus-within) .actions { opacity: 0; }

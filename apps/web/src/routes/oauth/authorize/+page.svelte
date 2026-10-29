@@ -19,7 +19,7 @@
   {/if}
 </svelte:head>
 
-<main id="main-content" class="authorize-page" tabindex="-1">
+<main id="main-content" class="authorize-page nb-quiet" tabindex="-1">
   <div class="authorize-card card">
     <img src={data.brandLogoUrl || '/logo.svg'} alt="" class="brand-logo" width="200" height="68" />
 
@@ -149,9 +149,9 @@
   .brand-logo { display: block; width: min(180px, 100%); height: auto; margin: 0 auto 18px; object-fit: contain; }
   h1 { margin: 0 0 8px; font-size: 21px; line-height: 1.3; overflow-wrap: anywhere; }
   .client-name { color: var(--primary-text, var(--primary)); }
-  .eyebrow { margin: 0 0 4px; color: var(--primary-text); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .eyebrow { margin: 0 0 4px; color: var(--primary-text); font-size: 13px; font-weight: 500; }
   .lead { margin: 0 0 18px; color: var(--text-muted); }
-  .client-facts { display: grid; gap: 6px; margin: 14px 0 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-subtle); font-size: 13px; }
+  .client-facts { display: grid; gap: 6px; margin: 14px 0 20px; padding: 0; border: 1px solid transparent; font-size: 13px; }
   .client-facts div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; }
   .client-facts dt { color: var(--text-muted); }
   .client-facts dd { margin: 0; overflow-wrap: anywhere; }
@@ -160,15 +160,14 @@
   .unverified { color: var(--warning-text); }
   fieldset { margin: 0 0 14px; padding: 0; border: 0; }
   legend { margin-bottom: 8px; font-size: 14px; font-weight: 650; }
-  .choice { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 12px; margin-bottom: 6px; border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; }
+  .choice { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 8px; margin-bottom: 2px; border: 1px solid transparent; border-radius: var(--radius-md); cursor: pointer; }
   .choice:hover { background: var(--bg-hover); }
-  .choice.high { border-color: var(--warning-border); }
   .choice input { margin-top: 3px; width: 16px; height: 16px; }
   .choice strong { display: block; font-size: 13.5px; }
   .choice small { display: block; margin-top: 2px; color: var(--text-muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
   .risk { margin-left: 6px; padding: 1px 6px; border-radius: var(--radius-pill); background: var(--warning-soft); color: var(--warning-text); font-size: 10.5px; font-style: normal; font-weight: 600; }
   .send-warning { display: flex; gap: 6px; align-items: flex-start; margin: 4px 0 0; padding: 9px 11px; border-left: 3px solid var(--warning); background: var(--warning-soft); color: var(--warning-text); font-size: 12px; }
-  .safety { display: flex; gap: 9px; margin: 4px 0 16px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--bg-subtle); color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+  .safety { display: flex; gap: 9px; margin: 4px 0 20px; padding: 0; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
   .safety :global(svg) { flex: 0 0 auto; margin-top: 2px; color: var(--success); }
   .safety p { margin: 0; }
   .actions { display: flex; justify-content: flex-end; gap: 10px; }
@@ -181,8 +180,8 @@
   .outcome-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--success-soft); color: var(--success); }
   .outcome-icon.denied { background: var(--warning-soft); color: var(--warning); }
   .fine { margin: 10px 0 0; color: var(--text-faint); font-size: 11.5px; text-align: center; }
-  .notice { margin-bottom: 12px; padding: 10px 12px; border-radius: var(--radius); }
-  .notice-error { border: 1px solid var(--danger-border); background: var(--danger-soft); color: var(--danger-text); }
+  .notice { margin-bottom: 12px; padding: 8px 12px; border-radius: 0; }
+  .notice-error { border: 0; border-left: 3px solid var(--danger); background: var(--danger-soft); color: var(--danger-text); }
   @media (max-width: 480px) {
     .authorize-page { padding: 12px; align-items: flex-start; }
     .authorize-card { padding: 20px 16px; }

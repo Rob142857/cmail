@@ -121,7 +121,7 @@
   {/if}
 {/snippet}
 
-<section class="editor-page" aria-labelledby="editor-heading">
+<section class="editor-page nb-quiet" aria-labelledby="editor-heading">
   <header class="page-header">
     <a href={listHref} class="back"><Icon name="arrowLeft" size={14} /> Rules</a>
     <h1 id="editor-heading">{data.rule ? 'Edit rule' : 'New rule'}</h1>
@@ -263,8 +263,8 @@
   .page-header h1 { margin: 6px 0 4px; font-size: var(--fs-title-2); font-weight: 600; }
   .page-header p { margin: 0; color: var(--text-muted); font-size: 13px; overflow-wrap: anywhere; }
   .back { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
-  .editor { display: grid; gap: 24px; padding: 16px 20px 20px; box-shadow: none; border-color: var(--divider, var(--border)); }
-  .name-field { display: flex; flex-direction: row; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--border); }
+  .editor { display: grid; gap: 28px; padding: 8px 0 0; border: 1px solid transparent; border-radius: 0; background: transparent; box-shadow: none; }
+  .name-field { display: flex; flex-direction: row; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--border-input); }
   .name-field:focus-within { border-bottom-color: var(--primary); }
   .editor .name-field > label { flex: 0 0 auto; text-align: left; margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .name-field input { flex: 1 1 auto; min-width: 0; max-width: none; min-height: 40px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; font-size: 15px; font-weight: 600; }
@@ -274,7 +274,7 @@
   legend + * { clear: left; }
   .optional { color: var(--text-muted); font-weight: 400; }
   .rows { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
-  .row { display: grid; grid-template-columns: minmax(180px, 230px) minmax(0, 1fr) auto; gap: 12px; align-items: start; border-bottom: 1px solid var(--border); }
+  .row { display: grid; grid-template-columns: minmax(180px, 230px) minmax(0, 1fr) auto; gap: 12px; align-items: start; border-bottom: 1px solid var(--border-input); }
   .row:focus-within { border-bottom-color: var(--primary); }
   .row > select, .value input, .value select { width: 100%; min-width: 0; min-height: 40px; padding: 0; border: 0; border-radius: 0; background-color: transparent; box-shadow: none; }
   .row > select, .value select { cursor: pointer; }
@@ -289,7 +289,7 @@
   .switch span { display: grid; gap: 1px; }
   .switch small { color: var(--text-muted); font-size: 12px; }
   .switch.disabled { cursor: default; opacity: .7; }
-  .preview { padding: 12px 0 0; border-top: 1px solid var(--divider, var(--border)); font-size: 13px; }
+  .preview { padding: 0; font-size: 13px; }
   .preview-title { margin: 0 0 8px; color: var(--text-muted); font-size: 13px; font-weight: 500; }
   .preview dl { display: grid; gap: 6px; margin: 0; }
   .preview dl div { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; }

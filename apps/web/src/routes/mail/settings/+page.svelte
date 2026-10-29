@@ -20,7 +20,7 @@
 
 <svelte:head><title>Font and signature · {data.appName || 'cmail'}</title></svelte:head>
 
-<section class="settings-page" aria-labelledby="signature-heading">
+<section class="settings-page nb-quiet" aria-labelledby="signature-heading">
   <header class="page-header">
     <div>
       <p class="eyebrow">Mail settings</p>
@@ -163,27 +163,27 @@
   .page-header > div > p:last-child, .section-head p { margin: 0; color: var(--text-muted); font-size: 13px; }
   .notice { margin-bottom: 14px; }
   /* Sleek uplift (settings): hairline sections, typed-on-line fields, no boxes inside boxes. */
-  .settings-page .card { box-shadow: none; border-color: var(--divider, var(--border)); }
-  .font-card { padding: 16px 20px; margin-bottom: 16px; }
+  /* No-borders pass: sections sit on the canvas, separated by headings and space. */
+  .settings-page .card { border: 1px solid transparent; border-radius: 0; background: transparent; box-shadow: none; }
+  .font-card { padding: 0; margin-bottom: 32px; }
   .font-card .section-head { margin-bottom: 8px; }
   .font-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 20px; }
-  .font-fields .field { display: flex; flex-direction: column; gap: 0; margin: 0; min-width: 0; border-bottom: 1px solid var(--border); }
+  .font-fields .field { display: flex; flex-direction: column; gap: 0; margin: 0; min-width: 0; border-bottom: 1px solid var(--border-input); }
   .font-fields .field:focus-within { border-bottom-color: var(--primary); }
   .font-fields label { margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .font-fields select { min-width: 180px; max-width: 100%; min-height: 36px; padding: 0; border: 0; border-radius: 0; background-color: transparent; box-shadow: none; cursor: pointer; }
   .font-fields select:focus { border: 0; padding-bottom: 0; }
   .font-fields .field:nth-child(2) select { min-width: 110px; }
   /* Email paper: recipients read on white, so the preview stays white in dark mode. */
-  .font-preview { margin: 14px 0 0; padding: 10px 14px; border: 1px solid var(--divider, var(--border)); border-radius: var(--radius-md); background: #ffffff; color-scheme: light; overflow-wrap: anywhere; }
+  .font-preview { margin: 14px 0 0; padding: 10px 14px; border: 0; border-radius: var(--radius-md); background: #ffffff; color-scheme: light; overflow-wrap: anywhere; }
   .eyebrow { margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .signature-order {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(390px, .9fr);
     gap: 28px;
     align-items: center;
-    padding: 12px 0 20px;
-    margin-bottom: 16px;
-    border-bottom: 1px solid var(--divider, var(--border));
+    padding: 0;
+    margin-bottom: 32px;
   }
   .order-copy h2 { margin: 2px 0 4px; font-size: var(--fs-subtitle); font-weight: 600; }
   .order-copy > p:last-child { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
@@ -197,7 +197,7 @@
   .order-item small { color: var(--text-muted); font-size: 11px; }
   .flow-line { height: 1px; min-width: 22px; flex: 1; margin: 0 9px; background: var(--border-strong); }
   .settings-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(290px, .65fr); gap: 20px; align-items: start; }
-  .editor-card { padding: 16px 20px 20px; }
+  .editor-card { padding: 0; }
   .section-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 14px; }
   .section-head h2 { margin: 0 0 3px; font-size: var(--fs-subtitle); font-weight: 600; }
   .status-badge, .lock-badge { display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; padding: 2px 0; font-size: 12px; font-weight: 500; }
@@ -208,12 +208,12 @@
   .managed-note span { color: var(--text-muted); }
   .form-actions { display: flex; align-items: center; justify-content: flex-end; gap: 14px; margin-top: 16px; }
   .save-hint { margin-right: auto; color: var(--text-muted); font-size: 12px; }
-  .preview-card { overflow: hidden; border: 1px solid var(--divider, var(--border)); border-radius: var(--radius-lg); background: var(--bg-surface); }
-  .preview-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--divider, var(--border)); color: var(--text-muted); font-size: 12px; }
+  .preview-card { overflow: hidden; }
+  .preview-head { display: flex; justify-content: space-between; align-items: center; padding: 0 0 6px; color: var(--text-muted); font-size: 12px; }
   .preview-head > div { display: flex; align-items: center; gap: 7px; color: var(--text); font-size: 13px; }
   .preview-head strong { font-weight: 600; }
   .preview-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
-  .mock-message { min-height: 260px; padding: 16px; }
+  .mock-message { min-height: 260px; padding: 10px 0 16px; }
   .mock-copy { margin: 0 0 20px; font-size: 13px; }
   .signature-stack { display: flex; flex-direction: column; gap: 16px; padding-top: 12px; border-top: 1px solid var(--divider, var(--border)); }
   .signature-layer { position: relative; padding: 0; }
@@ -221,7 +221,7 @@
   .layer-label { display: block; margin-bottom: 4px; color: var(--text-muted); font-size: 12px; font-weight: 500; }
   .signature-layer iframe { display: block; width: 100%; min-height: 74px; border: 0; background: #fff; }
   .empty-layer { margin: 0; color: var(--text-faint); font-size: 13px; font-style: italic; }
-  .privacy-note { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--divider, var(--border)); color: var(--text-muted); font-size: 12px; }
+  .privacy-note { display: flex; gap: 8px; padding: 4px 0 0; color: var(--text-muted); font-size: 12px; }
   .privacy-note :global(svg) { color: var(--success); flex: 0 0 auto; }
   .privacy-note p { margin: 0; }
   .privacy-note strong { color: var(--text); font-weight: 600; }
@@ -231,10 +231,10 @@
   }
   @media (max-width: 600px) {
     .page-header { align-items: flex-start; flex-direction: column; gap: 11px; }
-    .signature-order { padding: 4px 0 16px; }
+    .signature-order { padding: 0; margin-bottom: 28px; }
     .order-flow { align-items: flex-start; flex-direction: column; gap: 6px; }
     .flow-line { width: 1px; height: 14px; min-width: 0; flex: none; margin: 0 0 0 12px; }
-    .editor-card, .font-card { padding: 14px; }
+    .editor-card, .font-card { padding: 0; }
     .font-fields { align-items: stretch; flex-direction: column; gap: 12px; }
     .font-fields select { width: 100%; min-width: 0; min-height: 44px; }
     .section-head, .form-actions { align-items: flex-start; flex-direction: column; }

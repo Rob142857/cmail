@@ -47,7 +47,7 @@
 
 <svelte:head><title>Calendar · {d.appName || 'cmail'}</title></svelte:head>
 
-<section class="calendar-page">
+<section class="calendar-page nb-quiet">
   <header class="page-header">
     <div class="heading-group">
       <h1>Calendar</h1>
@@ -185,20 +185,20 @@
   .month-nav [aria-disabled='true'] { pointer-events: none; opacity: 0.45; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
-  .empty-state { padding: 40px 20px; text-align: center; background: var(--bg-surface); border: 1px solid var(--divider); border-radius: var(--radius-lg); }
+  .empty-state { padding: 40px 20px; text-align: center; }
   .empty-state h2 { font-size: 16px; font-weight: 500; }
   .empty-state p { margin-top: 4px; color: var(--text-muted); font-size: 13px; }
 
-  .bulk-feedback { padding: 10px 12px; margin-bottom: 12px; border: 1px solid transparent; border-radius: var(--radius); font-size: 13px; }
-  .bulk-feedback.error { color: var(--danger); background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 25%, transparent); }
-  .bulk-feedback.success { color: var(--success); background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 25%, transparent); }
+  .bulk-feedback { padding: 8px 12px; margin-bottom: 12px; border: 0; border-left: 3px solid currentColor; border-radius: 0; font-size: 13px; }
+  .bulk-feedback.error { color: var(--danger); background: var(--danger-soft); }
+  .bulk-feedback.success { color: var(--success); background: var(--success-soft); }
 
-  .agenda { background: var(--bg-surface); border: 1px solid var(--divider); border-radius: var(--radius-lg); overflow: hidden; }
-  .agenda-day { border-bottom: 1px solid var(--divider); }
-  .agenda-day:last-child { border-bottom: 0; }
-  .day-heading { padding: 16px 20px 4px; margin: 0; font-size: 13px; font-weight: 500; color: var(--text-muted); }
+  /* No-borders pass: days are grouped by their heading and space, not a card. */
+  .agenda { overflow: hidden; border: 1px solid transparent; }
+  .agenda-day + .agenda-day { margin-top: 12px; }
+  .day-heading { padding: 16px 4px 4px; margin: 0; font-size: 13px; font-weight: 500; color: var(--text-muted); }
 
-  .event-row { border-bottom: 1px solid var(--divider); margin: 0 20px; }
+  .event-row { border-bottom: 1px solid var(--divider); margin: 0 4px; }
   .event-row:last-child { border-bottom: 0; }
   .event-row summary {
     display: grid;
@@ -211,7 +211,7 @@
     list-style: none;
   }
   .event-row summary::-webkit-details-marker { display: none; }
-  .event-row:hover summary { background: var(--bg-hover); box-shadow: -20px 0 0 var(--bg-hover), 20px 0 0 var(--bg-hover); }
+  .event-row:hover summary { background: var(--bg-hover); box-shadow: -4px 0 0 var(--bg-hover), 4px 0 0 var(--bg-hover); }
   .event-time { color: var(--text-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .event-summary { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .event-summary.cancelled-text { text-decoration: line-through; color: var(--text-muted); }

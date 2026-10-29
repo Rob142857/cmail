@@ -15,7 +15,7 @@
   <meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
-<main id="main-content" class="link-page" tabindex="-1">
+<main id="main-content" class="link-page nb-quiet" tabindex="-1">
   <section class="card link-card" aria-labelledby="link-heading">
     <div class="risk-mark" aria-hidden="true"><Icon name="warning" size={22} /></div>
     <p class="eyebrow">Link check</p>
@@ -68,20 +68,13 @@
   .eyebrow {
     margin: 0 0 5px;
     color: var(--text-muted);
-    font-size: 12px;
-    font-weight: 750;
-    text-transform: uppercase;
-    letter-spacing: .06em;
+    font-size: 13px;
+    font-weight: 500;
   }
   h1 { margin: 0; font-size: 23px; }
   .intro { margin: 9px 0 20px; color: var(--text-muted); line-height: 1.55; }
 
-  .destination {
-    padding: 14px 16px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg);
-  }
+  .destination { padding: 0; border: 1px solid transparent; }
   .destination-label {
     margin: 0 0 4px;
     font-size: 11.5px;
@@ -112,9 +105,10 @@
 
   .notice {
     margin: 16px 0 0;
-    padding: 11px 12px;
-    border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
-    border-radius: var(--radius);
+    padding: 8px 12px;
+    border: 0;
+    border-left: 3px solid var(--danger);
+    border-radius: 0;
     background: var(--danger-soft);
     color: var(--danger);
     font-size: 13px;

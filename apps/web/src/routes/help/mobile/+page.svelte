@@ -88,16 +88,16 @@
 
 <style>
   @import '../getting-started/guide.css';
-  .platform-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-  .platform-card { padding: 20px !important; border: 1px solid var(--border) !important; border-radius: 12px; background: var(--bg-surface); }
+  .platform-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 40px; }
+  .platform-card { padding: 4px 0 0 !important; border: 0 !important; }
   .platform-name { margin: 0 0 5px !important; color: var(--primary-text) !important; font-size: 13px !important; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .platform-card h2 { font-size: 20px !important; }
   .source-link { margin-top: 13px !important; font-size: 12px !important; }
-  .troubleshooting { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
-  .troubleshooting div { padding: 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-surface); }
+  .troubleshooting { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 40px; margin-top: 14px; }
+  .troubleshooting div { padding: 0; }
   .troubleshooting p { margin-top: 4px; font-size: 12px !important; }
-  .connection-status { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
-  .connection-status div { padding: 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-surface); }
+  .connection-status { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 40px; margin-top: 14px; }
+  .connection-status div { padding: 0; }
   .connection-status strong { display: block; }
   .connection-status span { display: inline-block; margin-top: 4px; color: var(--primary-text); font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .connection-status p, .connection-note { margin-top: 7px; font-size: 12px !important; }

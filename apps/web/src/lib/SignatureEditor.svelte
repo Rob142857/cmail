@@ -145,21 +145,25 @@
     font-size: 12px;
     font-weight: 500;
   }
+  /* No frame: a quiet toolbar row, then the paper with one hairline rule
+     underneath that turns --primary on focus (the typed-on-line field). */
   .editor-shell {
     overflow: hidden;
-    border: 1px solid var(--divider, var(--border));
-    border-radius: var(--radius-md);
-    background: var(--bg-surface);
+    border: 0;
+    border-bottom: 1px solid var(--border-input);
+    border-radius: 0;
+    background: transparent;
   }
-  .editor-shell:focus-within { border-color: var(--primary); box-shadow: none; }
+  .editor-shell:hover { border-bottom-color: var(--text-muted); }
+  .editor-shell:focus-within { border-bottom-color: var(--primary); box-shadow: 0 1px 0 var(--primary); }
   .toolbar {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 3px;
     min-height: 40px;
-    padding: 4px 6px;
-    border-bottom: 1px solid var(--divider, var(--border));
+    padding: 4px 0;
+    border-bottom: 0;
     background: transparent;
   }
   .toolbar button {
@@ -170,7 +174,7 @@
     background: transparent;
     font-size: 12px;
   }
-  .toolbar button:hover:not(:disabled) { border-color: var(--border); background: var(--bg-hover); }
+  .toolbar button:hover:not(:disabled) { border-color: transparent; background: var(--bg-hover); }
   .toolbar-divider { width: 1px; height: 20px; margin: 0 3px; background: var(--border); }
   /* The editing surface is email paper, not app surface: signatures carry
      inline colours chosen for a white background (every recipient reads them
@@ -192,7 +196,7 @@
   .editor:empty::before { content: attr(data-placeholder); color: #8a8a8a; pointer-events: none; }
   .editor-readonly-frame { display: block; width: 100%; padding: 0; border: 0; background: #fff; }
   .editor-foot { display: flex; justify-content: space-between; gap: 12px; color: var(--text-faint); font-size: 12px; }
-  .is-disabled .editor-shell { border-color: var(--border); background: var(--bg-subtle); }
+  .is-disabled .editor-shell { border-bottom-color: var(--divider, var(--border)); background: transparent; }
   .is-disabled .editor { cursor: not-allowed; }
   .is-disabled .toolbar { opacity: 0.58; }
 

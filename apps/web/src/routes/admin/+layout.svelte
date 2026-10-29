@@ -151,7 +151,7 @@
   {/snippet}
 
   <!-- display: contents — a styling hook only; it adds no box to the layout. -->
-  <div class="mgmt">{@render children()}</div>
+  <div class="mgmt nb-quiet">{@render children()}</div>
 </AppShell>
 
 <style>
@@ -160,9 +160,6 @@
     align-items: center;
     gap: 9px;
     padding: 8px 10px;
-    border: 1px solid var(--primary-border);
-    border-radius: var(--radius-md);
-    background: var(--primary-soft);
     color: var(--primary-text);
   }
   .workspace-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
@@ -196,13 +193,13 @@
 
   .mgmt :global(:is(input:not([type='checkbox'], [type='radio'], [type='file'], [type='color'], [type='range']), select, textarea)) {
     border: 0;
-    border-bottom: 1px solid var(--border-strong);
+    border-bottom: 1px solid var(--border-input);
     border-radius: 0;
     background-color: transparent;
     padding-left: 2px;
     box-shadow: none;
   }
-  .mgmt :global(textarea) { border: 1px solid var(--border-strong); border-radius: var(--radius); padding-left: 10px; }
+  .mgmt :global(textarea) { padding-right: 2px; }
   .mgmt :global(:is(input, select, textarea):hover:not(:disabled)) { border-color: var(--text-muted); }
   .mgmt :global(:is(input, select, textarea):focus) {
     border-color: var(--primary);

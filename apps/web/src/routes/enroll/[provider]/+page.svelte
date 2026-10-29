@@ -27,7 +27,7 @@
   <meta name="referrer" content="strict-origin" />
 </svelte:head>
 
-<main id="main-content" class="enrollment-page" tabindex="-1">
+<main id="main-content" class="enrollment-page nb-quiet" tabindex="-1">
   <section class="card enrollment-card" aria-labelledby="enrollment-heading">
     <img src={data.brandLogoUrl || '/logo.svg'} alt="" class="brand-logo" width="220" height="75" />
     <div class="security-mark" aria-hidden="true">✓</div>
@@ -63,7 +63,7 @@
   .security-mark { width: 38px; height: 38px; display: grid; place-items: center; margin: 0 auto 12px; border-radius: 50%; background: var(--success-soft); color: var(--success); font-weight: 800; }
   h1 { margin: 0; font-size: 22px; }
   p { color: var(--text-muted); line-height: 1.55; }
-  .notice { margin: 18px 0; padding: 11px 12px; border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border)); border-radius: var(--radius); background: var(--danger-soft); color: var(--danger); text-align: left; }
+  .notice { margin: 18px 0; padding: 8px 12px; border: 0; border-left: 3px solid var(--danger); border-radius: 0; background: var(--danger-soft); color: var(--danger); text-align: left; }
   .progress { display: inline-flex; align-items: center; gap: 9px; margin-top: 12px; color: var(--text-muted); font-size: 13px; }
   .progress span { width: 14px; height: 14px; border: 2px solid var(--border-strong); border-top-color: var(--primary); border-radius: 50%; animation: spin .8s linear infinite; }
   .hidden-form { display: none; }
