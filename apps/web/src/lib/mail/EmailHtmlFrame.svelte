@@ -116,8 +116,8 @@
 ></iframe>
 
 <style>
-  /* Mail HTML expects white: no box in light mode (it sits on the white pane);
-     a hairline frame in dark mode so the white sheet has an edge. */
+  /* Mail HTML expects white: no frame in either theme; in dark mode the
+     white sheet's own tone is its edge. */
   iframe { display:block; width:100%; min-height:360px; height:65vh; border:0; border-radius:var(--radius-md); background:#fff; }
   iframe.autosized { min-height:120px; height:auto; }
   iframe.compact { min-height:140px; height:280px; }

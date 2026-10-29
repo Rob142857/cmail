@@ -217,6 +217,7 @@
   .push-control .btn { border-color: transparent; background: transparent; color: var(--primary-text); font-weight: 600; }
   .push-control .btn:hover:not(:disabled) { background: var(--bg-hover); color: var(--primary-text); }
   .push-control .btn:active:not(:disabled) { background: var(--bg-active); }
+  .push-control .btn:disabled { background: transparent; color: var(--text-disabled); cursor: not-allowed; }
   .push-control > div { min-width: 0; display: flex; flex-direction: column; }
   .push-control strong { font-size: 12px; }
   .push-control span, .push-control p { color: var(--text-muted); font-size: 10px; }

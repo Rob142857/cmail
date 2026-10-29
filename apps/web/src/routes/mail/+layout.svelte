@@ -326,6 +326,8 @@
   }
   .mailbox-picker:hover { border-color: transparent; background-color: var(--bg-hover); }
   .mailbox-picker:focus { border-color: transparent; border-bottom-color: var(--primary); }
+  /* Transparent selects can open a white list in dark mode on Windows. */
+  .mailbox-picker option { background: var(--bg-surface); color: var(--text); font-weight: 400; }
   @media (pointer: coarse), (max-width: 860px) { .mailbox-picker { min-height: 44px; } }
   .compose-fab { display: none; }
   @media (max-width: 860px) {

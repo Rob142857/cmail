@@ -975,7 +975,7 @@
   /* Outlook-style header: each field is one typed-on line with a hairline
      rule, not a boxed input; the message body takes the rest of the page. */
   .header-lines { margin: -4px 0 12px; }
-  .line { display: flex; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--divider); }
+  .line { display: flex; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--border); }
   .line:focus-within { border-bottom-color: var(--primary); }
   .compose-form .line > label { flex: 0 0 44px; margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .line > :global(.ac-wrap) { flex: 1 1 auto; min-width: 0; }
@@ -1000,6 +1000,8 @@
   .body-field :global(.tb-select) { border-color: transparent; background-color: transparent; }
   .body-field :global(.tb-select:hover) { border-color: transparent; background-color: var(--bg-hover); }
   .body-field :global(.tb-select:focus) { border-color: transparent; border-bottom-color: var(--primary); }
+  /* Transparent selects can open a white list in dark mode on Windows. */
+  .body-field :global(.tb-select option) { background: var(--bg-surface); color: var(--text); }
   .body-field :global(.sep) { background: var(--divider); }
   .body-field :global(.more-button) { background: var(--bg); }
   .body-field :global(.surface-wrap) { border-radius: var(--radius); }
@@ -1086,7 +1088,6 @@
   }
 
   @media (max-width: 768px) {
-    .compose-form.card { padding: 0; }
     /* The action bar sticks to the bottom of the screen (and above the
        on-screen keyboard), so Send never needs a scroll to the end. Back
        and Discard shrink to icons so Save draft and Send always fit; at

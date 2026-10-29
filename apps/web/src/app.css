@@ -1154,6 +1154,11 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
   .tile::after { forced-color-adjust: none; background: Highlight; }
   .card, .list-surface, .table-wrap, .reading, .tile { border: 1px solid CanvasText; }
   .suite { border-bottom: 1px solid CanvasText; }
+  /* no-borders: mail. Frames removed for normal colours come back here;
+     !important beats the component-scoped transparent overrides. */
+  .form-error, .form-warning, .recovery-warning, .bulk-feedback,
+  .permission-note, .permission-label, .attachment-list li,
+  .compose-form, .reading, .message-list, .attachment { border: 1px solid CanvasText !important; }
 }
 
 /* no-borders: mail ─────────────────────────────────────────────────────
@@ -1161,9 +1166,6 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
    whitespace, not frames. Borders go transparent rather than to zero so
    Windows High Contrast still draws them. */
 .shell[data-mode='mail'] .mode-switch { background: transparent; padding: 0; }
-.shell[data-mode='mail'] .suite-search { border-color: transparent; background: rgba(255, 255, 255, 0.14); }
-.shell[data-mode='mail'] .suite-search:hover { background: rgba(255, 255, 255, 0.2); }
-.shell[data-mode='mail'] .suite-search:focus-within { background: #fff; }
 
 /* Sidebar: the tone step between pane and content does the dividing. */
 .shell[data-mode='mail'] .nav-pane { border-right-color: transparent; }

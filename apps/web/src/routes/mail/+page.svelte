@@ -482,6 +482,7 @@
   /* Page-level secondary actions are quiet text buttons. */
   .page-actions .btn, .page-header .btn { border-color: transparent; background: transparent; color: var(--primary-text); }
   .page-actions .btn:hover:not(:disabled), .page-header .btn:hover:not(:disabled) { background: var(--bg-hover); color: var(--primary-text); }
+  .page-actions .btn:disabled, .page-header .btn:disabled { background: transparent; color: var(--text-disabled); cursor: not-allowed; }
   .refresh-feedback {
     padding:7px 10px;
     margin:-6px 0 12px;
@@ -663,7 +664,7 @@
   .empty-state { padding: 52px 24px; text-align: center; }
   .empty-state h2 { font-size: 18px; }
   .empty-state p { margin-top: 6px; color: var(--text-muted); }
-  .empty-state .btn { margin-top: 16px; }
+  .empty-state .btn { margin-top: 16px; border-color: transparent; background: transparent; color: var(--primary-text); }
   .pagination {
     display: flex;
     align-items: center;
@@ -675,7 +676,6 @@
   .pagination .btn { border-color: transparent; background: transparent; color: var(--primary-text); }
   .pagination .btn:hover { background: var(--bg-hover); color: var(--primary-text); }
   .empty-state.card { border-color: transparent; box-shadow: none; background: transparent; }
-  .empty-state .btn { border-color: transparent; background: transparent; color: var(--primary-text); }
   .empty-state .btn:hover { background: var(--bg-hover); }
   .sr-only {
     position: absolute;
