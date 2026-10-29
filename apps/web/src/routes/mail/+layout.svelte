@@ -317,7 +317,17 @@
 <Toast message={toastMessage} onDismiss={() => { toastMessage = ''; }} />
 
 <style>
-  .mailbox-picker { width: 100%; min-height: 38px; margin-top: 8px; }
+  /* Quiet control: no box; the chevron (3:1 against the pane) and a hover
+     tone say it's a select, and focus keeps the primary underline. */
+  .mailbox-picker {
+    width: 100%; min-height: 38px; margin-top: 8px;
+    border-color: transparent; background-color: transparent;
+    font-weight: 600; cursor: pointer;
+  }
+  .mailbox-picker:hover { border-color: transparent; background-color: var(--bg-hover); }
+  .mailbox-picker:focus { border-color: transparent; border-bottom-color: var(--primary); }
+  /* Transparent selects can open a white list in dark mode on Windows. */
+  .mailbox-picker option { background: var(--bg-surface); color: var(--text); font-weight: 400; }
   @media (pointer: coarse), (max-width: 860px) { .mailbox-picker { min-height: 44px; } }
   .compose-fab { display: none; }
   @media (max-width: 860px) {

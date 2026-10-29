@@ -145,7 +145,7 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<div class="shell">
+<div class="shell" data-mode={mode}>
   <header class="suite">
     <button
       type="button"

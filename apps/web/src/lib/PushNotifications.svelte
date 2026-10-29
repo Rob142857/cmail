@@ -212,7 +212,12 @@
 {/if}
 
 <style>
-  .push-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; padding: 10px 8px; border-top: 1px solid var(--border); }
+  .push-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 7px; padding: 0 0 10px; }
+  /* Quiet text button: no box, a hover tone, the global focus ring. */
+  .push-control .btn { border-color: transparent; background: transparent; color: var(--primary-text); font-weight: 600; }
+  .push-control .btn:hover:not(:disabled) { background: var(--bg-hover); color: var(--primary-text); }
+  .push-control .btn:active:not(:disabled) { background: var(--bg-active); }
+  .push-control .btn:disabled { background: transparent; color: var(--text-disabled); cursor: not-allowed; }
   .push-control > div { min-width: 0; display: flex; flex-direction: column; }
   .push-control strong { font-size: 12px; }
   .push-control span, .push-control p { color: var(--text-muted); font-size: 10px; }

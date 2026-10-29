@@ -69,8 +69,8 @@
   .chevron.open { transform:rotate(180deg); }
   .attachment-list { display:flex; gap:8px; flex-wrap:wrap; }
   .attachment-item { display:flex; flex-direction:column; gap:3px; max-width:100%; }
-  .attachment { display:flex; flex-direction:column; align-items:flex-start; gap:2px; max-width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:var(--radius-md); background:var(--bg-surface); font-size:13px; text-decoration:none; transition:background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease); }
-  .attachment:hover { background:var(--bg-hover); border-color:var(--border-strong); text-decoration:none; }
+  .attachment { display:flex; flex-direction:column; align-items:flex-start; gap:2px; max-width:100%; padding:8px 12px; border:1px solid transparent; border-radius:var(--radius-md); background:var(--bg-hover); font-size:13px; text-decoration:none; transition:background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease); }
+  .attachment:hover { background:var(--bg-active); text-decoration:none; }
   .attachment-name { max-width:100%; color:var(--text); font-weight:600; overflow-wrap:anywhere; }
   .attachment > span:last-child { color:var(--text-muted); font-size:11px; overflow-wrap:anywhere; }
   .attachment-help { max-width:100%; margin:0; padding:0 2px; color:var(--text-muted); font-size:11px; overflow-wrap:anywhere; }

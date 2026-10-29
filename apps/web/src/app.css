@@ -1154,4 +1154,23 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
   .tile::after { forced-color-adjust: none; background: Highlight; }
   .card, .list-surface, .table-wrap, .reading, .tile { border: 1px solid CanvasText; }
   .suite { border-bottom: 1px solid CanvasText; }
+  /* no-borders: mail. Frames removed for normal colours come back here;
+     !important beats the component-scoped transparent overrides. */
+  .form-error, .form-warning, .recovery-warning, .bulk-feedback,
+  .permission-note, .permission-label, .attachment-list li,
+  .compose-form, .reading, .message-list, .attachment { border: 1px solid CanvasText !important; }
 }
+
+/* no-borders: mail ─────────────────────────────────────────────────────
+   Mail surfaces only (AppShell sets data-mode="mail"). Group with tone and
+   whitespace, not frames. Borders go transparent rather than to zero so
+   Windows High Contrast still draws them. */
+.shell[data-mode='mail'] .mode-switch { background: transparent; padding: 0; }
+
+/* Sidebar: the tone step between pane and content does the dividing. */
+.shell[data-mode='mail'] .nav-pane { border-right-color: transparent; }
+/* The footer keeps a tone step (no line) so the scrolling folder list
+   visibly ends above it; otherwise a clipped heading reads as its title. */
+.shell[data-mode='mail'] .nav-pane-bottom { border-top-color: transparent; background: var(--bg); padding-top: 12px; }
+.shell[data-mode='mail'] .product-credit { border-top: 0; padding-top: 0; margin-top: 10px; }
+.shell[data-mode='mail'] .nav-heading { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--text-muted); }

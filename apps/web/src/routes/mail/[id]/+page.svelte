@@ -150,10 +150,10 @@
 
 <style>
   h1 { margin-bottom:10px; font-size:22px; font-weight:600; line-height:1.3; overflow-wrap:anywhere; }
-  /* Sleek reading pane: one quiet surface, hairline edge, no shadow. */
-  .reading { border-color:var(--divider); box-shadow:none; padding:20px 24px 24px; }
+  /* Reading pane: one quiet surface, a tone step from the page, no frame. */
+  .reading { border-color:transparent; box-shadow:none; padding:20px 24px 24px; }
   @media (max-width:600px) {
-    .reading { padding:14px 14px 16px; border-color:transparent; }
+    .reading { padding:14px 14px 16px; }
     h1 { font-size:20px; }
   }
   .action-error { padding:10px 12px; margin-bottom:12px; color:var(--danger); background:var(--danger-soft); border-radius:var(--radius); }

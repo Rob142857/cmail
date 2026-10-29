@@ -479,6 +479,10 @@
   .heading-group p span { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
   .page-actions { display:flex; align-items:center; gap:8px; width:min(100%, 480px); }
   .refresh-button { flex:0 0 auto; }
+  /* Page-level secondary actions are quiet text buttons. */
+  .page-actions .btn, .page-header .btn { border-color: transparent; background: transparent; color: var(--primary-text); }
+  .page-actions .btn:hover:not(:disabled), .page-header .btn:hover:not(:disabled) { background: var(--bg-hover); color: var(--primary-text); }
+  .page-actions .btn:disabled, .page-header .btn:disabled { background: transparent; color: var(--text-disabled); cursor: not-allowed; }
   .refresh-feedback {
     padding:7px 10px;
     margin:-6px 0 12px;
@@ -487,10 +491,11 @@
   }
   .refresh-feedback.error { color:var(--danger); }
 
+  /* The list is a quiet surface: a tone step from the page, no frame. */
   .message-list {
     padding: 0;
     overflow: hidden;
-    border-color: var(--divider, var(--border));
+    border-color: transparent;
     box-shadow: none;
   }
   .bulk-bar {
@@ -550,7 +555,6 @@
   .danger-command { color: var(--danger); }
   .permission-note {
     padding: 7px 14px;
-    border-bottom: 1px solid var(--border);
     background: var(--warning-soft);
     color: var(--text);
     font-size: 12px;
@@ -558,12 +562,11 @@
   .bulk-feedback {
     padding: 10px 12px;
     margin-bottom: 12px;
-    border: 1px solid transparent;
     border-radius: var(--radius);
     font-size: 13px;
   }
-  .bulk-feedback.error { color: var(--danger); background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 25%, transparent); }
-  .bulk-feedback.success { color: var(--success); background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 25%, transparent); }
+  .bulk-feedback.error { color: var(--danger); background: var(--danger-soft); }
+  .bulk-feedback.success { color: var(--success); background: var(--success-soft); }
 
   .mail-row {
     position: relative;
@@ -661,7 +664,7 @@
   .empty-state { padding: 52px 24px; text-align: center; }
   .empty-state h2 { font-size: 18px; }
   .empty-state p { margin-top: 6px; color: var(--text-muted); }
-  .empty-state .btn { margin-top: 16px; }
+  .empty-state .btn { margin-top: 16px; border-color: transparent; background: transparent; color: var(--primary-text); }
   .pagination {
     display: flex;
     align-items: center;
@@ -670,6 +673,10 @@
     margin-top: 16px;
   }
   .pagination span { color: var(--text-muted); font-size: 12px; }
+  .pagination .btn { border-color: transparent; background: transparent; color: var(--primary-text); }
+  .pagination .btn:hover { background: var(--bg-hover); color: var(--primary-text); }
+  .empty-state.card { border-color: transparent; box-shadow: none; background: transparent; }
+  .empty-state .btn:hover { background: var(--bg-hover); }
   .sr-only {
     position: absolute;
     width: 1px;

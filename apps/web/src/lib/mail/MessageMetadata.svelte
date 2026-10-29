@@ -179,7 +179,7 @@
   .chevron.open { transform:rotate(180deg); }
   .compact-flag { margin:3px 0 0; font-size:12.5px; }
 
-  .message-meta { display:flex; flex-direction:column; gap:4px; margin:0 0 14px 46px; padding:2px 0 2px 12px; font-size:13px; border-left:2px solid var(--divider); }
+  .message-meta { display:flex; flex-direction:column; gap:4px; margin:0 0 14px 46px; padding:2px 0; font-size:13px; }
   /* The label column has to clear the longest label ("Importance"), otherwise
      it collides with its own value. */
   .message-meta div { display:grid; grid-template-columns:80px minmax(0,1fr); gap:8px; }
@@ -187,7 +187,7 @@
   .message-meta dd { overflow-wrap:anywhere; }
   .mailbox-context { display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; }
   .mailbox-context > span { color:var(--text-muted); }
-  .permission-label { padding:1px 7px; border:1px solid var(--border); border-radius:999px; font-size:11px; white-space:nowrap; }
+  .permission-label { padding:1px 7px; border-radius:999px; background:var(--bg-hover); font-size:11px; white-space:nowrap; }
   .importance-label { display:inline-flex; align-items:center; gap:4px; font-weight:650; }
   .importance-label.high { color:var(--danger); }
   .importance-label.low { color:var(--primary-text); }
