@@ -96,7 +96,7 @@
   .directory-tools { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 34px 0 16px; }
   .search-control { width: min(100%, 520px); display: grid; gap: 6px; }
   .search-control label { color: var(--text-muted); font-size: 13px; font-weight: 400; }
-  .search-control input { border: 0; border-bottom: 1px solid var(--border-strong); border-radius: 0; background: transparent; padding-left: 2px; }
+  .search-control input { border: 0; border-bottom: 1px solid var(--border-input); border-radius: 0; background: transparent; padding-left: 2px; }
   .search-control input:focus { border-color: var(--primary); box-shadow: 0 1px 0 var(--primary); padding-bottom: 5px; }
   .directory-tools > p { color: var(--text-muted); font-size: 13px; white-space: nowrap; }
   .directory-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }

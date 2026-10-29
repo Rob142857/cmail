@@ -45,7 +45,7 @@
   h1 { margin: 0; font-size: clamp(26px, 5vw, 32px); font-weight: 600; letter-spacing: -.02em; }
   header > p:last-child { margin-top: 12px; color: var(--text-muted); font-size: 17px; line-height: 1.65; }
   .guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 40px; }
-  .guide-card { display: flex; flex-direction: column; padding: 0; color: var(--text); text-decoration: none; }
+  .guide-card { display: flex; flex-direction: column; padding: 0; border: 1px solid transparent; color: var(--text); text-decoration: none; }
   .guide-card:hover { text-decoration: none; }
   .guide-card:hover h2, .guide-card:hover > strong { text-decoration: underline; text-underline-offset: 3px; }
   .guide-card h2 { margin: 16px 0 6px; font-size: 18px; font-weight: 600; }

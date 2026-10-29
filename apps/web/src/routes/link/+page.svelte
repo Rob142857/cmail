@@ -74,7 +74,7 @@
   h1 { margin: 0; font-size: 23px; }
   .intro { margin: 9px 0 20px; color: var(--text-muted); line-height: 1.55; }
 
-  .destination { padding: 0; }
+  .destination { padding: 0; border: 1px solid transparent; }
   .destination-label {
     margin: 0 0 4px;
     font-size: 11.5px;

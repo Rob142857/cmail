@@ -139,10 +139,10 @@
   .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
   .heading-group h1 { font-size: 22px; }
   .heading-group p { margin-top: 4px; color: var(--text-muted); font-size: 13px; }
-  form.sheet { display: flex; flex-direction: column; padding: 0; }
+  form.sheet { display: flex; flex-direction: column; padding: 0; border: 1px solid transparent; }
   .field > label { font-size: 13px; font-weight: 500; }
   .field input:not([type='checkbox']), .field select, .field textarea, .field :global(.ac-wrap input) {
-    border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; box-shadow: none; padding-left: 0; padding-right: 0;
+    border: 0; border-bottom: 1px solid var(--border-input); border-radius: 0; background: transparent; box-shadow: none; padding-left: 0; padding-right: 0;
   }
   .field input:focus, .field select:focus, .field textarea:focus, .field :global(.ac-wrap input:focus) { border-bottom-color: var(--primary); box-shadow: none; outline: 0; }
   fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px; }

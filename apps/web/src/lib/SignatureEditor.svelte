@@ -150,10 +150,11 @@
   .editor-shell {
     overflow: hidden;
     border: 0;
-    border-bottom: 1px solid var(--border-strong);
+    border-bottom: 1px solid var(--border-input);
     border-radius: 0;
     background: transparent;
   }
+  .editor-shell:hover { border-bottom-color: var(--text-muted); }
   .editor-shell:focus-within { border-bottom-color: var(--primary); box-shadow: 0 1px 0 var(--primary); }
   .toolbar {
     display: flex;

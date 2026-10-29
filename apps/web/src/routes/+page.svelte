@@ -149,7 +149,7 @@
     width: 100%;
     text-align: center;
     padding: 32px;
-    border: 0;
+    border: 1px solid transparent;
     border-radius: 0;
     background: transparent;
     box-shadow: none;

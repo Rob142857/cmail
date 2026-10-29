@@ -625,7 +625,7 @@
   .field small { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
   .suffix-control { display: flex; align-items: stretch; }
   .suffix-control input { min-width: 0; border-radius: var(--radius) 0 0 var(--radius); }
-  .suffix-control span { display: inline-flex; align-items: center; padding: 0 2px 0 6px; border-bottom: 1px solid var(--border-strong); color: var(--text-muted); font-size: 13px; white-space: nowrap; }
+  .suffix-control span { display: inline-flex; align-items: center; padding: 0 2px 0 6px; border-bottom: 1px solid var(--border-input); color: var(--text-muted); font-size: 13px; white-space: nowrap; }
   .suffix-control:focus-within span { border-bottom-color: var(--primary); box-shadow: 0 1px 0 var(--primary); }
   .create-actions { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding-top: 2px; }
   .create-actions span { color: var(--text-muted); font-size: 12px; }
@@ -689,7 +689,7 @@
   .state-note-info { background: var(--bg-subtle); }
   .state-note-warning { border-color: var(--warning); background: var(--warning-soft); }
   .status-form { margin-top: 14px; }
-  .danger-outline, .remove-access { color: var(--danger); }
+  .danger-outline:not(:disabled), .remove-access:not(:disabled) { color: var(--danger); }
   .danger-outline { border-color: transparent; }
 
   .delegation-pane { display: grid; align-content: start; gap: 13px; }

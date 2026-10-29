@@ -94,10 +94,10 @@
 
 <style>
   .otp-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--bg-surface); }
-  .otp-card { width: min(100%, 420px); padding: 32px; text-align: center; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  .otp-card { width: min(100%, 420px); padding: 32px; text-align: center; border: 1px solid transparent; border-radius: 0; background: transparent; box-shadow: none; }
   h1 { margin: 0 0 8px; font-size: 22px; font-weight: 600; }
   .subtitle { color: var(--text-muted); line-height: 1.55; margin: 0 0 20px; }
-  .field { text-align: left; margin-bottom: 16px; gap: 0; border-bottom: 1px solid var(--border); }
+  .field { text-align: left; margin-bottom: 16px; gap: 0; border-bottom: 1px solid var(--border-input); }
   .field:focus-within { border-bottom-color: var(--primary); }
   .field > label { margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .field input { min-height: 40px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }

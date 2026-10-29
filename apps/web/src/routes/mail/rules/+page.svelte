@@ -160,7 +160,7 @@
   .eyebrow { margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .page-header .btn { flex: 0 0 auto; }
   .limit-note { flex: 0 0 auto; color: var(--text-muted); font-size: 12px; }
-  .mailbox-picker { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+  .mailbox-picker { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--border-input); }
   .mailbox-picker:focus-within { border-bottom-color: var(--primary); }
   .mailbox-picker label { margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .mailbox-picker select { min-width: 0; max-width: 100%; min-height: 40px; padding: 0; border: 0; border-radius: 0; background-color: transparent; box-shadow: none; cursor: pointer; }

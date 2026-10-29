@@ -164,11 +164,11 @@
   .notice { margin-bottom: 14px; }
   /* Sleek uplift (settings): hairline sections, typed-on-line fields, no boxes inside boxes. */
   /* No-borders pass: sections sit on the canvas, separated by headings and space. */
-  .settings-page .card { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  .settings-page .card { border: 1px solid transparent; border-radius: 0; background: transparent; box-shadow: none; }
   .font-card { padding: 0; margin-bottom: 32px; }
   .font-card .section-head { margin-bottom: 8px; }
   .font-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 20px; }
-  .font-fields .field { display: flex; flex-direction: column; gap: 0; margin: 0; min-width: 0; border-bottom: 1px solid var(--border); }
+  .font-fields .field { display: flex; flex-direction: column; gap: 0; margin: 0; min-width: 0; border-bottom: 1px solid var(--border-input); }
   .font-fields .field:focus-within { border-bottom-color: var(--primary); }
   .font-fields label { margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .font-fields select { min-width: 180px; max-width: 100%; min-height: 36px; padding: 0; border: 0; border-radius: 0; background-color: transparent; box-shadow: none; cursor: pointer; }

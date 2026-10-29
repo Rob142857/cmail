@@ -1180,51 +1180,52 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
    cards, table wraps, tiles and fieldsets lose their outline and shadow;
    secondary buttons become quiet text buttons (one filled primary stays);
    fields are one typed-on line. Uses :where() so page-scoped styles win. */
-.nb-quiet :where(.card, .table-wrap, .tile, .list-surface) {
+.nb-quiet :where(.card, .table-wrap, .tile) {
   border: 0;
   border-radius: 0;
   box-shadow: none;
   background: transparent;
 }
 .nb-quiet :where(.card) { padding-inline: 0; }
-.nb-quiet :where(.card-header, .card-footer) { border: 0; padding-inline: 0; }
-.nb-quiet :where(.card-body) { padding-inline: 0; }
-.nb-quiet :where(a.tile:hover) { background: var(--bg-hover); }
 .nb-quiet :where(fieldset) { border: 0; border-radius: 0; padding: 0; margin: 0; }
 .nb-quiet :where(legend) { padding: 0; margin-bottom: 6px; font-size: var(--fs-subtitle); font-weight: 600; }
 
-.nb-quiet :where(button, .btn):where(:not(.btn-primary, .btn-danger, .btn-link)) {
+/* Quiet text buttons. .btn-ghost-danger already is one (global styles). The
+   focus ring's box-shadow is left alone. */
+.nb-quiet :where(button, .btn):where(:not(.btn-primary, .btn-danger, .btn-link, .btn-ghost-danger)) {
   border-color: transparent;
   background: transparent;
-  box-shadow: none;
   color: var(--primary-text);
 }
-.nb-quiet :where(.btn-outline-danger, .btn-ghost-danger) { color: var(--danger-text); }
-.nb-quiet :where(button, .btn):where(:not(.btn-primary, .btn-danger, .btn-link)):hover { background: var(--bg-hover); color: var(--primary-text); }
-.nb-quiet :where(.btn-outline-danger, .btn-ghost-danger):hover { background: var(--danger-soft); color: var(--danger-text); }
-.nb-quiet :where(button, .btn):where(:not(.btn-primary, .btn-danger, .btn-link)):active { background: var(--bg-active); }
+.nb-quiet :where(button, .btn):where(:not(.btn-primary, .btn-danger, .btn-link, .btn-ghost-danger)):where(:not(:focus-visible)) { box-shadow: none; }
+.nb-quiet :where(.btn-outline-danger) { color: var(--danger-text); }
+.nb-quiet :where(button, .btn):where(:not(.btn-primary, .btn-danger, .btn-link, .btn-ghost-danger)):hover { background: var(--bg-hover); color: var(--primary-text); }
+.nb-quiet :where(.btn-outline-danger):hover { background: var(--danger-soft); color: var(--danger-text); }
+.nb-quiet :where(button, .btn):where(:not(.btn-primary, .btn-danger, .btn-link, .btn-ghost-danger)):active { background: var(--bg-active); }
 .nb-quiet :where(button, .btn):where(:not(.btn-primary, .btn-danger, .btn-link)):is(:disabled, [aria-disabled='true']) {
   border-color: transparent;
   background: transparent;
   color: var(--text-disabled);
 }
 
+/* Typed-on line. --border-input keeps 3:1 against the canvas (WCAG 1.4.11). */
 .nb-quiet :where(input:not([type='checkbox'], [type='radio'], [type='file'], [type='color'], [type='range']), select, textarea) {
   border: 0;
-  border-bottom: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-input);
   border-radius: 0;
   background-color: transparent;
   padding-left: 2px;
   box-shadow: none;
 }
 .nb-quiet :where(textarea) { padding-right: 2px; }
-.nb-quiet :where(input, select, textarea):where(:hover:not(:disabled)) { border-bottom-color: var(--text-muted); }
-.nb-quiet :where(input:not([type='checkbox'], [type='radio']), select, textarea):focus {
+.nb-quiet :where(input:not([type='checkbox'], [type='radio'], [type='file'], [type='color'], [type='range']), select, textarea):where(:hover:not(:disabled)) { border-bottom-color: var(--text-muted); }
+.nb-quiet :where(input:not([type='checkbox'], [type='radio'], [type='file'], [type='color'], [type='range']), select, textarea):focus {
   border-bottom: 1px solid var(--primary);
   box-shadow: 0 1px 0 var(--primary);
   padding-bottom: 5px;
 }
-.nb-quiet :where(input, select, textarea):where(:disabled) { background-color: transparent; border-bottom-color: var(--divider); }
+.nb-quiet :where(input:not([type='checkbox'], [type='radio'], [type='file'], [type='color'], [type='range']), select, textarea):where(:disabled) { background-color: transparent; border-bottom-color: var(--divider); }
+.nb-quiet select option { background-color: var(--bg-surface); color: var(--text); }
 .nb-quiet :where(.field > label, .field > .field-label) { font-size: 13px; font-weight: 400; color: var(--text-muted); }
 
 .nb-quiet :where(.badge) { border-color: transparent; }
@@ -1236,3 +1237,8 @@ a.tile:hover { background: var(--bg-hover); text-decoration: none; border-color:
 /* Stand-alone quiet pages (sign-in, email code, consent, policy) also sit on
    the white canvas once their card frame is gone. */
 body:has(main.nb-quiet, .help-shell.nb-quiet), main.nb-quiet { background: var(--bg-surface); }
+/* High contrast: put the frames back, since there colour cues are gone. */
+@media (forced-colors: active) {
+  .nb-quiet :where(.card, .table-wrap, .tile, fieldset) { border: 1px solid CanvasText; }
+  .nb-quiet :where(input:not([type='checkbox'], [type='radio'], [type='file'], [type='color'], [type='range']), select, textarea) { border: 1px solid CanvasText; }
+}

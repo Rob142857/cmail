@@ -263,8 +263,8 @@
   .page-header h1 { margin: 6px 0 4px; font-size: var(--fs-title-2); font-weight: 600; }
   .page-header p { margin: 0; color: var(--text-muted); font-size: 13px; overflow-wrap: anywhere; }
   .back { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
-  .editor { display: grid; gap: 28px; padding: 8px 0 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-  .name-field { display: flex; flex-direction: row; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--border); }
+  .editor { display: grid; gap: 28px; padding: 8px 0 0; border: 1px solid transparent; border-radius: 0; background: transparent; box-shadow: none; }
+  .name-field { display: flex; flex-direction: row; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--border-input); }
   .name-field:focus-within { border-bottom-color: var(--primary); }
   .editor .name-field > label { flex: 0 0 auto; text-align: left; margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .name-field input { flex: 1 1 auto; min-width: 0; max-width: none; min-height: 40px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; font-size: 15px; font-weight: 600; }
@@ -274,7 +274,7 @@
   legend + * { clear: left; }
   .optional { color: var(--text-muted); font-weight: 400; }
   .rows { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
-  .row { display: grid; grid-template-columns: minmax(180px, 230px) minmax(0, 1fr) auto; gap: 12px; align-items: start; border-bottom: 1px solid var(--border); }
+  .row { display: grid; grid-template-columns: minmax(180px, 230px) minmax(0, 1fr) auto; gap: 12px; align-items: start; border-bottom: 1px solid var(--border-input); }
   .row:focus-within { border-bottom-color: var(--primary); }
   .row > select, .value input, .value select { width: 100%; min-width: 0; min-height: 40px; padding: 0; border: 0; border-radius: 0; background-color: transparent; box-shadow: none; }
   .row > select, .value select { cursor: pointer; }

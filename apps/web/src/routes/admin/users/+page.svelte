@@ -367,7 +367,7 @@
   .compact-field { max-width: 220px; }
   .suffix-control { display: flex; align-items: stretch; }
   .suffix-control input { border-radius: var(--radius) 0 0 var(--radius); }
-  .suffix-control span { display: inline-flex; align-items: center; padding: 0 10px; border-bottom: 1px solid var(--border-strong); color: var(--text-muted); font-size: 13px; white-space: nowrap; }
+  .suffix-control span { display: inline-flex; align-items: center; padding: 0 10px; border-bottom: 1px solid var(--border-input); color: var(--text-muted); font-size: 13px; white-space: nowrap; }
   .suffix-control:focus-within span { border-bottom-color: var(--primary); box-shadow: 0 1px 0 var(--primary); }
   .invite-field { grid-column: 1 / -1; display: flex; gap: 9px; align-items: start; }
   .invite-field input { width: auto; margin-top: 3px; }
@@ -389,7 +389,7 @@
   .inline-form select { min-width: 112px; padding-block: 5px; }
   .actions { display: grid; gap: 5px; min-width: 250px; }
   .button-group { display: flex; flex-wrap: wrap; gap: 5px; }
-  .danger-outline { color: var(--danger-text); }
+  .danger-outline:not(:disabled) { color: var(--danger-text); }
   /* Row actions stay quiet until the row is hovered or focused (mouse only). */
   @media (hover: hover) and (pointer: fine) {
     tbody tr:not(:hover, :focus-within) .actions { opacity: 0; }

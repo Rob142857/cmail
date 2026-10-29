@@ -1142,7 +1142,7 @@
     align-items: center;
     padding: 2px;
     border-radius: 999px;
-    background: var(--border-strong);
+    background: var(--text-muted);
     transition: background .15s ease;
   }
   .switch-track span {
@@ -1215,7 +1215,13 @@
     color: var(--text);
   }
   .summary-grid button:hover { background: var(--bg-hover); }
-  .summary-grid button.active { border-color: transparent; background: var(--primary-soft); color: var(--text); }
+  /* Selected tile: a 2px rule as well as the tint, so it survives forced colours. */
+  .summary-grid button { border-bottom: 2px solid transparent; }
+  .summary-grid button.active { border-color: transparent; border-bottom-color: var(--primary); background: var(--primary-soft); color: var(--text); }
+  @media (forced-colors: active) {
+    .summary-grid button, .view-switch button { border-bottom-color: Canvas; }
+    .summary-grid button.active, .view-switch button.active { border-bottom-color: Highlight; }
+  }
   .summary-grid span { font-size: 22px; font-weight: 700; letter-spacing: -.03em; }
   .summary-grid small { color: var(--text-muted); }
   .view-toolbar {
@@ -1240,8 +1246,10 @@
     font-size: 12px;
   }
   .view-switch button:hover { background: var(--bg-hover); }
+  .view-switch button { border-bottom: 2px solid transparent; }
   .view-switch button.active {
     border-color: transparent;
+    border-bottom-color: var(--primary);
     background: var(--bg-active);
     color: var(--text);
     box-shadow: none;

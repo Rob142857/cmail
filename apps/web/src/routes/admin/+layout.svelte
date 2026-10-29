@@ -193,13 +193,13 @@
 
   .mgmt :global(:is(input:not([type='checkbox'], [type='radio'], [type='file'], [type='color'], [type='range']), select, textarea)) {
     border: 0;
-    border-bottom: 1px solid var(--border-strong);
+    border-bottom: 1px solid var(--border-input);
     border-radius: 0;
     background-color: transparent;
     padding-left: 2px;
     box-shadow: none;
   }
-  .mgmt :global(textarea) { border: 1px solid var(--border-strong); border-radius: var(--radius); padding-left: 10px; }
+  .mgmt :global(textarea) { padding-right: 2px; }
   .mgmt :global(:is(input, select, textarea):hover:not(:disabled)) { border-color: var(--text-muted); }
   .mgmt :global(:is(input, select, textarea):focus) {
     border-color: var(--primary);

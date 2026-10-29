@@ -164,7 +164,7 @@
   .org-actions, .person-actions { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 17px; }
   .switch-row, .lock-control { display: flex; align-items: center; gap: 10px; cursor: pointer; }
   .switch-row > input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-  .switch { position: relative; width: 36px; height: 20px; flex: 0 0 auto; border-radius: var(--radius-pill); background: var(--border-strong); transition: background var(--dur-fast) var(--ease); }
+  .switch { position: relative; width: 36px; height: 20px; flex: 0 0 auto; border-radius: var(--radius-pill); background: var(--text-muted); transition: background var(--dur-fast) var(--ease); }
   .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: var(--shadow-2); transition: transform var(--dur-fast) var(--ease); }
   .switch-row > input:checked + .switch { background: var(--primary); }
   .switch-row > input:checked + .switch::after { transform: translateX(16px); }
@@ -174,11 +174,11 @@
   .switch-row small, .lock-control small { color: var(--text-muted); font-size: 10.5px; }
   .people-section { margin-top: 4px; }
   .people-heading { align-items: flex-end; }
-  .search-box { display: flex; align-items: center; width: min(310px, 100%); padding: 0 2px; border-bottom: 1px solid var(--border-strong); color: var(--text-muted); }
+  .search-box { display: flex; align-items: center; width: min(310px, 100%); padding: 0 2px; border-bottom: 1px solid var(--border-input); color: var(--text-muted); }
   .search-box:focus-within { border-color: var(--primary); box-shadow: 0 1px 0 var(--primary); }
   .search-box input[type='search'], .search-box input[type='search']:is(:hover, :focus) { min-height: 34px; padding: 0 0 0 8px; border: 0; background: transparent; box-shadow: none; font-size: 13px; }
   .signature-list { display: flex; flex-direction: column; gap: 0; }
-  .person-card { overflow: hidden; border-bottom: 1px solid var(--divider); }
+  .person-card { overflow: hidden; border: 1px solid transparent; border-bottom-color: var(--divider); }
   .person-card:last-child { border-bottom: 0; }
   .person-card > summary { display: flex; align-items: center; gap: 11px; min-height: 62px; padding: 9px 4px; cursor: pointer; list-style: none; }
   .person-card > summary::-webkit-details-marker { display: none; }

@@ -119,7 +119,7 @@
   .callout :global(svg) { flex: 0 0 auto; margin-top: 2px; color: var(--primary-text); }
   .callout p { margin: 0; }
   .callout code { display: inline-block; margin-top: 6px; padding: 4px 8px; border-radius: var(--radius); background: var(--bg-subtle); font-size: 12.5px; overflow-wrap: anywhere; user-select: all; }
-  .empty { display: grid; justify-items: center; gap: 6px; padding: 32px 20px; text-align: center; border: 0; background: transparent; box-shadow: none; }
+  .empty { display: grid; justify-items: center; gap: 6px; padding: 32px 20px; text-align: center; border: 1px solid transparent; background: transparent; box-shadow: none; }
   .empty :global(svg) { color: var(--success); }
   .empty h2 { margin: 0; font-size: var(--fs-subtitle); }
   .empty p { margin: 0; color: var(--text-muted); font-size: 13px; }

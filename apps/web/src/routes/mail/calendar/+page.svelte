@@ -194,7 +194,7 @@
   .bulk-feedback.success { color: var(--success); background: var(--success-soft); }
 
   /* No-borders pass: days are grouped by their heading and space, not a card. */
-  .agenda { overflow: hidden; }
+  .agenda { overflow: hidden; border: 1px solid transparent; }
   .agenda-day + .agenda-day { margin-top: 12px; }
   .day-heading { padding: 16px 4px 4px; margin: 0; font-size: 13px; font-weight: 500; color: var(--text-muted); }
 

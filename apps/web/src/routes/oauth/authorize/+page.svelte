@@ -151,7 +151,7 @@
   .client-name { color: var(--primary-text, var(--primary)); }
   .eyebrow { margin: 0 0 4px; color: var(--primary-text); font-size: 13px; font-weight: 500; }
   .lead { margin: 0 0 18px; color: var(--text-muted); }
-  .client-facts { display: grid; gap: 6px; margin: 14px 0 20px; padding: 0; font-size: 13px; }
+  .client-facts { display: grid; gap: 6px; margin: 14px 0 20px; padding: 0; border: 1px solid transparent; font-size: 13px; }
   .client-facts div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; }
   .client-facts dt { color: var(--text-muted); }
   .client-facts dd { margin: 0; overflow-wrap: anywhere; }
@@ -160,7 +160,7 @@
   .unverified { color: var(--warning-text); }
   fieldset { margin: 0 0 14px; padding: 0; border: 0; }
   legend { margin-bottom: 8px; font-size: 14px; font-weight: 650; }
-  .choice { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 8px; margin-bottom: 2px; border: 0; border-radius: var(--radius-md); cursor: pointer; }
+  .choice { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 8px; margin-bottom: 2px; border: 1px solid transparent; border-radius: var(--radius-md); cursor: pointer; }
   .choice:hover { background: var(--bg-hover); }
   .choice input { margin-top: 3px; width: 16px; height: 16px; }
   .choice strong { display: block; font-size: 13.5px; }

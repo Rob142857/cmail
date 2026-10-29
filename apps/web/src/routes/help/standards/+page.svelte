@@ -421,11 +421,11 @@
     font-weight: 600;
     white-space: nowrap;
   }
-  .status-met { background: var(--success-soft); border-color: var(--success-border); color: var(--success-text); }
+  .status-met { background: var(--success-soft); color: var(--success-text); }
   .status-operator,
   .status-delegated,
-  .status-reference { background: var(--primary-soft); border-color: var(--primary-border); color: var(--primary-text); }
-  .status-gap { background: var(--warning-soft); border-color: var(--warning-border); color: var(--warning-text); }
+  .status-reference { background: var(--primary-soft); color: var(--primary-text); }
+  .status-gap { background: var(--warning-soft); color: var(--warning-text); }
 
   .rows li p { margin: 7px 0 0; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
 
