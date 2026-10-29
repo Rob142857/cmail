@@ -936,7 +936,6 @@
 
   .form-error {
     padding: 10px 14px;
-    border: 1px solid var(--danger-border);
     background: var(--danger-soft);
     color: var(--danger-text);
     border-radius: var(--radius);
@@ -944,7 +943,6 @@
   }
   .form-warning {
     padding: 10px 14px;
-    border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
     border-radius: var(--radius);
     background: var(--warning-soft);
     color: var(--warning);
@@ -955,12 +953,13 @@
   .forward-source-list li { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
   .forward-source-list a { color:inherit; font-weight:650; overflow-wrap:anywhere; }
   .forward-source-list span { flex:0 0 auto; color:color-mix(in srgb, var(--warning) 78%, var(--text)); font-size:11px; }
-  .recovery-warning { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:11px 14px; border:1px solid color-mix(in srgb, var(--warning) 35%, var(--border)); border-radius:var(--radius); background:var(--warning-soft); color:var(--warning); }
+  .recovery-warning { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:11px 14px; border-radius:var(--radius); background:var(--warning-soft); color:var(--warning); }
   .recovery-warning > div:first-child { display:flex; flex-direction:column; gap:2px; font-size:13px; }
   .recovery-warning span { color:color-mix(in srgb, var(--warning) 78%, var(--text)); }
   .recovery-actions { display:flex; flex:0 0 auto; gap:6px; }
 
-  .compose-form { padding: 20px; }
+  /* No card: the page background and spacing frame the message (Rob, 29 Oct). */
+  .compose-form.card { padding: 0; border-color: transparent; border-radius: 0; background: transparent; box-shadow: none; }
   .compose-fields { min-width: 0; margin: 0; padding: 0; border: 0; }
   .compose-form .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
   .compose-form label { font-size: 12px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
@@ -976,7 +975,7 @@
   /* Outlook-style header: each field is one typed-on line with a hairline
      rule, not a boxed input; the message body takes the rest of the page. */
   .header-lines { margin: -4px 0 12px; }
-  .line { display: flex; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--border); }
+  .line { display: flex; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--divider); }
   .line:focus-within { border-bottom-color: var(--primary); }
   .compose-form .line > label { flex: 0 0 44px; margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
   .line > :global(.ac-wrap) { flex: 1 1 auto; min-width: 0; }
@@ -989,22 +988,40 @@
   .importance-select { flex: 0 0 auto; width: auto; color: var(--text-muted); font-size: 12px; cursor: pointer; }
   .importance-select.raised { color: var(--warning); font-weight: 600; }
   .body-field .field-label-row { justify-content: flex-end; }
-  .body-field :global(.rich-text) { border-color: transparent; }
+  /* Editor without a frame: the toolbar sits on the page, buttons have no
+     boxes (hover and pressed are tones), and the white writing paper is the
+     only boundary. Focus shows as the same primary underline as the lines. */
+  .body-field :global(.rich-text) { border-color: transparent; background: transparent; }
   .body-field :global(.rich-text:focus-within) { border-color: transparent; box-shadow: none; }
+  .body-field :global(.toolbar-wrap) { border-bottom-color: transparent; border-radius: 0; background: var(--bg); }
+  .body-field :global(.toolbar) { padding-inline: 0; }
+  .body-field :global(.tb:hover:not(:disabled)) { border-color: transparent; }
+  .body-field :global(.tb[aria-pressed='true']), .body-field :global(.tb[aria-expanded='true']) { border-color: transparent; }
+  .body-field :global(.tb-select) { border-color: transparent; background-color: transparent; }
+  .body-field :global(.tb-select:hover) { border-color: transparent; background-color: var(--bg-hover); }
+  .body-field :global(.tb-select:focus) { border-color: transparent; border-bottom-color: var(--primary); }
+  .body-field :global(.sep) { background: var(--divider); }
+  .body-field :global(.more-button) { background: var(--bg); }
+  .body-field :global(.surface-wrap) { border-radius: var(--radius); }
+  .body-field :global(.surface-wrap:focus-within) { box-shadow: inset 0 -2px 0 var(--primary); }
   .body-field :global(.rich-text-surface) { min-height: max(240px, 45vh); padding-inline: 2px; }
   .body-field textarea { min-height: max(240px, 45vh); border-color: transparent; padding-inline: 2px; }
-  .format-toggle { display:inline-flex; gap:2px; padding:2px; border:1px solid var(--border); border-radius:var(--radius-pill); background:var(--bg-subtle); }
-  .format-toggle button { min-height:26px; padding:2px 10px; border:0; border-radius:var(--radius-pill); background:transparent; color:var(--text-muted); font-size:11.5px; font-weight:600; cursor:pointer; }
-  .format-toggle button[aria-pressed='true'] { background:var(--bg-surface); color:var(--text); box-shadow:0 0 0 1px var(--border); }
+  .body-field textarea:focus { border-bottom-color: var(--primary); }
+  /* Quiet text tabs; the selected one is ink-coloured with a primary underline. */
+  .format-toggle { display:inline-flex; gap:4px; }
+  .format-toggle button { min-height:30px; padding:2px 8px; border:0; border-radius:var(--radius); background:transparent; color:var(--text-muted); font-size:12px; font-weight:600; cursor:pointer; }
+  .format-toggle button:hover:not(:disabled) { background:var(--bg-hover); color:var(--text); }
+  .format-toggle button[aria-pressed='true'] { color:var(--text); box-shadow:inset 0 -2px 0 var(--primary); border-radius:var(--radius) var(--radius) 0 0; }
   .format-toggle button:disabled { opacity:.5; cursor:not-allowed; }
   .format-note { color:var(--text-muted); font-size:11px; }
   .quoted-message { margin: 0 0 14px; }
   .quoted-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:6px; font-size:12px; }
-  .quoted-heading strong { color:var(--text); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .quoted-heading strong { color:var(--text); font-size:13px; font-weight:600; }
   .quoted-heading span { color:var(--text-muted); }
 
-  .signature-preview { margin: -2px 0 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-subtle); font-size: 12px; }
-  .signature-preview > summary { display:flex; align-items:center; gap:12px; min-height:46px; padding:8px 12px; cursor:pointer; list-style:none; }
+  .signature-preview { margin: 4px 0 14px; border-radius: var(--radius); font-size: 12px; }
+  .signature-preview > summary { display:flex; align-items:center; gap:12px; min-height:46px; padding:8px 4px; border-radius:var(--radius); cursor:pointer; list-style:none; }
+  .signature-preview > summary:hover { background:var(--bg-hover); }
   .signature-preview > summary::-webkit-details-marker { display:none; }
   .signature-preview > summary::before { content:'›'; color:var(--text-muted); font-size:18px; line-height:1; transition:transform var(--dur-fast) var(--ease); }
   .signature-preview[open] > summary::before { transform:rotate(90deg); }
@@ -1012,25 +1029,28 @@
   .signature-summary-copy strong { color:var(--text); font-size:12px; font-weight:600; }
   .signature-summary-copy small { color:var(--text-muted); font-size:10.5px; }
   .signature-lock { flex:0 0 auto; padding:3px 7px; border-radius:var(--radius-pill); background:var(--warning-soft); color:var(--warning); font-size:10px; font-weight:650; }
-  .signature-preview-body { padding:0 12px 12px; border-top:1px solid var(--border); }
+  .signature-preview-body { padding:0 4px 12px 26px; }
   .signature-help { margin:10px 0; color:var(--text-muted); font-size:11px; }
   .signature-layers { display:flex; flex-direction:column; gap:8px; }
-  .signature-layer { overflow:hidden; border:1px solid var(--border); border-left:3px solid var(--primary); border-radius:var(--radius); background:var(--bg-surface); }
+  .signature-layer { overflow:hidden; border-left:3px solid var(--primary); border-radius:var(--radius); }
   .signature-layer-org { border-left-color:#7c3aed; }
-  .signature-layer > span { display:block; padding:4px 8px; border-bottom:1px solid var(--border); color:var(--text-faint); font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+  .signature-layer > span { display:block; padding:4px 8px; color:var(--text-muted); font-size:11px; font-weight:600; }
   .signature-layer iframe { display:block; width:100%; min-height:76px; border:0; background:#fff; }
   .signature-footer { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-top:9px; color:var(--text-faint); font-size:10.5px; }
   .signature-footer a { flex:0 0 auto; font-weight:600; }
 
   .attachments { margin: 0 0 14px; }
   .attachments-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-  .attachments-label { font-size: 12px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .attachments-label { font-size: 13px; font-weight: 500; color: var(--text-muted); }
+  /* Secondary actions are quiet text buttons; Send is the one filled primary. */
+  .attachments-head .btn, .compose-actions .right .btn:not(.btn-primary) { border-color: transparent; background: transparent; color: var(--primary-text); }
+  .attachments-head .btn:hover, .compose-actions .right .btn:not(.btn-primary):hover:not(:disabled) { background: var(--bg-hover); color: var(--primary-text); }
+  .compose-actions .right .btn:not(.btn-primary):disabled { background: transparent; border-color: transparent; color: var(--text-disabled); }
   .attachment-list { list-style: none; padding: 0; margin: 8px 0 4px; display: flex; flex-direction: column; gap: 6px; }
   .attachment-list li {
     display: flex; align-items: center; gap: 10px;
     padding: 8px 12px;
     background: var(--bg-hover);
-    border: 1px solid var(--border);
     border-radius: var(--radius);
     font-size: 13px;
   }
@@ -1050,7 +1070,7 @@
     margin-bottom: 8px;
   }
 
-  .compose-actions { display: flex; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); margin-top: 4px; }
+  .compose-actions { display: flex; align-items: center; gap: 8px; padding-top: 8px; margin-top: 8px; }
   .compose-actions .left { display:flex; align-items:center; gap:8px; margin-right: auto; }
   .compose-actions .right { display: flex; gap: 8px; }
   .btn-ghost { background: transparent; border-color: transparent; }
@@ -1066,7 +1086,7 @@
   }
 
   @media (max-width: 768px) {
-    .compose-form { padding: 14px; }
+    .compose-form.card { padding: 0; }
     /* The action bar sticks to the bottom of the screen (and above the
        on-screen keyboard), so Send never needs a scroll to the end. Back
        and Discard shrink to icons so Save draft and Send always fit; at
@@ -1076,9 +1096,9 @@
       bottom: 0;
       z-index: 5;
       flex-wrap: wrap;
-      margin: 4px -14px -14px;
+      margin: 4px -14px 0;
       padding: 8px 14px max(8px, env(safe-area-inset-bottom));
-      background: var(--bg-surface);
+      background: var(--bg);
       box-shadow: 0 -1px 0 var(--border), 0 -4px 12px rgba(0, 0, 0, 0.06);
       border-top: 0;
     }
