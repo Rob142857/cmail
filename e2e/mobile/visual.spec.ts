@@ -54,4 +54,17 @@ test.describe('compose', () => {
     await expect(page.locator('.rich-text-surface')).toBeVisible();
     await expect(page).toHaveScreenshot('compose.png', { mask: [...volatile(page), page.locator('.status')] });
   });
+
+  // Dark mode shows the body on the surface tone with display-only inverted
+  // content; typed text checks it stays readable. Desktop only.
+  test('compose-dark', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'one desktop dark check is enough');
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await open(page, '/mail/compose');
+    const body = page.locator('.rich-text-surface');
+    await expect(body).toBeVisible();
+    await body.click();
+    await page.keyboard.type('Hi Ivo, the roster looks good.');
+    await expect(page).toHaveScreenshot('compose-dark.png', { mask: [...volatile(page), page.locator('.status')] });
+  });
 });

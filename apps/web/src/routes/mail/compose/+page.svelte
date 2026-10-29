@@ -929,7 +929,8 @@
 </div>
 
 <style>
-  .compose-page { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+  /* Fill the pane up to a generous column (Rob, 29 Oct: 820px left dead space on wide screens). */
+  .compose-page { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
   .compose-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
   .compose-header h1 { font-size: 20px; margin: 0; font-weight: 600; }
   .status { font-size: 12px; color: var(--text-muted); }
@@ -1004,10 +1005,34 @@
   .body-field :global(.tb-select option) { background: var(--bg-surface); color: var(--text); }
   .body-field :global(.sep) { background: var(--divider); }
   .body-field :global(.more-button) { background: var(--bg); }
-  .body-field :global(.surface-wrap) { border-radius: var(--radius); }
+  .body-field :global(.surface-wrap) { border-radius: 2px; }
   .body-field :global(.surface-wrap:focus-within) { box-shadow: inset 0 -2px 0 var(--primary); }
-  .body-field :global(.rich-text-surface) { min-height: max(240px, 45vh); padding-inline: 2px; }
-  .body-field textarea { min-height: max(240px, 45vh); border-color: transparent; padding-inline: 2px; }
+  /* The primary underline is the editor's focus cue; drop the global 1px ring. */
+  .body-field :global(.host .rich-text-surface:focus-visible) { box-shadow: none; }
+  /* Dark mode: the bright paper was the heaviest thing on the page. Show the
+     body on the surface tone and invert its content for display only, so
+     default black (and black pasted from Word) reads light while colours keep
+     their hue. Sent HTML is untouched. Off under forced colours. */
+  @media (prefers-color-scheme: dark) and (not (forced-colors: active)) {
+    .body-field :global(.surface-wrap) { background: var(--bg-surface); }
+    /* Lighter primary keeps the focus underline above 3:1 on the dark tone. */
+    .body-field :global(.surface-wrap:focus-within) { box-shadow: inset 0 -2px 0 var(--primary-text); }
+    .body-field :global(.surface-wrap .host) { filter: invert(0.88) hue-rotate(180deg); }
+    .body-field :global(.surface-wrap .placeholder),
+    .body-field :global(.surface-wrap .editor-state) { color: var(--text-muted); }
+  }
+  /* Windows High Contrast: the writing area gets its frame back. */
+  @media (forced-colors: active) {
+    .body-field :global(.surface-wrap) { border: 1px solid CanvasText; }
+    .body-field :global(.surface-wrap .host) { filter: none; }
+    .body-field :global(.surface-wrap:focus-within) { outline: 2px solid Highlight; }
+  }
+  /* Comfortable inner padding so text and caret never sit on the edge; the
+     placeholder and loading line follow it. */
+  .body-field :global(.host .rich-text-surface) { min-height: max(240px, 45vh); padding: 18px 20px; }
+  .body-field :global(.surface-wrap .placeholder) { top: 18px; left: 20px; }
+  .body-field :global(.surface-wrap .editor-state) { padding: 18px 20px; }
+  .body-field textarea { min-height: max(240px, 45vh); border-color: transparent; padding: 18px 20px; }
   .body-field textarea:focus { border-bottom-color: var(--primary); }
   /* Quiet text tabs; the selected one is ink-coloured with a primary underline. */
   .format-toggle { display:inline-flex; gap:4px; }
@@ -1088,6 +1113,10 @@
   }
 
   @media (max-width: 768px) {
+    .body-field :global(.host .rich-text-surface) { padding: 14px 16px; }
+    .body-field :global(.surface-wrap .placeholder) { top: 14px; left: 16px; }
+    .body-field :global(.surface-wrap .editor-state) { padding: 14px 16px; }
+    .body-field textarea { padding: 14px 16px; }
     /* The action bar sticks to the bottom of the screen (and above the
        on-screen keyboard), so Send never needs a scroll to the end. Back
        and Discard shrink to icons so Save draft and Send always fit; at
