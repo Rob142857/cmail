@@ -1012,19 +1012,19 @@
   /* Dark mode: the bright paper was the heaviest thing on the page. Show the
      body on the surface tone and invert its content for display only, so
      default black (and black pasted from Word) reads light while colours keep
-     their hue. Sent HTML is untouched; images are flipped back. */
-  @media (prefers-color-scheme: dark) {
+     their hue. Sent HTML is untouched. Off under forced colours. */
+  @media (prefers-color-scheme: dark) and (not (forced-colors: active)) {
     .body-field :global(.surface-wrap) { background: var(--bg-surface); }
     /* Lighter primary keeps the focus underline above 3:1 on the dark tone. */
     .body-field :global(.surface-wrap:focus-within) { box-shadow: inset 0 -2px 0 var(--primary-text); }
     .body-field :global(.surface-wrap .host) { filter: invert(0.88) hue-rotate(180deg); }
-    .body-field :global(.surface-wrap .host img) { filter: hue-rotate(180deg) invert(1); }
     .body-field :global(.surface-wrap .placeholder),
     .body-field :global(.surface-wrap .editor-state) { color: var(--text-muted); }
   }
   /* Windows High Contrast: the writing area gets its frame back. */
   @media (forced-colors: active) {
     .body-field :global(.surface-wrap) { border: 1px solid CanvasText; }
+    .body-field :global(.surface-wrap .host) { filter: none; }
     .body-field :global(.surface-wrap:focus-within) { outline: 2px solid Highlight; }
   }
   /* Comfortable inner padding so text and caret never sit on the edge; the
