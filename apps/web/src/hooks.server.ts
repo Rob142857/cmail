@@ -17,7 +17,7 @@ function secureResponse(response: Response, authenticated: boolean, isHttps: boo
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
   response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
   response.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
   response.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
@@ -26,6 +26,15 @@ function secureResponse(response: Response, authenticated: boolean, isHttps: boo
   if (authenticated) {
     response.headers.set('Cache-Control', 'private, no-store');
     appendVary(response.headers, 'Cookie');
+  }
+  // Cloudflare edge features such as Email Address Obfuscation (on by default
+  // for new zones) rewrite addresses in served HTML, so the page no longer
+  // matches what the client hydrates. no-transform opts every page out.
+  if ((response.headers.get('content-type') || '').toLowerCase().startsWith('text/html')) {
+    const cacheControl = response.headers.get('cache-control');
+    if (!/\bno-transform\b/i.test(cacheControl || '')) {
+      response.headers.set('Cache-Control', cacheControl ? `${cacheControl}, no-transform` : 'no-transform');
+    }
   }
   return response;
 }
