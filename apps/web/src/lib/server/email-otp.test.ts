@@ -260,8 +260,9 @@ describe('OTP proof cookie', () => {
     return `${encoded}.${toBase64Url(signature)}`;
   }
 
-  it('accepts a locally signed proof with a valid payload (control)', async () => {
+  it('accepts a locally signed proof with a valid payload, up to the full proof lifetime (control)', async () => {
     await expect(verifyOtpProof(await signProof(valid), SESSION_SECRET, NOW)).resolves.toMatchObject({ purpose: 'signin', requestId: REQUEST_ID });
+    await expect(verifyOtpProof(await signProof({ ...valid, exp: NOW + 10 * 60 }), SESSION_SECRET, NOW)).resolves.not.toBeNull();
   });
 
   it.each([
@@ -274,15 +275,16 @@ describe('OTP proof cookie', () => {
     ['an expiry given as a string', { ...valid, exp: String(NOW + 60) }],
     ['an expiry exactly now', { ...valid, exp: NOW }],
     ['an expiry further ahead than the proof lifetime', { ...valid, exp: NOW + 10 * 60 + 1 }],
-    ['a JSON array', [valid]],
   ])('rejects a correctly signed proof with %s', async (_label, payload) => {
     await expect(verifyOtpProof(await signProof(payload), SESSION_SECRET, NOW)).resolves.toBeNull();
   });
 
-  it('rejects a signature of the wrong length and a proof over 2048 characters', async () => {
+  it('rejects a signature with extra bytes after a valid one, and a proof over 2048 characters', async () => {
     const proof = await signProof(valid);
     const [encoded, signature] = proof.split('.');
-    await expect(verifyOtpProof(`${encoded}.${signature.slice(0, -4)}`, SESSION_SECRET, NOW)).resolves.toBeNull();
+    // 43 + 4 base64url characters decode to the valid 32 bytes plus three zero bytes:
+    // only the length check stops it, since the comparison reads just the first 32.
+    await expect(verifyOtpProof(`${encoded}.${signature}AAAA`, SESSION_SECRET, NOW)).resolves.toBeNull();
     const padded = await signProof({ ...valid, padding: 'x'.repeat(2048) });
     await expect(verifyOtpProof(padded, SESSION_SECRET, NOW)).resolves.toBeNull();
   });

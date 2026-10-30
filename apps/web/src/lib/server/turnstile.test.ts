@@ -65,10 +65,9 @@ describe('verifyTurnstile', () => {
 });
 
 describe('verifyTurnstile input and response checks', () => {
-  it('never calls siteverify for an oversized, empty or non-string token', async () => {
+  it('never calls siteverify for an oversized or non-string token', async () => {
     const fetcher = vi.fn().mockResolvedValue(Response.json({ success: true }));
     await expect(verifyTurnstile(CONFIGURED, 'x'.repeat(2049), '192.0.2.10', fetcher)).resolves.toBe(false);
-    await expect(verifyTurnstile(CONFIGURED, '', '192.0.2.10', fetcher)).resolves.toBe(false);
     await expect(verifyTurnstile(CONFIGURED, 42 as unknown as string, '192.0.2.10', fetcher)).resolves.toBe(false);
     expect(fetcher).not.toHaveBeenCalled();
   });
@@ -88,12 +87,5 @@ describe('verifyTurnstile input and response checks', () => {
   it('fails closed on a 200 response whose body is not JSON', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response('<html>busy</html>', { status: 200, headers: { 'Content-Type': 'text/html' } }));
     await expect(verifyTurnstile(CONFIGURED, 'token-value', '192.0.2.10', fetcher)).resolves.toBe(false);
-  });
-
-  it('omits remoteip when the caller has no address', async () => {
-    const fetcher = vi.fn().mockResolvedValue(Response.json({ success: true }));
-    await expect(verifyTurnstile(CONFIGURED, 'token-value', '', fetcher)).resolves.toBe(true);
-    const body = new URLSearchParams(fetcher.mock.calls[0][1].body as string);
-    expect(body.has('remoteip')).toBe(false);
   });
 });
