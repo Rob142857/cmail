@@ -8,6 +8,7 @@ async function modern(
   accessToken: string,
   body: Record<string, unknown>,
   headers: Record<string, string> = {},
+  meta: Record<string, unknown> = {},
 ): Promise<{ status: number; body: any }> {
   const params = (body.params as Record<string, unknown> | undefined) ?? {};
   const response = await handleMcpRequest(new Request(`${APP_URL}/mcp`, {
@@ -30,6 +31,7 @@ async function modern(
           'io.modelcontextprotocol/protocolVersion': headers['x-body-version'] ?? '2026-07-28',
           'io.modelcontextprotocol/clientInfo': { name: 'test', version: '1' },
           'io.modelcontextprotocol/clientCapabilities': {},
+          ...meta,
         },
       },
     }),
@@ -181,6 +183,31 @@ describe('modern (2026-07-28) protocol', () => {
     const list = await modern(fixture, tokens.access_token, { method: 'tools/list' });
     expect(list.body.result.resultType).toBe('complete');
     expect(list.body.result.tools.length).toBeGreaterThan(3);
+  });
+
+  it('puts caching hints on server/discover (public) and tools/list (private, scope-dependent)', async () => {
+    const fixture = createFixture();
+    const { tokens } = await connect(fixture);
+    const discover = await modern(fixture, tokens.access_token, { method: 'server/discover' });
+    expect(discover.body.result).toMatchObject({ ttlMs: 3_600_000, cacheScope: 'public' });
+    const list = await modern(fixture, tokens.access_token, { method: 'tools/list' });
+    expect(list.body.result).toMatchObject({ ttlMs: 300_000, cacheScope: 'private' });
+    const legacy = await mcp(fixture, tokens.access_token, 'tools/list');
+    expect(legacy.body?.result).not.toHaveProperty('ttlMs');
+    expect(legacy.body?.result).not.toHaveProperty('cacheScope');
+  });
+
+  it('rejects a modern request without clientCapabilities with -32602 and 400', async () => {
+    const fixture = createFixture();
+    const { tokens } = await connect(fixture);
+    const missing = await modern(fixture, tokens.access_token, { method: 'tools/list' }, {}, { 'io.modelcontextprotocol/clientCapabilities': undefined });
+    expect(missing.status).toBe(400);
+    expect(missing.body.error.code).toBe(-32602);
+    const notObject = await modern(fixture, tokens.access_token, { method: 'server/discover' }, {}, { 'io.modelcontextprotocol/clientCapabilities': ['tools'] });
+    expect(notObject.status).toBe(400);
+    expect(notObject.body.error.code).toBe(-32602);
+    const legacy = await mcp(fixture, tokens.access_token, 'tools/list');
+    expect(legacy.status).toBe(200);
   });
 
   it('rejects header and body mismatches with -32020', async () => {
