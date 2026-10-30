@@ -48,14 +48,33 @@ describe('inbound reservation SQL (real migrations)', () => {
     expect(hashes.every((row) => /^[0-9a-f]{64}$/.test(row.sender_hash))).toBe(true);
   });
 
-  it('counts only the last hour', async () => {
-    const { reserve, sqlite } = setup({ INBOUND_MAILBOX_MESSAGES_PER_HOUR: 1 });
+  // A settled earlier delivery, `age` seconds old, holding `pending` bytes until `pendingFor` seconds from now.
+  function earlier(sqlite: ReturnType<typeof setup>['sqlite'], age: number, options: { bytes?: number; pending?: boolean; pendingFor?: number } = {}) {
     sqlite.prepare(
       `INSERT INTO mailbox_reservations (id, delivery_key, mailbox_id, message_bytes, mailbox_message_limit, mailbox_byte_limit,
          sender_message_limit, storage_quota_bytes, storage_pending, pending_expires_at, created_epoch)
-       VALUES ('old', NULL, 'mailbox-1', 10, 1, 0, 0, 0, 0, 0, unixepoch() - 3601)`,
-    ).run();
-    expect((await reserve('fresh')).status).toBe('accepted');
+       VALUES (?, NULL, 'mailbox-1', ?, 0, 0, 0, 0, ?, unixepoch() + ?, unixepoch() - ?)`,
+    ).run(`earlier-${age}-${options.pendingFor ?? 0}`, options.bytes ?? 10, options.pending ? 1 : 0, options.pendingFor ?? 0, age);
+  }
+
+  it('counts the last hour exactly: 3599 seconds ago counts, 3600 does not', async () => {
+    const inside = setup({ INBOUND_MAILBOX_MESSAGES_PER_HOUR: 1 });
+    earlier(inside.sqlite, 3599);
+    expect((await inside.reserve('fresh')).status).toBe('rejected');
+
+    const outside = setup({ INBOUND_MAILBOX_MESSAGES_PER_HOUR: 1 });
+    earlier(outside.sqlite, 3600);
+    expect((await outside.reserve('fresh')).status).toBe('accepted');
+  });
+
+  it('stops charging an abandoned pending delivery once its hold expires', async () => {
+    const live = setup({ MAILBOX_STORAGE_QUOTA_BYTES: 100 });
+    earlier(live.sqlite, 60, { bytes: 95, pending: true, pendingFor: 60 });
+    expect((await live.reserve('next', 10)).status).toBe('rejected');
+
+    const expired = setup({ MAILBOX_STORAGE_QUOTA_BYTES: 100 });
+    earlier(expired.sqlite, 60, { bytes: 95, pending: true, pendingFor: 0 });
+    expect((await expired.reserve('next', 10)).status).toBe('accepted');
   });
 
   it('charges pending deliveries and stored mail against the storage quota until released', async () => {
