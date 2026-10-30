@@ -28,12 +28,14 @@ export interface BackupEnv {
   /** Most objects copied in one run. Default 200, bounded 1-1000. */
   BACKUP_MAX_COPIES_PER_RUN?: string | number;
   /**
-   * After a genuine large purge (emptied trash, an offboarding), the number of
-   * backed-up objects missing from SOURCE that the paused run reported. A run
-   * accepts the purge only if the count is within 10%, records it, and treats
-   * the same value as used from then on. Remove it once one run has completed.
+   * After a genuine large purge (emptied trash, an offboarding), the exact
+   * `<count>:<code>` a paused run printed. The code fingerprints that run's
+   * missing objects, so the value accepts only that set and can never cover a
+   * later anomaly. Remove it once one run has completed.
    */
-  BACKUP_ACKNOWLEDGE_DELETIONS?: string | number;
+  BACKUP_ACKNOWLEDGE_DELETIONS?: string;
+  /** Share of the backup that may be missing from SOURCE before a run pauses. Default 0.2, bounded 0.01-0.5. */
+  BACKUP_MAX_MISSING_SHARE?: string | number;
 }
 
 export interface BackupSummary {
@@ -69,7 +71,7 @@ const ROWS_PER_QUERY = 500;
 const ROWS_PER_PART = 10_000;
 // A single run may newly mark at most this share of the backup as deleted
 // (and never fewer than this many objects) before it stops as suspicious.
-const MAX_MISSING_SHARE = 0.05;
+const DEFAULT_MAX_MISSING_SHARE = 0.2;
 const MIN_MISSING_ALLOWANCE = 25;
 
 function bounded(value: unknown, fallback: number, min: number, max: number): number {
@@ -142,19 +144,26 @@ async function assertSeparateBuckets(env: BackupEnv): Promise<void> {
 }
 
 /**
- * An acknowledgement accepts a disappearance only when its size matches what
- * the operator expected (within 10%), so a wrong binding that drops thousands
- * of objects is never waved through by a stale or loose setting.
+ * `<count>:<code>` for a set of missing keys. The code is a fingerprint of the
+ * exact keys, so an acknowledgement matches one anomaly and nothing else.
  */
-export function acknowledgementCount(value: unknown): number | null {
-  const count = typeof value === 'number' ? value : Number(String(value ?? '').trim() || NaN);
-  return Number.isSafeInteger(count) && count >= 1 ? count : null;
+export function acknowledgementToken(sourceKeys: readonly string[]): string {
+  const sorted = [...sourceKeys].sort();
+  let hash = 0x811c9dc5;
+  for (const key of sorted) {
+    for (let index = 0; index < key.length; index += 1) {
+      hash ^= key.charCodeAt(index);
+      hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    hash ^= 0x0a;
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `${sorted.length}:${hash.toString(16).padStart(8, '0')}`;
 }
 
-export function deletionAcknowledged(expected: unknown, vanished: number): boolean {
-  const count = acknowledgementCount(expected);
-  if (count === null || vanished < 1) return false;
-  return Math.abs(vanished - count) <= Math.max(1, Math.ceil(count * 0.1));
+export function missingShare(value: unknown): number {
+  const parsed = typeof value === 'number' ? value : Number(String(value ?? '').trim() || NaN);
+  return Number.isFinite(parsed) ? Math.min(0.5, Math.max(0.01, parsed)) : DEFAULT_MAX_MISSING_SHARE;
 }
 
 async function copyObject(env: BackupEnv, source: R2Object, previous: R2Object | undefined, now: Date): Promise<boolean> {
@@ -243,13 +252,13 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
   const missing = await readJson<Record<string, number>>(env.BACKUP, MISSING_STATE, {});
   // An accepted purge records exactly which keys it covered; only those are
   // excused (until they expire), so it can never cover a later anomaly.
-  const acknowledged = await readJson<{ value?: number; at?: number; keys?: string[] }>(env.BACKUP, ACK_STATE, {});
+  const acknowledged = await readJson<{ token?: string; at?: number; keys?: string[] }>(env.BACKUP, ACK_STATE, {});
   const acknowledgedKeys = new Set(acknowledged.keys ?? []);
   const missingNow = [...backedUp.keys()].filter((key) => !source.has(key.slice(OBJECTS.length)));
   const newlyMissing = missingNow.filter((key) => missing[key.slice(OBJECTS.length)] === undefined);
   const unexplained = missingNow.filter((key) => !acknowledgedKeys.has(key.slice(OBJECTS.length)));
   const overlap = backedUp.size - missingNow.length;
-  const allowance = Math.max(MIN_MISSING_ALLOWANCE, Math.ceil(backedUp.size * MAX_MISSING_SHARE));
+  const allowance = Math.max(MIN_MISSING_ALLOWANCE, Math.ceil(backedUp.size * missingShare(env.BACKUP_MAX_MISSING_SHARE)));
   let suspicion: string | null = null;
   if (backedUp.size > 0 && source.size === 0 && unexplained.length > 0) {
     suspicion = `SOURCE is empty but ${unexplained.length} backed-up objects exist`;
@@ -260,13 +269,14 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
   }
   let paused: string | null = null;
   if (suspicion) {
-    const value = acknowledgementCount(env.BACKUP_ACKNOWLEDGE_DELETIONS);
-    if (value !== null && value !== acknowledged.value && deletionAcknowledged(value, unexplained.length)) {
-      // One-shot: record exactly what was accepted; the same value is ignored from now on.
-      for (const key of unexplained) acknowledgedKeys.add(key.slice(OBJECTS.length));
-      await env.BACKUP.put(ACK_STATE, JSON.stringify({ value, at: nowEpoch, keys: [...acknowledgedKeys] }), { httpMetadata: { contentType: 'application/json' } });
+    const unexplainedKeys = unexplained.map((key) => key.slice(OBJECTS.length));
+    const token = acknowledgementToken(unexplainedKeys);
+    if (String(env.BACKUP_ACKNOWLEDGE_DELETIONS ?? '').trim() === token) {
+      // Accept exactly this set of missing objects; they stay excused until they expire.
+      for (const key of unexplainedKeys) acknowledgedKeys.add(key);
+      await env.BACKUP.put(ACK_STATE, JSON.stringify({ token, at: nowEpoch, keys: [...acknowledgedKeys] }), { httpMetadata: { contentType: 'application/json' } });
     } else {
-      paused = `${suspicion}. Check the SOURCE binding; if this is a genuine purge, set BACKUP_ACKNOWLEDGE_DELETIONS=${unexplained.length}`;
+      paused = `${suspicion}. Check the SOURCE binding; if this is a genuine purge, set BACKUP_ACKNOWLEDGE_DELETIONS=${token}`;
     }
   }
 

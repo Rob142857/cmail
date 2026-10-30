@@ -38,9 +38,11 @@ bucket_name = "cmail-backup"
 [vars]
 BACKUP_RETENTION_DAYS = "30"
 BACKUP_MAX_COPIES_PER_RUN = "200"
-# Only after checking the bindings, to accept a genuine large purge: the number
-# of objects you expect to have vanished (within 10%). Remove it after one run.
-# BACKUP_ACKNOWLEDGE_DELETIONS = "600"
+# Pause when more than this share of the backup is missing from SOURCE.
+BACKUP_MAX_MISSING_SHARE = "0.2"
+# Only after checking the bindings, to accept a genuine large purge: the exact
+# "<count>:<code>" a paused run printed. Remove it after one run.
+# BACKUP_ACKNOWLEDGE_DELETIONS = "600:0123abcd"
 
 [observability]
 enabled = true

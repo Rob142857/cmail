@@ -3,7 +3,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BackupRefused, backupConfiguration, dayOf, deletionAcknowledged, runBackup, type BackupEnv } from './backup';
+import { BackupRefused, acknowledgementToken, backupConfiguration, dayOf, missingShare, runBackup, type BackupEnv } from './backup';
+
+const tokenIn = (message: string | null) => /BACKUP_ACKNOWLEDGE_DELETIONS=(\S+)$/.exec(message ?? '')?.[1] ?? '';
 
 // An in-memory R2 bucket with the subset of the API the backup uses.
 function memoryBucket(options: { failGet?: (key: string) => boolean; failList?: boolean } = {}) {
@@ -242,7 +244,7 @@ describe('safety guards', () => {
     source.objects.clear();
     const summary = await runBackup(env, later(1));
     expect(summary.paused).toContain('SOURCE is empty but 2 backed-up objects exist');
-    expect(summary.paused).toContain('BACKUP_ACKNOWLEDGE_DELETIONS=2');
+    expect(tokenIn(summary.paused)).toMatch(/^2:[0-9a-f]{8}$/);
     expect(summary).toMatchObject({ copied: 0, markedMissing: 0 });
     expect(summary.databaseTables).toBeGreaterThan(20);
     await runBackup(env, later(40));
@@ -297,7 +299,7 @@ describe('safety guards', () => {
     expect(await runBackup(env, later(1))).toMatchObject({ paused: null, markedMissing: 1, copied: 1 });
   });
 
-  it('accepts a large purge only when acknowledged with about that count, once', async () => {
+  it('accepts a large purge only with the exact code the paused run printed', async () => {
     const keys = Array.from({ length: 100 }, (_, index) => `messages/${index}/body`);
     const { source, backup, env } = setup(keys);
     await runBackup(env, DAY);
@@ -306,12 +308,15 @@ describe('safety guards', () => {
 
     const paused = await runBackup(env, later(1));
     expect(paused).toMatchObject({ markedMissing: 0, copied: 0 });
-    expect(paused.paused).toContain('BACKUP_ACKNOWLEDGE_DELETIONS=30');
-    // A loose value does not match, so it is not accepted.
-    expect((await runBackup({ ...env, BACKUP_ACKNOWLEDGE_DELETIONS: '600' } as BackupEnv, later(1.1))).paused).not.toBeNull();
+    const token = tokenIn(paused.paused);
+    expect(token).toBe(acknowledgementToken(keys.slice(0, 30)));
+    // A bare count or a wrong code is not accepted.
+    for (const wrong of ['30', '30:00000000', '600']) {
+      expect((await runBackup({ ...env, BACKUP_ACKNOWLEDGE_DELETIONS: wrong } as BackupEnv, later(1.1))).paused).not.toBeNull();
+    }
     expect(JSON.parse(backup.objects.get('state/missing.json')!.body)).toEqual({});
 
-    expect(await runBackup({ ...env, BACKUP_ACKNOWLEDGE_DELETIONS: '30' } as BackupEnv, later(1.5))).toMatchObject({ paused: null, markedMissing: 30, copied: 1 });
+    expect(await runBackup({ ...env, BACKUP_ACKNOWLEDGE_DELETIONS: token } as BackupEnv, later(1.5))).toMatchObject({ paused: null, markedMissing: 30, copied: 1 });
     // Removed afterwards (as the docs say), the purge stays covered and expires normally.
     expect(await runBackup(env, later(3))).toMatchObject({ paused: null, markedMissing: 0 });
     await runBackup(env, later(33));
@@ -319,38 +324,52 @@ describe('safety guards', () => {
     expect(backup.objects.has(`objects/${keys[50]}`)).toBe(true);
   });
 
-  it('does not reuse an acknowledgement left set for a later anomaly', async () => {
+  it('never lets a code left set cover a later anomaly, even of the same size', async () => {
     const keys = Array.from({ length: 100 }, (_, index) => `messages/${index}/body`);
     const { source, env } = setup(keys);
     await runBackup(env, DAY);
     for (const key of keys.slice(0, 30)) source.objects.delete(key);
-    const acked = { ...env, BACKUP_ACKNOWLEDGE_DELETIONS: '30' } as BackupEnv;
-    expect((await runBackup(acked, later(1))).paused).toBeNull();
-    // Long after that purge has expired, a new drop of the same size is not waved through.
+    const first = tokenIn((await runBackup(env, later(1))).paused);
+    const acked = { ...env, BACKUP_ACKNOWLEDGE_DELETIONS: first } as BackupEnv;
+    expect((await runBackup(acked, later(1.1))).paused).toBeNull();
     await runBackup(acked, later(35));
     for (const key of keys.slice(30, 60)) source.objects.delete(key);
-    expect((await runBackup(acked, later(36))).paused).toContain('30 backed-up objects are missing');
+    const second = await runBackup(acked, later(36));
+    expect(second.paused).toContain('30 backed-up objects are missing');
+    // The same count gets a different code, which a genuine second purge can use.
+    const next = tokenIn(second.paused);
+    expect(next).not.toBe(first);
+    expect((await runBackup({ ...env, BACKUP_ACKNOWLEDGE_DELETIONS: next } as BackupEnv, later(36.1))).paused).toBeNull();
   });
 
   it('accepts a genuine full purge and then carries on', async () => {
     const { source, backup, env } = setup(['messages/a/body', 'messages/b/body', 'messages/c/body']);
     await runBackup(env, DAY);
     source.objects.clear();
-    expect((await runBackup(env, later(1))).paused).toContain('BACKUP_ACKNOWLEDGE_DELETIONS=3');
-    expect((await runBackup({ ...env, BACKUP_ACKNOWLEDGE_DELETIONS: '3' } as BackupEnv, later(1.1))).paused).toBeNull();
+    const token = tokenIn((await runBackup(env, later(1))).paused);
+    expect(token).toMatch(/^3:/);
+    expect((await runBackup({ ...env, BACKUP_ACKNOWLEDGE_DELETIONS: token } as BackupEnv, later(1.1))).paused).toBeNull();
     expect((await runBackup(env, later(2))).paused).toBeNull();
     await runBackup(env, later(32));
     expect([...backup.objects.keys()].some((key) => key.startsWith('objects/'))).toBe(false);
   });
 
-  it('matches an acknowledgement within 10% only', () => {
-    expect(deletionAcknowledged(undefined, 30)).toBe(false);
-    expect(deletionAcknowledged('lots', 30)).toBe(false);
-    expect(deletionAcknowledged('30', 30)).toBe(true);
-    expect(deletionAcknowledged('30', 33)).toBe(true);
-    expect(deletionAcknowledged('30', 34)).toBe(false);
-    expect(deletionAcknowledged('600', 10_000)).toBe(false);
-    expect(deletionAcknowledged('5', 0)).toBe(false);
+  it('makes the missing share configurable within bounds, default 20%', () => {
+    expect(missingShare(undefined)).toBe(0.2);
+    expect(missingShare('0.1')).toBe(0.1);
+    expect(missingShare('0.9')).toBe(0.5);
+    expect(missingShare('0')).toBe(0.01);
+    expect(acknowledgementToken(['b', 'a'])).toBe(acknowledgementToken(['a', 'b']));
+    expect(acknowledgementToken(['a', 'b'])).not.toBe(acknowledgementToken(['a', 'c']));
+  });
+
+  it('tolerates ordinary deletions under the share: 15% of a large backup does not pause', async () => {
+    const keys = Array.from({ length: 400 }, (_, index) => `messages/${index}/body`);
+    const { source, env: base } = setup(keys);
+    const env = { ...base, BACKUP_MAX_COPIES_PER_RUN: '1000' } as BackupEnv;
+    expect((await runBackup(env, DAY)).copied).toBe(400);
+    for (const key of keys.slice(0, 60)) source.objects.delete(key);
+    expect(await runBackup(env, later(1))).toMatchObject({ paused: null, markedMissing: 60 });
   });
 
   it('changes nothing when listing SOURCE fails', async () => {
