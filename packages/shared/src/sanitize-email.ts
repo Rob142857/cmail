@@ -130,21 +130,45 @@ export interface RiskyLink {
 
 interface LinkGuard {
   /**
-   * Absolute URL of the warning page. When set, a flagged link is redirected
-   * through it so the reader sees the real destination before leaving. Links
-   * that are not flagged keep their original href, so ordinary mail behaves
-   * exactly as it did and "copy link address" stays honest.
+   * Absolute URL of the warning page. A flagged link is redirected through it
+   * so the reader sees the real destination before leaving. Without `sign`,
+   * links that are not flagged keep their original href.
    */
   interstitialUrl: string;
   found: RiskyLink[];
+  /**
+   * When set, every other http(s) link is also routed through the warning
+   * page with this signature, so the page can check the destination against
+   * the local phishing-domain list and then redirect. Only links cmail itself
+   * signed are ever redirected without a warning.
+   */
+  sign?: (href: string) => string | null;
 }
 
 /** Caps the query we build, so a hostile href cannot produce an absurd URL. */
-const MAX_INTERSTITIAL_HREF = 2048;
+// Matches safeLink's own 4096 limit, so no accepted link can skip the check.
+const MAX_INTERSTITIAL_HREF = 4096;
+
+function routeThroughCheck(element: Element, href: string, guard: LinkGuard): void {
+  if (!guard.sign || !/^https?:/i.test(href) || href.length > MAX_INTERSTITIAL_HREF) return;
+  const signature = guard.sign(href);
+  if (!signature) return;
+  try {
+    const checked = new URL(guard.interstitialUrl);
+    checked.searchParams.set('u', href);
+    checked.searchParams.set('s', signature);
+    element.properties.href = checked.toString();
+  } catch {
+    // An unusable base leaves the original href in place.
+  }
+}
 
 function annotateLink(element: Element, href: string, guard: LinkGuard | null): void {
   const assessment = assessLinkRisk(href, anchorText(element));
-  if (!assessment.risk) return;
+  if (!assessment.risk) {
+    if (guard) routeThroughCheck(element, href, guard);
+    return;
+  }
 
   element.properties.dataCmailLinkRisk = assessment.risk;
   element.properties.dataCmailLinkHost = assessment.host;
@@ -395,8 +419,9 @@ export function sanitizeEmailHtml(value: string): string {
 export function sanitizeEmailHtmlWithLinkGuard(
   value: string,
   interstitialUrl: string,
+  sign?: (href: string) => string | null,
 ): { html: string; riskyLinks: RiskyLink[] } {
-  const guard: LinkGuard = { interstitialUrl, found: [] };
+  const guard: LinkGuard = { interstitialUrl, found: [], sign };
   const tree = sanitizeTree(value);
   inspectAndHardenTree(tree, null, guard);
   return { html: stringifyTree(tree), riskyLinks: guard.found };

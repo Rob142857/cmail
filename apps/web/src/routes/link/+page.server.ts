@@ -1,13 +1,14 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { checkLinkHost, verifyLinkSignature } from '#lib/server/link-check.js';
 
 /** Matches the risk vocabulary in packages/shared/src/link-risk.ts. */
 const RISKS = new Set(['punycode', 'mismatch']);
 
 /** Long enough for real tracking URLs, short enough to stay displayable. */
-const MAX_URL_CHARS = 2048;
+const MAX_URL_CHARS = 4096;
 
-export const load: PageServerLoad = async ({ locals, url, setHeaders }) => {
+export const load: PageServerLoad = async ({ locals, url, setHeaders, platform }) => {
   setHeaders({
     'Cache-Control': 'no-store',
     // Origin-only, so the destination never learns which message linked to it.
@@ -36,10 +37,28 @@ export const load: PageServerLoad = async ({ locals, url, setHeaders }) => {
   }
   if (destination.username || destination.password) throw redirect(303, '/mail');
 
-  return {
+  const host = destination.hostname.toLowerCase();
+  const env = platform?.env;
+  const verdict = env?.STORAGE ? await checkLinkHost(env.STORAGE, host) : 'unavailable';
+  // The decision only, plus the host when it is listed: hosts of ordinary
+  // links can identify a recipient (per-recipient tracking subdomains).
+  console.log('Link check', verdict === 'listed' ? { decision: verdict, host } : { decision: verdict });
+
+  const page = {
     href: destination.toString(),
-    host: destination.hostname.toLowerCase(),
+    host,
     insecure: destination.protocol === 'http:',
-    risk: RISKS.has(risk) ? risk : 'mismatch',
   };
+  if (verdict === 'listed') return { ...page, risk: 'listed' };
+  if (RISKS.has(risk)) return { ...page, risk };
+  // A host the check can't read is never opened silently.
+  if (verdict === 'uncheckable') return { ...page, risk: 'unverified' };
+
+  // Only a link cmail itself signed is opened without a warning, so this page
+  // can never be used as an open redirect. A list that can't be read fails open.
+  const signature = url.searchParams.get('s');
+  if (env?.SESSION_SECRET && verifyLinkSignature(env.SESSION_SECRET, locals.user.id, target, signature)) {
+    throw redirect(303, destination.toString(), { external: true });
+  }
+  return { ...page, risk: 'unverified' };
 };

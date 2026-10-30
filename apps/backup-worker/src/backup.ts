@@ -65,6 +65,7 @@ const PENDING_STATE = 'state/pending-acknowledgement.json';
 const IDENTITY = 'state/backup-identity.json';
 const BACKUP_PREFIXES = [OBJECTS, VERSIONS, MANIFESTS, DATABASE, 'state/'];
 const SAMPLE_KEYS = 1000;
+const SKIP_SOURCE_PREFIXES = ['link-blocklist/'];
 // Backups this small can't tell "everything vanished" from one genuine deletion.
 const MIN_OBJECTS_FOR_TOTAL_LOSS_CHECK = 3;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -251,6 +252,8 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
 
   await assertSeparateBuckets(env);
   const source = await listAll(env.SOURCE);
+  // Derived data the app rebuilds itself (the link blocklist) is not mail: skip it.
+  for (const key of [...source.keys()]) if (SKIP_SOURCE_PREFIXES.some((prefix) => key.startsWith(prefix))) source.delete(key);
   const backedUp = await listAll(env.BACKUP, OBJECTS);
 
   // Guard against a wrong or empty SOURCE binding wiping the backup, whether

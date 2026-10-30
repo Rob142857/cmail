@@ -2,6 +2,7 @@
 // Receives email via Cloudflare Email Routing, parses, stores in D1/R2.
 // Outbound is handled directly by the web app (Cloudflare Email Service or Postmark) —
 // this worker is inbound-only.
+import { LINK_BLOCKLIST_CRON, refreshLinkBlocklist } from './link-blocklist-refresh';
 import PostalMime from 'postal-mime';
 import { pushConfigurationDiagnostic, sendNewMailNotifications, type PushEnvironment } from '@cmail/shared/push';
 import { sanitizeBoundedEmailHtml } from '@cmail/shared/sanitize-email';
@@ -814,7 +815,19 @@ export default {
     return handleOutboundServiceRequest(request, env);
   },
 
-  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    // The link-list refresh has its own cron; every other schedule runs retention,
+    // which is gated by RETENTION_JOBS_ENABLED and safe to repeat.
+    if (controller.cron === LINK_BLOCKLIST_CRON) {
+      ctx.waitUntil(refreshLinkBlocklist(env.STORAGE).then((result) => {
+        // Counts and outcome only.
+        if (result.status === 'updated') console.log('Link blocklist refreshed', { count: result.count, shardsWritten: result.shardsWritten });
+        else console.warn('Link blocklist refresh kept the previous copy', { reason: result.reason, count: result.count });
+      }, (caught: unknown) => {
+        console.error('Link blocklist refresh failed', { error: caught instanceof Error ? caught.name : 'UnknownError' });
+      }));
+      return;
+    }
     ctx.waitUntil(runRetention(env));
   },
 

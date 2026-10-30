@@ -82,6 +82,11 @@ cmail protects you in a few ways:
   one site but actually points somewhere else, or its address uses
   look-alike international characters, cmail sends you to a warning page
   first instead of straight to the link — read it before you continue.
+- When you click any other web link, cmail checks the site against a public
+  list of known phishing sites (the CERT Polska Warning List). If it's on the
+  list, you see a warning instead of the site. This list mostly covers scams
+  aimed at people in Poland, so it catches some well-known phishing sites but
+  misses most others: a link that opens normally has not been checked as safe.
 - A banner marks the first message you've ever received from a sender, so you
   can give a request for payment, credentials, or urgency extra scrutiny
   before acting on it.

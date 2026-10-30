@@ -100,6 +100,13 @@ describe('mail object backup', () => {
     expect(manifest.objects.map((entry: { key: string }) => entry.key).sort()).toEqual(['attachments/a/1', 'messages/a/body']);
   });
 
+  it('skips the link blocklist, which the app rebuilds itself', async () => {
+    const { source, backup, env } = setup();
+    source.objects.set('link-blocklist/v1/shards/0a.txt', { body: 'evil.example', etag: 'b1' });
+    expect(await runBackup(env, DAY)).toMatchObject({ sourceObjects: 2, copied: 2 });
+    expect([...backup.objects.keys()].some((key) => key.includes('link-blocklist'))).toBe(false);
+  });
+
   it('copies only what is new on the next run', async () => {
     const { source, env } = setup();
     await runBackup(env, DAY);
