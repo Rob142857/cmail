@@ -197,6 +197,7 @@ describe('inbound protection outcomes at delivery', () => {
     expect(result.message.setReject).toHaveBeenCalledWith('Message cannot be accepted at this time');
     expect(result.warnings).toEqual(['Inbound delivery rejected by configured protection policy']);
     expect(result.storage.put).not.toHaveBeenCalled();
+    expect(result.db.statements.some((statement) => statement.query.includes('INSERT INTO mail_trace'))).toBe(false);
   });
 
   it('refuses generically, and says the protection was unavailable, when the check cannot run', async () => {
@@ -210,6 +211,7 @@ describe('inbound protection outcomes at delivery', () => {
     expect(result.message.setReject).toHaveBeenCalledWith('Message cannot be accepted at this time');
     expect(result.warnings).toEqual(['Inbound protection unavailable; delivery failed closed']);
     expect(result.storage.put).not.toHaveBeenCalled();
+    expect(result.db.statements.some((statement) => statement.query.includes('INSERT INTO mail_trace'))).toBe(false);
   });
 
   it('drops a concurrent duplicate quietly: no refusal, nothing stored, no trace', async () => {

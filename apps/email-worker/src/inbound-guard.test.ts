@@ -264,7 +264,8 @@ describe('atomic inbound reservations', () => {
 });
 
 describe('reservation input and ambiguous writes', () => {
-  const ALL_ON = { INBOUND_MAILBOX_MESSAGES_PER_HOUR: 10 };
+  // One limit on is enough to route through D1.
+  const MAILBOX_LIMIT_ON = { INBOUND_MAILBOX_MESSAGES_PER_HOUR: 10 };
 
   it.each([
     ['an empty mailbox id', { ...input('key-1'), mailboxId: '' }],
@@ -274,31 +275,31 @@ describe('reservation input and ambiguous writes', () => {
     ['an unsafe size', input('key-1', Number.MAX_SAFE_INTEGER + 1)],
   ])('fails closed before D1 for %s', async (_label, request) => {
     const db = new AtomicReservationDb();
-    await expect(reserveInboundDelivery(environment(db, ALL_ON), request)).resolves.toEqual({ status: 'unavailable', reservationId: null });
+    await expect(reserveInboundDelivery(environment(db, MAILBOX_LIMIT_ON), request)).resolves.toEqual({ status: 'unavailable', reservationId: null });
     expect(db.prepare).not.toHaveBeenCalled();
   });
 
   it('accepts a write whose response was lost when the recheck finds its own row', async () => {
     const db = new AmbiguousWriteDb({ commit: true });
-    const result = await reserveInboundDelivery(environment(db, ALL_ON), input('key-1'));
+    const result = await reserveInboundDelivery(environment(db, MAILBOX_LIMIT_ON), input('key-1'));
     expect(result.status).toBe('accepted');
     expect(result.reservationId).toBe(db.rows[0].id);
   });
 
   it('reports rejected when a lost write did not commit and no row exists', async () => {
     const db = new AmbiguousWriteDb({ commit: false });
-    await expect(reserveInboundDelivery(environment(db, ALL_ON), input('key-1'))).resolves.toEqual({ status: 'rejected', reservationId: null });
+    await expect(reserveInboundDelivery(environment(db, MAILBOX_LIMIT_ON), input('key-1'))).resolves.toEqual({ status: 'rejected', reservationId: null });
   });
 
   it('reports duplicate when the recheck finds another delivery holding the key', async () => {
     const db = new AmbiguousWriteDb({ commit: false });
     db.rows.push({ id: 'earlier', deliveryKey: 'key-1', mailboxId: 'mailbox-test', senderHash: '', messageBytes: 10, storagePending: true });
-    await expect(reserveInboundDelivery(environment(db, ALL_ON), input('key-1'))).resolves.toEqual({ status: 'duplicate', reservationId: null });
+    await expect(reserveInboundDelivery(environment(db, MAILBOX_LIMIT_ON), input('key-1'))).resolves.toEqual({ status: 'duplicate', reservationId: null });
   });
 
   it('fails closed when the recheck itself fails', async () => {
     const db = new AmbiguousWriteDb({ commit: false, recheckFails: true });
-    await expect(reserveInboundDelivery(environment(db, ALL_ON), input('key-1'))).resolves.toEqual({ status: 'unavailable', reservationId: null });
+    await expect(reserveInboundDelivery(environment(db, MAILBOX_LIMIT_ON), input('key-1'))).resolves.toEqual({ status: 'unavailable', reservationId: null });
   });
 });
 
