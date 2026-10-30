@@ -13,10 +13,11 @@
 //
 // Safety: a run refuses outright if BACKUP doesn't look like a backup bucket
 // or SOURCE and BACKUP are the same bucket. If SOURCE looks empty or wrong, or
-// too many objects vanish at once, it keeps copying and dumping but pauses all
-// deletion tracking (and the manifest) and reports it, until the cause is
-// fixed or an operator allows the purge. Every step is idempotent, so a run
-// that stops part-way is completed by the next. No keys or content are logged.
+// too many objects vanish at once, the run pauses: it copies, deletes, writes
+// and prunes nothing, dumps D1 only, and fails visibly, until the binding is
+// fixed or an operator acknowledges a genuine purge by its expected size.
+// Every step is idempotent, so a run that stops part-way is completed by the
+// next. No keys or content are logged.
 
 export interface BackupEnv {
   SOURCE: R2Bucket;
@@ -27,10 +28,12 @@ export interface BackupEnv {
   /** Most objects copied in one run. Default 200, bounded 1-1000. */
   BACKUP_MAX_COPIES_PER_RUN?: string | number;
   /**
-   * ISO date-time. Until then, a large disappearance from SOURCE (a purge, an
-   * offboarding) is accepted instead of pausing deletions. At most 7 days ahead.
+   * How many objects an operator expects to vanish from SOURCE in a genuine
+   * large purge (emptied trash, an offboarding). A run that would otherwise
+   * pause accepts the disappearance only if its size is within 10% of this.
+   * Remove it once one run has completed.
    */
-  BACKUP_ALLOW_LARGE_DELETIONS_UNTIL?: string;
+  BACKUP_ACKNOWLEDGE_DELETIONS?: string | number;
 }
 
 export interface BackupSummary {
@@ -42,8 +45,8 @@ export interface BackupSummary {
   markedMissing: number;
   pruned: number;
   manifestComplete: boolean;
-  /** Set when deletion tracking was skipped because SOURCE changed suspiciously. */
-  deletionsPaused: string | null;
+  /** Set when the run paused (no copies, deletions, manifest or pruning) because SOURCE changed suspiciously. */
+  paused: string | null;
   databaseTables: number | null;
   databaseError: string | null;
 }
@@ -57,7 +60,9 @@ const DATABASE = 'd1/';
 const MISSING_STATE = 'state/missing.json';
 const IDENTITY = 'state/backup-identity.json';
 const BACKUP_PREFIXES = [OBJECTS, VERSIONS, MANIFESTS, DATABASE, 'state/'];
-const MAX_OVERRIDE_MS = 7 * 24 * 60 * 60 * 1000;
+const SAMPLE_KEYS = 1000;
+// Backups this small can't tell "everything vanished" from one genuine deletion.
+const MIN_OBJECTS_FOR_TOTAL_LOSS_CHECK = 3;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ROWS_PER_QUERY = 500;
 const ROWS_PER_PART = 10_000;
@@ -118,7 +123,7 @@ async function readJson<T>(bucket: R2Bucket, key: string, fallback: T): Promise<
  * is a backup bucket, or the same bucket as BACKUP).
  */
 async function assertSeparateBuckets(env: BackupEnv): Promise<void> {
-  const sample = await env.BACKUP.list({ limit: 50 });
+  const sample = await env.BACKUP.list({ limit: SAMPLE_KEYS });
   if (sample.objects.some((object) => !BACKUP_PREFIXES.some((prefix) => object.key.startsWith(prefix)))) {
     throw new BackupRefused('BACKUP holds non-backup keys; is it the mail bucket?');
   }
@@ -135,11 +140,15 @@ async function assertSeparateBuckets(env: BackupEnv): Promise<void> {
   }
 }
 
-/** A valid override no more than 7 days ahead allows a large purge. */
-export function largeDeletionsAllowed(value: string | undefined, now: Date): boolean {
-  if (!value) return false;
-  const until = Date.parse(value);
-  return Number.isFinite(until) && until > now.getTime() && until - now.getTime() <= MAX_OVERRIDE_MS;
+/**
+ * An acknowledgement accepts a disappearance only when its size matches what
+ * the operator expected (within 10%), so a wrong binding that drops thousands
+ * of objects is never waved through by a stale or loose setting.
+ */
+export function deletionAcknowledged(expected: unknown, vanished: number): boolean {
+  const count = typeof expected === 'number' ? expected : Number(String(expected ?? '').trim() || NaN);
+  if (!Number.isSafeInteger(count) || count < 1 || vanished < 1) return false;
+  return Math.abs(vanished - count) <= Math.max(1, Math.ceil(count * 0.1));
 }
 
 async function copyObject(env: BackupEnv, source: R2Object, previous: R2Object | undefined, now: Date): Promise<boolean> {
@@ -222,21 +231,21 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
   const source = await listAll(env.SOURCE);
   const backedUp = await listAll(env.BACKUP, OBJECTS);
 
-  // Guard against a wrong or empty SOURCE binding wiping the backup over time:
-  // pause deletion tracking (copying and the dump carry on) and report it.
+  // Guard against a wrong or empty SOURCE binding wiping the backup over time.
+  // Only objects that newly vanish are judged; ones already tracked were
+  // accepted by an earlier run under these same rules.
   const missing = await readJson<Record<string, number>>(env.BACKUP, MISSING_STATE, {});
   const newlyMissing = [...backedUp.keys()].filter((key) => !source.has(key.slice(OBJECTS.length)) && missing[key.slice(OBJECTS.length)] === undefined);
   const allowance = Math.max(MIN_MISSING_ALLOWANCE, Math.ceil(backedUp.size * MAX_MISSING_SHARE));
-  let deletionsPaused: string | null = null;
-  if (!largeDeletionsAllowed(env.BACKUP_ALLOW_LARGE_DELETIONS_UNTIL, now)) {
-    if (backedUp.size > 0 && source.size === 0) {
-      deletionsPaused = 'SOURCE is empty but the backup holds objects';
-    } else if (backedUp.size > 0 && newlyMissing.length === backedUp.size) {
-      deletionsPaused = 'every backed-up object vanished from SOURCE';
-    } else if (newlyMissing.length > allowance) {
-      deletionsPaused = `${newlyMissing.length} objects vanished from SOURCE in one run (limit ${allowance})`;
-    }
+  let suspicion: string | null = null;
+  if (backedUp.size > 0 && source.size === 0) {
+    suspicion = 'SOURCE is empty but the backup holds objects';
+  } else if (backedUp.size >= MIN_OBJECTS_FOR_TOTAL_LOSS_CHECK && newlyMissing.length === backedUp.size) {
+    suspicion = 'every backed-up object vanished from SOURCE';
+  } else if (newlyMissing.length > allowance) {
+    suspicion = `${newlyMissing.length} objects vanished from SOURCE in one run (limit ${allowance})`;
   }
+  const paused = suspicion && !deletionAcknowledged(env.BACKUP_ACKNOWLEDGE_DELETIONS, newlyMissing.length) ? suspicion : null;
 
   // 1. Copy what is new or changed. Rotate the start so keys that keep failing
   //    can't block everything behind them.
@@ -244,7 +253,8 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
     .filter((object) => backedUp.get(`${OBJECTS}${object.key}`)?.customMetadata?.sourceEtag !== object.etag)
     .sort((a, b) => (a.key < b.key ? -1 : 1));
   const start = toCopy.length ? Math.floor(nowEpoch / 3600) % toCopy.length : 0;
-  const batch = [...toCopy.slice(start), ...toCopy.slice(0, start)].slice(0, maxCopies);
+  // While paused, nothing is copied from a SOURCE that may be the wrong bucket.
+  const batch = paused ? [] : [...toCopy.slice(start), ...toCopy.slice(0, start)].slice(0, maxCopies);
   let copied = 0;
   let copyFailures = 0;
   for (const object of batch) {
@@ -258,7 +268,7 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
 
   // 2. Track objects gone from the source; remove them after the retention window.
   const expired: string[] = [];
-  for (const key of deletionsPaused ? [] : backedUp.keys()) {
+  for (const key of paused ? [] : backedUp.keys()) {
     const sourceKey = key.slice(OBJECTS.length);
     if (source.has(sourceKey)) {
       delete missing[sourceKey];
@@ -269,7 +279,7 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
       delete missing[sourceKey];
     }
   }
-  if (!deletionsPaused) {
+  if (!paused) {
     for (const sourceKey of Object.keys(missing)) {
       if (!backedUp.has(`${OBJECTS}${sourceKey}`)) delete missing[sourceKey];
     }
@@ -281,15 +291,16 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
   //    backup. Skipped while SOURCE looks wrong, so it can't record a bad listing.
   const pendingCopies = toCopy.length - copied;
   const manifestComplete = pendingCopies === 0;
-  if (!deletionsPaused) {
+  if (!paused) {
     const entries = [...source.values()].map((object) => ({ key: object.key, size: object.size, etag: object.etag }));
     await env.BACKUP.put(`${MANIFESTS}${day}.json`, JSON.stringify({ day, createdAt: now.toISOString(), complete: manifestComplete, objects: entries }), {
       httpMetadata: { contentType: 'application/json' },
     });
   }
 
-  // 4. Prune before the dump, so a failing dump can't stop retention.
-  const pruned = expired.length + (await pruneDated(env, now, retentionDays));
+  // 4. Prune before the dump, so a failing dump can't stop retention. Not while
+  //    paused: a long pause must not age out the last good manifests.
+  const pruned = paused ? 0 : expired.length + (await pruneDated(env, now, retentionDays));
 
   // 5. Once a day, the database.
   let databaseTables: number | null = null;
@@ -308,10 +319,10 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
     copied,
     copyFailures,
     pendingCopies,
-    markedMissing: deletionsPaused ? 0 : newlyMissing.length,
+    markedMissing: paused ? 0 : newlyMissing.length,
     pruned,
     manifestComplete,
-    deletionsPaused,
+    paused,
     databaseTables,
     databaseError,
   };

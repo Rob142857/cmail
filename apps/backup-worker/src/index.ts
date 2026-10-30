@@ -8,9 +8,9 @@ export default {
     // so the run shows as failed in Cron Trigger history and nothing changed.
     const summary = await runBackup(env, new Date(controller.scheduledTime));
     console.log('cmail backup run', summary);
-    if (summary.copyFailures > 0 || summary.databaseError || summary.deletionsPaused) {
+    if (summary.copyFailures > 0 || summary.databaseError || summary.paused) {
       // Throwing marks the run as failed, so it shows in Cron history; the next run retries.
-      throw new Error(`cmail backup: ${summary.copyFailures} copy failures, database ${summary.databaseError ?? 'ok'}, deletions ${summary.deletionsPaused ? `paused (${summary.deletionsPaused})` : 'ok'}`);
+      throw new Error(`cmail backup: ${summary.copyFailures} copy failures, database ${summary.databaseError ?? 'ok'}, ${summary.paused ? `paused (${summary.paused})` : 'not paused'}`);
     }
   },
 };

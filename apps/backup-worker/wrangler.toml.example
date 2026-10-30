@@ -38,9 +38,9 @@ bucket_name = "cmail-backup"
 [vars]
 BACKUP_RETENTION_DAYS = "30"
 BACKUP_MAX_COPIES_PER_RUN = "200"
-# Only after checking the bindings, to accept a genuine large purge: an ISO time
-# within the next 7 days. Remove it again once one run has completed.
-# BACKUP_ALLOW_LARGE_DELETIONS_UNTIL = "2026-01-01T00:00:00Z"
+# Only after checking the bindings, to accept a genuine large purge: the number
+# of objects you expect to have vanished (within 10%). Remove it after one run.
+# BACKUP_ACKNOWLEDGE_DELETIONS = "600"
 
 [observability]
 enabled = true
