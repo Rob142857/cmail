@@ -13,22 +13,6 @@ function appendVary(headers: Headers, value: string): void {
   headers.set('Vary', [...values].join(', '));
 }
 
-// Cloudflare edge features such as Email Address Obfuscation (on by default
-// for new zones) rewrite addresses in served HTML, so the page no longer
-// matches what the client hydrates. no-transform opts every page out. Call
-// this last, after anything that sets Cache-Control.
-const TRANSFORMABLE_TYPES = ['text/html', 'application/xhtml+xml'];
-
-function optOutOfEdgeTransforms(response: Response): Response {
-  const contentType = (response.headers.get('content-type') || '').toLowerCase();
-  if (!TRANSFORMABLE_TYPES.some((type) => contentType.startsWith(type))) return response;
-  const cacheControl = response.headers.get('cache-control');
-  if (!/\bno-transform\b/i.test(cacheControl || '')) {
-    response.headers.set('Cache-Control', cacheControl ? `${cacheControl}, no-transform` : 'no-transform');
-  }
-  return response;
-}
-
 function secureResponse(response: Response, authenticated: boolean, isHttps: boolean): Response {
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
@@ -43,7 +27,7 @@ function secureResponse(response: Response, authenticated: boolean, isHttps: boo
     response.headers.set('Cache-Control', 'private, no-store');
     appendVary(response.headers, 'Cookie');
   }
-  return optOutOfEdgeTransforms(response);
+  return response;
 }
 
 function isUnsafeCrossOrigin(request: Request, requestOrigin: string): boolean {
@@ -217,7 +201,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     appendVary(response.headers, 'Cookie');
   }
   if (clearInvalidCookie) response.headers.append('Set-Cookie', clearSessionCookie(isHttps));
-  return optOutOfEdgeTransforms(response);
+  return response;
 };
 
 export const handleError: HandleServerError = ({ kind, error, event }) => {
