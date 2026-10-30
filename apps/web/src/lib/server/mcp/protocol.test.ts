@@ -210,6 +210,14 @@ describe('modern (2026-07-28) protocol', () => {
     expect(legacy.status).toBe(200);
   });
 
+  it('rejects a modern request without _meta protocolVersion with -32602 and 400', async () => {
+    const fixture = createFixture();
+    const { tokens } = await connect(fixture);
+    const missing = await modern(fixture, tokens.access_token, { method: 'tools/list' }, {}, { 'io.modelcontextprotocol/protocolVersion': undefined });
+    expect(missing.status).toBe(400);
+    expect(missing.body.error.code).toBe(-32602);
+  });
+
   it('rejects header and body mismatches with -32020', async () => {
     const fixture = createFixture();
     const { tokens } = await connect(fixture);

@@ -153,7 +153,11 @@ function resolveEra(request: Request, message: JsonRpcRequest): Era | Response {
     if (headerVersion === null) {
       return json(rpcError(message.id, -32020, 'Header mismatch: MCP-Protocol-Version header is required'), 400);
     }
-    if (typeof metaVersion !== 'string' || metaVersion !== headerVersion) {
+    // A missing required _meta field makes the request malformed (-32602), not a mismatch.
+    if (typeof metaVersion !== 'string') {
+      return json(rpcError(message.id, -32602, 'Invalid params: _meta io.modelcontextprotocol/protocolVersion must be a string'), 400);
+    }
+    if (metaVersion !== headerVersion) {
       return json(rpcError(message.id, -32020, 'Header mismatch: MCP-Protocol-Version does not match _meta protocolVersion'), 400);
     }
     if (!(MODERN_PROTOCOL_VERSIONS as readonly string[]).includes(metaVersion)) {
