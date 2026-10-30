@@ -113,6 +113,32 @@ pnpm exec wrangler pages project create cmail-web --production-branch main
 
 If you choose another project name, use it consistently in deployment and secret commands.
 
+#### Automated backups (optional)
+
+`apps/backup-worker` is a scheduled Worker that keeps a backup inside the same Cloudflare account, with no extra credentials:
+
+- **Mail bodies and attachments** are copied from the mail bucket to `objects/<key>` in a separate, private backup bucket. Keys never change, so each object is copied once; each hourly run copies at most `BACKUP_MAX_COPIES_PER_RUN` (default 200), so a large first backup completes over several runs.
+- **A daily manifest** (`manifests/YYYY-MM-DD.json`) lists every mail object that existed that day, for a restore to a chosen day.
+- **A daily database dump** (`d1/YYYY-MM-DD/`): every table as NDJSON, the schema, and `complete.json` written last.
+- **Deletions are honoured.** An object removed from the mail bucket (retention, offboarding, emptied trash) is kept for `BACKUP_RETENTION_DAYS` (default 30), then removed, so the backup never holds deleted mail longer than that. Manifests and dumps older than the window are removed too.
+
+It holds the same private mail as production: keep the backup bucket private (no public access, no `r2.dev` URL), and treat access to it like access to the mail bucket. It protects against deletion and corruption, not against losing the whole account — for that, also keep the off-account export described above.
+
+```sh
+pnpm exec wrangler r2 bucket create cmail-backup
+cp apps/backup-worker/wrangler.toml.example apps/backup-worker/wrangler.toml   # fill in the D1 id and bucket names
+cd apps/backup-worker && pnpm exec wrangler deploy
+```
+
+To restore one object, copy it back by key (`objects/` prefix removed). Nothing in D1 changes: D1 already holds the key.
+
+```sh
+pnpm exec wrangler r2 object get cmail-backup/objects/<key> --remote --file restore.bin
+pnpm exec wrangler r2 object put cmail-storage/<key> --remote --file restore.bin
+```
+
+Rehearse a restore on preview resources first: point a second copy of the Worker at the preview bucket and a preview backup bucket, let it run, delete a test object from the preview bucket, restore it, and compare checksums.
+
 #### Point-in-time recovery with D1 Time Travel
 
 D1 keeps history for 30 days on Workers Paid (7 days on Workers Free) through [Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/), so a bad data change (a faulty migration, a wrong bulk action, a script error) can be undone without an export. It covers D1 only: R2 objects deleted or overwritten in the same window are not brought back, so keep the R2 copy described above.

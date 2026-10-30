@@ -1,0 +1,43 @@
+#:schema node_modules/wrangler/config-schema.json
+# ─── cmail backup worker — Cloudflare Workers config ──────────────────────
+# Optional. Copies mail bodies/attachments and a daily D1 dump into a separate
+# R2 bucket in the same account. Copy to `wrangler.toml` (gitignored) and fill
+# in YOUR values. Create the backup bucket first:
+#   pnpm exec wrangler r2 bucket create cmail-backup
+# The backup bucket must stay private (no public access, no r2.dev URL): it
+# holds the same mail as STORAGE. See docs/deployment.md, "Automated backups".
+
+name = "cmail-backup-worker"
+main = "src/index.ts"
+workers_dev = false
+preview_urls = false
+routes = []
+compatibility_date = "2026-08-01"
+
+# Hourly: each run copies at most BACKUP_MAX_COPIES_PER_RUN new objects, so a
+# large first backup completes over several runs. The daily manifest and D1
+# dump are written once per UTC day.
+[triggers]
+crons = ["23 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cmail-db"
+database_id = "YOUR_D1_DATABASE_ID"
+
+# The live mail bucket (read).
+[[r2_buckets]]
+binding = "SOURCE"
+bucket_name = "cmail-storage"
+
+# The backup bucket (write). Never the same bucket as SOURCE.
+[[r2_buckets]]
+binding = "BACKUP"
+bucket_name = "cmail-backup"
+
+[vars]
+BACKUP_RETENTION_DAYS = "30"
+BACKUP_MAX_COPIES_PER_RUN = "200"
+
+[observability]
+enabled = true
