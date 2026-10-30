@@ -46,6 +46,15 @@ function withAttachments(files: Array<{ name: string; content: string }>): strin
   });
 }
 
+async function accept(raw: string, extraEnv: Record<string, unknown> = {}, envelope: Parameters<typeof deliverInbound>[3] = {}) {
+  const db = deliveryDatabase();
+  const { storage } = memoryStorage();
+  const { error, message } = await deliverInbound(worker, raw, { DB: db.database, STORAGE: storage, ...GUARDS_OFF, ...extraEnv }, envelope);
+  expect(error).toBeNull();
+  expect(message.setReject).not.toHaveBeenCalled();
+  return { db, storage };
+}
+
 async function refuse(raw: string, extraEnv: Record<string, unknown> = {}, envelope: Parameters<typeof deliverInbound>[3] = {}, mailboxFound = true) {
   const db = deliveryDatabase({ first: (query) => (query.includes('FROM mailboxes') && !mailboxFound ? null : undefined) });
   const { storage } = memoryStorage();
@@ -61,28 +70,37 @@ async function refuse(raw: string, extraEnv: Record<string, unknown> = {}, envel
 }
 
 describe('inbound refusals before the message is read', () => {
-  it('refuses an invalid envelope address without writing a trace', async () => {
-    const { reason, trace } = await refuse(mail(), {}, { to: 'not an address' });
+  it.each([['recipient', { to: 'not an address' }], ['sender', { from: 'not an address' }]])('refuses an invalid envelope %s without writing a trace', async (_label, envelope) => {
+    const { reason, trace } = await refuse(mail(), {}, envelope);
     expect(reason).toBe('Invalid envelope address');
     expect(trace).toBeNull();
   });
 
-  it('refuses a message larger than the configured limit', async () => {
+  it('refuses a message one byte over the configured limit, and accepts one exactly at it', async () => {
     const { reason, trace } = await refuse(mail(), { MAX_INBOUND_BYTES: '4096' }, { rawSize: 4097 });
     expect(reason).toBe('Message exceeds the configured size limit');
     expect(trace).toBeNull();
+    await accept(mail(), { MAX_INBOUND_BYTES: '4096' }, { rawSize: 4096 });
   });
 
-  it('refuses an unknown or inactive recipient with the neutral response', async () => {
+  it('refuses a recipient with no active mailbox with the neutral response', async () => {
     const { reason, trace } = await refuse(mail(), {}, {}, false);
     expect(reason).toBe(RECIPIENT_UNAVAILABLE_SMTP_RESPONSE);
     expect(trace).toBeNull();
   });
 
-  it('refuses a Message-ID over 998 characters', async () => {
-    const longId = `<${'a'.repeat(990)}@partner.example>`;
-    const { reason } = await refuse(mail().replace('<check-1@partner.example>', longId));
+  it('looks the recipient up among active mailboxes only', async () => {
+    const { db } = await accept(mail());
+    const lookup = db.statements.find((statement) => statement.query.includes('FROM mailboxes'));
+    expect(lookup?.values).toEqual(['mailbox@example.test', 'active']);
+  });
+
+  it('refuses a Message-ID over 998 characters, and accepts one of exactly 998', async () => {
+    const idOfLength = (length: number) => `<${'a'.repeat(length - '<@partner.example>'.length)}@partner.example>`;
+    expect(idOfLength(999)).toHaveLength(999);
+    const { reason } = await refuse(mail().replace('<check-1@partner.example>', idOfLength(999)));
     expect(reason).toBe('Message metadata exceeds the configured limit');
+    await accept(mail().replace('<check-1@partner.example>', idOfLength(998)));
   });
 });
 
@@ -119,7 +137,7 @@ describe('inbound refusals after parsing', () => {
     expect(trace).toMatchObject({ status_detail: 'Attachment byte limit exceeded' });
   });
 
-  it.each(['setup.exe', 'SETUP.EXE', 'invoice.pdf.js', 'run.ps1 '])('refuses a blocked attachment type (%j) without echoing the name', async (name) => {
+  it.each(['setup.exe', 'SETUP.EXE', 'invoice.pdf.js', 'Run.Ps1'])('refuses a blocked attachment type (%j) without echoing the name', async (name) => {
     const { reason, trace } = await refuse(withAttachments([{ name: 'notes.txt', content: 'fine' }, { name, content: 'MZ' }]));
     expect(reason).toBe('Attachment type not allowed');
     expect(trace).toMatchObject({ status_detail: 'Blocked attachment type' });
