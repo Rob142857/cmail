@@ -113,6 +113,20 @@ pnpm exec wrangler pages project create cmail-web --production-branch main
 
 If you choose another project name, use it consistently in deployment and secret commands.
 
+#### Point-in-time recovery with D1 Time Travel
+
+D1 keeps history for 30 days on Workers Paid (7 days on Workers Free) through [Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/), so a bad data change (a faulty migration, a wrong bulk action, a script error) can be undone without an export. It covers D1 only: R2 objects deleted or overwritten in the same window are not brought back, so keep the R2 copy described above.
+
+- Before any migration or bulk change, record a bookmark with `pnpm exec wrangler d1 time-travel info cmail-db`, and keep it with the change record.
+- To undo, get approval, pause Email Routing and interactive writes, and restore to that bookmark. To go back to a moment instead, look up the bookmark for that time first (`info` takes an RFC 3339 timestamp), then restore by bookmark. A restore rewinds **every** table in place, cancels in-flight queries and asks for confirmation; Wrangler then prints an undo bookmark, so record it.
+
+```sh
+pnpm exec wrangler d1 time-travel info cmail-db --timestamp=2026-01-01T09:00:00Z
+pnpm exec wrangler d1 time-travel restore cmail-db --bookmark=<bookmark-before-the-change>
+```
+
+A D1-only restore can leave rows pointing at R2 objects that changed since. If the incident also touched message bodies or attachments, restore the matching R2 point too, as for a full recovery above. Rehearse on a **preview or recovery** database, never production: record a bookmark, make a harmless marker change (for example create an empty table), restore, and confirm the marker is gone. After any restore, compare per-table row counts with what you expect before re-enabling routing.
+
 ### Isolate preview deployments
 
 Pages preview builds must never inherit production mail data, storage, service bindings, or outbound capability. The committed Wrangler examples repeat every non-inheritable preview binding and variable on purpose — don't collapse those blocks into production defaults.

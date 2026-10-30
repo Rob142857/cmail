@@ -13,6 +13,7 @@ Notable changes to cmail are recorded here. The project follows
 - Paste from Word and Outlook keeps bold, italic, underline, lists (Word's paragraph lists become real lists), links, colours and sizes, and strips `mso-` styles, classes and conditional comments.
 
 ### Changed
+- Docs: deployment guide adds point-in-time recovery with D1 Time Travel (bookmark before migrations, approved in-place restore, rehearsal on a preview database) and notes that it does not cover R2.
 - CI: a new `E2E accessibility` workflow runs the axe and smoke specs of the mobile suite (Pixel 7 and desktop Chrome) on every pull request and push to main, against a local build with invented fixtures.
 - Patch updates (late October 2026): TipTap 3.32.1, Svelte 5.57.3, typescript-eslint 8.72.1, Wrangler 4.155.0 and workers-types 5.20261029.1. No behaviour change intended.
 - MCP 2026-07-28 recommendations: every modern result carries `serverInfo` in `_meta`; a modern `ping` gets HTTP 404 and `-32601` (ping was removed in that revision; legacy clients keep it); `move_message` is marked destructive so hosts can ask before moving mail to Trash or Spam; Client ID Metadata Documents are cached for their `Cache-Control` max-age (5 minutes to 24 hours, 24 hours when none is given) instead of always a day; and the consent screen warns when an app asks to return to a program on this computer (a loopback address).
