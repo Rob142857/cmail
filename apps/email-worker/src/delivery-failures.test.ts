@@ -81,8 +81,9 @@ function failingDelivery(options: { failPut?: 'body' | 'attachment'; batchFails?
   const released = () => statements.some((statement) =>
     statement.query.includes('UPDATE mailbox_reservations') && statement.query.includes('storage_pending = 0'));
   const inserted = () => statements.some((statement) => statement.query.includes('INSERT INTO messages'));
+  const reserved = () => statements.some((statement) => statement.query.includes('INSERT OR IGNORE INTO mailbox_reservations'));
 
-  return { database, storage, statements, putKeys, deletedKeys, released, inserted };
+  return { database, storage, statements, putKeys, deletedKeys, released, inserted, reserved };
 }
 
 const PLAIN = [
@@ -133,7 +134,7 @@ async function deliver(setup: ReturnType<typeof failingDelivery>, raw = PLAIN) {
   const handler = worker as unknown as {
     email(value: unknown, environment: Record<string, unknown>, context: { waitUntil(promise: Promise<unknown>): void }): Promise<void>;
   };
-  const run = handler.email(message, {
+  const outcome = await handler.email(message, {
     DB: setup.database,
     STORAGE: setup.storage,
     // Any non-zero limit turns the reservation (and its pending quota charge) on.
@@ -141,16 +142,17 @@ async function deliver(setup: ReturnType<typeof failingDelivery>, raw = PLAIN) {
     INBOUND_MAILBOX_BYTES_PER_HOUR: '0',
     INBOUND_SENDER_MESSAGES_PER_HOUR: '0',
     MAILBOX_STORAGE_QUOTA_BYTES: '0',
-  }, { waitUntil: () => undefined });
-  return { run, message };
+  }, { waitUntil: () => undefined }).then(() => null, (error: unknown) => error as Error);
+  return { error: outcome, message };
 }
 
 describe('inbound delivery after a storage failure', () => {
   it('stores and indexes a message normally, settling the reservation (control)', async () => {
     const setup = failingDelivery();
-    const { run, message } = await deliver(setup);
-    await run;
+    const { error, message } = await deliver(setup);
+    expect(error).toBeNull();
     expect(message.setReject).not.toHaveBeenCalled();
+    expect(setup.reserved()).toBe(true);
     expect(setup.inserted()).toBe(true);
     expect(setup.deletedKeys).toEqual([]);
     expect(setup.released()).toBe(false);
@@ -158,8 +160,9 @@ describe('inbound delivery after a storage failure', () => {
 
   it('removes what was written, releases the reservation and fails when the body write fails', async () => {
     const setup = failingDelivery({ failPut: 'body' });
-    const { run } = await deliver(setup);
-    await expect(run).rejects.toThrow('R2 put failed');
+    const { error } = await deliver(setup);
+    expect(error?.message).toBe('R2 put failed');
+    expect(setup.putKeys).toHaveLength(1);
     expect(setup.deletedKeys).toContain(setup.putKeys[0]);
     expect(setup.inserted()).toBe(false);
     expect(setup.released()).toBe(true);
@@ -167,9 +170,9 @@ describe('inbound delivery after a storage failure', () => {
 
   it('removes the body too when an attachment write fails', async () => {
     const setup = failingDelivery({ failPut: 'attachment' });
-    const { run } = await deliver(setup, WITH_ATTACHMENT);
-    await expect(run).rejects.toThrow('R2 put failed');
-    expect(setup.putKeys.length).toBe(2);
+    const { error } = await deliver(setup, WITH_ATTACHMENT);
+    expect(error?.message).toBe('R2 put failed');
+    expect(setup.putKeys).toHaveLength(2);
     expect(setup.deletedKeys).toEqual(expect.arrayContaining(setup.putKeys));
     expect(setup.inserted()).toBe(false);
     expect(setup.released()).toBe(true);
@@ -179,24 +182,27 @@ describe('inbound delivery after a storage failure', () => {
 describe('inbound delivery after the database write fails', () => {
   it('deletes the stored objects, releases the reservation and fails when nothing was committed', async () => {
     const setup = failingDelivery({ batchFails: true, recheck: 'none' });
-    const { run } = await deliver(setup);
-    await expect(run).rejects.toThrow('database is locked');
+    const { error } = await deliver(setup);
+    expect(error?.message).toBe('D1_ERROR: database is locked');
+    expect(setup.putKeys.length).toBeGreaterThan(0);
     expect(setup.deletedKeys).toEqual(expect.arrayContaining(setup.putKeys));
     expect(setup.released()).toBe(true);
   });
 
   it('keeps the stored objects when it cannot tell whether the write committed', async () => {
     const setup = failingDelivery({ batchFails: true, recheck: 'throws' });
-    const { run } = await deliver(setup);
-    await expect(run).rejects.toThrow('database is locked');
+    const { error } = await deliver(setup);
+    expect(error?.message).toBe('D1_ERROR: database is locked');
+    expect(setup.putKeys.length).toBeGreaterThan(0);
     expect(setup.deletedKeys).toEqual([]);
     expect(setup.released()).toBe(true);
   });
 
   it('treats the message as delivered when the recheck finds its own body key', async () => {
     const setup = failingDelivery({ batchFails: true, recheck: 'ours' });
-    const { run, message } = await deliver(setup);
-    await run;
+    const { error, message } = await deliver(setup);
+    expect(error).toBeNull();
+    expect(setup.putKeys.length).toBeGreaterThan(0);
     expect(message.setReject).not.toHaveBeenCalled();
     expect(setup.deletedKeys).toEqual([]);
     expect(setup.released()).toBe(false);
@@ -204,8 +210,9 @@ describe('inbound delivery after the database write fails', () => {
 
   it('drops its own copy quietly when a concurrent delivery of the same Message-ID won', async () => {
     const setup = failingDelivery({ batchFails: true, recheck: 'another' });
-    const { run, message } = await deliver(setup);
-    await run;
+    const { error, message } = await deliver(setup);
+    expect(error).toBeNull();
+    expect(setup.putKeys.length).toBeGreaterThan(0);
     expect(message.setReject).not.toHaveBeenCalled();
     expect(setup.deletedKeys).toEqual(expect.arrayContaining(setup.putKeys));
     expect(setup.released()).toBe(true);
