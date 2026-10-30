@@ -21,6 +21,8 @@ interface InvokeOptions {
   serverSecret?: string;
   /** expires_at on the session row (sliding renewal). */
   expiresAt?: string;
+  /** What the route resolves to; default plain text. */
+  body?: Response;
 }
 
 function user(role: 'standard' | 'manager'): User {
@@ -109,7 +111,7 @@ async function invoke(options: InvokeOptions): Promise<{
       caches: {},
     },
   };
-  const resolve = vi.fn(async () => new Response('resolved', { status: 200 }));
+  const resolve = vi.fn(async () => options.body ?? new Response('resolved', { status: 200 }));
   const response = await (handle as any)({ event, resolve });
   return { response, resolve, locals: event.locals, waitUntil: event.platform.context.waitUntil, runs };
 }
@@ -274,6 +276,45 @@ describe('central ICT policy gate', () => {
       expect(resolve).toHaveBeenCalledOnce();
     },
   );
+});
+
+describe('response headers for edge transforms', () => {
+  const html = (headers: Record<string, string> = {}) =>
+    new Response('<p>Write to person@example.com</p>', { headers: { 'content-type': 'text/html; charset=utf-8', ...headers } });
+
+  it('marks every HTML page no-transform so Cloudflare does not rewrite addresses in it', async () => {
+    expect((await invoke({ path: '/privacy', body: html() })).response.headers.get('cache-control')).toBe('no-transform');
+    expect((await invoke({ path: '/privacy', body: html({ 'cache-control': 'public, max-age=60' }) })).response.headers.get('cache-control'))
+      .toBe('public, max-age=60, no-transform');
+    expect((await invoke({ path: '/privacy', body: html({ 'cache-control': 'no-transform' }) })).response.headers.get('cache-control'))
+      .toBe('no-transform');
+  });
+
+  it('adds no-transform after the private, no-store of a signed-in page', async () => {
+    const { response, locals } = await invoke({ path: '/mail', role: 'standard', body: html() });
+    expect(locals.user).not.toBeNull();
+    expect(response.headers.get('cache-control')).toBe('private, no-store, no-transform');
+  });
+
+  it.each(['/bootstrap', '/enroll/google'])('keeps no-transform on %s, whose no-store is set later', async (path) => {
+    const { response } = await invoke({ path, body: html() });
+    expect(response.headers.get('cache-control')).toBe('no-store, no-transform');
+  });
+
+  it('covers XHTML as well as HTML', async () => {
+    const { response } = await invoke({ path: '/privacy', body: new Response('<p/>', { headers: { 'content-type': 'application/xhtml+xml' } }) });
+    expect(response.headers.get('cache-control')).toBe('no-transform');
+  });
+
+  it('leaves non-HTML responses alone', async () => {
+    const { response } = await invoke({ path: '/api/organization', body: Response.json({ ok: true }) });
+    expect(response.headers.get('cache-control')).toBeNull();
+  });
+
+  it('no longer sends the retired interest-cohort feature', async () => {
+    const { response } = await invoke({ path: '/privacy', body: html() });
+    expect(response.headers.get('permissions-policy')).toBe('camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+  });
 });
 
 describe('Workers runtime platform (adapter-cloudflare 8)', () => {
