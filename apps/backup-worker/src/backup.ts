@@ -162,13 +162,14 @@ export function acknowledgementToken(sourceKeys: readonly string[]): string {
   return `${sorted.length}:${hash.toString(16).padStart(8, '0')}`;
 }
 
-/** "0.2", "20" and "20%" all mean 20%. Bounded 1%-50%; anything unreadable is the default. */
+/** "0.2", "20" and "20%" all mean 20%; "1" means 1%. Bounded 1%-50%; anything unreadable is the default. */
 export function missingShare(value: unknown): number {
   const text = String(value ?? '').trim();
   const percent = text.endsWith('%');
   const parsed = typeof value === 'number' ? value : Number(percent ? text.slice(0, -1) : text || NaN);
   if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_MAX_MISSING_SHARE;
-  const share = percent || parsed > 1 ? parsed / 100 : parsed;
+  // Below 1 is a fraction (0.2); 1 and above is a percent (20, 1.5, 1).
+  const share = percent || parsed >= 1 ? parsed / 100 : parsed;
   return Math.min(0.5, Math.max(0.01, share));
 }
 
@@ -298,10 +299,17 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
   }
   let paused: string | null = null;
   if (suspicion) {
-    const token = acknowledgementToken(remaining);
-    await env.BACKUP.put(PENDING_STATE, JSON.stringify({ token, keys: remaining }), { httpMetadata: { contentType: 'application/json' } });
+    // Keep an earlier pending code while all its keys are still unexplained, so
+    // the code an operator is copying isn't replaced by an hourly run.
+    const remainingSet = new Set(remaining);
+    const keepPending = Boolean(pending.token && pending.keys?.length && pending.keys.every((key) => remainingSet.has(key)));
+    const token = keepPending ? pending.token! : acknowledgementToken(remaining);
+    if (!keepPending) await env.BACKUP.put(PENDING_STATE, JSON.stringify({ token, keys: remaining }), { httpMetadata: { contentType: 'application/json' } });
     const stale = offered && !usedOffer ? ' (the BACKUP_ACKNOWLEDGE_DELETIONS value set now does not match)' : '';
     paused = `${suspicion}${stale}. Check the SOURCE binding; if this is a genuine purge, set BACKUP_ACKNOWLEDGE_DELETIONS=${token}`;
+  } else if (pending.token) {
+    // Back to normal: a leftover code must not be accepted for a later event.
+    await env.BACKUP.put(PENDING_STATE, '{}', { httpMetadata: { contentType: 'application/json' } });
   }
 
   // 1. Copy what is new or changed. Rotate the start so keys that keep failing
