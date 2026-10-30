@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DatabaseSync } from 'node:sqlite';
-import { backupConfiguration, dayOf, runBackup, type BackupEnv } from './backup';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { BackupRefused, backupConfiguration, dayOf, runBackup, type BackupEnv } from './backup';
 
 // An in-memory R2 bucket with the subset of the API the backup uses.
-function memoryBucket(options: { failGet?: (key: string) => boolean } = {}) {
+function memoryBucket(options: { failGet?: (key: string) => boolean; failList?: boolean } = {}) {
   const objects = new Map<string, { body: string; etag: string; httpMetadata?: R2HTTPMetadata; customMetadata?: Record<string, string> }>();
   let version = 0;
   const asObject = (key: string) => {
@@ -13,6 +16,7 @@ function memoryBucket(options: { failGet?: (key: string) => boolean } = {}) {
   const bucket = {
     objects,
     async list({ prefix = '', cursor, limit = 1000 }: R2ListOptions = {}) {
+      if (options.failList) throw new Error('R2 list failed');
       const keys = [...objects.keys()].filter((key) => key.startsWith(prefix)).sort();
       const start = cursor ? Number(cursor) : 0;
       const page = keys.slice(start, start + limit);
@@ -23,7 +27,7 @@ function memoryBucket(options: { failGet?: (key: string) => boolean } = {}) {
       if (options.failGet?.(key)) throw new Error('R2 get failed');
       if (!objects.has(key)) return null;
       const value = objects.get(key)!;
-      return { ...asObject(key), body: value.body, text: async () => value.body };
+      return { ...asObject(key), body: new Blob([value.body]).stream(), text: async () => value.body };
     },
     async head(key: string) {
       return objects.has(key) ? asObject(key) : null;
@@ -40,16 +44,16 @@ function memoryBucket(options: { failGet?: (key: string) => boolean } = {}) {
   return bucket;
 }
 
+const MIGRATIONS = resolve(dirname(fileURLToPath(import.meta.url)), '../../../packages/shared/migrations');
+
 function database() {
   const sqlite = new DatabaseSync(':memory:');
-  sqlite.exec(`
-    CREATE TABLE mailboxes (id TEXT PRIMARY KEY, address TEXT NOT NULL);
-    CREATE TABLE messages (id TEXT PRIMARY KEY, mailbox_id TEXT, subject TEXT);
-    CREATE INDEX idx_messages_mailbox ON messages(mailbox_id);
-    INSERT INTO mailboxes VALUES ('mb-1', 'team@example.test');
-  `);
-  const insert = sqlite.prepare('INSERT INTO messages VALUES (?, ?, ?)');
-  for (let index = 0; index < 1203; index += 1) insert.run(`m-${index}`, 'mb-1', `Subject ${index}`);
+  for (const file of readdirSync(MIGRATIONS).filter((name) => name.endsWith('.sql')).sort()) {
+    sqlite.exec(readFileSync(resolve(MIGRATIONS, file), 'utf8'));
+  }
+  sqlite.prepare("INSERT INTO mailboxes (id, address, type) VALUES ('mb-1', 'team@example.test', 'shared')").run();
+  const insert = sqlite.prepare("INSERT INTO rate_limits (key, count, expires_at) VALUES (?, 1, 0)");
+  for (let index = 0; index < 1203; index += 1) insert.run(`key-${String(index).padStart(5, '0')}`);
   const prepare = (sql: string, args: unknown[] = []) => ({
     bind: (...values: unknown[]) => prepare(sql, values),
     all: async () => ({ results: sqlite.prepare(sql).all(...(args as never[])) }),
@@ -82,13 +86,15 @@ describe('mail object backup', () => {
   it('copies every object with its metadata, writes the manifest and dumps the database', async () => {
     const { backup, env } = setup();
     const summary = await runBackup(env, DAY);
-    expect(summary).toMatchObject({ sourceObjects: 2, copied: 2, pendingCopies: 0, manifestWritten: true, databaseTables: 2 });
+    expect(summary).toMatchObject({ sourceObjects: 2, copied: 2, pendingCopies: 0, manifestComplete: true });
     expect(backup.objects.get('objects/messages/a/body')).toMatchObject({
       body: 'content of messages/a/body',
       httpMetadata: { contentType: 'text/html' },
       customMetadata: { sourceEtag: 'src-messages/a/body' },
     });
+    expect(summary.databaseTables).toBeGreaterThan(20);
     const manifest = JSON.parse(backup.objects.get('manifests/2026-10-31.json')!.body);
+    expect(manifest.complete).toBe(true);
     expect(manifest.objects.map((entry: { key: string }) => entry.key).sort()).toEqual(['attachments/a/1', 'messages/a/body']);
   });
 
@@ -100,13 +106,24 @@ describe('mail object backup', () => {
     expect(await runBackup(env, later(0))).toMatchObject({ copied: 0 });
   });
 
-  it('spreads a large first backup over several runs, and writes the manifest only when complete', async () => {
+  it('spreads a large first backup over several runs, flagging the manifest incomplete until done', async () => {
     const { backup, env } = setup(Array.from({ length: 5 }, (_, index) => `messages/${index}/body`));
     (env as unknown as Record<string, string>).BACKUP_MAX_COPIES_PER_RUN = '2';
-    expect(await runBackup(env, DAY)).toMatchObject({ copied: 2, pendingCopies: 3, manifestWritten: false });
-    expect(backup.objects.has('manifests/2026-10-31.json')).toBe(false);
+    expect(await runBackup(env, DAY)).toMatchObject({ copied: 2, pendingCopies: 3, manifestComplete: false });
+    expect(JSON.parse(backup.objects.get('manifests/2026-10-31.json')!.body).complete).toBe(false);
     await runBackup(env, DAY);
-    expect(await runBackup(env, DAY)).toMatchObject({ copied: 1, pendingCopies: 0, manifestWritten: true });
+    expect(await runBackup(env, DAY)).toMatchObject({ copied: 1, pendingCopies: 0, manifestComplete: true });
+    expect(JSON.parse(backup.objects.get('manifests/2026-10-31.json')!.body).complete).toBe(true);
+  });
+
+  it('takes turns, so an object that always fails cannot block the rest', async () => {
+    const { env } = setup();
+    const source = memoryBucket({ failGet: (key) => key === 'messages/0/body' });
+    for (let index = 0; index < 4; index += 1) source.objects.set(`messages/${index}/body`, { body: `m${index}`, etag: `e${index}` });
+    const runEnv = { ...env, SOURCE: source as unknown as R2Bucket, BACKUP_MAX_COPIES_PER_RUN: '1' } as BackupEnv;
+    let copied = 0;
+    for (let hour = 0; hour < 8; hour += 1) copied += (await runBackup(runEnv, new Date(DAY.getTime() + hour * 3_600_000))).copied;
+    expect(copied).toBe(3);
   });
 
   it('counts a failed copy without stopping the others', async () => {
@@ -115,7 +132,18 @@ describe('mail object backup', () => {
     source.objects.set('messages/a/body', { body: 'x', etag: 'e1' });
     source.objects.set('attachments/a/1', { body: 'y', etag: 'e2' });
     const summary = await runBackup({ ...env, SOURCE: source as unknown as R2Bucket }, DAY);
-    expect(summary).toMatchObject({ copied: 1, copyFailures: 1, pendingCopies: 1, manifestWritten: false });
+    expect(summary).toMatchObject({ copied: 1, copyFailures: 1, pendingCopies: 1, manifestComplete: false });
+  });
+
+  it('keeps the previous copy when an object\'s content changes', async () => {
+    const { source, backup, env } = setup();
+    await runBackup(env, DAY);
+    source.objects.set('messages/a/body', { body: 'rewritten', etag: 'src-changed', httpMetadata: { contentType: 'text/html' } });
+    await runBackup(env, later(1));
+    expect(backup.objects.get('objects/messages/a/body')!.body).toBe('rewritten');
+    expect(backup.objects.get('versions/2026-11-01/messages/a/body')!.body).toBe('content of messages/a/body');
+    await runBackup(env, later(32));
+    expect(backup.objects.has('versions/2026-11-01/messages/a/body')).toBe(false);
   });
 
   it('keeps an object deleted from the source for the retention window, then removes it', async () => {
@@ -124,7 +152,7 @@ describe('mail object backup', () => {
     source.objects.delete('messages/a/body');
 
     expect(await runBackup(env, later(1))).toMatchObject({ markedMissing: 1 });
-    await runBackup(env, later(29));
+    await runBackup(env, later(30.99));
     expect(backup.objects.has('objects/messages/a/body')).toBe(true);
 
     await runBackup(env, later(31));
@@ -147,17 +175,31 @@ describe('mail object backup', () => {
 });
 
 describe('database dump', () => {
-  it('writes every table as NDJSON, paging past 500 rows, plus the schema, once per day', async () => {
+  it('writes every real table as NDJSON parts, paging by rowid, plus the schema, once per day', async () => {
     const { backup, env } = setup();
     await runBackup(env, DAY);
-    const messages = backup.objects.get('d1/2026-10-31/tables/messages.ndjson')!.body.trim().split('\n');
-    expect(messages).toHaveLength(1203);
-    expect(JSON.parse(messages[1202])).toEqual({ id: 'm-1202', mailbox_id: 'mb-1', subject: 'Subject 1202' });
-    expect(backup.objects.get('d1/2026-10-31/schema.sql')!.body).toContain('CREATE INDEX idx_messages_mailbox');
-    expect(JSON.parse(backup.objects.get('d1/2026-10-31/complete.json')!.body).tables).toEqual(['mailboxes', 'messages']);
+    const complete = JSON.parse(backup.objects.get('d1/2026-10-31/complete.json')!.body);
+    expect(complete.tables).toContain('messages');
+    expect(complete.tables).toContain('mailbox_reservations');
+    const limits = backup.objects.get('d1/2026-10-31/tables/rate_limits/part-00001.ndjson')!.body.trim().split('\n');
+    expect(limits).toHaveLength(1203);
+    expect(JSON.parse(limits[1202])).toMatchObject({ key: 'key-01202', count: 1 });
+    expect(JSON.parse(limits[0])).not.toHaveProperty('__cmail_rowid');
+    expect(backup.objects.get('d1/2026-10-31/tables/mailboxes/part-00001.ndjson')!.body).toContain('team@example.test');
+    expect(backup.objects.get('d1/2026-10-31/schema.sql')!.body).toContain('CREATE TRIGGER');
 
     expect((await runBackup(env, DAY)).databaseTables).toBeNull();
-    expect((await runBackup(env, later(1))).databaseTables).toBe(2);
+    expect((await runBackup(env, later(1))).databaseTables).toBeGreaterThan(20);
+  });
+
+  it('still copies, prunes and writes the manifest when the dump fails, and reports it', async () => {
+    const { backup, env } = setup();
+    await runBackup(env, DAY);
+    const broken = { ...env, DB: { prepare: () => { throw new Error('D1_ERROR: overloaded'); } } as unknown as D1Database } as BackupEnv;
+    const summary = await runBackup(broken, later(31));
+    expect(summary).toMatchObject({ databaseTables: null, databaseError: 'Error', manifestComplete: true });
+    expect(summary.pruned).toBeGreaterThan(0);
+    expect(backup.objects.has('manifests/2026-10-31.json')).toBe(false);
   });
 
   it('removes manifests and dumps older than the retention window', async () => {
@@ -167,5 +209,47 @@ describe('database dump', () => {
     expect(backup.objects.has('manifests/2026-10-31.json')).toBe(false);
     expect([...backup.objects.keys()].some((key) => key.startsWith('d1/2026-10-31/'))).toBe(false);
     expect(backup.objects.has('manifests/2026-12-01.json')).toBe(true);
+  });
+});
+
+describe('safety guards', () => {
+  it('refuses to run when SOURCE and BACKUP are the same bucket', async () => {
+    const { source, env } = setup();
+    const same = { ...env, BACKUP: source as unknown as R2Bucket } as BackupEnv;
+    await expect(runBackup(same, DAY)).rejects.toThrow(BackupRefused);
+    expect([...source.objects.keys()].some((key) => key.startsWith('objects/'))).toBe(false);
+  });
+
+  it('refuses to touch the backup when SOURCE suddenly looks empty', async () => {
+    const { source, backup, env } = setup();
+    await runBackup(env, DAY);
+    const before = [...backup.objects.keys()].sort();
+    source.objects.clear();
+    await expect(runBackup(env, later(1))).rejects.toThrow('SOURCE is empty');
+    await expect(runBackup(env, later(40))).rejects.toThrow('SOURCE is empty');
+    expect(backup.objects.has('objects/messages/a/body')).toBe(true);
+    expect(JSON.parse(backup.objects.get('state/missing.json')!.body)).toEqual({});
+    expect([...backup.objects.keys()].filter((key) => key.startsWith('objects/')).sort()).toEqual(before.filter((key) => key.startsWith('objects/')));
+  });
+
+  it('refuses when too many objects vanish in one run, without marking any', async () => {
+    const keys = Array.from({ length: 100 }, (_, index) => `messages/${index}/body`);
+    const { source, backup, env } = setup(keys);
+    await runBackup(env, DAY);
+    for (const key of keys.slice(0, 30)) source.objects.delete(key);
+    await expect(runBackup(env, later(1))).rejects.toThrow('vanished from SOURCE');
+    expect(JSON.parse(backup.objects.get('state/missing.json')!.body)).toEqual({});
+    // A normal trickle of deletions is fine.
+    source.objects.clear();
+    for (const key of keys.slice(1)) source.objects.set(key, { body: `content of ${key}`, etag: `src-${key}` });
+    expect(await runBackup(env, later(2))).toMatchObject({ markedMissing: 1 });
+  });
+
+  it('changes nothing when listing SOURCE fails', async () => {
+    const { backup, env } = setup();
+    await runBackup(env, DAY);
+    const before = JSON.stringify([...backup.objects.entries()]);
+    await expect(runBackup({ ...env, SOURCE: memoryBucket({ failList: true }) as unknown as R2Bucket }, later(1))).rejects.toThrow('R2 list failed');
+    expect(JSON.stringify([...backup.objects.entries()])).toBe(before);
   });
 });

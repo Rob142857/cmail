@@ -117,12 +117,13 @@ If you choose another project name, use it consistently in deployment and secret
 
 `apps/backup-worker` is a scheduled Worker that keeps a backup inside the same Cloudflare account, with no extra credentials:
 
-- **Mail bodies and attachments** are copied from the mail bucket to `objects/<key>` in a separate, private backup bucket. Keys never change, so each object is copied once; each hourly run copies at most `BACKUP_MAX_COPIES_PER_RUN` (default 200), so a large first backup completes over several runs.
-- **A daily manifest** (`manifests/YYYY-MM-DD.json`) lists every mail object that existed that day, for a restore to a chosen day.
-- **A daily database dump** (`d1/YYYY-MM-DD/`): every table as NDJSON, the schema, and `complete.json` written last.
+- **Mail bodies and attachments** are copied from the mail bucket to `objects/<key>` in a separate, private backup bucket. Keys never change in cmail, so each object is copied once; should a key's content ever change, the previous copy is kept under `versions/YYYY-MM-DD/<key>` for the retention window. Each hourly run copies at most `BACKUP_MAX_COPIES_PER_RUN` (default 200), so a large first backup completes over several runs.
+- **A daily manifest** (`manifests/YYYY-MM-DD.json`) lists every mail object that existed that day, with `complete: true` once all of them are in the backup.
+- **A daily database dump** (`d1/YYYY-MM-DD/`): every table as NDJSON parts, the schema, and `complete.json` written last.
+- **Safety stops.** A run changes nothing and fails visibly if the mail bucket looks empty while the backup holds data, if more than 5% of backed-up objects (at least 25) vanish at once, or if both bindings point at the same bucket. Check the bindings, then let the next run continue.
 - **Deletions are honoured.** An object removed from the mail bucket (retention, offboarding, emptied trash) is kept for `BACKUP_RETENTION_DAYS` (default 30), then removed, so the backup never holds deleted mail longer than that. Manifests and dumps older than the window are removed too.
 
-It holds the same private mail as production: keep the backup bucket private (no public access, no `r2.dev` URL), and treat access to it like access to the mail bucket. It protects against deletion and corruption, not against losing the whole account — for that, also keep the off-account export described above.
+It holds the same private mail as production: keep the backup bucket private (no public access, no `r2.dev` URL), and treat access to it like access to the mail bucket. It protects against accidental deletion and overwrites within the retention window, not against losing the whole account: for that, also keep the off-account export described above. Large mailboxes need the Workers Paid plan (a run can exceed the Free plan's CPU time per invocation); watch the Worker's Cron Trigger history after the first runs.
 
 ```sh
 pnpm exec wrangler r2 bucket create cmail-backup
@@ -130,12 +131,15 @@ cp apps/backup-worker/wrangler.toml.example apps/backup-worker/wrangler.toml   #
 cd apps/backup-worker && pnpm exec wrangler deploy
 ```
 
-To restore one object, copy it back by key (`objects/` prefix removed). Nothing in D1 changes: D1 already holds the key.
+To restore one object, copy it back by key (`objects/` prefix removed) and keep its content type, then delete the local copy (it is private mail). This is enough while the message's D1 row still exists; if the row is gone too, restore D1 first (Time Travel below, within its window).
 
 ```sh
 pnpm exec wrangler r2 object get cmail-backup/objects/<key> --remote --file restore.bin
-pnpm exec wrangler r2 object put cmail-storage/<key> --remote --file restore.bin
+pnpm exec wrangler r2 object put cmail-storage/<key> --remote --file restore.bin --content-type "<original content type>"
+rm restore.bin
 ```
+
+The NDJSON dump is a last-resort, readable copy of every table (for example after a deleted D1 database, or outside the Time Travel window): rebuild the schema from `schema.sql` into a **new** database and import the rows, then validate before pointing any application at it.
 
 Rehearse a restore on preview resources first: point a second copy of the Worker at the preview bucket and a preview backup bucket, let it run, delete a test object from the preview bucket, restore it, and compare checksums.
 

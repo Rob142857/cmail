@@ -2,7 +2,7 @@
 
 > **Code floor:** no secrets in code, stage by path, lint and tests pass, no swallowed errors, validate every input, check auth on the server, no personal data in logs or git, and a fresh-context review before merge. The rules below and `CONTRIBUTING.md` still apply.
 
-An open-source email platform on Cloudflare: a SvelteKit web app (`apps/web`), an Email Routing worker (`apps/email-worker`) and shared code (`packages/shared`). It uses D1, R2 and Google or Microsoft sign-in. MIT licence. This repo is public.
+An open-source email platform on Cloudflare: a SvelteKit web app (`apps/web`), an Email Routing worker (`apps/email-worker`), an optional scheduled backup worker (`apps/backup-worker`) and shared code (`packages/shared`). It uses D1, R2 and Google or Microsoft sign-in. MIT licence. This repo is public.
 
 ## Commands (pnpm workspace)
 - `pnpm install`
