@@ -37,6 +37,8 @@ const CALLS_PER_HOUR = 1000;
 // the token's scopes, so it may only be reused within one authorization context.
 const DISCOVER_CACHE = { ttlMs: 60 * 60 * 1000, cacheScope: 'public' } as const;
 const TOOLS_LIST_CACHE = { ttlMs: 5 * 60 * 1000, cacheScope: 'private' } as const;
+// Every modern result names the server in _meta.
+const SERVER_INFO_META = { 'io.modelcontextprotocol/serverInfo': { name: SERVER_NAME, version: SERVER_VERSION } } as const;
 
 export const SERVER_INSTRUCTIONS = [
   'cmail gives access to the mailboxes the user chose when connecting this app.',
@@ -270,7 +272,9 @@ export async function handleMcpRequest(request: Request, platform: App.Platform 
   const era = resolveEra(request, message);
   if (era instanceof Response) return era;
   const id = message.id as string | number;
-  const complete = (result: Record<string, unknown>) => (era.modern ? { resultType: 'complete', ...result } : result);
+  const complete = (result: Record<string, unknown>) => (era.modern
+    ? { resultType: 'complete', ...result, _meta: { ...SERVER_INFO_META, ...(isRecord(result._meta) ? result._meta : {}) } }
+    : result);
 
   switch (message.method) {
     case 'initialize': {
@@ -290,12 +294,13 @@ export async function handleMcpRequest(request: Request, platform: App.Platform 
       return json(rpcResult(id, complete({
         supportedVersions: SUPPORTED_PROTOCOL_VERSIONS,
         capabilities: { tools: { listChanged: false } },
-        _meta: { 'io.modelcontextprotocol/serverInfo': { name: SERVER_NAME, version: SERVER_VERSION } },
         instructions: SERVER_INSTRUCTIONS,
         ...DISCOVER_CACHE,
       })));
     case 'ping':
-      return json(rpcResult(id, complete({})));
+      // Removed in 2026-07-28; modern requests get method-not-found below.
+      if (era.modern) break;
+      return json(rpcResult(id, {}));
     case 'tools/list':
       return json(rpcResult(id, complete({ tools: toolList(bearer.scopes), ...(era.modern ? TOOLS_LIST_CACHE : {}) })));
     case 'tools/call': {

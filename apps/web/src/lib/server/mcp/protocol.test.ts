@@ -49,6 +49,8 @@ describe('MCP endpoint authentication', () => {
     expect(challenge).toMatch(/^Bearer /);
     expect(challenge).toContain(`resource_metadata="${APP_URL}/.well-known/oauth-protected-resource"`);
     expect(challenge).toContain('scope="mail.read mail.draft"');
+    // An implementation-defined code (-32000..-32019), not -32603 Internal error.
+    expect(response.body?.error.code).toBe(-32001);
   });
 
   it('marks a bad token invalid_token and never falls back to cookies', async () => {
@@ -237,6 +239,37 @@ describe('modern (2026-07-28) protocol', () => {
     const response = await modern(fixture, tokens.access_token, { method: 'tools/call', params: { name: 'list_mailboxes', arguments: {} } }, { 'mcp-name': encoded });
     expect(response.status).toBe(200);
     expect(response.body.result).toMatchObject({ resultType: 'complete', isError: false });
+  });
+
+  it('names the server in every modern result and only there', async () => {
+    const fixture = createFixture();
+    const { tokens } = await connect(fixture);
+    const serverInfo = { 'io.modelcontextprotocol/serverInfo': { name: 'cmail', version: expect.any(String) } };
+    for (const body of [{ method: 'server/discover' }, { method: 'tools/list' }, { method: 'tools/call', params: { name: 'list_mailboxes', arguments: {} } }]) {
+      const response = await modern(fixture, tokens.access_token, body);
+      expect(response.body.result._meta).toMatchObject(serverInfo);
+    }
+    const legacy = await mcp(fixture, tokens.access_token, 'tools/list');
+    expect(legacy.body?.result).not.toHaveProperty('_meta');
+  });
+
+  it('marks move_message destructive, since it can move mail to Trash or Spam', async () => {
+    const fixture = createFixture();
+    const { tokens } = await connect(fixture, { scopes: ['mail.read', 'mailbox.manage'] });
+    const list = await modern(fixture, tokens.access_token, { method: 'tools/list' });
+    const tool = list.body.result.tools.find((candidate: { name: string }) => candidate.name === 'move_message');
+    expect(tool.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+  });
+
+  it('drops ping for modern requests and keeps it for legacy ones', async () => {
+    const fixture = createFixture();
+    const { tokens } = await connect(fixture);
+    const modernPing = await modern(fixture, tokens.access_token, { method: 'ping' });
+    expect(modernPing.status).toBe(404);
+    expect(modernPing.body.error.code).toBe(-32601);
+    const legacyPing = await mcp(fixture, tokens.access_token, 'ping');
+    expect(legacyPing.status).toBe(200);
+    expect(legacyPing.body?.result).toEqual({});
   });
 
   it('answers unknown modern methods with 404 and -32601', async () => {
