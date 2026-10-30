@@ -66,6 +66,37 @@ describe('session tokens', () => {
     const verified = await verifySessionToken(freshEnoughToken, SECRET);
     expect(verified?.sessionId).toBe('session-1');
   });
+
+  it('rejects an oversized token or an empty secret before checking the signature', async () => {
+    const session = await createSessionToken('user-123', SECRET, 60_000);
+    expect(await verifySessionToken(`${session.token}${'0'.repeat(1025 - session.token.length)}`, SECRET)).toBeNull();
+    expect(await verifySessionToken(session.token, '')).toBeNull();
+  });
+
+  it('rejects correctly signed tokens with the wrong shape', async () => {
+    const issued = String(Date.now());
+    const signed = async (payload: string) => `${payload}.${await signPayload(payload)}`;
+
+    // Too few or too many segments.
+    expect(await verifySessionToken(await signed(`user-123.${issued}`), SECRET)).toBeNull();
+    expect(await verifySessionToken(`${await signed(`session-1.user-123.${issued}`)}.extra`, SECRET)).toBeNull();
+    // issuedAt must be 10-16 digits.
+    expect(await verifySessionToken(await signed('session-1.user-123.notdigits'), SECRET)).toBeNull();
+    expect(await verifySessionToken(await signed('session-1.user-123.123456789'), SECRET)).toBeNull();
+    // Empty session or user id.
+    expect(await verifySessionToken(await signed(`.user-123.${issued}`), SECRET)).toBeNull();
+    expect(await verifySessionToken(await signed(`session-1..${issued}`), SECRET)).toBeNull();
+  });
+
+  it('rejects a signature that is not exactly 64 hex characters', async () => {
+    const payload = `session-1.user-123.${Date.now()}`;
+    const signature = await signPayload(payload);
+    expect(await verifySessionToken(`${payload}.${signature.slice(0, 63)}`, SECRET)).toBeNull();
+    expect(await verifySessionToken(`${payload}.${signature}0`, SECRET)).toBeNull();
+    expect(await verifySessionToken(`${payload}.${'z'.repeat(64)}`, SECRET)).toBeNull();
+    // Upper-case hex of the right signature is still the same bytes.
+    expect((await verifySessionToken(`${payload}.${signature.toUpperCase()}`, SECRET))?.sessionId).toBe('session-1');
+  });
 });
 
 describe('shouldRenewSession', () => {
