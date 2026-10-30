@@ -296,6 +296,16 @@ describe('response headers for edge transforms', () => {
     expect(response.headers.get('cache-control')).toBe('private, no-store, no-transform');
   });
 
+  it.each(['/bootstrap', '/enroll/google'])('keeps no-transform on %s, whose no-store is set later', async (path) => {
+    const { response } = await invoke({ path, body: html() });
+    expect(response.headers.get('cache-control')).toBe('no-store, no-transform');
+  });
+
+  it('covers XHTML as well as HTML', async () => {
+    const { response } = await invoke({ path: '/privacy', body: new Response('<p/>', { headers: { 'content-type': 'application/xhtml+xml' } }) });
+    expect(response.headers.get('cache-control')).toBe('no-transform');
+  });
+
   it('leaves non-HTML responses alone', async () => {
     const { response } = await invoke({ path: '/api/organization', body: Response.json({ ok: true }) });
     expect(response.headers.get('cache-control')).toBeNull();
