@@ -6,6 +6,8 @@
     allowRemoteImages = false,
     remoteImages = false,
     imageOrigin = '',
+    // Only for HTML from the server sanitizer, which forces target=_blank and
+    // rel="noopener noreferrer" on every link: opened links escape the sandbox.
     allowLinks = false,
     compact = false,
   } = $props();
@@ -26,11 +28,6 @@
   const frameCsp = $derived(`default-src 'none'; img-src ${imageSources}; style-src 'unsafe-inline'; font-src data:; object-src 'none'; frame-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none';`);
   const frameDocument = $derived(`<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="${frameCsp}"><style>html,body{margin:0;padding:12px;font-family:system-ui,sans-serif;line-height:1.5;color:#1f2937;background:#fff;overflow-wrap:anywhere}img{max-width:100%;height:auto}a{color:#2563eb}a[data-cmail-link-risk]{color:#9a3412;text-decoration:underline;text-decoration-style:wavy;text-underline-offset:2px}a[data-cmail-link-risk]::after{content:" \\26A0";font-size:.9em}blockquote{margin-left:8px;padding-left:8px;border-left:2px solid #d1d5db;color:#6b7280}hr{border:0;border-top:1px solid #e5e7eb;margin:16px 0}</style></head><body>${html}</body></html>`);
 
-  // Links open in a new tab (target=_blank, rel=noopener, set by the
-  // sanitizer). Without allow-popups-to-escape-sandbox that tab inherits this
-  // frame's sandbox, and sites with strict headers (Instagram, Facebook)
-  // refuse to load in it (ERR_BLOCKED_BY_RESPONSE). The frame itself stays
-  // script-free either way.
   // Full messages size the frame to their content so the page is the only
   // scroller. Reading contentDocument is possible because the sandbox grants
   // allow-same-origin WITHOUT allow-scripts, and the frame's own CSP is
@@ -107,6 +104,9 @@
 
 <svelte:window onresize={measure} />
 
+<!-- No allow-scripts, ever. With links allowed, allow-popups-to-escape-sandbox
+     lets a clicked link open as a normal tab: a tab that inherited this
+     sandbox is refused by sites with strict headers (ERR_BLOCKED_BY_RESPONSE). -->
 <iframe
   bind:this={frameEl}
   class:compact
