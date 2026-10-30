@@ -241,24 +241,52 @@ describe('safety guards', () => {
     await runBackup(env, DAY);
     source.objects.clear();
     const summary = await runBackup(env, later(1));
-    expect(summary).toMatchObject({ paused: 'SOURCE is empty but the backup holds objects', copied: 0, pruned: 0 });
+    expect(summary.paused).toContain('SOURCE is empty but 2 backed-up objects exist');
+    expect(summary.paused).toContain('BACKUP_ACKNOWLEDGE_DELETIONS=2');
+    expect(summary).toMatchObject({ copied: 0, markedMissing: 0 });
     expect(summary.databaseTables).toBeGreaterThan(20);
     await runBackup(env, later(40));
     expect(backup.objects.has('objects/messages/a/body')).toBe(true);
-    // A long pause keeps the last good manifest instead of ageing it out.
+    // A long pause keeps the last good manifest; only old D1 dumps are pruned.
     expect(backup.objects.has('manifests/2026-10-31.json')).toBe(true);
+    expect([...backup.objects.keys()].some((key) => key.startsWith('d1/2026-10-31/'))).toBe(false);
     expect(JSON.parse(backup.objects.get('state/missing.json')!.body)).toEqual({});
-    expect(backup.objects.has('manifests/2026-11-01.json')).toBe(false);
   });
 
-  it('pauses, copying nothing, when every object of a small backup vanishes', async () => {
+  it('pauses, copying nothing, when SOURCE shares no object with the backup', async () => {
     const { source, backup, env } = setup(['messages/a/body', 'messages/b/body', 'messages/c/body']);
     await runBackup(env, DAY);
     source.objects.clear();
     source.objects.set('messages/preview-only/body', { body: 'p', etag: 'p' });
     const summary = await runBackup(env, later(1));
-    expect(summary).toMatchObject({ paused: 'every backed-up object vanished from SOURCE', copied: 0 });
+    expect(summary).toMatchObject({ copied: 0 });
+    expect(summary.paused).toContain('none of the 3 backed-up objects is in SOURCE');
     expect(backup.objects.has('objects/messages/preview-only/body')).toBe(false);
+  });
+
+  it('catches an unrelated bucket even after one genuine deletion was tracked', async () => {
+    const keys = Array.from({ length: 24 }, (_, index) => `messages/${index}/body`);
+    const { source, env } = setup(keys);
+    await runBackup(env, DAY);
+    source.objects.delete(keys[0]);
+    expect((await runBackup(env, later(1))).paused).toBeNull();
+    source.objects.clear();
+    source.objects.set('messages/elsewhere/body', { body: 'x', etag: 'x' });
+    expect((await runBackup(env, later(2))).paused).toContain('none of the 24 backed-up objects is in SOURCE');
+  });
+
+  it('catches slow drift: the running total counts, not just one run', async () => {
+    const keys = Array.from({ length: 100 }, (_, index) => `messages/${index}/body`);
+    const { source, backup, env } = setup(keys);
+    await runBackup(env, DAY);
+    for (const key of keys.slice(0, 20)) source.objects.delete(key);
+    expect(await runBackup(env, later(1))).toMatchObject({ paused: null, markedMissing: 20 });
+    for (const key of keys.slice(20, 40)) source.objects.delete(key);
+    const drift = await runBackup(env, later(1.1));
+    expect(drift.paused).toContain('40 backed-up objects are missing from SOURCE (limit 25)');
+    // Nothing that is still in the real bucket is ever deleted: the tracked 20 are held too.
+    await runBackup(env, later(40));
+    expect(backup.objects.has(`objects/${keys[0]}`)).toBe(true);
   });
 
   it('does not freeze a tiny backup over one genuine deletion', async () => {
@@ -269,22 +297,50 @@ describe('safety guards', () => {
     expect(await runBackup(env, later(1))).toMatchObject({ paused: null, markedMissing: 1, copied: 1 });
   });
 
-  it('accepts a large purge only when the operator acknowledges about that many', async () => {
+  it('accepts a large purge only when acknowledged with about that count, once', async () => {
     const keys = Array.from({ length: 100 }, (_, index) => `messages/${index}/body`);
     const { source, backup, env } = setup(keys);
     await runBackup(env, DAY);
     for (const key of keys.slice(0, 30)) source.objects.delete(key);
     source.objects.set('messages/new/body', { body: 'new mail', etag: 'new' });
 
-    expect(await runBackup(env, later(1))).toMatchObject({ paused: '30 objects vanished from SOURCE in one run (limit 25)', markedMissing: 0, copied: 0 });
-    // A loose acknowledgement does not match, so it is not accepted.
+    const paused = await runBackup(env, later(1));
+    expect(paused).toMatchObject({ markedMissing: 0, copied: 0 });
+    expect(paused.paused).toContain('BACKUP_ACKNOWLEDGE_DELETIONS=30');
+    // A loose value does not match, so it is not accepted.
     expect((await runBackup({ ...env, BACKUP_ACKNOWLEDGE_DELETIONS: '600' } as BackupEnv, later(1.1))).paused).not.toBeNull();
     expect(JSON.parse(backup.objects.get('state/missing.json')!.body)).toEqual({});
 
-    const accepted = await runBackup({ ...env, BACKUP_ACKNOWLEDGE_DELETIONS: '30' } as BackupEnv, later(1.5));
-    expect(accepted).toMatchObject({ paused: null, markedMissing: 30, copied: 1 });
-    // Once tracked, ordinary runs carry on; the setting left in place has no effect.
-    expect(await runBackup({ ...env, BACKUP_ACKNOWLEDGE_DELETIONS: '30' } as BackupEnv, later(3))).toMatchObject({ paused: null, markedMissing: 0 });
+    expect(await runBackup({ ...env, BACKUP_ACKNOWLEDGE_DELETIONS: '30' } as BackupEnv, later(1.5))).toMatchObject({ paused: null, markedMissing: 30, copied: 1 });
+    // Removed afterwards (as the docs say), the purge stays covered and expires normally.
+    expect(await runBackup(env, later(3))).toMatchObject({ paused: null, markedMissing: 0 });
+    await runBackup(env, later(33));
+    expect(backup.objects.has(`objects/${keys[0]}`)).toBe(false);
+    expect(backup.objects.has(`objects/${keys[50]}`)).toBe(true);
+  });
+
+  it('does not reuse an acknowledgement left set for a later anomaly', async () => {
+    const keys = Array.from({ length: 100 }, (_, index) => `messages/${index}/body`);
+    const { source, env } = setup(keys);
+    await runBackup(env, DAY);
+    for (const key of keys.slice(0, 30)) source.objects.delete(key);
+    const acked = { ...env, BACKUP_ACKNOWLEDGE_DELETIONS: '30' } as BackupEnv;
+    expect((await runBackup(acked, later(1))).paused).toBeNull();
+    // Long after that purge has expired, a new drop of the same size is not waved through.
+    await runBackup(acked, later(35));
+    for (const key of keys.slice(30, 60)) source.objects.delete(key);
+    expect((await runBackup(acked, later(36))).paused).toContain('30 backed-up objects are missing');
+  });
+
+  it('accepts a genuine full purge and then carries on', async () => {
+    const { source, backup, env } = setup(['messages/a/body', 'messages/b/body', 'messages/c/body']);
+    await runBackup(env, DAY);
+    source.objects.clear();
+    expect((await runBackup(env, later(1))).paused).toContain('BACKUP_ACKNOWLEDGE_DELETIONS=3');
+    expect((await runBackup({ ...env, BACKUP_ACKNOWLEDGE_DELETIONS: '3' } as BackupEnv, later(1.1))).paused).toBeNull();
+    expect((await runBackup(env, later(2))).paused).toBeNull();
+    await runBackup(env, later(32));
+    expect([...backup.objects.keys()].some((key) => key.startsWith('objects/'))).toBe(false);
   });
 
   it('matches an acknowledgement within 10% only', () => {

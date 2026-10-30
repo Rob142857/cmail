@@ -28,10 +28,10 @@ export interface BackupEnv {
   /** Most objects copied in one run. Default 200, bounded 1-1000. */
   BACKUP_MAX_COPIES_PER_RUN?: string | number;
   /**
-   * How many objects an operator expects to vanish from SOURCE in a genuine
-   * large purge (emptied trash, an offboarding). A run that would otherwise
-   * pause accepts the disappearance only if its size is within 10% of this.
-   * Remove it once one run has completed.
+   * After a genuine large purge (emptied trash, an offboarding), the number of
+   * backed-up objects missing from SOURCE that the paused run reported. A run
+   * accepts the purge only if the count is within 10%, records it, and treats
+   * the same value as used from then on. Remove it once one run has completed.
    */
   BACKUP_ACKNOWLEDGE_DELETIONS?: string | number;
 }
@@ -58,6 +58,7 @@ const VERSIONS = 'versions/';
 const MANIFESTS = 'manifests/';
 const DATABASE = 'd1/';
 const MISSING_STATE = 'state/missing.json';
+const ACK_STATE = 'state/acknowledged.json';
 const IDENTITY = 'state/backup-identity.json';
 const BACKUP_PREFIXES = [OBJECTS, VERSIONS, MANIFESTS, DATABASE, 'state/'];
 const SAMPLE_KEYS = 1000;
@@ -145,9 +146,14 @@ async function assertSeparateBuckets(env: BackupEnv): Promise<void> {
  * the operator expected (within 10%), so a wrong binding that drops thousands
  * of objects is never waved through by a stale or loose setting.
  */
+export function acknowledgementCount(value: unknown): number | null {
+  const count = typeof value === 'number' ? value : Number(String(value ?? '').trim() || NaN);
+  return Number.isSafeInteger(count) && count >= 1 ? count : null;
+}
+
 export function deletionAcknowledged(expected: unknown, vanished: number): boolean {
-  const count = typeof expected === 'number' ? expected : Number(String(expected ?? '').trim() || NaN);
-  if (!Number.isSafeInteger(count) || count < 1 || vanished < 1) return false;
+  const count = acknowledgementCount(expected);
+  if (count === null || vanished < 1) return false;
   return Math.abs(vanished - count) <= Math.max(1, Math.ceil(count * 0.1));
 }
 
@@ -211,10 +217,10 @@ async function dumpDatabase(env: BackupEnv, day: string): Promise<number> {
 }
 
 /** Remove dated manifests, versions and dumps older than the retention window. */
-async function pruneDated(env: BackupEnv, now: Date, retentionDays: number): Promise<number> {
+async function pruneDated(env: BackupEnv, now: Date, retentionDays: number, prefixes = [MANIFESTS, VERSIONS, DATABASE]): Promise<number> {
   const cutoff = dayOf(new Date(now.getTime() - retentionDays * DAY_MS));
   let removed = 0;
-  for (const prefix of [MANIFESTS, VERSIONS, DATABASE]) {
+  for (const prefix of prefixes) {
     const keys = [...(await listAll(env.BACKUP, prefix)).keys()].filter((key) => key.slice(prefix.length, prefix.length + 10) < cutoff);
     await deleteKeys(env.BACKUP, keys);
     removed += keys.length;
@@ -231,21 +237,38 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
   const source = await listAll(env.SOURCE);
   const backedUp = await listAll(env.BACKUP, OBJECTS);
 
-  // Guard against a wrong or empty SOURCE binding wiping the backup over time.
-  // Only objects that newly vanish are judged; ones already tracked were
-  // accepted by an earlier run under these same rules.
+  // Guard against a wrong or empty SOURCE binding wiping the backup, whether
+  // all at once or by slow drift: judge the TOTAL of backed-up objects now
+  // missing from SOURCE, not only the ones that vanished this run.
   const missing = await readJson<Record<string, number>>(env.BACKUP, MISSING_STATE, {});
-  const newlyMissing = [...backedUp.keys()].filter((key) => !source.has(key.slice(OBJECTS.length)) && missing[key.slice(OBJECTS.length)] === undefined);
+  // An accepted purge records exactly which keys it covered; only those are
+  // excused (until they expire), so it can never cover a later anomaly.
+  const acknowledged = await readJson<{ value?: number; at?: number; keys?: string[] }>(env.BACKUP, ACK_STATE, {});
+  const acknowledgedKeys = new Set(acknowledged.keys ?? []);
+  const missingNow = [...backedUp.keys()].filter((key) => !source.has(key.slice(OBJECTS.length)));
+  const newlyMissing = missingNow.filter((key) => missing[key.slice(OBJECTS.length)] === undefined);
+  const unexplained = missingNow.filter((key) => !acknowledgedKeys.has(key.slice(OBJECTS.length)));
+  const overlap = backedUp.size - missingNow.length;
   const allowance = Math.max(MIN_MISSING_ALLOWANCE, Math.ceil(backedUp.size * MAX_MISSING_SHARE));
   let suspicion: string | null = null;
-  if (backedUp.size > 0 && source.size === 0) {
-    suspicion = 'SOURCE is empty but the backup holds objects';
-  } else if (backedUp.size >= MIN_OBJECTS_FOR_TOTAL_LOSS_CHECK && newlyMissing.length === backedUp.size) {
-    suspicion = 'every backed-up object vanished from SOURCE';
-  } else if (newlyMissing.length > allowance) {
-    suspicion = `${newlyMissing.length} objects vanished from SOURCE in one run (limit ${allowance})`;
+  if (backedUp.size > 0 && source.size === 0 && unexplained.length > 0) {
+    suspicion = `SOURCE is empty but ${unexplained.length} backed-up objects exist`;
+  } else if (backedUp.size >= MIN_OBJECTS_FOR_TOTAL_LOSS_CHECK && overlap === 0 && unexplained.length > 0) {
+    suspicion = `none of the ${backedUp.size} backed-up objects is in SOURCE`;
+  } else if (unexplained.length > allowance) {
+    suspicion = `${unexplained.length} backed-up objects are missing from SOURCE (limit ${allowance})`;
   }
-  const paused = suspicion && !deletionAcknowledged(env.BACKUP_ACKNOWLEDGE_DELETIONS, newlyMissing.length) ? suspicion : null;
+  let paused: string | null = null;
+  if (suspicion) {
+    const value = acknowledgementCount(env.BACKUP_ACKNOWLEDGE_DELETIONS);
+    if (value !== null && value !== acknowledged.value && deletionAcknowledged(value, unexplained.length)) {
+      // One-shot: record exactly what was accepted; the same value is ignored from now on.
+      for (const key of unexplained) acknowledgedKeys.add(key.slice(OBJECTS.length));
+      await env.BACKUP.put(ACK_STATE, JSON.stringify({ value, at: nowEpoch, keys: [...acknowledgedKeys] }), { httpMetadata: { contentType: 'application/json' } });
+    } else {
+      paused = `${suspicion}. Check the SOURCE binding; if this is a genuine purge, set BACKUP_ACKNOWLEDGE_DELETIONS=${unexplained.length}`;
+    }
+  }
 
   // 1. Copy what is new or changed. Rotate the start so keys that keep failing
   //    can't block everything behind them.
@@ -285,6 +308,11 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
     }
     await deleteKeys(env.BACKUP, expired);
     await env.BACKUP.put(MISSING_STATE, JSON.stringify(missing), { httpMetadata: { contentType: 'application/json' } });
+    // Acknowledged keys that have expired out of the backup, or come back, no longer need excusing.
+    const stillExcused = [...acknowledgedKeys].filter((key) => missing[key] !== undefined);
+    if (stillExcused.length !== acknowledgedKeys.size) {
+      await env.BACKUP.put(ACK_STATE, JSON.stringify({ ...acknowledged, keys: stillExcused }), { httpMetadata: { contentType: 'application/json' } });
+    }
   }
 
   // 3. Today's manifest; `complete` says whether every listed key is in the
@@ -299,8 +327,11 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
   }
 
   // 4. Prune before the dump, so a failing dump can't stop retention. Not while
-  //    paused: a long pause must not age out the last good manifests.
-  const pruned = paused ? 0 : expired.length + (await pruneDated(env, now, retentionDays));
+  //    paused (except old D1 dumps): a long pause must not age out the last good manifests.
+  // Old D1 dumps are pruned even while paused, so they can't pile up.
+  const pruned = paused
+    ? await pruneDated(env, now, retentionDays, [DATABASE])
+    : expired.length + (await pruneDated(env, now, retentionDays));
 
   // 5. Once a day, the database.
   let databaseTables: number | null = null;
