@@ -12,6 +12,8 @@ export interface DeliveryDatabaseHooks {
   first?: (query: string) => unknown;
   /** Answer an `all()` query; return undefined to fall through to `{ results: [] }`. */
   all?: (query: string) => { results: unknown[] } | undefined;
+  /** Answer a `run()`; return undefined for the default `{ meta: { changes: 1 } }`. Throw to fail it. */
+  run?: (query: string) => { meta: { changes: number } } | undefined;
   /** Called with each D1 batch before it "commits"; throw to fail it. */
   batch?: (list: Statement[]) => void;
 }
@@ -41,7 +43,7 @@ export function deliveryDatabase(hooks: DeliveryDatabaseHooks = {}) {
         },
         async run() {
           statements.push(statement);
-          return { meta: { changes: 1 } };
+          return hooks.run?.(query) ?? { meta: { changes: 1 } };
         },
       };
       return statement;
