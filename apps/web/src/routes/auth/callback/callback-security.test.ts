@@ -153,6 +153,31 @@ beforeEach(() => {
 });
 
 describe('OAuth callback authorization branches', () => {
+  it('passes a code of exactly 4096 characters to the token exchange', async () => {
+    mocks.findBoundUser.mockResolvedValue(returningUser);
+    const { event } = callbackEvent();
+    event.url.searchParams.set('code', 'c'.repeat(4096));
+    await GET(event as never);
+    expect(mocks.exchangeCode).toHaveBeenCalledWith('google', expect.anything(), 'c'.repeat(4096), expect.any(String), 'verifier-value');
+  });
+
+  it.each(['token exchange', 'UserInfo'])('redirects to oauth_failed, reading no intent and signing no one in, when the %s fails', async (stage) => {
+    if (stage === 'token exchange') mocks.exchangeCode.mockRejectedValue(new Error('Token exchange failed with status 400'));
+    else mocks.fetchUserInfo.mockRejectedValue(new Error('UserInfo request failed with status 401'));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const { event, cookies } = callbackEvent({ cmail_enrollment: 'synthetic-intent' });
+      await expect(GET(event as never)).rejects.toMatchObject({ status: 303, location: '/?error=oauth_failed' });
+      expect(cookies.get).not.toHaveBeenCalledWith('cmail_enrollment');
+      expect(mocks.findBoundUser).not.toHaveBeenCalled();
+      expect(mocks.createSessionToken).not.toHaveBeenCalled();
+      // Only the error type is logged, never the message or the code.
+      expect(consoleError).toHaveBeenCalledWith('OAuth callback failed', { provider: 'google', errorType: 'Error' });
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it.each(['google', 'microsoft'])('remembers only the successful returning %s provider in a bounded host-only cookie', async (provider) => {
     mocks.findBoundUser.mockResolvedValue(returningUser);
     const { event } = callbackEvent({}, fakeDb(), provider);
@@ -185,9 +210,11 @@ describe('OAuth callback authorization branches', () => {
     expect(response.headers.getSetCookie().some((value) => value.startsWith(PROVIDER_PREFERENCE_COOKIE))).toBe(false);
   });
 
-  it.each(['wrong_state', 'missing_verifier', 'provider_error'])('rejects %s before reading identity or enrollment intent', async (failure) => {
+  it.each(['wrong_state', 'missing_verifier', 'provider_error', 'missing_code', 'oversized_code'])('rejects %s before reading identity or enrollment intent', async (failure) => {
     const { event, cookies } = callbackEvent({ cmail_enrollment: 'synthetic-intent' });
     if (failure === 'wrong_state') event.url.searchParams.set('state', 'wrong');
+    if (failure === 'missing_code') event.url.searchParams.delete('code');
+    if (failure === 'oversized_code') event.url.searchParams.set('code', 'c'.repeat(4097));
     if (failure === 'provider_error') event.url.searchParams.set('error', 'login_required');
     if (failure === 'missing_verifier') cookies.get.mockImplementation((name) => name === 'cmail_oauth_state_google' ? 'state-value' : undefined);
     await expect(GET(event as never)).rejects.toMatchObject({ location: '/?error=invalid_state' });

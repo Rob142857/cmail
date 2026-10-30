@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildAuthorizationUrl,
+  exchangeCode,
   fetchUserInfo,
   getEnabledProviders,
   getOAuthCallbackUrl,
@@ -183,5 +184,59 @@ describe('access-token-backed OIDC UserInfo', () => {
       GOOGLE_CLIENT_ID: 'google-id',
       GOOGLE_CLIENT_SECRET: 'google-secret',
     }, 'access-token')).rejects.toThrow('valid subject');
+  });
+});
+
+describe('authorization code exchange', () => {
+  const GOOGLE = { GOOGLE_CLIENT_ID: 'google-id', GOOGLE_CLIENT_SECRET: 'google-secret' };
+  const exchange = () => exchangeCode('google', GOOGLE, 'code-value', 'https://mail.example.com/auth/callback/google', 'verifier-value');
+
+  it('posts the code, PKCE verifier and client credentials as a form and returns the tokens (control)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ access_token: 'access-token', expires_in: 3600 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(exchange()).resolves.toMatchObject({ access_token: 'access-token' });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://oauth2.googleapis.com/token');
+    expect(init.method).toBe('POST');
+    expect(init.headers).toEqual({ 'Content-Type': 'application/x-www-form-urlencoded' });
+    expect(Object.fromEntries(init.body as URLSearchParams)).toEqual({
+      client_id: 'google-id',
+      client_secret: 'google-secret',
+      code: 'code-value',
+      grant_type: 'authorization_code',
+      redirect_uri: 'https://mail.example.com/auth/callback/google',
+      code_verifier: 'verifier-value',
+    });
+  });
+
+  it('fails on a non-OK token response, naming only the status', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ error: 'invalid_grant' }, { status: 400 })));
+    await expect(exchange()).rejects.toThrow('Token exchange failed with status 400');
+  });
+
+  it.each([
+    ['no access token', {}],
+    ['an empty access token', { access_token: '' }],
+    ['a non-string access token', { access_token: 12345 }],
+  ])('fails when the response carries %s', async (_label, body) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(body)));
+    await expect(exchange()).rejects.toThrow('did not include an access token');
+  });
+
+  it('refuses an unconfigured provider without any network call', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(exchangeCode('google', {}, 'code-value', 'https://mail.example.com/auth/callback/google', 'verifier-value'))
+      .rejects.toThrow('not configured');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('UserInfo failures', () => {
+  it('fails on a non-OK UserInfo response, naming only the status', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('unauthorised', { status: 401 })));
+    await expect(fetchUserInfo('google', { GOOGLE_CLIENT_ID: 'google-id', GOOGLE_CLIENT_SECRET: 'google-secret' }, 'access-token'))
+      .rejects.toThrow('UserInfo request failed with status 401');
   });
 });
