@@ -8,6 +8,10 @@
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
-    <div style="display: contents">%sveltekit.body%</div>
+    <!-- Cloudflare Email Address Obfuscation (on by default for new zones)
+         rewrites addresses in served HTML, so the page would no longer match
+         what the app hydrates. email_off opts the app out and, unlike
+         Cache-Control: no-transform, keeps edge compression. -->
+    <!--email_off--><div style="display: contents">%sveltekit.body%</div><!--/email_off-->
   </body>
 </html>
