@@ -62,29 +62,37 @@ describe('CSRF guard (replaces SvelteKit\'s built-in origin check)', () => {
 });
 
 describe('cross-origin guard for non-form requests', () => {
+  // The body names the rule that fired: JSON requests skip the form rule.
+  async function blocked(path: string, init: RequestInit): Promise<{ status: number; body: string }> {
+    const url = new URL(path, ORIGIN);
+    const response = await (handle as any)({
+      event: { url, request: new Request(url, init), locals: { user: null, sessionId: null }, platform: undefined },
+      resolve: vi.fn(async () => new Response('resolved')),
+    });
+    return { status: response.status, body: await response.text() };
+  }
+
   it.each(['PATCH', 'DELETE', 'POST', 'PUT'])('blocks a JSON %s the browser marks cross-site, even without an Origin', async (method) => {
-    const result = await send('/api/messages/bulk', {
+    const result = await blocked('/api/messages/bulk', {
       method,
       headers: { 'content-type': 'application/json', 'sec-fetch-site': 'cross-site' },
       body: '{}',
     });
-    expect(result).toEqual({ status: 403, resolved: false });
+    expect(result).toEqual({ status: 403, body: 'Cross-origin request blocked' });
   });
 
   it('blocks a JSON POST whose Origin is another site', async () => {
-    const result = await send('/api/push/subscribe', {
+    const result = await blocked('/api/push/subscribe', {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'https://evil.example' },
       body: '{}',
     });
-    expect(result).toEqual({ status: 403, resolved: false });
+    expect(result).toEqual({ status: 403, body: 'Cross-origin request blocked' });
   });
 
-  it('lets safe methods through even when the browser marks them cross-site', async () => {
-    for (const method of ['GET', 'HEAD', 'OPTIONS']) {
-      const result = await send('/mail', { method, headers: { 'sec-fetch-site': 'cross-site', origin: 'https://evil.example' } });
-      expect(result.resolved).toBe(true);
-    }
+  it.each(['GET', 'HEAD', 'OPTIONS'])('lets a %s through even when the browser marks it cross-site', async (method) => {
+    const result = await send('/mail', { method, headers: { 'sec-fetch-site': 'cross-site', origin: 'https://evil.example' } });
+    expect(result.resolved).toBe(true);
   });
 
   it('allows a same-origin JSON request the browser marks same-origin', async () => {
@@ -98,12 +106,12 @@ describe('cross-origin guard for non-form requests', () => {
 });
 
 describe('cross-site form refusal body', () => {
-  async function refuse(accept: string | null): Promise<Response> {
+  async function refuse(accept: string | null, method = 'POST'): Promise<Response> {
     const url = new URL('/mail/compose?/send', ORIGIN);
     const headers: Record<string, string> = { 'content-type': 'application/x-www-form-urlencoded' };
     if (accept) headers.accept = accept;
     return (handle as any)({
-      event: { url, request: new Request(url, { method: 'POST', headers, body: 'a=b' }), locals: { user: null, sessionId: null }, platform: undefined },
+      event: { url, request: new Request(url, { method, headers, body: 'a=b' }), locals: { user: null, sessionId: null }, platform: undefined },
       resolve: vi.fn(async () => new Response('resolved')),
     });
   }
@@ -115,9 +123,13 @@ describe('cross-site form refusal body', () => {
     expect(await response.json()).toEqual({ message: 'Cross-site POST form submissions are forbidden' });
   });
 
-  it('answers anything else with plain text', async () => {
-    const response = await refuse('text/html');
+  it.each([['text/html'], ['application/json, text/plain'], [null]])('answers Accept %s with plain text', async (accept) => {
+    const response = await refuse(accept);
     expect(response.status).toBe(403);
     expect(await response.text()).toBe('Cross-site POST form submissions are forbidden');
+  });
+
+  it('names the refused method', async () => {
+    expect(await (await refuse(null, 'PATCH')).text()).toBe('Cross-site PATCH form submissions are forbidden');
   });
 });
