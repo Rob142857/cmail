@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import type { Message, Attachment } from '@cmail/shared/types';
 import { buildIcs, parseIcs } from '@cmail/shared/ics';
 import { sanitizeEmailHtmlWithLinkGuard, type RiskyLink } from '#lib/server/sanitize-email.js';
+import { linkSignature } from '#lib/server/link-check.js';
 import { resolveInlineImages } from '#lib/server/inline-images.js';
 import { replyAllAddsRecipients } from '#lib/server/reply-recipients.js';
 import {
@@ -140,9 +141,12 @@ export const load: PageServerLoad = async ({ locals, platform, params, url }) =>
     try {
       const object = await env.STORAGE.get(message.body_r2_key);
       if (object) {
+        const secret = env.SESSION_SECRET;
         const guarded = sanitizeEmailHtmlWithLinkGuard(
           await object.text(),
           new URL('/link', url.origin).toString(),
+          // Every other web link is checked against the local phishing list on click.
+          secret ? (href) => linkSignature(secret, locals.user!.id, href) : undefined,
         );
         body = guarded.html;
         riskyLinks = guarded.riskyLinks;

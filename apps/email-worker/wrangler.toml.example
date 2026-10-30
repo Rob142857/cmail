@@ -92,7 +92,9 @@ APP_NAME = "cmail"
 PUSH_ENDPOINT_HOSTS = ""
 
 [triggers]
-crons = ["17 3 * * *"]
+# 17 3 * * *: retention (off unless RETENTION_JOBS_ENABLED).
+# 7 * * * *: refresh the local phishing-domain list for link checks (hourly).
+crons = ["17 3 * * *", "7 * * * *"]
 
 # Email Routing — configure a catch-all in the Cloudflare dashboard
 # pointing all inbound mail at this worker.

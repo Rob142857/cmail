@@ -143,6 +143,12 @@ The NDJSON dump is a last-resort, readable copy of every table (for example afte
 
 Rehearse a restore on preview resources first: point a second copy of the Worker at the preview bucket and a preview backup bucket, let it run, delete a test object from the preview bucket, restore it, and compare checksums.
 
+#### Link checks against a phishing-domain list
+
+The email Worker's hourly `7 * * * *` cron downloads the [CERT Polska Warning List](https://cert.pl/en/warning-list/) (its data usage policy allows any use, including commercial, and requires no attribution; attribution must not imply endorsement) into the mail bucket under `link-blocklist/v1/` as 256 small shards. Only changed shards are rewritten, and a failed, oversized or suspiciously small download keeps the last good copy (a list less than half the last size is accepted on the third such download). When a reader clicks a web link in a message, `/link` checks the host and its parent domains locally: listed means a warning page with a small "go anyway"; not listed means a redirect. Nothing about the click leaves the deployment. Links are signed by cmail, so `/link` never redirects a link it didn't create. Signatures are tied to the reader and expire within two weeks (they are re-made whenever a message is shown). If the list can't be read, or is more than two days old, links open normally and the decision is logged (fail open: the check is a backstop, so it never blocks mail use). Logs hold the decision only, plus the host for a listed site. Parsing the list (about 125,000 domains) needs more CPU than the Workers Free plan allows per run, so this needs Workers Paid; on Free the refresh fails and links simply open.
+
+This is a backstop, not protection: the list mostly covers threats aimed at Polish users, so most phishing sites aren't on it, and the interface never describes an unlisted link as safe. The backup Worker skips `link-blocklist/`. Add the cron to an existing deployment's email Worker `wrangler.toml` (see `wrangler.toml.example`).
+
 #### Point-in-time recovery with D1 Time Travel
 
 D1 keeps history for 30 days on Workers Paid (7 days on Workers Free) through [Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/), so a bad data change (a faulty migration, a wrong bulk action, a script error) can be undone without an export. It covers D1 only: R2 objects deleted or overwritten in the same window are not brought back, so keep the R2 copy described above.

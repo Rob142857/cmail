@@ -3,10 +3,15 @@
 
   let { data } = $props();
 
+  const listed = $derived(data.risk === 'listed');
   const explanation = $derived(
-    data.risk === 'punycode'
-      ? 'This address uses international characters that can look identical to a familiar brand — a Cyrillic "а" instead of a Latin "a", for example.'
-      : 'The link text names one website, but the link points somewhere else — a common phishing trick.',
+    listed
+      ? 'This site is on a known-bad list of phishing sites (the CERT Polska Warning List). Messages that link to it are often trying to steal passwords or payment details.'
+      : data.risk === 'punycode'
+        ? 'This address uses international characters that can look identical to a familiar brand — a Cyrillic "а" instead of a Latin "a", for example.'
+        : data.risk === 'unverified'
+          ? "cmail didn't create this link, so it can't tell where it came from. Check where it goes before continuing."
+          : 'The link text names one website, but the link points somewhere else — a common phishing trick.',
   );
 </script>
 
@@ -19,7 +24,7 @@
   <section class="card link-card" aria-labelledby="link-heading">
     <div class="risk-mark" aria-hidden="true"><Icon name="warning" size={22} /></div>
     <p class="eyebrow">Link check</p>
-    <h1 id="link-heading">Check this link before continuing</h1>
+    <h1 id="link-heading">{listed ? 'This site is on a known-bad list' : 'Check this link before continuing'}</h1>
     <p class="intro">{explanation}</p>
 
     <div class="destination">
@@ -35,15 +40,24 @@
       </p>
     {/if}
 
-    <div class="actions">
-      <a class="btn btn-outline" href="/mail">Back to mail</a>
-      <a
-        class="btn btn-primary"
-        href={data.href}
-        target="_blank"
-        rel="noopener noreferrer nofollow"
-      >Continue anyway</a>
-    </div>
+    {#if listed}
+      <div class="actions">
+        <a class="btn btn-primary" href="/mail">Back to mail</a>
+      </div>
+      <p class="go-anyway">
+        <a href={data.href} target="_blank" rel="noopener noreferrer nofollow">Go to the site anyway</a>
+      </p>
+    {:else}
+      <div class="actions">
+        <a class="btn btn-outline" href="/mail">Back to mail</a>
+        <a
+          class="btn btn-primary"
+          href={data.href}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+        >Continue anyway</a>
+      </div>
+    {/if}
 
     <p class="safety-note">
       cmail never asks for your password by email. If this link claims to be a sign-in page for a
@@ -103,6 +117,8 @@
     overflow-wrap: anywhere;
   }
 
+  .go-anyway { margin: 12px 0 0; text-align: right; font-size: 12.5px; }
+  .go-anyway a { color: var(--text-muted); }
   .notice {
     margin: 16px 0 0;
     padding: 8px 12px;
