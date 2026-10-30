@@ -98,6 +98,8 @@ Automated coverage is not yet complete. Manually exercise the paths your change 
 
 Include a focused regression test with bug fixes when practical. Document any new test tooling and make it runnable from the workspace root.
 
+SQL behaviour (triggers, constraints, `ORDER BY`) belongs in a test against the real migrations, not a hand-written mock. The web app uses `apps/web/src/lib/server/mcp/testing/harness.ts`; the email worker uses `apps/email-worker/src/testing/sqlite-d1.ts`. Both run every migration on in-memory `node:sqlite`. Email-worker tests that need Node modules are named `*.node.test.ts`, so the Worker code itself is still type-checked with Workers types only. `pnpm test` from the root runs them all.
+
 ## Pull requests
 
 A useful pull request includes:

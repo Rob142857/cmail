@@ -6,7 +6,7 @@ An open-source email platform on Cloudflare: a SvelteKit web app (`apps/web`), a
 
 ## Commands (pnpm workspace)
 - `pnpm install`
-- `pnpm lint`: ESLint in `apps/web`, `tsc --noEmit` in the email worker, and a type check in `packages/shared`
+- `pnpm lint`: ESLint in `apps/web`, `tsc --noEmit` in the email worker (Workers types for Worker code; `tsconfig.node-tests.json` for Node-only `*.node.test.ts` files), and a type check in `packages/shared`
 - `pnpm check`, `pnpm test`, `pnpm build`
 - `pnpm validate`: the full gate (secrets scan, landing assets check, config check, lint, check, test, image runtime test, migration check, build, audit). Run it before asking for a review.
 - `pnpm release:check`: `validate` plus a scan of the whole git history, for releases and mirrors.
