@@ -1,0 +1,402 @@
+// Scheduled backup of one cmail deployment into a separate R2 bucket.
+//
+// - Mail bodies and attachments (the SOURCE bucket) are copied to
+//   `objects/<key>` in BACKUP. Keys are immutable in cmail, so a copy normally
+//   happens once; if a key's content ever changes, the previous copy is kept
+//   under `versions/<day>/<key>` for the retention window.
+// - A dated manifest of every source key is written each day, flagged
+//   `complete` only once every object is copied.
+// - Objects that disappear from SOURCE (retention, offboarding, emptied trash)
+//   are kept for the retention window, then removed, so the backup never holds
+//   deleted mail longer than that.
+// - Once a day every D1 table is written as NDJSON parts plus the schema.
+//
+// Safety: a run refuses outright if BACKUP doesn't look like a backup bucket
+// or SOURCE and BACKUP are the same bucket. If SOURCE looks empty or wrong, or
+// too many objects vanish at once, the run pauses: it copies, deletes, writes
+// and prunes nothing, dumps D1 only, and fails visibly, until the binding is
+// fixed or an operator acknowledges a genuine purge by its expected size.
+// Every step is idempotent, so a run that stops part-way is completed by the
+// next. No keys or content are logged.
+
+export interface BackupEnv {
+  SOURCE: R2Bucket;
+  BACKUP: R2Bucket;
+  DB: D1Database;
+  /** Days to keep deleted objects, old versions, manifests and D1 dumps. Default 30, bounded 7-365. */
+  BACKUP_RETENTION_DAYS?: string | number;
+  /** Most objects copied in one run. Default 200, bounded 1-1000. */
+  BACKUP_MAX_COPIES_PER_RUN?: string | number;
+  /**
+   * After a genuine large purge (emptied trash, an offboarding), the exact
+   * `<count>:<code>` a paused run printed. The code fingerprints that run's
+   * missing objects, so the value accepts only that set and can never cover a
+   * later anomaly. Remove it once one run has completed.
+   */
+  BACKUP_ACKNOWLEDGE_DELETIONS?: string;
+  /** Share of the backup that may be missing from SOURCE before a run pauses. Default 0.2, bounded 0.01-0.5. */
+  BACKUP_MAX_MISSING_SHARE?: string | number;
+}
+
+export interface BackupSummary {
+  day: string;
+  sourceObjects: number;
+  copied: number;
+  copyFailures: number;
+  pendingCopies: number;
+  markedMissing: number;
+  pruned: number;
+  manifestComplete: boolean;
+  /** Set when the run paused (no copies, deletions, manifest or pruning) because SOURCE changed suspiciously. */
+  paused: string | null;
+  databaseTables: number | null;
+  databaseError: string | null;
+}
+
+export class BackupRefused extends Error {}
+
+const OBJECTS = 'objects/';
+const VERSIONS = 'versions/';
+const MANIFESTS = 'manifests/';
+const DATABASE = 'd1/';
+const MISSING_STATE = 'state/missing.json';
+const ACK_STATE = 'state/acknowledged.json';
+const PENDING_STATE = 'state/pending-acknowledgement.json';
+const IDENTITY = 'state/backup-identity.json';
+const BACKUP_PREFIXES = [OBJECTS, VERSIONS, MANIFESTS, DATABASE, 'state/'];
+const SAMPLE_KEYS = 1000;
+// Backups this small can't tell "everything vanished" from one genuine deletion.
+const MIN_OBJECTS_FOR_TOTAL_LOSS_CHECK = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const ROWS_PER_QUERY = 500;
+const ROWS_PER_PART = 10_000;
+// At most this share of the backup (and never fewer than this many objects)
+// may be missing from SOURCE, unexplained, before a run pauses.
+const DEFAULT_MAX_MISSING_SHARE = 0.2;
+const MIN_MISSING_ALLOWANCE = 25;
+
+function bounded(value: unknown, fallback: number, min: number, max: number): number {
+  const parsed = typeof value === 'number' ? value : Number(String(value ?? '').trim() || NaN);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(parsed)));
+}
+
+export function backupConfiguration(env: Pick<BackupEnv, 'BACKUP_RETENTION_DAYS' | 'BACKUP_MAX_COPIES_PER_RUN'>) {
+  return {
+    retentionDays: bounded(env.BACKUP_RETENTION_DAYS, 30, 7, 365),
+    maxCopies: bounded(env.BACKUP_MAX_COPIES_PER_RUN, 200, 1, 1000),
+  };
+}
+
+/** UTC calendar day, YYYY-MM-DD. */
+export function dayOf(time: Date): string {
+  return time.toISOString().slice(0, 10);
+}
+
+const errorName = (caught: unknown) => (caught instanceof Error ? caught.name : 'UnknownError');
+
+async function listAll(bucket: R2Bucket, prefix = ''): Promise<Map<string, R2Object>> {
+  const objects = new Map<string, R2Object>();
+  let cursor: string | undefined;
+  do {
+    const page = await bucket.list({ prefix, cursor, limit: 1000, include: ['customMetadata'] });
+    for (const object of page.objects) objects.set(object.key, object);
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+  return objects;
+}
+
+/** R2 deletes at most 1000 keys per call. */
+async function deleteKeys(bucket: R2Bucket, keys: string[]): Promise<void> {
+  for (let index = 0; index < keys.length; index += 1000) await bucket.delete(keys.slice(index, index + 1000));
+}
+
+async function readJson<T>(bucket: R2Bucket, key: string, fallback: T): Promise<T> {
+  const object = await bucket.get(key);
+  if (!object) return fallback;
+  try {
+    return JSON.parse(await object.text()) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Refuse before writing anything if BACKUP holds keys a backup never writes
+ * (it is probably the mail bucket), or if SOURCE holds a backup identity (it
+ * is a backup bucket, or the same bucket as BACKUP).
+ */
+async function assertSeparateBuckets(env: BackupEnv): Promise<void> {
+  const sample = await env.BACKUP.list({ limit: SAMPLE_KEYS });
+  if (sample.objects.some((object) => !BACKUP_PREFIXES.some((prefix) => object.key.startsWith(prefix)))) {
+    throw new BackupRefused('BACKUP holds non-backup keys; is it the mail bucket?');
+  }
+  const sourceIdentity = await env.SOURCE.head(IDENTITY);
+  if (sourceIdentity) {
+    const ours = await readJson<{ id?: string }>(env.BACKUP, IDENTITY, {});
+    const theirs = await readJson<{ id?: string }>(env.SOURCE, IDENTITY, {});
+    throw new BackupRefused(ours.id && ours.id === theirs.id
+      ? 'SOURCE and BACKUP are the same bucket'
+      : 'SOURCE holds a backup identity; is it a backup bucket?');
+  }
+  if (!(await env.BACKUP.head(IDENTITY))) {
+    await env.BACKUP.put(IDENTITY, JSON.stringify({ id: crypto.randomUUID() }), { httpMetadata: { contentType: 'application/json' } });
+  }
+}
+
+/**
+ * `<count>:<code>` for a set of missing keys. The code is a fingerprint of the
+ * exact keys, so an acknowledgement matches one anomaly and nothing else.
+ */
+export function acknowledgementToken(sourceKeys: readonly string[]): string {
+  const sorted = [...sourceKeys].sort();
+  let hash = 0x811c9dc5;
+  for (const key of sorted) {
+    for (let index = 0; index < key.length; index += 1) {
+      hash ^= key.charCodeAt(index);
+      hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    hash ^= 0x0a;
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `${sorted.length}:${hash.toString(16).padStart(8, '0')}`;
+}
+
+/** "0.2", "20" and "20%" all mean 20%; "1" means 1%. Bounded 1%-50%; anything unreadable is the default. */
+export function missingShare(value: unknown): number {
+  const text = String(value ?? '').trim();
+  const percent = text.endsWith('%');
+  const parsed = typeof value === 'number' ? value : Number(percent ? text.slice(0, -1) : text || NaN);
+  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_MAX_MISSING_SHARE;
+  // Below 1 is a fraction (0.2); 1 and above is a percent (20, 1.5, 1).
+  const share = percent || parsed >= 1 ? parsed / 100 : parsed;
+  return Math.min(0.5, Math.max(0.01, share));
+}
+
+async function copyObject(env: BackupEnv, source: R2Object, previous: R2Object | undefined, now: Date): Promise<boolean> {
+  const body = await env.SOURCE.get(source.key);
+  if (!body) return false; // Deleted between list and copy; the next run sees it missing.
+  if (previous) {
+    // The content changed: keep the old copy for the retention window.
+    const old = await env.BACKUP.get(previous.key);
+    if (old) await env.BACKUP.put(`${VERSIONS}${dayOf(now)}/${now.getTime()}/${source.key}`, old.body, { httpMetadata: old.httpMetadata, customMetadata: old.customMetadata });
+  }
+  await env.BACKUP.put(`${OBJECTS}${source.key}`, body.body, {
+    httpMetadata: body.httpMetadata,
+    customMetadata: { ...body.customMetadata, sourceEtag: source.etag },
+  });
+  return true;
+}
+
+/** Write every table as NDJSON parts (paged by rowid) plus the schema. Returns the table count. */
+async function dumpDatabase(env: BackupEnv, day: string): Promise<number> {
+  const schema = await env.DB.prepare(
+    "SELECT type, name, sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY type, name",
+  ).all<{ type: string; name: string; sql: string }>();
+  const tables = schema.results.filter((row) => row.type === 'table').map((row) => row.name);
+  const parts: Record<string, number> = {};
+  for (const table of tables) {
+    const quoted = `"${table.replace(/"/g, '""')}"`;
+    let lastRowid = -Infinity;
+    let part = 0;
+    let lines: string[] = [];
+    const flush = async () => {
+      part += 1;
+      await env.BACKUP.put(`${DATABASE}${day}/tables/${table}/part-${String(part).padStart(5, '0')}.ndjson`, lines.length ? `${lines.join('\n')}\n` : '', {
+        httpMetadata: { contentType: 'application/x-ndjson' },
+      });
+      lines = [];
+    };
+    for (;;) {
+      // rowid paging stays correct even if rows are deleted mid-dump; every cmail table has a rowid.
+      const page = await env.DB.prepare(`SELECT rowid AS "__cmail_rowid", * FROM ${quoted} WHERE rowid > ? ORDER BY rowid LIMIT ?`)
+        .bind(Number.isFinite(lastRowid) ? lastRowid : -9007199254740991, ROWS_PER_QUERY).all<Record<string, unknown>>();
+      for (const row of page.results) {
+        lastRowid = Number(row.__cmail_rowid);
+        const { __cmail_rowid: _rowid, ...values } = row;
+        lines.push(JSON.stringify(values));
+        if (lines.length >= ROWS_PER_PART) await flush();
+      }
+      if (page.results.length < ROWS_PER_QUERY) break;
+    }
+    if (lines.length || part === 0) await flush();
+    parts[table] = part;
+  }
+  await env.BACKUP.put(`${DATABASE}${day}/schema.sql`, schema.results.map((row) => `${row.sql};`).join('\n\n'), {
+    httpMetadata: { contentType: 'application/sql' },
+  });
+  // Written last: its presence means the day's dump is complete.
+  await env.BACKUP.put(`${DATABASE}${day}/complete.json`, JSON.stringify({ day, tables, parts }), {
+    httpMetadata: { contentType: 'application/json' },
+  });
+  return tables.length;
+}
+
+/** Remove dated manifests, versions and dumps older than the retention window. */
+async function pruneDated(env: BackupEnv, now: Date, retentionDays: number, prefixes = [MANIFESTS, VERSIONS, DATABASE]): Promise<number> {
+  const cutoff = dayOf(new Date(now.getTime() - retentionDays * DAY_MS));
+  let removed = 0;
+  for (const prefix of prefixes) {
+    const keys = [...(await listAll(env.BACKUP, prefix)).keys()].filter((key) => key.slice(prefix.length, prefix.length + 10) < cutoff);
+    await deleteKeys(env.BACKUP, keys);
+    removed += keys.length;
+  }
+  return removed;
+}
+
+export async function runBackup(env: BackupEnv, now = new Date()): Promise<BackupSummary> {
+  const { retentionDays, maxCopies } = backupConfiguration(env);
+  const day = dayOf(now);
+  const nowEpoch = Math.floor(now.getTime() / 1000);
+
+  await assertSeparateBuckets(env);
+  const source = await listAll(env.SOURCE);
+  const backedUp = await listAll(env.BACKUP, OBJECTS);
+
+  // Guard against a wrong or empty SOURCE binding wiping the backup, whether
+  // all at once or by slow drift: judge the TOTAL of backed-up objects now
+  // missing from SOURCE, not only the ones that vanished this run.
+  const missing = await readJson<Record<string, number>>(env.BACKUP, MISSING_STATE, {});
+  // An accepted purge records exactly which keys it covered; only those are
+  // excused (until they expire), so it can never cover a later anomaly.
+  const acknowledged = await readJson<{ token?: string; at?: number; keys?: string[] }>(env.BACKUP, ACK_STATE, {});
+  const acknowledgedKeys = new Set(acknowledged.keys ?? []);
+  const missingNow = [...backedUp.keys()].filter((key) => !source.has(key.slice(OBJECTS.length)));
+  const newlyMissing = missingNow.filter((key) => missing[key.slice(OBJECTS.length)] === undefined);
+  const overlap = backedUp.size - missingNow.length;
+  const allowance = Math.max(MIN_MISSING_ALLOWANCE, Math.ceil(backedUp.size * missingShare(env.BACKUP_MAX_MISSING_SHARE)));
+  const unexplainedKeys = () => missingNow.map((key) => key.slice(OBJECTS.length)).filter((key) => !acknowledgedKeys.has(key));
+  const judge = (count: number): string | null => {
+    if (backedUp.size > 0 && source.size === 0 && count > 0) return `SOURCE is empty but ${count} backed-up objects exist`;
+    if (backedUp.size >= MIN_OBJECTS_FOR_TOTAL_LOSS_CHECK && overlap === 0 && count > 0) return `none of the ${backedUp.size} backed-up objects is in SOURCE`;
+    if (count > allowance) return `${count} backed-up objects are missing from SOURCE (limit ${allowance})`;
+    return null;
+  };
+  const accept = async (keys: readonly string[], token: string) => {
+    for (const key of keys) acknowledgedKeys.add(key);
+    await env.BACKUP.put(ACK_STATE, JSON.stringify({ token, at: nowEpoch, keys: [...acknowledgedKeys] }), { httpMetadata: { contentType: 'application/json' } });
+    await env.BACKUP.put(PENDING_STATE, '{}', { httpMetadata: { contentType: 'application/json' } });
+  };
+
+  // The operator copies the code a paused run printed. That run's exact key
+  // set is saved, so the code still works if more mail was deleted before the
+  // redeploy; anything that vanished since is judged on its own.
+  const offered = String(env.BACKUP_ACKNOWLEDGE_DELETIONS ?? '').trim();
+  const pending = await readJson<{ token?: string; keys?: string[] }>(env.BACKUP, PENDING_STATE, {});
+  let usedOffer = false;
+  if (offered && pending.token === offered && pending.keys?.length) {
+    const stillMissing = new Set(unexplainedKeys());
+    await accept(pending.keys.filter((key) => stillMissing.has(key)), offered);
+    usedOffer = true;
+  }
+  let remaining = unexplainedKeys();
+  let suspicion = judge(remaining.length);
+  if (suspicion && offered && !usedOffer && offered === acknowledgementToken(remaining)) {
+    await accept(remaining, offered);
+    usedOffer = true;
+    remaining = unexplainedKeys();
+    suspicion = judge(remaining.length);
+  }
+  let paused: string | null = null;
+  if (suspicion) {
+    // Keep an earlier pending code while all its keys are still unexplained, so
+    // the code an operator is copying isn't replaced by an hourly run.
+    const remainingSet = new Set(remaining);
+    const keepPending = Boolean(pending.token && pending.keys?.length && pending.keys.every((key) => remainingSet.has(key)));
+    const token = keepPending ? pending.token! : acknowledgementToken(remaining);
+    if (!keepPending) await env.BACKUP.put(PENDING_STATE, JSON.stringify({ token, keys: remaining }), { httpMetadata: { contentType: 'application/json' } });
+    const stale = offered && !usedOffer ? ' (the BACKUP_ACKNOWLEDGE_DELETIONS value set now does not match)' : '';
+    paused = `${suspicion}${stale}. Check the SOURCE binding; if this is a genuine purge, set BACKUP_ACKNOWLEDGE_DELETIONS=${token}`;
+  } else if (pending.token) {
+    // Back to normal: a leftover code must not be accepted for a later event.
+    await env.BACKUP.put(PENDING_STATE, '{}', { httpMetadata: { contentType: 'application/json' } });
+  }
+
+  // 1. Copy what is new or changed. Rotate the start so keys that keep failing
+  //    can't block everything behind them.
+  const toCopy = [...source.values()]
+    .filter((object) => backedUp.get(`${OBJECTS}${object.key}`)?.customMetadata?.sourceEtag !== object.etag)
+    .sort((a, b) => (a.key < b.key ? -1 : 1));
+  const start = toCopy.length ? Math.floor(nowEpoch / 3600) % toCopy.length : 0;
+  // While paused, nothing is copied from a SOURCE that may be the wrong bucket.
+  const batch = paused ? [] : [...toCopy.slice(start), ...toCopy.slice(0, start)].slice(0, maxCopies);
+  let copied = 0;
+  let copyFailures = 0;
+  for (const object of batch) {
+    try {
+      if (await copyObject(env, object, backedUp.get(`${OBJECTS}${object.key}`), now)) copied += 1;
+    } catch (caught) {
+      copyFailures += 1;
+      console.error('cmail backup: object copy failed', { error: errorName(caught) });
+    }
+  }
+
+  // 2. Track objects gone from the source; remove them after the retention window.
+  const expired: string[] = [];
+  for (const key of paused ? [] : backedUp.keys()) {
+    const sourceKey = key.slice(OBJECTS.length);
+    if (source.has(sourceKey)) {
+      delete missing[sourceKey];
+    } else if (missing[sourceKey] === undefined) {
+      missing[sourceKey] = nowEpoch;
+    } else if (nowEpoch - missing[sourceKey] >= retentionDays * 86_400) {
+      expired.push(key);
+      delete missing[sourceKey];
+    }
+  }
+  if (!paused) {
+    for (const sourceKey of Object.keys(missing)) {
+      if (!backedUp.has(`${OBJECTS}${sourceKey}`)) delete missing[sourceKey];
+    }
+    await deleteKeys(env.BACKUP, expired);
+    await env.BACKUP.put(MISSING_STATE, JSON.stringify(missing), { httpMetadata: { contentType: 'application/json' } });
+    // Acknowledged keys that have expired out of the backup, or come back, no longer need excusing.
+    const stillExcused = [...acknowledgedKeys].filter((key) => missing[key] !== undefined);
+    if (stillExcused.length !== acknowledgedKeys.size) {
+      await env.BACKUP.put(ACK_STATE, JSON.stringify({ ...acknowledged, keys: stillExcused }), { httpMetadata: { contentType: 'application/json' } });
+    }
+  }
+
+  // 3. Today's manifest; `complete` says whether every listed key is in the
+  //    backup. Skipped while SOURCE looks wrong, so it can't record a bad listing.
+  const pendingCopies = toCopy.length - copied;
+  const manifestComplete = pendingCopies === 0;
+  if (!paused) {
+    const entries = [...source.values()].map((object) => ({ key: object.key, size: object.size, etag: object.etag }));
+    await env.BACKUP.put(`${MANIFESTS}${day}.json`, JSON.stringify({ day, createdAt: now.toISOString(), complete: manifestComplete, objects: entries }), {
+      httpMetadata: { contentType: 'application/json' },
+    });
+  }
+
+  // 4. Prune before the dump, so a failing dump can't stop retention. Not while
+  //    paused (except old D1 dumps): a long pause must not age out the last good manifests.
+  // Old D1 dumps are pruned even while paused, so they can't pile up.
+  const pruned = paused
+    ? await pruneDated(env, now, retentionDays, [DATABASE])
+    : expired.length + (await pruneDated(env, now, retentionDays));
+
+  // 5. Once a day, the database.
+  let databaseTables: number | null = null;
+  let databaseError: string | null = null;
+  if (!(await env.BACKUP.head(`${DATABASE}${day}/complete.json`))) {
+    try {
+      databaseTables = await dumpDatabase(env, day);
+    } catch (caught) {
+      databaseError = errorName(caught);
+    }
+  }
+
+  return {
+    day,
+    sourceObjects: source.size,
+    copied,
+    copyFailures,
+    pendingCopies,
+    markedMissing: paused ? 0 : newlyMissing.length,
+    pruned,
+    manifestComplete,
+    paused,
+    databaseTables,
+    databaseError,
+  };
+}

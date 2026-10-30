@@ -113,6 +113,36 @@ pnpm exec wrangler pages project create cmail-web --production-branch main
 
 If you choose another project name, use it consistently in deployment and secret commands.
 
+#### Automated backups (optional)
+
+`apps/backup-worker` is a scheduled Worker that keeps a backup inside the same Cloudflare account, with no extra credentials:
+
+- **Mail bodies and attachments** are copied from the mail bucket to `objects/<key>` in a separate, private backup bucket. Keys never change in cmail, so each object is copied once; should a key's content ever change, the previous copy is kept under `versions/YYYY-MM-DD/<key>` for the retention window. Each hourly run copies at most `BACKUP_MAX_COPIES_PER_RUN` (default 200), so a large first backup completes over several runs.
+- **A daily manifest** (`manifests/YYYY-MM-DD.json`) lists every mail object that existed that day, with `complete: true` once all of them are in the backup.
+- **A daily database dump** (`d1/YYYY-MM-DD/`): every table as NDJSON parts, the schema, and `complete.json` written last.
+- **Safety stops.** A run refuses outright, writing nothing, if the backup bucket holds non-backup keys (it is probably the mail bucket) or the mail bucket holds a backup identity (the bindings point at a backup bucket). It **pauses** when the backed-up objects missing from the mail bucket add up to more than `BACKUP_MAX_MISSING_SHARE` of the backup (default 20%, at least 25 objects), however slowly that built up, or when the mail bucket is empty or shares no object with the backup. A paused run copies, deletes and writes nothing, keeps every manifest (only old D1 dumps are pruned), still dumps D1, and is marked failed, so it shows in Cron history. Its message ends with `BACKUP_ACKNOWLEDGE_DELETIONS=<count>:<code>`. Check the `SOURCE` binding first. If the disappearance is genuine (a large purge or offboarding), set exactly that value: the code fingerprints those objects, so it accepts that set and nothing else, and a value left in place can never cover a later problem. Remove it after one run completes. The share is a deliberate tolerance: a wrong binding that hides fewer objects than it would not pause, so lower it for large deployments.
+- **Deletions are honoured.** An object removed from the mail bucket (retention, offboarding, emptied trash) is kept for `BACKUP_RETENTION_DAYS` (default 30), then removed, so the backup never holds deleted mail longer than that. Manifests and dumps older than the window are removed too.
+
+It holds the same private mail as production: keep the backup bucket private (no public access, no `r2.dev` URL), and treat access to it like access to the mail bucket. It protects against accidental deletion and overwrites within the retention window, not against losing the whole account: for that, also keep the off-account export described above. Large mailboxes need the Workers Paid plan (a run can exceed the Free plan's CPU time per invocation), and each run holds both bucket listings in memory, so it suits deployments up to tens of thousands of mail objects; watch the Worker's Cron Trigger history after the first runs.
+
+```sh
+pnpm exec wrangler r2 bucket create cmail-backup
+cp apps/backup-worker/wrangler.toml.example apps/backup-worker/wrangler.toml   # fill in the D1 id and bucket names
+cd apps/backup-worker && pnpm exec wrangler deploy
+```
+
+To restore one object, copy it back by key (`objects/` prefix removed) and keep its content type, then delete the local copy (it is private mail). This is enough while the message's D1 row still exists; if the row is gone too, restore D1 first (Time Travel below, within its window).
+
+```sh
+pnpm exec wrangler r2 object get cmail-backup/objects/<key> --remote --file restore.bin
+pnpm exec wrangler r2 object put cmail-storage/<key> --remote --file restore.bin --content-type "<original content type>"
+rm restore.bin
+```
+
+The NDJSON dump is a last-resort, readable copy of every table (for example after a deleted D1 database, or outside the Time Travel window): rebuild the schema from `schema.sql` into a **new** database and import the rows, then validate before pointing any application at it.
+
+Rehearse a restore on preview resources first: point a second copy of the Worker at the preview bucket and a preview backup bucket, let it run, delete a test object from the preview bucket, restore it, and compare checksums.
+
 #### Point-in-time recovery with D1 Time Travel
 
 D1 keeps history for 30 days on Workers Paid (7 days on Workers Free) through [Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/), so a bad data change (a faulty migration, a wrong bulk action, a script error) can be undone without an export. It covers D1 only: R2 objects deleted or overwritten in the same window are not brought back, so keep the R2 copy described above.
