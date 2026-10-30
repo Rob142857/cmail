@@ -48,3 +48,13 @@ jobs:
 
       - name: Run axe and smoke specs
         run: pnpm exec playwright test e2e/mobile/a11y.spec.ts e2e/mobile/smoke.spec.ts --project=pixel-7 --project=desktop-chrome
+
+      - name: Keep the report and traces of a failed run
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-a11y-report
+          path: |
+            playwright-report/mobile
+            test-results/mobile
+          retention-days: 7
