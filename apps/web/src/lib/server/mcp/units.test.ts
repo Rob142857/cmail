@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyRedirectUri, redirectsOnlyToLoopback, redirectUriMatches, validateRedirectUriList } from './redirect-uri';
+import { classifyRedirectUri, redirectUriMatches, validateRedirectUriList } from './redirect-uri';
 import { MCP_RESUME_PATH, mcpResumeLocation } from './resume';
 import { cimdCacheSeconds, isClientIdMetadataUrl, presentedClientCredentials } from './clients';
 import { mcpIssuer, parseScopes, resourceMatches } from './config';
@@ -36,13 +36,6 @@ describe('redirect URI policy', () => {
     expect(redirectUriMatches('http://127.0.0.1:9999/callback?x=1', registered)).toBe(false);
   });
 
-  it('flags clients whose every redirect is a loopback address', () => {
-    expect(redirectsOnlyToLoopback(['http://127.0.0.1:1234/cb', 'http://localhost/cb'])).toBe(true);
-    expect(redirectsOnlyToLoopback(['http://127.0.0.1:1234/cb', 'https://app.example/cb'])).toBe(false);
-    expect(redirectsOnlyToLoopback(['com.example.app:/oauth'])).toBe(false);
-    expect(redirectsOnlyToLoopback([])).toBe(false);
-  });
-
   it('caps registration lists', () => {
     expect(validateRedirectUriList(Array.from({ length: 11 }, (_, index) => `https://a.example/${index}`))).toBeNull();
     expect(validateRedirectUriList(['https://a.example/cb', 'https://a.example/cb'])).toEqual(['https://a.example/cb']);
@@ -75,6 +68,7 @@ describe('small helpers', () => {
     expect(cimdCacheSeconds('max-age=31536000')).toBe(86_400);
     expect(cimdCacheSeconds('no-store')).toBe(300);
     expect(cimdCacheSeconds('max-age=600, no-cache')).toBe(300);
+    expect(cimdCacheSeconds('max-age="900"')).toBe(900);
     expect(cimdCacheSeconds('private')).toBe(86_400);
   });
 

@@ -196,7 +196,7 @@ export function cimdCacheSeconds(cacheControl: string | null): number {
   if (!cacheControl) return CIMD_CACHE_SECONDS;
   const directives = cacheControl.toLowerCase().split(',').map((part) => part.trim());
   if (directives.some((part) => part === 'no-store' || part === 'no-cache')) return CIMD_MIN_CACHE_SECONDS;
-  const maxAge = directives.map((part) => /^max-age=(\d{1,10})$/.exec(part)).find(Boolean);
+  const maxAge = directives.map((part) => /^max-age="?(\d{1,10})"?$/.exec(part)).find(Boolean);
   if (!maxAge) return CIMD_CACHE_SECONDS;
   return Math.min(CIMD_CACHE_SECONDS, Math.max(CIMD_MIN_CACHE_SECONDS, Number(maxAge[1])));
 }

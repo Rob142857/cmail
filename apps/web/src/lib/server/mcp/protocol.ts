@@ -215,22 +215,22 @@ export async function handleMcpRequest(request: Request, platform: App.Platform 
 
   const presented = bearerFromRequest(request);
   if (presented === null) {
-    return json(rpcError(null, -32603, 'Authentication required'), 401, {
+    return json(rpcError(null, -32001, 'Authentication required'), 401, {
       'WWW-Authenticate': bearerChallenge(env, { scope: 'mail.read mail.draft' }),
     });
   }
   const bearer = presented === 'malformed' ? null : await validateAccessToken(db, presented, resource);
   if (!bearer) {
-    return json(rpcError(null, -32603, 'Invalid or expired access token'), 401, {
+    return json(rpcError(null, -32001, 'Invalid or expired access token'), 401, {
       'WWW-Authenticate': bearerChallenge(env, { error: 'invalid_token', error_description: 'The access token is invalid, expired or revoked' }),
     });
   }
 
   if (!(await isMcpEnabled(db))) {
-    return json(rpcError(null, -32603, 'AI agent (MCP) connections are turned off for this organisation'), 403);
+    return json(rpcError(null, -32001, 'AI agent (MCP) connections are turned off for this organisation'), 403);
   }
   if (!(await hasSignedLatestPolicy(db, bearer.user.id))) {
-    return json(rpcError(null, -32603, 'Sign in to cmail and accept the current usage policy first'), 403);
+    return json(rpcError(null, -32001, 'Sign in to cmail and accept the current usage policy first'), 403);
   }
 
   const contentType = (request.headers.get('content-type') || '').split(';', 1)[0].trim().toLowerCase();
@@ -259,7 +259,7 @@ export async function handleMcpRequest(request: Request, platform: App.Platform 
   const hour = minute.allowed ? await consumeRateLimit(db, 'mcp-call-hour', bearer.grantId, CALLS_PER_HOUR, 60 * 60) : minute;
   if (!minute.allowed || !hour.allowed) {
     const retryAfter = String(minute.allowed ? hour.retryAfter : minute.retryAfter);
-    return json(rpcError(message.id, -32603, 'Rate limit reached for this connection; slow down and retry later'), 429, { 'Retry-After': retryAfter });
+    return json(rpcError(message.id, -32001, 'Rate limit reached for this connection; slow down and retry later'), 429, { 'Retry-After': retryAfter });
   }
 
   const waitUntil = options.waitUntil ?? ((promise: Promise<unknown>) => platform?.context?.waitUntil(promise));
@@ -309,7 +309,7 @@ export async function handleMcpRequest(request: Request, platform: App.Platform 
       if (!tool) return json(rpcError(id, -32602, `Unknown tool: ${String(params.name).slice(0, 64)}`));
       if (tool.scope && !bearer.scopes.includes(tool.scope)) {
         await recordToolCall(db, bearer, tool.name, null, 'denied', 'insufficient_scope');
-        return json(rpcError(id, -32603, `This app was not granted the ${tool.scope} permission`), 403, {
+        return json(rpcError(id, -32001, `This app was not granted the ${tool.scope} permission`), 403, {
           'WWW-Authenticate': bearerChallenge(env, {
             error: 'insufficient_scope',
             scope: [...bearer.scopes, tool.scope].join(' '),

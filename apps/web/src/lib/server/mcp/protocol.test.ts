@@ -49,8 +49,8 @@ describe('MCP endpoint authentication', () => {
     expect(challenge).toMatch(/^Bearer /);
     expect(challenge).toContain(`resource_metadata="${APP_URL}/.well-known/oauth-protected-resource"`);
     expect(challenge).toContain('scope="mail.read mail.draft"');
-    // Not a legacy -32000..-32019 code; the HTTP status carries the meaning.
-    expect(response.body?.error.code).toBe(-32603);
+    // An implementation-defined code (-32000..-32019), not -32603 Internal error.
+    expect(response.body?.error.code).toBe(-32001);
   });
 
   it('marks a bad token invalid_token and never falls back to cookies', async () => {

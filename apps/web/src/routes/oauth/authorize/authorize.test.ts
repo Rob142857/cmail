@@ -70,6 +70,7 @@ describe('/oauth/authorize page', () => {
     expect(data.view).toBe('consent');
     expect(data.client).toMatchObject({ name: 'Test Agent', verifiedHost: null });
     expect(data.returnTo).toBe('an app on this computer (localhost)');
+    expect(data.returnsToLoopback).toBe(true);
     const checked = Object.fromEntries(data.scopes.map((scope: { id: string; checked: boolean }) => [scope.id, scope.checked]));
     expect(checked).toEqual({ 'mail.read': true, 'mail.draft': true, 'mail.send': false, 'mailbox.manage': false, 'calendar.read': false });
     expect(data.mailboxes.map((mailbox: { id: string; checked: boolean }) => [mailbox.id, mailbox.checked]))

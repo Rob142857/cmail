@@ -68,14 +68,6 @@ export function validateRedirectUriList(value: unknown): string[] | null {
   return uris;
 }
 
-/**
- * True when every registered redirect URI is a loopback address. Any program on
- * the user's computer can listen there, so the app's identity can't be checked.
- */
-export function redirectsOnlyToLoopback(registered: readonly string[]): boolean {
-  return registered.length > 0 && registered.every((uri) => classifyRedirectUri(uri) === 'loopback');
-}
-
 /** Short, human-readable destination shown on the consent screen. */
 export function redirectDisplay(value: string): string {
   try {

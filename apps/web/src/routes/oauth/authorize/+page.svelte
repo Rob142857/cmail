@@ -88,8 +88,8 @@
         <div><dt>Signed in as</dt><dd>{data.userEmail}</dd></div>
       </dl>
 
-      {#if data.client.loopbackOnly}
-        <p class="local-warning" role="note"><Icon name="warning" size={14} /> This app only returns to a program on this computer. {appName} can't check which program that is, so allow it only if you started this connection yourself just now.</p>
+      {#if data.returnsToLoopback}
+        <p class="local-warning" role="note"><Icon name="warning" size={14} /> This app returns to a program on this computer. {appName} can't check which program that is, so allow it only if you started this connection yourself just now.</p>
       {/if}
 
       {#if form?.error}<div class="notice notice-error" role="alert">{form.error}</div>{/if}
