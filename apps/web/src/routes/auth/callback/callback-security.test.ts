@@ -178,6 +178,18 @@ describe('OAuth callback authorization branches', () => {
     }
   });
 
+  it('logs UnknownError for a thrown non-Error value', async () => {
+    mocks.exchangeCode.mockRejectedValue('token endpoint said no');
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const { event } = callbackEvent();
+      await expect(GET(event as never)).rejects.toMatchObject({ location: '/?error=oauth_failed' });
+      expect(consoleError).toHaveBeenCalledWith('OAuth callback failed', { provider: 'google', errorType: 'UnknownError' });
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it.each(['google', 'microsoft'])('remembers only the successful returning %s provider in a bounded host-only cookie', async (provider) => {
     mocks.findBoundUser.mockResolvedValue(returningUser);
     const { event } = callbackEvent({}, fakeDb(), provider);

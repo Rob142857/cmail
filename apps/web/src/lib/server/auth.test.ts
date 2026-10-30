@@ -210,6 +210,17 @@ describe('authorization code exchange', () => {
     });
   });
 
+  it('posts to the tenant-scoped Microsoft token endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ access_token: 'access-token' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await exchangeCode('microsoft', {
+      MICROSOFT_CLIENT_ID: 'microsoft-id',
+      MICROSOFT_CLIENT_SECRET: 'microsoft-secret',
+      MICROSOFT_TENANT_ID: 'organizations',
+    }, 'code-value', 'https://mail.example.com/auth/callback/microsoft', 'verifier-value');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://login.microsoftonline.com/organizations/oauth2/v2.0/token');
+  });
+
   it('fails on a non-OK token response, naming only the status', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ error: 'invalid_grant' }, { status: 400 })));
     await expect(exchange()).rejects.toThrow('Token exchange failed with status 400');
