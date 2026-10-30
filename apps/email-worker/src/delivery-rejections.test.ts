@@ -174,3 +174,54 @@ describe('inbound refusals after parsing', () => {
     expect(storage.put).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('inbound protection outcomes at delivery', () => {
+  const PROTECTED = { ...GUARDS_OFF, INBOUND_MAILBOX_MESSAGES_PER_HOUR: '100' };
+
+  async function deliverWith(hooks: Parameters<typeof deliveryDatabase>[0]) {
+    const db = deliveryDatabase(hooks);
+    const { storage } = memoryStorage();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const { error, message } = await deliverInbound(worker, mail(), { DB: db.database, STORAGE: storage, ...PROTECTED });
+      return { error, message, storage, warnings: warn.mock.calls.map((call) => call[0]), db };
+    } finally {
+      warn.mockRestore();
+    }
+  }
+  const refusedWrite = (query: string) => (query.includes('INSERT OR IGNORE INTO mailbox_reservations') ? { meta: { changes: 0 } } : undefined);
+
+  it('refuses generically when a configured limit is reached', async () => {
+    const result = await deliverWith({ run: refusedWrite });
+    expect(result.error).toBeNull();
+    expect(result.message.setReject).toHaveBeenCalledWith('Message cannot be accepted at this time');
+    expect(result.warnings).toEqual(['Inbound delivery rejected by configured protection policy']);
+    expect(result.storage.put).not.toHaveBeenCalled();
+    expect(result.db.statements.some((statement) => statement.query.includes('INSERT INTO mail_trace'))).toBe(false);
+  });
+
+  it('refuses generically, and says the protection was unavailable, when the check cannot run', async () => {
+    const result = await deliverWith({
+      run: refusedWrite,
+      first: (query) => {
+        if (query.includes('FROM mailbox_reservations')) throw new Error('D1_ERROR: network connection lost');
+        return undefined;
+      },
+    });
+    expect(result.message.setReject).toHaveBeenCalledWith('Message cannot be accepted at this time');
+    expect(result.warnings).toEqual(['Inbound protection unavailable; delivery failed closed']);
+    expect(result.storage.put).not.toHaveBeenCalled();
+    expect(result.db.statements.some((statement) => statement.query.includes('INSERT INTO mail_trace'))).toBe(false);
+  });
+
+  it('drops a concurrent duplicate quietly: no refusal, nothing stored, no trace', async () => {
+    const result = await deliverWith({
+      run: refusedWrite,
+      first: (query) => (query.includes('FROM mailbox_reservations') ? { id: 'earlier-delivery', delivery_key: 'held' } : undefined),
+    });
+    expect(result.error).toBeNull();
+    expect(result.message.setReject).not.toHaveBeenCalled();
+    expect(result.storage.put).not.toHaveBeenCalled();
+    expect(result.db.statements.some((statement) => statement.query.includes('INSERT INTO mail_trace'))).toBe(false);
+  });
+});

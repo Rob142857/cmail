@@ -262,3 +262,72 @@ describe('atomic inbound reservations', () => {
     expect(db.prepare).not.toHaveBeenCalled();
   });
 });
+
+describe('reservation input and ambiguous writes', () => {
+  // One limit on is enough to route through D1.
+  const MAILBOX_LIMIT_ON = { INBOUND_MAILBOX_MESSAGES_PER_HOUR: 10 };
+
+  it.each([
+    ['an empty mailbox id', { ...input('key-1'), mailboxId: '' }],
+    ['an empty delivery key', input('')],
+    ['a negative size', input('key-1', -1)],
+    ['a fractional size', input('key-1', 10.5)],
+    ['an unsafe size', input('key-1', Number.MAX_SAFE_INTEGER + 1)],
+  ])('fails closed before D1 for %s', async (_label, request) => {
+    const db = new AtomicReservationDb();
+    await expect(reserveInboundDelivery(environment(db, MAILBOX_LIMIT_ON), request)).resolves.toEqual({ status: 'unavailable', reservationId: null });
+    expect(db.prepare).not.toHaveBeenCalled();
+  });
+
+  it('accepts a write whose response was lost when the recheck finds its own row', async () => {
+    const db = new AmbiguousWriteDb({ commit: true });
+    const result = await reserveInboundDelivery(environment(db, MAILBOX_LIMIT_ON), input('key-1'));
+    expect(result.status).toBe('accepted');
+    expect(result.reservationId).toBe(db.rows[0].id);
+  });
+
+  it('reports rejected when a lost write did not commit and no row exists', async () => {
+    const db = new AmbiguousWriteDb({ commit: false });
+    await expect(reserveInboundDelivery(environment(db, MAILBOX_LIMIT_ON), input('key-1'))).resolves.toEqual({ status: 'rejected', reservationId: null });
+  });
+
+  it('reports duplicate when the recheck finds another delivery holding the key', async () => {
+    const db = new AmbiguousWriteDb({ commit: false });
+    db.rows.push({ id: 'earlier', deliveryKey: 'key-1', mailboxId: 'mailbox-test', senderHash: '', messageBytes: 10, storagePending: true });
+    await expect(reserveInboundDelivery(environment(db, MAILBOX_LIMIT_ON), input('key-1'))).resolves.toEqual({ status: 'duplicate', reservationId: null });
+  });
+
+  it('fails closed when the recheck itself fails', async () => {
+    const db = new AmbiguousWriteDb({ commit: false, recheckFails: true });
+    await expect(reserveInboundDelivery(environment(db, MAILBOX_LIMIT_ON), input('key-1'))).resolves.toEqual({ status: 'unavailable', reservationId: null });
+  });
+});
+
+/** The insert throws as if the response were lost, optionally after committing the row. */
+class AmbiguousWriteDb extends AtomicReservationDb {
+  constructor(private readonly behaviour: { commit: boolean; recheckFails?: boolean }) {
+    super();
+    const original = this.prepare.getMockImplementation()!;
+    // Test double: wraps the base model's statements, so the narrow inferred type is cast away.
+    this.prepare.mockImplementation(((query: string) => {
+      const statement = original(query);
+      return {
+        bind: (...values: unknown[]) => {
+          const bound = statement.bind(...values) as { run?: () => Promise<unknown>; first?: () => Promise<unknown> };
+          if (query.includes('INSERT OR IGNORE INTO mailbox_reservations')) {
+            return {
+              run: async () => {
+                if (this.behaviour.commit) await bound.run!();
+                throw new Error('D1_ERROR: network connection lost');
+              },
+            };
+          }
+          if (query.includes('SELECT id, delivery_key FROM mailbox_reservations') && this.behaviour.recheckFails) {
+            return { first: async () => { throw new Error('D1_ERROR: network connection lost'); } };
+          }
+          return bound;
+        },
+      };
+    }) as never);
+  }
+}
