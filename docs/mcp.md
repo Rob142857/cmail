@@ -286,7 +286,11 @@ Protocol versions: **2026-07-28** (stateless, per-request `_meta`, mirrored
 the body, `server/discover`) and the initialize-based **2025-11-25**,
 **2025-06-18** and **2025-03-26**. cmail never issues session IDs. Requests
 carrying an unsupported version get HTTP 400 with error `-32022` and the
-supported list.
+supported list. A 2026-07-28 request whose `_meta` lacks
+`io.modelcontextprotocol/clientCapabilities` gets HTTP 400 with `-32602`.
+Modern `server/discover` results carry `ttlMs` 3600000 with `cacheScope`
+`public`; modern `tools/list` results carry `ttlMs` 300000 with `cacheScope`
+`private`, because the list depends on the token's scopes.
 
 OAuth: authorization code with PKCE (`S256` only), public clients
 (`token_endpoint_auth_method: none`) and confidential DCR clients
