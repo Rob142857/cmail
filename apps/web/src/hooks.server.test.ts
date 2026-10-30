@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { User } from '@cmail/shared/types';
 import { handle, handleError } from './hooks.server';
 import { buildSessionCookie, createSessionToken } from './lib/server/session';
@@ -278,41 +281,22 @@ describe('central ICT policy gate', () => {
   );
 });
 
-describe('response headers for edge transforms', () => {
-  const html = (headers: Record<string, string> = {}) =>
-    new Response('<p>Write to person@example.com</p>', { headers: { 'content-type': 'text/html; charset=utf-8', ...headers } });
-
-  it('marks every HTML page no-transform so Cloudflare does not rewrite addresses in it', async () => {
-    expect((await invoke({ path: '/privacy', body: html() })).response.headers.get('cache-control')).toBe('no-transform');
-    expect((await invoke({ path: '/privacy', body: html({ 'cache-control': 'public, max-age=60' }) })).response.headers.get('cache-control'))
-      .toBe('public, max-age=60, no-transform');
-    expect((await invoke({ path: '/privacy', body: html({ 'cache-control': 'no-transform' }) })).response.headers.get('cache-control'))
-      .toBe('no-transform');
+describe('Cloudflare edge rewriting', () => {
+  it('wraps the whole app body in email_off, so Email Obfuscation cannot break hydration', () => {
+    const shell = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'app.html'), 'utf8');
+    expect(shell).toMatch(/<!--email_off-->\s*<div[^>]*>%sveltekit\.body%<\/div>\s*<!--\/email_off-->/);
   });
 
-  it('adds no-transform after the private, no-store of a signed-in page', async () => {
-    const { response, locals } = await invoke({ path: '/mail', role: 'standard', body: html() });
-    expect(locals.user).not.toBeNull();
-    expect(response.headers.get('cache-control')).toBe('private, no-store, no-transform');
-  });
-
-  it.each(['/bootstrap', '/enroll/google'])('keeps no-transform on %s, whose no-store is set later', async (path) => {
-    const { response } = await invoke({ path, body: html() });
-    expect(response.headers.get('cache-control')).toBe('no-store, no-transform');
-  });
-
-  it('covers XHTML as well as HTML', async () => {
-    const { response } = await invoke({ path: '/privacy', body: new Response('<p/>', { headers: { 'content-type': 'application/xhtml+xml' } }) });
-    expect(response.headers.get('cache-control')).toBe('no-transform');
-  });
-
-  it('leaves non-HTML responses alone', async () => {
-    const { response } = await invoke({ path: '/api/organization', body: Response.json({ ok: true }) });
+  it('leaves Cache-Control alone, so pages are still compressed at the edge', async () => {
+    const html = new Response('<p>Write to person@example.com</p>', { headers: { 'content-type': 'text/html; charset=utf-8' } });
+    const { response } = await invoke({ path: '/privacy', body: html });
     expect(response.headers.get('cache-control')).toBeNull();
+    const signedIn = await invoke({ path: '/mail', role: 'standard', body: new Response('<p/>', { headers: { 'content-type': 'text/html' } }) });
+    expect(signedIn.response.headers.get('cache-control')).toBe('private, no-store');
   });
 
   it('no longer sends the retired interest-cohort feature', async () => {
-    const { response } = await invoke({ path: '/privacy', body: html() });
+    const { response } = await invoke({ path: '/privacy' });
     expect(response.headers.get('permissions-policy')).toBe('camera=(), microphone=(), geolocation=(), payment=(), usb=()');
   });
 });
