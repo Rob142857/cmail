@@ -130,7 +130,7 @@ describe('OIDC identity enrollment', () => {
       .rejects.toThrow('did not complete');
   });
 
-  it('leaves auth_provider alone for an email identity and caps the display name', async () => {
+  it('binds an email identity with the provider value the CASE uses to keep auth_provider, and caps the display name', async () => {
     const { db, captured } = batchDb([1, 1, 1]);
     await bindEnrolledIdentity(db, enrollment, 'email', 'person@example.com', 'n'.repeat(250));
     expect(captured[2].sql).toContain("CASE WHEN ? = 'email' THEN auth_provider ELSE ? END");
@@ -141,6 +141,8 @@ describe('OIDC identity enrollment', () => {
     ['used and paused (used wins)', { ...enrollment, consumed_at: '2026-08-03 00:00:00', status: 'paused' as const }, userInfo, 'enrollment_expired'],
     ['expiring exactly now', { ...enrollment, expires_at: 1_000 }, userInfo, 'enrollment_expired'],
     ['a provider with no email', enrollment, { ...userInfo, email: '' }, 'enrollment_email_mismatch'],
+    // Both sides empty: only the explicit empty-provider-email guard stops null === null matching.
+    ['a provider with no email against an invitation with none', { ...enrollment, email: '' }, { ...userInfo, email: '' }, 'enrollment_email_mismatch'],
   ])('rejects an enrollment that is %s', (_label, record, info, expected) => {
     expect(enrollmentFailure(record, info, 1_000)).toBe(expected);
   });
@@ -158,11 +160,19 @@ describe('findEnrollment', () => {
     ['42 characters', 'a'.repeat(42)],
     ['129 characters', 'a'.repeat(129)],
     ['a character outside base64url', `${'a'.repeat(42)}+`],
-    ['not a string', 42 as unknown as string],
+    ['not a string', ['a'.repeat(43)] as unknown as string],
   ])('never queries D1 for a token with %s', async (_label, token) => {
     const { db, prepare } = lookupDb();
     await expect(findEnrollment(db, token)).resolves.toBeNull();
     expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it('accepts tokens of 43 to 128 characters', async () => {
+    for (const token of ['a'.repeat(43), 'a'.repeat(128)]) {
+      const { db, prepare } = lookupDb();
+      await findEnrollment(db, token);
+      expect(prepare).toHaveBeenCalledTimes(1);
+    }
   });
 
   it('looks a well-formed token up by its hash, never the raw token', async () => {
