@@ -6,6 +6,8 @@
     allowRemoteImages = false,
     remoteImages = false,
     imageOrigin = '',
+    // Only for HTML from the server sanitizer, which forces target=_blank and
+    // rel="noopener noreferrer" on every link: opened links escape the sandbox.
     allowLinks = false,
     compact = false,
   } = $props();
@@ -102,6 +104,9 @@
 
 <svelte:window onresize={measure} />
 
+<!-- No allow-scripts, ever. With links allowed, allow-popups-to-escape-sandbox
+     lets a clicked link open as a normal tab: a tab that inherited this
+     sandbox is refused by sites with strict headers (ERR_BLOCKED_BY_RESPONSE). -->
 <iframe
   bind:this={frameEl}
   class:compact
@@ -110,7 +115,7 @@
   scrolling={!compact && measuredHeight > 0 ? 'no' : 'auto'}
   title={title}
   aria-describedby={describedBy}
-  sandbox={allowLinks ? 'allow-same-origin allow-popups' : 'allow-same-origin'}
+  sandbox={allowLinks ? 'allow-same-origin allow-popups allow-popups-to-escape-sandbox' : 'allow-same-origin'}
   referrerpolicy="no-referrer"
   srcdoc={frameDocument}
 ></iframe>

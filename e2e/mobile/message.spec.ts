@@ -10,7 +10,7 @@ test('HTML mail renders inside the sandboxed frame with images blocked', async (
   const frame = page.frameLocator('iframe[title="Email content"]');
   await expect(frame.getByRole('heading', { name: 'Saturday working bee' })).toBeVisible();
   await expect(page.getByText('Images blocked to stop the sender tracking you.')).toBeVisible();
-  await expect(page.locator('iframe[title="Email content"]')).toHaveAttribute('sandbox', 'allow-same-origin allow-popups');
+  await expect(page.locator('iframe[title="Email content"]')).toHaveAttribute('sandbox', 'allow-same-origin allow-popups allow-popups-to-escape-sandbox');
 });
 
 test('wide HTML mail fits the screen instead of being cut off', async ({ page }) => {
