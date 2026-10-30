@@ -354,11 +354,38 @@ describe('safety guards', () => {
     expect([...backup.objects.keys()].some((key) => key.startsWith('objects/'))).toBe(false);
   });
 
+  it('still accepts the printed code when more mail was deleted before the redeploy', async () => {
+    const keys = Array.from({ length: 100 }, (_, index) => `messages/${index}/body`);
+    const { source, backup, env } = setup(keys);
+    await runBackup(env, DAY);
+    for (const key of keys.slice(0, 30)) source.objects.delete(key);
+    const token = tokenIn((await runBackup(env, later(1))).paused);
+    // Before the operator redeploys, a few more ordinary deletions happen.
+    for (const key of keys.slice(30, 33)) source.objects.delete(key);
+    const accepted = await runBackup({ ...env, BACKUP_ACKNOWLEDGE_DELETIONS: token } as BackupEnv, later(1.2));
+    expect(accepted.paused).toBeNull();
+    expect(accepted.markedMissing).toBe(33);
+    expect(JSON.parse(backup.objects.get('state/acknowledged.json')!.body).keys).toHaveLength(30);
+  });
+
+  it('says so when the code set does not match, and prints the current one', async () => {
+    const keys = Array.from({ length: 100 }, (_, index) => `messages/${index}/body`);
+    const { source, env } = setup(keys);
+    await runBackup(env, DAY);
+    for (const key of keys.slice(0, 30)) source.objects.delete(key);
+    const result = await runBackup({ ...env, BACKUP_ACKNOWLEDGE_DELETIONS: '30:deadbeef' } as BackupEnv, later(1));
+    expect(result.paused).toContain('does not match');
+    expect(tokenIn(result.paused)).toBe(acknowledgementToken(keys.slice(0, 30)));
+  });
+
   it('makes the missing share configurable within bounds, default 20%', () => {
     expect(missingShare(undefined)).toBe(0.2);
     expect(missingShare('0.1')).toBe(0.1);
     expect(missingShare('0.9')).toBe(0.5);
-    expect(missingShare('0')).toBe(0.01);
+    expect(missingShare('20')).toBe(0.2);
+    expect(missingShare('20%')).toBe(0.2);
+    expect(missingShare('0.5%')).toBe(0.01);
+    expect(missingShare('0')).toBe(0.2);
     expect(acknowledgementToken(['b', 'a'])).toBe(acknowledgementToken(['a', 'b']));
     expect(acknowledgementToken(['a', 'b'])).not.toBe(acknowledgementToken(['a', 'c']));
   });

@@ -61,6 +61,7 @@ const MANIFESTS = 'manifests/';
 const DATABASE = 'd1/';
 const MISSING_STATE = 'state/missing.json';
 const ACK_STATE = 'state/acknowledged.json';
+const PENDING_STATE = 'state/pending-acknowledgement.json';
 const IDENTITY = 'state/backup-identity.json';
 const BACKUP_PREFIXES = [OBJECTS, VERSIONS, MANIFESTS, DATABASE, 'state/'];
 const SAMPLE_KEYS = 1000;
@@ -69,8 +70,8 @@ const MIN_OBJECTS_FOR_TOTAL_LOSS_CHECK = 3;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ROWS_PER_QUERY = 500;
 const ROWS_PER_PART = 10_000;
-// A single run may newly mark at most this share of the backup as deleted
-// (and never fewer than this many objects) before it stops as suspicious.
+// At most this share of the backup (and never fewer than this many objects)
+// may be missing from SOURCE, unexplained, before a run pauses.
 const DEFAULT_MAX_MISSING_SHARE = 0.2;
 const MIN_MISSING_ALLOWANCE = 25;
 
@@ -161,9 +162,14 @@ export function acknowledgementToken(sourceKeys: readonly string[]): string {
   return `${sorted.length}:${hash.toString(16).padStart(8, '0')}`;
 }
 
+/** "0.2", "20" and "20%" all mean 20%. Bounded 1%-50%; anything unreadable is the default. */
 export function missingShare(value: unknown): number {
-  const parsed = typeof value === 'number' ? value : Number(String(value ?? '').trim() || NaN);
-  return Number.isFinite(parsed) ? Math.min(0.5, Math.max(0.01, parsed)) : DEFAULT_MAX_MISSING_SHARE;
+  const text = String(value ?? '').trim();
+  const percent = text.endsWith('%');
+  const parsed = typeof value === 'number' ? value : Number(percent ? text.slice(0, -1) : text || NaN);
+  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_MAX_MISSING_SHARE;
+  const share = percent || parsed > 1 ? parsed / 100 : parsed;
+  return Math.min(0.5, Math.max(0.01, share));
 }
 
 async function copyObject(env: BackupEnv, source: R2Object, previous: R2Object | undefined, now: Date): Promise<boolean> {
@@ -256,28 +262,46 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
   const acknowledgedKeys = new Set(acknowledged.keys ?? []);
   const missingNow = [...backedUp.keys()].filter((key) => !source.has(key.slice(OBJECTS.length)));
   const newlyMissing = missingNow.filter((key) => missing[key.slice(OBJECTS.length)] === undefined);
-  const unexplained = missingNow.filter((key) => !acknowledgedKeys.has(key.slice(OBJECTS.length)));
   const overlap = backedUp.size - missingNow.length;
   const allowance = Math.max(MIN_MISSING_ALLOWANCE, Math.ceil(backedUp.size * missingShare(env.BACKUP_MAX_MISSING_SHARE)));
-  let suspicion: string | null = null;
-  if (backedUp.size > 0 && source.size === 0 && unexplained.length > 0) {
-    suspicion = `SOURCE is empty but ${unexplained.length} backed-up objects exist`;
-  } else if (backedUp.size >= MIN_OBJECTS_FOR_TOTAL_LOSS_CHECK && overlap === 0 && unexplained.length > 0) {
-    suspicion = `none of the ${backedUp.size} backed-up objects is in SOURCE`;
-  } else if (unexplained.length > allowance) {
-    suspicion = `${unexplained.length} backed-up objects are missing from SOURCE (limit ${allowance})`;
+  const unexplainedKeys = () => missingNow.map((key) => key.slice(OBJECTS.length)).filter((key) => !acknowledgedKeys.has(key));
+  const judge = (count: number): string | null => {
+    if (backedUp.size > 0 && source.size === 0 && count > 0) return `SOURCE is empty but ${count} backed-up objects exist`;
+    if (backedUp.size >= MIN_OBJECTS_FOR_TOTAL_LOSS_CHECK && overlap === 0 && count > 0) return `none of the ${backedUp.size} backed-up objects is in SOURCE`;
+    if (count > allowance) return `${count} backed-up objects are missing from SOURCE (limit ${allowance})`;
+    return null;
+  };
+  const accept = async (keys: readonly string[], token: string) => {
+    for (const key of keys) acknowledgedKeys.add(key);
+    await env.BACKUP.put(ACK_STATE, JSON.stringify({ token, at: nowEpoch, keys: [...acknowledgedKeys] }), { httpMetadata: { contentType: 'application/json' } });
+    await env.BACKUP.put(PENDING_STATE, '{}', { httpMetadata: { contentType: 'application/json' } });
+  };
+
+  // The operator copies the code a paused run printed. That run's exact key
+  // set is saved, so the code still works if more mail was deleted before the
+  // redeploy; anything that vanished since is judged on its own.
+  const offered = String(env.BACKUP_ACKNOWLEDGE_DELETIONS ?? '').trim();
+  const pending = await readJson<{ token?: string; keys?: string[] }>(env.BACKUP, PENDING_STATE, {});
+  let usedOffer = false;
+  if (offered && pending.token === offered && pending.keys?.length) {
+    const stillMissing = new Set(unexplainedKeys());
+    await accept(pending.keys.filter((key) => stillMissing.has(key)), offered);
+    usedOffer = true;
+  }
+  let remaining = unexplainedKeys();
+  let suspicion = judge(remaining.length);
+  if (suspicion && offered && !usedOffer && offered === acknowledgementToken(remaining)) {
+    await accept(remaining, offered);
+    usedOffer = true;
+    remaining = unexplainedKeys();
+    suspicion = judge(remaining.length);
   }
   let paused: string | null = null;
   if (suspicion) {
-    const unexplainedKeys = unexplained.map((key) => key.slice(OBJECTS.length));
-    const token = acknowledgementToken(unexplainedKeys);
-    if (String(env.BACKUP_ACKNOWLEDGE_DELETIONS ?? '').trim() === token) {
-      // Accept exactly this set of missing objects; they stay excused until they expire.
-      for (const key of unexplainedKeys) acknowledgedKeys.add(key);
-      await env.BACKUP.put(ACK_STATE, JSON.stringify({ token, at: nowEpoch, keys: [...acknowledgedKeys] }), { httpMetadata: { contentType: 'application/json' } });
-    } else {
-      paused = `${suspicion}. Check the SOURCE binding; if this is a genuine purge, set BACKUP_ACKNOWLEDGE_DELETIONS=${token}`;
-    }
+    const token = acknowledgementToken(remaining);
+    await env.BACKUP.put(PENDING_STATE, JSON.stringify({ token, keys: remaining }), { httpMetadata: { contentType: 'application/json' } });
+    const stale = offered && !usedOffer ? ' (the BACKUP_ACKNOWLEDGE_DELETIONS value set now does not match)' : '';
+    paused = `${suspicion}${stale}. Check the SOURCE binding; if this is a genuine purge, set BACKUP_ACKNOWLEDGE_DELETIONS=${token}`;
   }
 
   // 1. Copy what is new or changed. Rotate the start so keys that keep failing
