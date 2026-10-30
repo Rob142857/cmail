@@ -20,4 +20,17 @@ describe('message body frame', () => {
     expect(body).not.toContain('No message content');
     expect(body).toContain('Hello Bob&lt;br>Second line');
   });
+
+  it('lets links open as normal tabs, without ever allowing script in the frame', () => {
+    const sandbox = (props: Record<string, unknown>) => /sandbox="([^"]*)"/.exec(render(EmailHtmlFrame, { props: { html: '<p>x</p>', ...props } }).body)?.[1].split(' ');
+    // Opened links escape the sandbox, so sites with strict headers still load.
+    expect(sandbox({ allowLinks: true })).toEqual(['allow-same-origin', 'allow-popups', 'allow-popups-to-escape-sandbox']);
+    // Previews and drafts open nothing.
+    expect(sandbox({})).toEqual(['allow-same-origin']);
+    for (const flags of [sandbox({ allowLinks: true }), sandbox({})]) {
+      expect(flags).not.toContain('allow-scripts');
+      expect(flags).not.toContain('allow-top-navigation');
+      expect(flags).not.toContain('allow-forms');
+    }
+  });
 });
