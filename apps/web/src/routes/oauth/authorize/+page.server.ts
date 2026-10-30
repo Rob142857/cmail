@@ -21,7 +21,7 @@ import {
   validateAuthorizationRequest,
 } from '#lib/server/mcp/oauth.js';
 import { MCP_AUTHORIZE_COOKIE, MCP_RESUME_PATH, mcpAuthorizeCookieOptions } from '#lib/server/mcp/resume.js';
-import { redirectDisplay } from '#lib/server/mcp/redirect-uri.js';
+import { redirectDisplay, redirectsOnlyToLoopback } from '#lib/server/mcp/redirect-uri.js';
 import { consumeRateLimit } from '#lib/server/rate-limit.js';
 
 type View =
@@ -31,7 +31,7 @@ type View =
   | {
       view: 'consent';
       requestId: string;
-      client: { name: string; verifiedHost: string | null; uri: string };
+      client: { name: string; verifiedHost: string | null; uri: string; loopbackOnly: boolean };
       returnTo: string;
       scopes: Array<{ id: string; label: string; detail: string; risk: string; checked: boolean }>;
       mailboxes: Array<{ id: string; address: string; name: string; type: string; permission: string; checked: boolean }>;
@@ -96,6 +96,7 @@ export const load: PageServerLoad = async ({ url, locals, platform, cookies, req
       name: pending.client.client_name,
       verifiedHost: verifiedClientHost(pending.client),
       uri: pending.client.client_uri,
+      loopbackOnly: redirectsOnlyToLoopback(pending.client.redirect_uris),
     },
     returnTo: redirectDisplay(pending.redirectUri),
     scopes: pending.requestedScopes.map((scope) => ({

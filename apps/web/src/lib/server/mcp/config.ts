@@ -45,7 +45,9 @@ export const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 export const GRANT_MAX_LIFETIME_SECONDS = 90 * 24 * 60 * 60;
 export const AUTH_CODE_TTL_SECONDS = 5 * 60;
 export const AUTH_REQUEST_TTL_SECONDS = 10 * 60;
+/** CIMD documents are cached for their Cache-Control max-age, kept within these bounds; 24 h when none is given. */
 export const CIMD_CACHE_SECONDS = 24 * 60 * 60;
+export const CIMD_MIN_CACHE_SECONDS = 5 * 60;
 
 /** Request body ceilings. Drafts may carry a 1 MB body, so /mcp allows a little more. */
 export const MAX_MCP_REQUEST_BYTES = 1_200_000;

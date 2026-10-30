@@ -769,7 +769,7 @@ const moveMessage: ToolDefinition = {
     required: ['message_id', 'folder'],
     additionalProperties: false,
   },
-  annotations: { title: 'Move a message', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  annotations: { title: 'Move a message', readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
   async handler(context, args) {
     const messageId = args.requiredString('message_id', 128);
     const folder = args.enumValue('folder', MOVE_TARGETS);

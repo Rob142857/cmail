@@ -64,7 +64,9 @@ The screen shows:
   app can call itself anything, so only approve an app you just started
   connecting yourself.
 - **Where you'll be returned**, for example "an app on this computer
-  (localhost)" or a website name.
+  (localhost)" or a website name. When an app can only return to this
+  computer, a warning says so: any program on the computer could be listening
+  there, so cmail can't check which one it is.
 - **What it may do.** *Read mail* and *Write drafts* are ticked by default.
   *Send email as you*, *Organise mail* and *Read calendar* are off until you
   tick them. Ticking *Send* shows a warning, because sent mail can't be
@@ -290,7 +292,16 @@ supported list. A 2026-07-28 request whose `_meta` lacks
 `io.modelcontextprotocol/clientCapabilities` gets HTTP 400 with `-32602`.
 Modern `server/discover` results carry `ttlMs` 3600000 with `cacheScope`
 `public`; modern `tools/list` results carry `ttlMs` 300000 with `cacheScope`
-`private`, because the list depends on the token's scopes.
+`private`, because the list depends on the token's scopes. Every modern
+result names the server in `_meta` (`io.modelcontextprotocol/serverInfo`).
+`ping` was removed in 2026-07-28, so a modern `ping` gets HTTP 404 with
+`-32601`; legacy clients can still ping. Authentication, permission and rate
+limit failures use error `-32603` with the HTTP status (401, 403 or 429)
+carrying the meaning, rather than the reserved `-32000` to `-32019` range.
+`move_message` is marked `destructiveHint: true`, because it can move mail to
+Trash or Spam, so hosts may ask before running it. Metadata documents are
+cached for their `Cache-Control` `max-age`, kept between 5 minutes and a day
+(a day when the header gives none).
 
 OAuth: authorization code with PKCE (`S256` only), public clients
 (`token_endpoint_auth_method: none`) and confidential DCR clients

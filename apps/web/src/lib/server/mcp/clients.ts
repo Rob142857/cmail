@@ -1,7 +1,7 @@
 // OAuth client records: Dynamic Client Registration (RFC 7591, kept for the
 // many clients that still use it) and Client ID Metadata Documents (the
 // mechanism the 2026-07-28 MCP revision prefers).
-import { CIMD_CACHE_SECONDS } from './config';
+import { CIMD_CACHE_SECONDS, CIMD_MIN_CACHE_SECONDS } from './config';
 import { nowEpoch, randomToken, sha256Hex, timingSafeEqual } from './crypto';
 import { validateRedirectUriList } from './redirect-uri';
 
@@ -187,11 +187,25 @@ async function readBoundedText(response: Response, maxBytes: number): Promise<st
   return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 }
 
+/**
+ * How long to cache a metadata document, from its Cache-Control header.
+ * no-store, no-cache and short max-age values still get the minimum, so one
+ * sign-in doesn't refetch the document at every step.
+ */
+export function cimdCacheSeconds(cacheControl: string | null): number {
+  if (!cacheControl) return CIMD_CACHE_SECONDS;
+  const directives = cacheControl.toLowerCase().split(',').map((part) => part.trim());
+  if (directives.some((part) => part === 'no-store' || part === 'no-cache')) return CIMD_MIN_CACHE_SECONDS;
+  const maxAge = directives.map((part) => /^max-age=(\d{1,10})$/.exec(part)).find(Boolean);
+  if (!maxAge) return CIMD_CACHE_SECONDS;
+  return Math.min(CIMD_CACHE_SECONDS, Math.max(CIMD_MIN_CACHE_SECONDS, Number(maxAge[1])));
+}
+
 /** Fetch and validate a Client ID Metadata Document. Never follows redirects. */
 export async function fetchClientMetadataDocument(
   clientId: string,
   fetcher: typeof fetch = fetch,
-): Promise<Omit<McpClient, 'client_secret_hash'>> {
+): Promise<Omit<McpClient, 'client_secret_hash'> & { cacheSeconds: number }> {
   if (!isClientIdMetadataUrl(clientId)) throw new OAuthError('invalid_client', 'client_id is not a valid metadata document URL', 401);
   let response: Response;
   try {
@@ -239,12 +253,13 @@ export async function fetchClientMetadataDocument(
     client_uri: cleanHttpsUri(document.client_uri),
     redirect_uris: redirectUris,
     token_endpoint_auth_method: 'none',
+    cacheSeconds: cimdCacheSeconds(response.headers.get('cache-control')),
   };
 }
 
 /**
  * Look up a client by id. URL-shaped ids are resolved as Client ID Metadata
- * Documents (cached in D1 for a day); anything else must be a DCR client.
+ * Documents (cached in D1 per their Cache-Control, 5 min to a day); anything else must be a DCR client.
  * Pass `fetcher: null` to use only stored clients and never fetch.
  */
 export async function resolveClient(
@@ -262,9 +277,10 @@ export async function resolveClient(
   if (row && (row.registration_type === 'dcr' || (row.metadata_expires_epoch ?? 0) > now)) return rowToClient(row);
   if (!fetcher || !isClientIdMetadataUrl(clientId)) return null;
 
+  let cacheSeconds: number;
   let fetched: Omit<McpClient, 'client_secret_hash'>;
   try {
-    fetched = await fetchClientMetadataDocument(clientId, fetcher);
+    ({ cacheSeconds, ...fetched } = await fetchClientMetadataDocument(clientId, fetcher));
   } catch {
     return null;
   }
@@ -275,7 +291,7 @@ export async function resolveClient(
      ON CONFLICT(id) DO UPDATE SET client_name = excluded.client_name, client_uri = excluded.client_uri,
        redirect_uris = excluded.redirect_uris, metadata_expires_epoch = excluded.metadata_expires_epoch
      WHERE mcp_clients.registration_type = 'cimd'`,
-  ).bind(fetched.id, fetched.client_name, fetched.client_uri, JSON.stringify(fetched.redirect_uris), now + CIMD_CACHE_SECONDS).run();
+  ).bind(fetched.id, fetched.client_name, fetched.client_uri, JSON.stringify(fetched.redirect_uris), now + cacheSeconds).run();
   return { ...fetched, client_secret_hash: null };
 }
 

@@ -88,6 +88,10 @@
         <div><dt>Signed in as</dt><dd>{data.userEmail}</dd></div>
       </dl>
 
+      {#if data.client.loopbackOnly}
+        <p class="local-warning" role="note"><Icon name="warning" size={14} /> This app only returns to a program on this computer. {appName} can't check which program that is, so allow it only if you started this connection yourself just now.</p>
+      {/if}
+
       {#if form?.error}<div class="notice notice-error" role="alert">{form.error}</div>{/if}
 
       <form method="POST" action="?/decide" class="consent-form">
@@ -166,6 +170,7 @@
   .choice strong { display: block; font-size: 13.5px; }
   .choice small { display: block; margin-top: 2px; color: var(--text-muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
   .risk { margin-left: 6px; padding: 1px 6px; border-radius: var(--radius-pill); background: var(--warning-soft); color: var(--warning-text); font-size: 10.5px; font-style: normal; font-weight: 600; }
+  .local-warning { display: flex; gap: 6px; align-items: flex-start; margin: -8px 0 16px; padding: 9px 11px; border-left: 3px solid var(--warning); background: var(--warning-soft); color: var(--warning-text); font-size: 12px; }
   .send-warning { display: flex; gap: 6px; align-items: flex-start; margin: 4px 0 0; padding: 9px 11px; border-left: 3px solid var(--warning); background: var(--warning-soft); color: var(--warning-text); font-size: 12px; }
   .safety { display: flex; gap: 9px; margin: 4px 0 20px; padding: 0; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
   .safety :global(svg) { flex: 0 0 auto; margin-top: 2px; color: var(--success); }

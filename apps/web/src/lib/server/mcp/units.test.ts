@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { classifyRedirectUri, redirectUriMatches, validateRedirectUriList } from './redirect-uri';
+import { classifyRedirectUri, redirectsOnlyToLoopback, redirectUriMatches, validateRedirectUriList } from './redirect-uri';
 import { MCP_RESUME_PATH, mcpResumeLocation } from './resume';
-import { isClientIdMetadataUrl, presentedClientCredentials } from './clients';
+import { cimdCacheSeconds, isClientIdMetadataUrl, presentedClientCredentials } from './clients';
 import { mcpIssuer, parseScopes, resourceMatches } from './config';
 import { isValidCodeChallenge, isValidCodeVerifier, verifyPkceS256, sha256Base64Url } from './crypto';
 import { mcpMaintenanceStatements } from './maintenance';
@@ -36,6 +36,13 @@ describe('redirect URI policy', () => {
     expect(redirectUriMatches('http://127.0.0.1:9999/callback?x=1', registered)).toBe(false);
   });
 
+  it('flags clients whose every redirect is a loopback address', () => {
+    expect(redirectsOnlyToLoopback(['http://127.0.0.1:1234/cb', 'http://localhost/cb'])).toBe(true);
+    expect(redirectsOnlyToLoopback(['http://127.0.0.1:1234/cb', 'https://app.example/cb'])).toBe(false);
+    expect(redirectsOnlyToLoopback(['com.example.app:/oauth'])).toBe(false);
+    expect(redirectsOnlyToLoopback([])).toBe(false);
+  });
+
   it('caps registration lists', () => {
     expect(validateRedirectUriList(Array.from({ length: 11 }, (_, index) => `https://a.example/${index}`))).toBeNull();
     expect(validateRedirectUriList(['https://a.example/cb', 'https://a.example/cb'])).toEqual(['https://a.example/cb']);
@@ -59,6 +66,16 @@ describe('small helpers', () => {
     for (const value of ['https://claude.ai', 'https://claude.ai/', 'https://1.2.3.4/x', 'https://a.local/x', 'https://a.example/x?y=1', 'https://a.example/x#y', 'http://a.example/x']) {
       expect(isClientIdMetadataUrl(value)).toBe(false);
     }
+  });
+
+  it('caches metadata documents per Cache-Control, between 5 minutes and a day', () => {
+    expect(cimdCacheSeconds(null)).toBe(86_400);
+    expect(cimdCacheSeconds('public, max-age=3600')).toBe(3600);
+    expect(cimdCacheSeconds('max-age=10')).toBe(300);
+    expect(cimdCacheSeconds('max-age=31536000')).toBe(86_400);
+    expect(cimdCacheSeconds('no-store')).toBe(300);
+    expect(cimdCacheSeconds('max-age=600, no-cache')).toBe(300);
+    expect(cimdCacheSeconds('private')).toBe(86_400);
   });
 
   it('parses scopes, issuers and resources strictly', () => {
