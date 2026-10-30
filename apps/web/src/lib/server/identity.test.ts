@@ -4,6 +4,7 @@ import {
   bindEnrolledIdentity,
   enrollmentFailure,
   findBoundUser,
+  findEnrollment,
   hashEnrollmentToken,
   issueEnrollmentToken,
   type EnrollmentRecord,
@@ -117,5 +118,58 @@ describe('OIDC identity enrollment', () => {
       'immutable-subject',
       'Example Person',
     )).rejects.toThrow('did not complete');
+  });
+
+  it.each([
+    ['the identity insert did nothing', [1, 0, 0]],
+    ['the user update did nothing', [1, 1, 0]],
+    ['D1 returned fewer results than statements', [1, 1]],
+  ])('fails closed when %s', async (_label, changes) => {
+    const { db } = batchDb(changes);
+    await expect(bindEnrolledIdentity(db, enrollment, 'google', 'immutable-subject', 'Example Person'))
+      .rejects.toThrow('did not complete');
+  });
+
+  it('leaves auth_provider alone for an email identity and caps the display name', async () => {
+    const { db, captured } = batchDb([1, 1, 1]);
+    await bindEnrolledIdentity(db, enrollment, 'email', 'person@example.com', 'n'.repeat(250));
+    expect(captured[2].sql).toContain("CASE WHEN ? = 'email' THEN auth_provider ELSE ? END");
+    expect(captured[2].args).toEqual(['email', 'email', 'n'.repeat(200), 'user-1']);
+  });
+
+  it.each([
+    ['used and paused (used wins)', { ...enrollment, consumed_at: '2026-08-03 00:00:00', status: 'paused' as const }, userInfo, 'enrollment_expired'],
+    ['expiring exactly now', { ...enrollment, expires_at: 1_000 }, userInfo, 'enrollment_expired'],
+    ['a provider with no email', enrollment, { ...userInfo, email: '' }, 'enrollment_email_mismatch'],
+  ])('rejects an enrollment that is %s', (_label, record, info, expected) => {
+    expect(enrollmentFailure(record, info, 1_000)).toBe(expected);
+  });
+});
+
+describe('findEnrollment', () => {
+  function lookupDb() {
+    const first = vi.fn().mockResolvedValue(null);
+    const bind = vi.fn(() => ({ first }));
+    const prepare = vi.fn((_sql: string) => ({ bind }));
+    return { db: { prepare } as unknown as D1Database, prepare, bind };
+  }
+
+  it.each([
+    ['42 characters', 'a'.repeat(42)],
+    ['129 characters', 'a'.repeat(129)],
+    ['a character outside base64url', `${'a'.repeat(42)}+`],
+    ['not a string', 42 as unknown as string],
+  ])('never queries D1 for a token with %s', async (_label, token) => {
+    const { db, prepare } = lookupDb();
+    await expect(findEnrollment(db, token)).resolves.toBeNull();
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it('looks a well-formed token up by its hash, never the raw token', async () => {
+    const { db, bind } = lookupDb();
+    const token = `${'a'.repeat(40)}-_Z`;
+    await findEnrollment(db, token);
+    expect(bind).toHaveBeenCalledWith(await hashEnrollmentToken(token));
+    expect(bind.mock.calls.flat()).not.toContain(token);
   });
 });
