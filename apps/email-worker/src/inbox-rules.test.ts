@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { InboxRuleRow } from '@cmail/shared/inbox-rules';
+import { GUARDS_OFF, deliverInbound, deliveryDatabase, insertedRow, memoryStorage, type Statement } from './testing/delivery';
 
 const pushMocks = vi.hoisted(() => ({ sendNewMailNotifications: vi.fn(async () => ({})) }));
 vi.mock('@cmail/shared/push', async (original) => ({
@@ -9,61 +10,19 @@ vi.mock('@cmail/shared/push', async (original) => ({
 
 const { default: worker, inboxRuleTraceDetail } = await import('./index');
 
-interface Statement {
-  query: string;
-  values: unknown[];
-}
-
-function deliveryDatabase(options: { rules?: InboxRuleRow[]; rulesFail?: boolean; blockSender?: boolean } = {}) {
-  const statements: Statement[] = [];
-  const batched: Statement[] = [];
-  const database = {
-    prepare(query: string) {
-      const statement: Statement & Record<string, unknown> = {
-        query,
-        values: [],
-        bind(...values: unknown[]) {
-          statement.values = values;
-          return statement;
-        },
-        async first() {
-          statements.push(statement);
-          return query.includes('FROM mailboxes') ? { id: 'mailbox-1', status: 'active' } : null;
-        },
-        async all() {
-          statements.push(statement);
-          if (query.includes('FROM inbox_rules')) {
-            if (options.rulesFail) throw new Error('D1_ERROR: no such table: inbox_rules');
-            return { results: options.rules ?? [] };
-          }
-          if (query.includes('FROM sender_rules') && options.blockSender) {
-            return { results: [{ pattern: 'partner.example', action: 'block' }] };
-          }
-          return { results: [] };
-        },
-        async run() {
-          statements.push(statement);
-          return { meta: { changes: 1 } };
-        },
-      };
-      return statement;
+function rulesDatabase(options: { rules?: InboxRuleRow[]; rulesFail?: boolean; blockSender?: boolean } = {}) {
+  return deliveryDatabase({
+    all(query) {
+      if (query.includes('FROM inbox_rules')) {
+        if (options.rulesFail) throw new Error('D1_ERROR: no such table: inbox_rules');
+        return { results: options.rules ?? [] };
+      }
+      if (query.includes('FROM sender_rules') && options.blockSender) {
+        return { results: [{ pattern: 'partner.example', action: 'block' }] };
+      }
+      return undefined;
     },
-    async batch(list: Statement[]) {
-      batched.push(...list);
-      return list.map(() => ({ meta: { changes: 1 } }));
-    },
-  };
-  return { database, statements, batched };
-}
-
-/** Column name to value for an INSERT, matching literals as well as bound values. */
-function insertedRow(statements: Statement[], table: string): Record<string, unknown> {
-  const insert = statements.find((statement) => statement.query.includes(`INSERT INTO ${table}`));
-  if (!insert) throw new Error(`Nothing was inserted into ${table}`);
-  const columns = new RegExp(`INSERT INTO ${table} \\(([^)]*)\\)`).exec(insert.query)?.[1].split(',').map((column) => column.trim()) ?? [];
-  const tokens = /VALUES \(([\s\S]*)\)\s*$/.exec(insert.query.trim())?.[1].split(/,\s*/) ?? [];
-  const values = [...insert.values];
-  return Object.fromEntries(columns.map((column, index) => [column, tokens[index] === '?' ? values.shift() : tokens[index]]));
+  });
 }
 
 function insertedMessage(batched: Statement[]): Record<string, unknown> {
@@ -87,28 +46,9 @@ const RAW = [
 ].join('\r\n');
 
 async function deliver(database: unknown, raw = RAW) {
-  const headers = new Headers({ 'message-id': '<weekly-1@partner.example>' });
-  const message = {
-    from: 'bounce@partner.example',
-    to: 'mailbox@example.test',
-    rawSize: raw.length,
-    headers,
-    raw: new Blob([raw]).stream(),
-    setReject: vi.fn(),
-    forward: vi.fn(),
-    reply: vi.fn(),
-  };
-  const handler = worker as unknown as {
-    email(value: unknown, environment: Record<string, unknown>, context: { waitUntil(promise: Promise<unknown>): void }): Promise<void>;
-  };
-  await handler.email(message, {
-    DB: database,
-    STORAGE: { put: vi.fn(async () => undefined), delete: vi.fn(async () => undefined) },
-    INBOUND_MAILBOX_MESSAGES_PER_HOUR: '0',
-    INBOUND_MAILBOX_BYTES_PER_HOUR: '0',
-    INBOUND_SENDER_MESSAGES_PER_HOUR: '0',
-    MAILBOX_STORAGE_QUOTA_BYTES: '0',
-  }, { waitUntil: () => undefined });
+  const { storage } = memoryStorage();
+  const { error, message } = await deliverInbound(worker, raw, { DB: database, STORAGE: storage, ...GUARDS_OFF });
+  expect(error).toBeNull();
   expect(message.setReject).not.toHaveBeenCalled();
 }
 
@@ -122,7 +62,7 @@ afterEach(() => {
 
 describe('inbox rules on inbound delivery', () => {
   it('delivers to the Inbox, unread, with an alert, when the mailbox has no rules', async () => {
-    const db = deliveryDatabase();
+    const db = rulesDatabase();
     await deliver(db.database);
     expect(insertedMessage(db.batched)).toMatchObject({ folder: 'inbox', is_read: 0, is_starred: 0, importance: 'normal' });
     expect(traceDetail(db.statements)).toBe('OK');
@@ -130,7 +70,7 @@ describe('inbox rules on inbound delivery', () => {
   });
 
   it('files, marks read, stars and sets importance as the rules say, and records it in the trace', async () => {
-    const db = deliveryDatabase({
+    const db = rulesDatabase({
       rules: [
         rule('r1', 'Newsletters', { conditions: { headerContains: ['list-id'] }, actions: { moveTo: 'archive', markAsRead: true } }, 0),
         rule('r2', 'Unsubscribe mail', { conditions: { bodyContains: ['UNSUBSCRIBE'] }, actions: { star: true, setImportance: 'low' } }),
@@ -144,7 +84,7 @@ describe('inbox rules on inbound delivery', () => {
   });
 
   it('tests the To line as sent, not the Bcc fallback, for "I\'m not on the To line"', async () => {
-    const db = deliveryDatabase({
+    const db = rulesDatabase({
       rules: [rule('r1', 'Not to me', { conditions: { myPosition: 'not-to' }, actions: { star: true } })],
     });
     await deliver(db.database, RAW.replace('To: mailbox@example.test', 'To: list@partner.example'));
@@ -156,7 +96,7 @@ describe('inbox rules on inbound delivery', () => {
   });
 
   it('never runs rules on mail the organisation quarantined', async () => {
-    const db = deliveryDatabase({
+    const db = rulesDatabase({
       blockSender: true,
       rules: [rule('r1', 'Rescue', { appliesToAll: true, actions: { moveTo: 'archive' } })],
     });
@@ -168,7 +108,7 @@ describe('inbox rules on inbound delivery', () => {
   it('delivers normally when the rules cannot be read', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     try {
-      const db = deliveryDatabase({ rulesFail: true });
+      const db = rulesDatabase({ rulesFail: true });
       await deliver(db.database);
       expect(insertedMessage(db.batched)).toMatchObject({ folder: 'inbox', is_read: 0 });
       expect(error).toHaveBeenCalledWith('Inbox rules were skipped for a delivery');
@@ -179,7 +119,7 @@ describe('inbox rules on inbound delivery', () => {
   });
 
   it('ignores a stored rule that no longer validates and still runs the others', async () => {
-    const db = deliveryDatabase({
+    const db = rulesDatabase({
       rules: [
         { id: 'bad', name: 'Bad', is_enabled: 1, stop_processing: 1, definition: '{"appliesToAll":true,"actions":{"forwardTo":"x@evil.example"}}' },
         rule('good', 'Good', { conditions: { from: ['partner.example'] }, actions: { moveTo: 'trash' } }),
