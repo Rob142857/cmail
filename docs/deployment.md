@@ -105,6 +105,20 @@ rclone check r2-backup:cmail-storage-YYYY-MM-DD r2-recovery:cmail-storage-recove
 
 Record the D1 export checksum, R2 backup prefix, creation time, source resource names, and confirmation the recovery validated. Check table counts and a small approved sample of message bodies/attachments on the isolated resources. Restoring a live environment needs an approved outage plan: stop mail routing and writes, restore the matching D1 and R2 point together, update both application bindings together, then test before re-enabling routing.
 
+#### Point-in-time recovery with D1 Time Travel
+
+D1 keeps 30 days of history ([Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/)), so a bad data change (a faulty migration, a wrong bulk action, a script error) can be undone without an export. It covers D1 only — R2 objects deleted or overwritten in the same window are not brought back, so keep the R2 copy above as well.
+
+- Before any migration or bulk change, record a bookmark: `pnpm exec wrangler d1 time-travel info cmail-db`. Keep it with the change record.
+- To undo, pause Email Routing and interactive writes, then restore to the bookmark (or to a `--timestamp` just before the incident). A restore rewinds **every** table in place, so get approval first; Wrangler prints an undo bookmark — record it.
+
+```sh
+pnpm exec wrangler d1 time-travel info cmail-db --timestamp=2026-01-01T09:00:00Z
+pnpm exec wrangler d1 time-travel restore cmail-db --bookmark=<bookmark-before-the-change>
+```
+
+Rehearse this on a **preview or recovery** database, never production: record a bookmark, make a harmless marker change (for example create an empty table), restore, and confirm the marker is gone. After any restore, compare per-table row counts with what you expect before re-enabling routing.
+
 Create the Pages project before writing Pages secrets:
 
 ```sh
