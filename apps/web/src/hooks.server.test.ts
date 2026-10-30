@@ -11,6 +11,16 @@ interface InvokeOptions {
   role?: 'standard' | 'manager';
   publishedPolicy?: boolean;
   headers?: Record<string, string>;
+  /** What the sessions query returns for a signed-in caller. Default: the matching row. */
+  sessionRow?: 'match' | 'none' | 'other-id' | 'other-user';
+  /** False when the users query finds no active user (paused, offboarded). */
+  userFound?: boolean;
+  /** Flip the token's last signature character. */
+  tamperToken?: boolean;
+  /** SESSION_SECRET the server runs with; the cookie's token is signed with it too. */
+  serverSecret?: string;
+  /** expires_at on the session row (sliding renewal). */
+  expiresAt?: string;
 }
 
 function user(role: 'standard' | 'manager'): User {
@@ -31,31 +41,45 @@ function user(role: 'standard' | 'manager'): User {
 async function invoke(options: InvokeOptions): Promise<{
   response: Response;
   resolve: ReturnType<typeof vi.fn>;
+  locals: { user: User | null; sessionId: string | null };
+  waitUntil: ReturnType<typeof vi.fn>;
+  runs: Array<{ query: string; args: unknown[] }>;
 }> {
   const authenticatedUser = options.role ? user(options.role) : null;
   const session = authenticatedUser
-    ? await createSessionToken(authenticatedUser.id, SESSION_SECRET, 60_000)
+    ? await createSessionToken(authenticatedUser.id, options.serverSecret ?? SESSION_SECRET, 60_000)
     : null;
   const requestUrl = new URL(options.path, 'https://mail.example.com');
   const headers = new Headers(options.headers);
   if (session) {
-    headers.set('cookie', buildSessionCookie(session.token, true).split(';', 1)[0]);
+    const last = session.token.slice(-1);
+    const token = options.tamperToken ? `${session.token.slice(0, -1)}${last === 'a' ? 'b' : 'a'}` : session.token;
+    headers.set('cookie', buildSessionCookie(token, true).split(';', 1)[0]);
   }
   if (options.method && !['GET', 'HEAD', 'OPTIONS'].includes(options.method)) {
     headers.set('origin', requestUrl.origin);
   }
 
+  const runs: Array<{ query: string; args: unknown[] }> = [];
   const db = {
     prepare(query: string) {
+      let args: unknown[] = [];
       const statement = {
-        bind() {
+        bind(...values: unknown[]) {
+          args = values;
           return statement;
         },
         async first() {
           if (query.includes('FROM sessions') && session) {
-            return { id: session.sessionId, user_id: authenticatedUser?.id };
+            const row = options.sessionRow ?? 'match';
+            if (row === 'none') return null;
+            return {
+              id: row === 'other-id' ? 'session-other' : session.sessionId,
+              user_id: row === 'other-user' ? 'user-other' : authenticatedUser?.id,
+              expires_at: options.expiresAt,
+            };
           }
-          if (query.includes('FROM users')) return authenticatedUser;
+          if (query.includes('FROM users')) return options.userFound === false ? null : authenticatedUser;
           if (query.includes('FROM ict_policy_versions')) {
             return options.publishedPolicy ? { id: 'policy-1' } : null;
           }
@@ -63,6 +87,7 @@ async function invoke(options: InvokeOptions): Promise<{
           return null;
         },
         async run() {
+          runs.push({ query, args });
           return { success: true, meta: { changes: 0 } };
         },
       };
@@ -78,7 +103,7 @@ async function invoke(options: InvokeOptions): Promise<{
       env: {
         DB: db,
         STORAGE: {} as R2Bucket,
-        SESSION_SECRET,
+        SESSION_SECRET: options.serverSecret ?? SESSION_SECRET,
       },
       context: { waitUntil: vi.fn() },
       caches: {},
@@ -86,8 +111,60 @@ async function invoke(options: InvokeOptions): Promise<{
   };
   const resolve = vi.fn(async () => new Response('resolved', { status: 200 }));
   const response = await (handle as any)({ event, resolve });
-  return { response, resolve };
+  return { response, resolve, locals: event.locals, waitUntil: event.platform.context.waitUntil, runs };
 }
+
+describe('session cookie checks', () => {
+  const cleared = (response: Response) => (response.headers.get('set-cookie') || '').includes('Max-Age=0');
+
+  it('signs in a caller whose token, session row and user all match (control)', async () => {
+    const { response, locals } = await invoke({ path: '/mail', role: 'standard' });
+    expect(locals.user?.id).toBe('user-1');
+    expect(locals.sessionId).not.toBeNull();
+    expect(cleared(response)).toBe(false);
+  });
+
+  it.each([
+    ['a token with a bad signature', { tamperToken: true }],
+    ['no live session row (expired, revoked or unknown)', { sessionRow: 'none' as const }],
+    ['a session row with a different id', { sessionRow: 'other-id' as const }],
+    ['a session row for a different user', { sessionRow: 'other-user' as const }],
+    ['a user who is no longer active (paused or offboarded)', { userFound: false }],
+    // Signed with that same secret and matching the row, so only the strength check can refuse it.
+    ['a placeholder SESSION_SECRET on the server', { serverSecret: `change-me-${'x'.repeat(30)}` }],
+  ])('treats %s as signed out and clears the cookie', async (_label, extra) => {
+    const { response, resolve, locals } = await invoke({ path: '/mail', role: 'standard', ...extra });
+    expect(locals.user).toBeNull();
+    expect(locals.sessionId).toBeNull();
+    expect(resolve).toHaveBeenCalled();
+    expect(cleared(response)).toBe(true);
+  });
+
+  it('clears an invalid cookie on the admin redirect too', async () => {
+    const { response, resolve } = await invoke({ path: '/admin', role: 'manager', sessionRow: 'none' });
+    expect(response.status).toBe(303);
+    expect(resolve).not.toHaveBeenCalled();
+    expect(cleared(response)).toBe(true);
+  });
+
+  it('extends a session that is close to expiry, and leaves a fresh one alone', async () => {
+    // The hook also runs a 1-in-100 cleanup through waitUntil; keep it out of this test.
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    try {
+      const soon = await invoke({ path: '/mail', role: 'standard', expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() });
+      expect(soon.locals.user).not.toBeNull();
+      expect(soon.waitUntil).toHaveBeenCalledTimes(1);
+      await soon.waitUntil.mock.calls[0][0];
+      const renewal = soon.runs.find((entry) => entry.query.includes('UPDATE sessions SET expires_at'));
+      expect(renewal?.args).toEqual([8, soon.locals.sessionId]);
+
+      const fresh = await invoke({ path: '/mail', role: 'standard', expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString() });
+      expect(fresh.waitUntil).not.toHaveBeenCalled();
+    } finally {
+      random.mockRestore();
+    }
+  });
+});
 
 describe('central admin authorization', () => {
   it('does not authenticate Access headers or an Access cookie as a cmail session', async () => {
