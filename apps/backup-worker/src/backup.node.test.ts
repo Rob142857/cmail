@@ -3,7 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BackupRefused, backupConfiguration, dayOf, runBackup, type BackupEnv } from './backup';
+import { BackupRefused, backupConfiguration, dayOf, largeDeletionsAllowed, runBackup, type BackupEnv } from './backup';
 
 // An in-memory R2 bucket with the subset of the API the backup uses.
 function memoryBucket(options: { failGet?: (key: string) => boolean; failList?: boolean } = {}) {
@@ -141,9 +141,15 @@ describe('mail object backup', () => {
     source.objects.set('messages/a/body', { body: 'rewritten', etag: 'src-changed', httpMetadata: { contentType: 'text/html' } });
     await runBackup(env, later(1));
     expect(backup.objects.get('objects/messages/a/body')!.body).toBe('rewritten');
-    expect(backup.objects.get('versions/2026-11-01/messages/a/body')!.body).toBe('content of messages/a/body');
+    const versions = () => [...backup.objects.keys()].filter((key) => key.startsWith('versions/2026-11-01/') && key.endsWith('/messages/a/body'));
+    expect(versions()).toHaveLength(1);
+    expect(backup.objects.get(versions()[0])!.body).toBe('content of messages/a/body');
+    // A second change the same day keeps both earlier versions.
+    source.objects.set('messages/a/body', { body: 'again', etag: 'src-again' });
+    await runBackup(env, later(1.01));
+    expect(versions()).toHaveLength(2);
     await runBackup(env, later(32));
-    expect(backup.objects.has('versions/2026-11-01/messages/a/body')).toBe(false);
+    expect(versions()).toHaveLength(0);
   });
 
   it('keeps an object deleted from the source for the retention window, then removes it', async () => {
@@ -213,36 +219,69 @@ describe('database dump', () => {
 });
 
 describe('safety guards', () => {
-  it('refuses to run when SOURCE and BACKUP are the same bucket', async () => {
+  it('refuses, writing nothing, when BACKUP looks like the mail bucket (including the same bucket)', async () => {
     const { source, env } = setup();
     const same = { ...env, BACKUP: source as unknown as R2Bucket } as BackupEnv;
     await expect(runBackup(same, DAY)).rejects.toThrow(BackupRefused);
-    expect([...source.objects.keys()].some((key) => key.startsWith('objects/'))).toBe(false);
+    expect([...source.objects.keys()].some((key) => /^(objects|state|manifests|d1)\//.test(key))).toBe(false);
   });
 
-  it('refuses to touch the backup when SOURCE suddenly looks empty', async () => {
+  it('refuses when SOURCE holds a backup identity (bindings swapped onto backup buckets)', async () => {
+    const { backup, env } = setup();
+    await runBackup(env, DAY);
+    const otherBackup = memoryBucket();
+    otherBackup.objects.set('state/backup-identity.json', { body: JSON.stringify({ id: 'someone-else' }), etag: 'x' });
+    otherBackup.objects.set('objects/messages/a/body', { body: 'copy', etag: 'y' });
+    await expect(runBackup({ ...env, SOURCE: otherBackup as unknown as R2Bucket }, later(1))).rejects.toThrow('is it a backup bucket');
+    expect(JSON.parse(backup.objects.get('state/missing.json')!.body)).toEqual({});
+  });
+
+  it('pauses deletions, but keeps backing up, when SOURCE suddenly looks empty', async () => {
     const { source, backup, env } = setup();
     await runBackup(env, DAY);
-    const before = [...backup.objects.keys()].sort();
     source.objects.clear();
-    await expect(runBackup(env, later(1))).rejects.toThrow('SOURCE is empty');
-    await expect(runBackup(env, later(40))).rejects.toThrow('SOURCE is empty');
+    const summary = await runBackup(env, later(1));
+    expect(summary.deletionsPaused).toBe('SOURCE is empty but the backup holds objects');
+    expect(summary.databaseTables).toBeGreaterThan(20);
+    await runBackup(env, later(40));
     expect(backup.objects.has('objects/messages/a/body')).toBe(true);
     expect(JSON.parse(backup.objects.get('state/missing.json')!.body)).toEqual({});
-    expect([...backup.objects.keys()].filter((key) => key.startsWith('objects/')).sort()).toEqual(before.filter((key) => key.startsWith('objects/')));
+    expect(backup.objects.has('manifests/2026-11-01.json')).toBe(false);
   });
 
-  it('refuses when too many objects vanish in one run, without marking any', async () => {
+  it('pauses deletions when every object of a small backup vanishes', async () => {
+    const { source, backup, env } = setup();
+    await runBackup(env, DAY);
+    source.objects.clear();
+    source.objects.set('messages/preview-only/body', { body: 'p', etag: 'p' });
+    const summary = await runBackup(env, later(1));
+    expect(summary.deletionsPaused).toBe('every backed-up object vanished from SOURCE');
+    expect(summary.copied).toBe(1);
+    expect(JSON.parse(backup.objects.get('state/missing.json')!.body)).toEqual({});
+  });
+
+  it('pauses deletions when too many objects vanish at once, until an operator allows the purge', async () => {
     const keys = Array.from({ length: 100 }, (_, index) => `messages/${index}/body`);
     const { source, backup, env } = setup(keys);
     await runBackup(env, DAY);
     for (const key of keys.slice(0, 30)) source.objects.delete(key);
-    await expect(runBackup(env, later(1))).rejects.toThrow('vanished from SOURCE');
+    source.objects.set('messages/new/body', { body: 'new mail', etag: 'new' });
+    const paused = await runBackup(env, later(1));
+    expect(paused).toMatchObject({ deletionsPaused: '30 objects vanished from SOURCE in one run (limit 25)', markedMissing: 0, copied: 1 });
     expect(JSON.parse(backup.objects.get('state/missing.json')!.body)).toEqual({});
-    // A normal trickle of deletions is fine.
-    source.objects.clear();
-    for (const key of keys.slice(1)) source.objects.set(key, { body: `content of ${key}`, etag: `src-${key}` });
-    expect(await runBackup(env, later(2))).toMatchObject({ markedMissing: 1 });
+
+    const allowed = await runBackup({ ...env, BACKUP_ALLOW_LARGE_DELETIONS_UNTIL: later(2).toISOString() } as BackupEnv, later(1.5));
+    expect(allowed).toMatchObject({ deletionsPaused: null, markedMissing: 30 });
+    // After the purge is tracked, ordinary runs carry on normally.
+    expect(await runBackup(env, later(3))).toMatchObject({ deletionsPaused: null, markedMissing: 0 });
+  });
+
+  it('accepts an override only in the future and at most 7 days ahead', () => {
+    expect(largeDeletionsAllowed(undefined, DAY)).toBe(false);
+    expect(largeDeletionsAllowed('soon', DAY)).toBe(false);
+    expect(largeDeletionsAllowed(later(-1).toISOString(), DAY)).toBe(false);
+    expect(largeDeletionsAllowed(later(6).toISOString(), DAY)).toBe(true);
+    expect(largeDeletionsAllowed(later(8).toISOString(), DAY)).toBe(false);
   });
 
   it('changes nothing when listing SOURCE fails', async () => {

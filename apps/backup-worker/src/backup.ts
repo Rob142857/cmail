@@ -11,9 +11,11 @@
 //   deleted mail longer than that.
 // - Once a day every D1 table is written as NDJSON parts plus the schema.
 //
-// Safety: a run refuses to change anything if SOURCE looks empty or wrong
-// while the backup holds data, if too many objects vanish at once, or if
-// SOURCE and BACKUP are the same bucket. Every step is idempotent, so a run
+// Safety: a run refuses outright if BACKUP doesn't look like a backup bucket
+// or SOURCE and BACKUP are the same bucket. If SOURCE looks empty or wrong, or
+// too many objects vanish at once, it keeps copying and dumping but pauses all
+// deletion tracking (and the manifest) and reports it, until the cause is
+// fixed or an operator allows the purge. Every step is idempotent, so a run
 // that stops part-way is completed by the next. No keys or content are logged.
 
 export interface BackupEnv {
@@ -24,6 +26,11 @@ export interface BackupEnv {
   BACKUP_RETENTION_DAYS?: string | number;
   /** Most objects copied in one run. Default 200, bounded 1-1000. */
   BACKUP_MAX_COPIES_PER_RUN?: string | number;
+  /**
+   * ISO date-time. Until then, a large disappearance from SOURCE (a purge, an
+   * offboarding) is accepted instead of pausing deletions. At most 7 days ahead.
+   */
+  BACKUP_ALLOW_LARGE_DELETIONS_UNTIL?: string;
 }
 
 export interface BackupSummary {
@@ -35,6 +42,8 @@ export interface BackupSummary {
   markedMissing: number;
   pruned: number;
   manifestComplete: boolean;
+  /** Set when deletion tracking was skipped because SOURCE changed suspiciously. */
+  deletionsPaused: string | null;
   databaseTables: number | null;
   databaseError: string | null;
 }
@@ -47,6 +56,8 @@ const MANIFESTS = 'manifests/';
 const DATABASE = 'd1/';
 const MISSING_STATE = 'state/missing.json';
 const IDENTITY = 'state/backup-identity.json';
+const BACKUP_PREFIXES = [OBJECTS, VERSIONS, MANIFESTS, DATABASE, 'state/'];
+const MAX_OVERRIDE_MS = 7 * 24 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ROWS_PER_QUERY = 500;
 const ROWS_PER_PART = 10_000;
@@ -102,27 +113,42 @@ async function readJson<T>(bucket: R2Bucket, key: string, fallback: T): Promise<
 }
 
 /**
- * The backup bucket carries a random identity object. If SOURCE can see it,
- * both bindings point at the same bucket, and the backup must not run.
+ * Refuse before writing anything if BACKUP holds keys a backup never writes
+ * (it is probably the mail bucket), or if SOURCE holds a backup identity (it
+ * is a backup bucket, or the same bucket as BACKUP).
  */
 async function assertSeparateBuckets(env: BackupEnv): Promise<void> {
-  let identity = await env.BACKUP.head(IDENTITY);
-  if (!identity) {
-    await env.BACKUP.put(IDENTITY, JSON.stringify({ id: crypto.randomUUID() }), { httpMetadata: { contentType: 'application/json' } });
-    identity = await env.BACKUP.head(IDENTITY);
+  const sample = await env.BACKUP.list({ limit: 50 });
+  if (sample.objects.some((object) => !BACKUP_PREFIXES.some((prefix) => object.key.startsWith(prefix)))) {
+    throw new BackupRefused('BACKUP holds non-backup keys; is it the mail bucket?');
   }
-  if (identity && await env.SOURCE.head(IDENTITY)) {
-    throw new BackupRefused('SOURCE and BACKUP are the same bucket');
+  const sourceIdentity = await env.SOURCE.head(IDENTITY);
+  if (sourceIdentity) {
+    const ours = await readJson<{ id?: string }>(env.BACKUP, IDENTITY, {});
+    const theirs = await readJson<{ id?: string }>(env.SOURCE, IDENTITY, {});
+    throw new BackupRefused(ours.id && ours.id === theirs.id
+      ? 'SOURCE and BACKUP are the same bucket'
+      : 'SOURCE holds a backup identity; is it a backup bucket?');
+  }
+  if (!(await env.BACKUP.head(IDENTITY))) {
+    await env.BACKUP.put(IDENTITY, JSON.stringify({ id: crypto.randomUUID() }), { httpMetadata: { contentType: 'application/json' } });
   }
 }
 
-async function copyObject(env: BackupEnv, source: R2Object, previous: R2Object | undefined, day: string): Promise<boolean> {
+/** A valid override no more than 7 days ahead allows a large purge. */
+export function largeDeletionsAllowed(value: string | undefined, now: Date): boolean {
+  if (!value) return false;
+  const until = Date.parse(value);
+  return Number.isFinite(until) && until > now.getTime() && until - now.getTime() <= MAX_OVERRIDE_MS;
+}
+
+async function copyObject(env: BackupEnv, source: R2Object, previous: R2Object | undefined, now: Date): Promise<boolean> {
   const body = await env.SOURCE.get(source.key);
   if (!body) return false; // Deleted between list and copy; the next run sees it missing.
   if (previous) {
     // The content changed: keep the old copy for the retention window.
     const old = await env.BACKUP.get(previous.key);
-    if (old) await env.BACKUP.put(`${VERSIONS}${day}/${source.key}`, old.body, { httpMetadata: old.httpMetadata, customMetadata: old.customMetadata });
+    if (old) await env.BACKUP.put(`${VERSIONS}${dayOf(now)}/${now.getTime()}/${source.key}`, old.body, { httpMetadata: old.httpMetadata, customMetadata: old.customMetadata });
   }
   await env.BACKUP.put(`${OBJECTS}${source.key}`, body.body, {
     httpMetadata: body.httpMetadata,
@@ -196,15 +222,20 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
   const source = await listAll(env.SOURCE);
   const backedUp = await listAll(env.BACKUP, OBJECTS);
 
-  // Guard against a wrong or empty SOURCE binding wiping the backup over time.
-  if (source.size === 0 && backedUp.size > 0) {
-    throw new BackupRefused('SOURCE is empty but the backup holds objects; check the SOURCE binding');
-  }
+  // Guard against a wrong or empty SOURCE binding wiping the backup over time:
+  // pause deletion tracking (copying and the dump carry on) and report it.
   const missing = await readJson<Record<string, number>>(env.BACKUP, MISSING_STATE, {});
   const newlyMissing = [...backedUp.keys()].filter((key) => !source.has(key.slice(OBJECTS.length)) && missing[key.slice(OBJECTS.length)] === undefined);
   const allowance = Math.max(MIN_MISSING_ALLOWANCE, Math.ceil(backedUp.size * MAX_MISSING_SHARE));
-  if (newlyMissing.length > allowance) {
-    throw new BackupRefused(`${newlyMissing.length} objects vanished from SOURCE in one run (limit ${allowance}); check the SOURCE binding`);
+  let deletionsPaused: string | null = null;
+  if (!largeDeletionsAllowed(env.BACKUP_ALLOW_LARGE_DELETIONS_UNTIL, now)) {
+    if (backedUp.size > 0 && source.size === 0) {
+      deletionsPaused = 'SOURCE is empty but the backup holds objects';
+    } else if (backedUp.size > 0 && newlyMissing.length === backedUp.size) {
+      deletionsPaused = 'every backed-up object vanished from SOURCE';
+    } else if (newlyMissing.length > allowance) {
+      deletionsPaused = `${newlyMissing.length} objects vanished from SOURCE in one run (limit ${allowance})`;
+    }
   }
 
   // 1. Copy what is new or changed. Rotate the start so keys that keep failing
@@ -218,7 +249,7 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
   let copyFailures = 0;
   for (const object of batch) {
     try {
-      if (await copyObject(env, object, backedUp.get(`${OBJECTS}${object.key}`), day)) copied += 1;
+      if (await copyObject(env, object, backedUp.get(`${OBJECTS}${object.key}`), now)) copied += 1;
     } catch (caught) {
       copyFailures += 1;
       console.error('cmail backup: object copy failed', { error: errorName(caught) });
@@ -227,7 +258,7 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
 
   // 2. Track objects gone from the source; remove them after the retention window.
   const expired: string[] = [];
-  for (const key of backedUp.keys()) {
+  for (const key of deletionsPaused ? [] : backedUp.keys()) {
     const sourceKey = key.slice(OBJECTS.length);
     if (source.has(sourceKey)) {
       delete missing[sourceKey];
@@ -238,19 +269,24 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
       delete missing[sourceKey];
     }
   }
-  for (const sourceKey of Object.keys(missing)) {
-    if (!backedUp.has(`${OBJECTS}${sourceKey}`)) delete missing[sourceKey];
+  if (!deletionsPaused) {
+    for (const sourceKey of Object.keys(missing)) {
+      if (!backedUp.has(`${OBJECTS}${sourceKey}`)) delete missing[sourceKey];
+    }
+    await deleteKeys(env.BACKUP, expired);
+    await env.BACKUP.put(MISSING_STATE, JSON.stringify(missing), { httpMetadata: { contentType: 'application/json' } });
   }
-  await deleteKeys(env.BACKUP, expired);
-  await env.BACKUP.put(MISSING_STATE, JSON.stringify(missing), { httpMetadata: { contentType: 'application/json' } });
 
-  // 3. Today's manifest, always written; `complete` says whether every listed key is in the backup.
+  // 3. Today's manifest; `complete` says whether every listed key is in the
+  //    backup. Skipped while SOURCE looks wrong, so it can't record a bad listing.
   const pendingCopies = toCopy.length - copied;
   const manifestComplete = pendingCopies === 0;
-  const entries = [...source.values()].map((object) => ({ key: object.key, size: object.size, etag: object.etag }));
-  await env.BACKUP.put(`${MANIFESTS}${day}.json`, JSON.stringify({ day, createdAt: now.toISOString(), complete: manifestComplete, objects: entries }), {
-    httpMetadata: { contentType: 'application/json' },
-  });
+  if (!deletionsPaused) {
+    const entries = [...source.values()].map((object) => ({ key: object.key, size: object.size, etag: object.etag }));
+    await env.BACKUP.put(`${MANIFESTS}${day}.json`, JSON.stringify({ day, createdAt: now.toISOString(), complete: manifestComplete, objects: entries }), {
+      httpMetadata: { contentType: 'application/json' },
+    });
+  }
 
   // 4. Prune before the dump, so a failing dump can't stop retention.
   const pruned = expired.length + (await pruneDated(env, now, retentionDays));
@@ -272,9 +308,10 @@ export async function runBackup(env: BackupEnv, now = new Date()): Promise<Backu
     copied,
     copyFailures,
     pendingCopies,
-    markedMissing: newlyMissing.length,
+    markedMissing: deletionsPaused ? 0 : newlyMissing.length,
     pruned,
     manifestComplete,
+    deletionsPaused,
     databaseTables,
     databaseError,
   };
