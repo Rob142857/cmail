@@ -240,6 +240,54 @@ describe('OTP proof cookie', () => {
     await expect(verifyOtpProof('not-a-proof', SESSION_SECRET)).resolves.toBeNull();
     await expect(verifyOtpProof('a.b.c', SESSION_SECRET)).resolves.toBeNull();
   });
+
+  // Proofs signed with the real secret but carrying a payload createOtpProof
+  // would never write: the signature check alone must not be enough.
+  const NOW = 1_000;
+  const REQUEST_ID = '11111111-1111-1111-1111-111111111111';
+  const valid = { v: 1, purpose: 'signin', address: 'person@example.com', requestId: REQUEST_ID, exp: NOW + 60 };
+
+  function toBase64Url(bytes: Uint8Array): string {
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+  }
+
+  async function signProof(payload: unknown): Promise<string> {
+    const encoded = toBase64Url(new TextEncoder().encode(JSON.stringify(payload)));
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(SESSION_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const signature = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(encoded)));
+    return `${encoded}.${toBase64Url(signature)}`;
+  }
+
+  it('accepts a locally signed proof with a valid payload, up to the full proof lifetime (control)', async () => {
+    await expect(verifyOtpProof(await signProof(valid), SESSION_SECRET, NOW)).resolves.toMatchObject({ purpose: 'signin', requestId: REQUEST_ID });
+    await expect(verifyOtpProof(await signProof({ ...valid, exp: NOW + 10 * 60 }), SESSION_SECRET, NOW)).resolves.not.toBeNull();
+  });
+
+  it.each([
+    ['a different version', { ...valid, v: 2 }],
+    ['an unknown purpose', { ...valid, purpose: 'admin' }],
+    ['an empty address', { ...valid, address: '' }],
+    ['an address over 320 characters', { ...valid, address: `${'a'.repeat(310)}@example.com` }],
+    ['a request id that is not a UUID', { ...valid, requestId: 'not-a-uuid' }],
+    ['a fractional expiry', { ...valid, exp: NOW + 60.5 }],
+    ['an expiry given as a string', { ...valid, exp: String(NOW + 60) }],
+    ['an expiry exactly now', { ...valid, exp: NOW }],
+    ['an expiry further ahead than the proof lifetime', { ...valid, exp: NOW + 10 * 60 + 1 }],
+  ])('rejects a correctly signed proof with %s', async (_label, payload) => {
+    await expect(verifyOtpProof(await signProof(payload), SESSION_SECRET, NOW)).resolves.toBeNull();
+  });
+
+  it('rejects a signature with extra bytes after a valid one, and a proof over 2048 characters', async () => {
+    const proof = await signProof(valid);
+    const [encoded, signature] = proof.split('.');
+    // 43 + 4 base64url characters decode to the valid 32 bytes plus three zero bytes:
+    // only the length check stops it, since the comparison reads just the first 32.
+    await expect(verifyOtpProof(`${encoded}.${signature}AAAA`, SESSION_SECRET, NOW)).resolves.toBeNull();
+    const padded = await signProof({ ...valid, padding: 'x'.repeat(2048) });
+    await expect(verifyOtpProof(padded, SESSION_SECRET, NOW)).resolves.toBeNull();
+  });
 });
 
 // requestCountry/countryAllowed moved to travel.ts (see travel.test.ts) —

@@ -66,6 +66,45 @@ describe('session tokens', () => {
     const verified = await verifySessionToken(freshEnoughToken, SECRET);
     expect(verified?.sessionId).toBe('session-1');
   });
+
+  it('rejects a correctly signed token longer than 1024 characters', async () => {
+    // Token length = userId length + 89 with a 13-digit issuedAt.
+    const issued = String(Date.now());
+    const token = async (userId: string) => {
+      const payload = `session-1.${userId}.${issued}`;
+      return `${payload}.${await signPayload(payload)}`;
+    };
+    const atLimit = await token('u'.repeat(935));
+    const overLimit = await token('u'.repeat(936));
+    expect(atLimit).toHaveLength(1024);
+    expect((await verifySessionToken(atLimit, SECRET))?.userId).toHaveLength(935);
+    expect(await verifySessionToken(overLimit, SECRET)).toBeNull();
+  });
+
+  it('rejects correctly signed tokens with the wrong shape', async () => {
+    const issued = String(Date.now());
+    const signed = async (payload: string) => `${payload}.${await signPayload(payload)}`;
+
+    // Too few or too many segments.
+    expect(await verifySessionToken(await signed(`user-123.${issued}`), SECRET)).toBeNull();
+    expect(await verifySessionToken(`${await signed(`session-1.user-123.${issued}`)}.extra`, SECRET)).toBeNull();
+    // issuedAt must be 10-16 digits. Zero-padding keeps the time recent, so only the digit rule rejects it.
+    expect(await verifySessionToken(await signed(`session-1.user-123.${issued.padStart(17, '0')}`), SECRET)).toBeNull();
+    expect((await verifySessionToken(await signed(`session-1.user-123.${issued.padStart(16, '0')}`), SECRET))?.sessionId).toBe('session-1');
+    // Empty session or user id.
+    expect(await verifySessionToken(await signed(`.user-123.${issued}`), SECRET)).toBeNull();
+    expect(await verifySessionToken(await signed(`session-1..${issued}`), SECRET)).toBeNull();
+  });
+
+  it('rejects a signature that is not exactly 64 hex characters', async () => {
+    const payload = `session-1.user-123.${Date.now()}`;
+    const signature = await signPayload(payload);
+    expect(await verifySessionToken(`${payload}.${signature.slice(0, 63)}`, SECRET)).toBeNull();
+    expect(await verifySessionToken(`${payload}.${signature}0`, SECRET)).toBeNull();
+    expect(await verifySessionToken(`${payload}.${'z'.repeat(64)}`, SECRET)).toBeNull();
+    // Upper-case hex of the right signature is still the same bytes.
+    expect((await verifySessionToken(`${payload}.${signature.toUpperCase()}`, SECRET))?.sessionId).toBe('session-1');
+  });
 });
 
 describe('shouldRenewSession', () => {

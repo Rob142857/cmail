@@ -63,3 +63,29 @@ describe('verifyTurnstile', () => {
     expect(body.has('remoteip')).toBe(false);
   });
 });
+
+describe('verifyTurnstile input and response checks', () => {
+  it('never calls siteverify for an oversized or non-string token', async () => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ success: true }));
+    await expect(verifyTurnstile(CONFIGURED, 'x'.repeat(2049), '192.0.2.10', fetcher)).resolves.toBe(false);
+    await expect(verifyTurnstile(CONFIGURED, 42 as unknown as string, '192.0.2.10', fetcher)).resolves.toBe(false);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('accepts a token of exactly 2048 characters', async () => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ success: true }));
+    await expect(verifyTurnstile(CONFIGURED, 'x'.repeat(2048), '192.0.2.10', fetcher)).resolves.toBe(true);
+  });
+
+  it('accepts only the boolean true, not truthy look-alikes', async () => {
+    for (const success of ['true', 1, 'yes', null]) {
+      const fetcher = vi.fn().mockResolvedValue(Response.json({ success }));
+      await expect(verifyTurnstile(CONFIGURED, 'token-value', '192.0.2.10', fetcher)).resolves.toBe(false);
+    }
+  });
+
+  it('fails closed on a 200 response whose body is not JSON', async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response('<html>busy</html>', { status: 200, headers: { 'Content-Type': 'text/html' } }));
+    await expect(verifyTurnstile(CONFIGURED, 'token-value', '192.0.2.10', fetcher)).resolves.toBe(false);
+  });
+});
