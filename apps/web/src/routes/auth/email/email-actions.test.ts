@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from '@cmail/shared/types';
+import type { EnrollmentRecord } from '#lib/server/identity.js';
 
 // The email one-time-code sign-in actions. Every pre-authentication refusal
 // must look exactly like success to the caller; the real reason goes to the
-// audit log only.
+// audit log only. Address normalisation uses the real validation module.
 
 const mocks = vi.hoisted(() => ({
+  emailOtpEnabled: vi.fn(),
   assertStrongSessionSecret: vi.fn(),
   audit: vi.fn(),
   detectEmailProvider: vi.fn(),
@@ -30,7 +32,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('#lib/server/config.js', () => ({
   assertStrongSessionSecret: mocks.assertStrongSessionSecret,
-  emailOtpEnabled: vi.fn(() => true),
+  emailOtpEnabled: mocks.emailOtpEnabled,
   maxSessionsPerUser: vi.fn(() => 5),
   otpSessionTtlMs: vi.fn(() => 3_600_000),
 }));
@@ -71,9 +73,6 @@ vi.mock('#lib/server/turnstile.js', () => ({
   turnstileSiteKey: vi.fn(() => ''),
   verifyTurnstile: mocks.verifyTurnstile,
 }));
-vi.mock('#lib/server/validation.js', () => ({
-  normalizeEmail: vi.fn((value: unknown) => typeof value === 'string' && value.includes('@') ? value.trim().toLowerCase() : null),
-}));
 vi.mock('#lib/server/mcp/resume.js', () => ({
   MCP_AUTHORIZE_COOKIE: 'cmail_mcp_authorize',
   mcpResumeLocation: vi.fn((_cookie: string | undefined, fallback: string) => fallback),
@@ -81,7 +80,8 @@ vi.mock('#lib/server/mcp/resume.js', () => ({
 
 const { actions } = await import('./+page.server');
 
-const NEUTRAL_REQUEST = { requestSent: true, purpose: 'signin', message: 'If this address is registered for email sign-in, a code is on its way.' };
+const ISSUED_REQUEST_ID = '11111111-1111-1111-1111-111111111111';
+const NEUTRAL_MESSAGE = 'If this address is registered for email sign-in, a code is on its way.';
 const NEUTRAL_VERIFY = "That code didn't work or has expired.";
 
 function person(overrides: Partial<User> = {}): User {
@@ -100,7 +100,21 @@ function person(overrides: Partial<User> = {}): User {
   } as User;
 }
 
-function fakeDb(enrolledUser: User | null = null) {
+function enrollment(overrides: Partial<EnrollmentRecord> = {}): EnrollmentRecord {
+  return {
+    enrollment_id: 'enrollment-1',
+    user_id: 'user-1',
+    email: 'person@example.com',
+    role: 'standard',
+    status: 'pending',
+    expires_at: Math.floor(Date.now() / 1000) + 3600,
+    consumed_at: null,
+    bound_provider: null,
+    ...overrides,
+  } as EnrollmentRecord;
+}
+
+function fakeDb(options: { enrolledUser?: User | null; publishedPolicy?: boolean; signedPolicy?: boolean } = {}) {
   const runs: string[] = [];
   const prepare = vi.fn((sql: string) => {
     const statement = {
@@ -109,7 +123,12 @@ function fakeDb(enrolledUser: User | null = null) {
         runs.push(sql);
         return { meta: { changes: 1 } };
       }),
-      first: vi.fn(async () => (sql.includes('SELECT * FROM users WHERE id = ?') ? enrolledUser : null)),
+      first: vi.fn(async () => {
+        if (sql.includes('SELECT * FROM users WHERE id = ?')) return options.enrolledUser ?? null;
+        if (sql.includes('FROM ict_policy_versions')) return options.publishedPolicy ? { id: 'policy-1' } : null;
+        if (sql.includes('FROM ict_policy_signatures')) return options.signedPolicy ? { id: 'signature-1' } : null;
+        return null;
+      }),
     };
     return statement;
   });
@@ -146,92 +165,160 @@ function event(action: 'request' | 'verify', fields: Record<string, string>, opt
 }
 
 const auditedTypes = () => mocks.audit.mock.calls.map((call) => call[1].event_type);
+const auditedDetail = (text: string) => mocks.audit.mock.calls.some((call) => String(call[1].detail).includes(text));
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  mocks.emailOtpEnabled.mockReturnValue(true);
   mocks.createOtpProof.mockResolvedValue('signed-proof');
   mocks.consumeRateLimit.mockResolvedValue({ allowed: true });
   mocks.loadOrgSettings.mockResolvedValue({ signInCountries: [], systemEmail: 'no-reply@example.com', systemFromName: 'Mail', orgName: 'Example', appName: 'cmail', appUrl: '' });
   mocks.countryAllowed.mockReturnValue(true);
   mocks.turnstileEnabled.mockReturnValue(false);
+  mocks.verifyTurnstile.mockResolvedValue(true);
   mocks.findBoundUser.mockResolvedValue(person());
-  mocks.issueOtp.mockResolvedValue({ requestId: '11111111-1111-1111-1111-111111111111', code: '12345678' });
+  mocks.findEnrollment.mockResolvedValue(enrollment());
+  mocks.detectEmailProvider.mockResolvedValue('unknown');
+  mocks.issueOtp.mockResolvedValue({ requestId: ISSUED_REQUEST_ID, code: '12345678' });
   mocks.detectProvider.mockReturnValue('resend');
   mocks.sendEmail.mockResolvedValue({ success: true });
-  mocks.verifyOtpProof.mockResolvedValue({ v: 1, purpose: 'signin', address: 'person@example.com', requestId: '11111111-1111-1111-1111-111111111111', exp: 0 });
+  mocks.verifyOtpProof.mockResolvedValue({ v: 1, purpose: 'signin', address: 'person@example.com', requestId: ISSUED_REQUEST_ID, exp: 0 });
   mocks.verifyOtp.mockResolvedValue('ok');
   mocks.signInCountryGate.mockResolvedValue({ allowed: true });
   mocks.createSessionToken.mockResolvedValue({ token: 'session-token', hash: 'hash', expiresAt: new Date('2026-12-01T00:00:00Z'), sessionId: 'session-1' });
 });
 
 describe('request a code', () => {
-  async function request(fields: Record<string, string> = { address: 'Person@Example.com' }) {
-    const { event: requestEvent, cookies } = event('request', fields);
+  async function request(fields: Record<string, string> = { address: ' Person@Example.com ' }, cookies: Record<string, string> = {}) {
+    const { event: requestEvent, cookies: jar } = event('request', fields, { cookies });
     const result = await (actions.request as any)(requestEvent);
-    return { result, cookies };
+    return { result, cookies: jar };
   }
+  const proofRequestId = () => mocks.createOtpProof.mock.calls[0]?.[2];
 
-  it('sends a code to an enrolled, active address (control)', async () => {
+  it('sends a code to an enrolled, active address and binds the proof to it (control)', async () => {
     const { result, cookies } = await request();
-    expect(result).toEqual(NEUTRAL_REQUEST);
-    expect(mocks.sendEmail).toHaveBeenCalledTimes(1);
+    expect(result).toStrictEqual({ requestSent: true, purpose: 'signin', message: NEUTRAL_MESSAGE });
+    expect(mocks.consumeRateLimit).toHaveBeenCalledWith(expect.anything(), 'otp_addr', 'person@example.com', 3, 900);
+    expect(mocks.issueOtp).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ purpose: 'signin', address: 'person@example.com' }));
+    expect(proofRequestId()).toBe(ISSUED_REQUEST_ID);
+    expect(mocks.sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'person@example.com' }), expect.anything());
     expect(auditedTypes()).toContain('otp.sent');
     expect(cookies.set).toHaveBeenCalledWith('cmail_otp_proof', 'signed-proof', expect.objectContaining({ httpOnly: true, maxAge: 600 }));
   });
 
   it.each([
-    ['the address is rate limited', () => mocks.consumeRateLimit.mockResolvedValueOnce({ allowed: false }), null],
-    ['the country is not allowed', () => mocks.countryAllowed.mockReturnValue(false), 'otp.geo_refused'],
-    ['Turnstile fails', () => {
-      mocks.turnstileEnabled.mockReturnValue(true);
-      mocks.verifyTurnstile.mockResolvedValue(false);
-    }, 'otp.turnstile_failed'],
-    ['the address is not enrolled', () => mocks.findBoundUser.mockResolvedValue(null), null],
-    ['the account is paused', () => mocks.findBoundUser.mockResolvedValue(person({ status: 'paused' })), null],
-  ])('answers exactly as for success, sends nothing and issues no code when %s', async (_label, arrange, auditType) => {
+    ['the address is rate limited', () => mocks.consumeRateLimit.mockImplementation(async (_db: unknown, bucket: string) => ({ allowed: bucket !== 'otp_addr' })), null, 'loadOrgSettings'],
+    ['the IP is rate limited', () => mocks.consumeRateLimit.mockImplementation(async (_db: unknown, bucket: string) => ({ allowed: bucket !== 'otp_ip' })), null, 'loadOrgSettings'],
+    ['the country is not allowed', () => mocks.countryAllowed.mockReturnValue(false), 'otp.geo_refused', 'findBoundUser'],
+    ['the address is not enrolled', () => mocks.findBoundUser.mockResolvedValue(null), null, null],
+    ['the account is paused', () => mocks.findBoundUser.mockResolvedValue(person({ status: 'paused' })), null, null],
+  ])('answers exactly as for success, and issues and sends nothing, when %s', async (_label, arrange, auditType, notReached) => {
     arrange();
-    const { result, cookies } = await request();
-    expect(result).toEqual(NEUTRAL_REQUEST);
+    const refused = await request();
+    // Same value as the control, and a decoy request id (never the issued one) with identical cookie options.
+    expect(refused.result).toStrictEqual({ requestSent: true, purpose: 'signin', message: NEUTRAL_MESSAGE });
+    expect(proofRequestId()).toMatch(/^[0-9a-f-]{36}$/);
+    expect(proofRequestId()).not.toBe(ISSUED_REQUEST_ID);
+    expect(refused.cookies.set.mock.calls).toStrictEqual([['cmail_otp_proof', 'signed-proof', { path: '/', httpOnly: true, sameSite: 'lax', secure: true, maxAge: 600 }]]);
+    if (auditType) expect(auditedTypes()).toContain(auditType);
+    if (notReached === 'loadOrgSettings') expect(mocks.loadOrgSettings).not.toHaveBeenCalled();
+    if (notReached === 'findBoundUser') expect(mocks.findBoundUser).not.toHaveBeenCalled();
+    if (!notReached) expect(mocks.findBoundUser).toHaveBeenCalledWith(expect.anything(), 'email', 'person@example.com');
     expect(mocks.issueOtp).not.toHaveBeenCalled();
     expect(mocks.sendEmail).not.toHaveBeenCalled();
-    // A decoy proof is still set, so verify can't tell the cases apart either.
-    expect(cookies.set).toHaveBeenCalledWith('cmail_otp_proof', 'signed-proof', expect.anything());
-    if (auditType) expect(auditedTypes()).toContain(auditType);
+  });
+
+  it('checks a submitted Turnstile token and stays neutral when it fails', async () => {
+    mocks.turnstileEnabled.mockReturnValue(true);
+    mocks.verifyTurnstile.mockResolvedValue(false);
+    const { result } = await request({ address: 'person@example.com', 'cf-turnstile-response': 'token-value' });
+    expect(result).toStrictEqual({ requestSent: true, purpose: 'signin', message: NEUTRAL_MESSAGE });
+    expect(mocks.verifyTurnstile).toHaveBeenCalledWith(expect.anything(), 'token-value', '192.0.2.10');
+    expect(auditedTypes()).toContain('otp.turnstile_failed');
+    expect(mocks.issueOtp).not.toHaveBeenCalled();
   });
 
   it('refuses a missing Turnstile token without calling siteverify', async () => {
     mocks.turnstileEnabled.mockReturnValue(true);
     const { result } = await request();
-    expect(result).toEqual(NEUTRAL_REQUEST);
+    expect(result).toStrictEqual({ requestSent: true, purpose: 'signin', message: NEUTRAL_MESSAGE });
     expect(mocks.verifyTurnstile).not.toHaveBeenCalled();
     expect(auditedTypes()).toContain('otp.turnstile_failed');
   });
 
-  it('audits, but does not reveal, a deployment that cannot send mail', async () => {
-    mocks.detectProvider.mockReturnValue('none');
+  it.each([
+    ['there is no outbound provider', () => mocks.detectProvider.mockReturnValue('none')],
+    ['there is no system From address', () => mocks.loadOrgSettings.mockResolvedValue({ signInCountries: [], systemEmail: '', orgName: 'Example', appName: 'cmail' })],
+  ])('audits, but does not reveal, a deployment that cannot send mail because %s', async (_label, arrange) => {
+    arrange();
     const { result } = await request();
-    expect(result).toEqual(NEUTRAL_REQUEST);
+    expect(result).toStrictEqual({ requestSent: true, purpose: 'signin', message: NEUTRAL_MESSAGE });
     expect(mocks.issueOtp).toHaveBeenCalledTimes(1);
     expect(mocks.sendEmail).not.toHaveBeenCalled();
     expect(auditedTypes()).toContain('email.failed');
   });
 
-  it('stays neutral when sending throws', async () => {
-    mocks.sendEmail.mockRejectedValue(new Error('provider down'));
+  it('stays neutral when sending fails or throws', async () => {
+    mocks.sendEmail.mockResolvedValueOnce({ success: false });
+    expect((await request()).result).toStrictEqual({ requestSent: true, purpose: 'signin', message: NEUTRAL_MESSAGE });
+    expect(auditedTypes()).toContain('email.failed');
+    expect(auditedTypes()).not.toContain('otp.sent');
+
+    mocks.audit.mockClear();
+    mocks.sendEmail.mockRejectedValueOnce(new Error('provider down'));
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     try {
-      const { result } = await request();
-      expect(result).toEqual(NEUTRAL_REQUEST);
+      expect((await request()).result).toStrictEqual({ requestSent: true, purpose: 'signin', message: NEUTRAL_MESSAGE });
       expect(auditedTypes()).toContain('email.failed');
     } finally {
       consoleError.mockRestore();
     }
   });
 
-  it('rejects an address that is not an email address', async () => {
+  it('refuses an address that is not an email address, before any rate-limit charge', async () => {
     const { result } = await request({ address: 'not-an-address' });
     expect(result.status).toBe(400);
     expect(mocks.consumeRateLimit).not.toHaveBeenCalled();
+  });
+
+  it('says plainly when email sign-in is switched off', async () => {
+    mocks.emailOtpEnabled.mockReturnValue(false);
+    const { result } = await request();
+    expect(result).toMatchObject({ status: 400, data: { requestError: 'Email sign-in is not available.' } });
+  });
+
+  describe('for an invitation (purpose=enroll)', () => {
+    const enrollFields = { address: 'person@example.com', purpose: 'enroll' };
+
+    it('sends a code for a live invitation to this address (control)', async () => {
+      const { result } = await request(enrollFields, { cmail_enrollment: 'enrollment-token' });
+      expect(result).toStrictEqual({ requestSent: true, purpose: 'enroll', message: NEUTRAL_MESSAGE });
+      expect(mocks.findEnrollment).toHaveBeenCalledWith(expect.anything(), 'enrollment-token');
+      expect(mocks.issueOtp).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ purpose: 'enroll' }));
+    });
+
+    it.each([
+      ['no invitation cookie', null, {}],
+      ['an unknown invitation', null, { cmail_enrollment: 'enrollment-token' }],
+      ['a used invitation', enrollment({ consumed_at: '2026-10-01 00:00:00' }), { cmail_enrollment: 'enrollment-token' }],
+      ['an expired invitation', enrollment({ expires_at: Math.floor(Date.now() / 1000) - 1 }), { cmail_enrollment: 'enrollment-token' }],
+      ['an invitation already bound to a provider', enrollment({ bound_provider: 'google' }), { cmail_enrollment: 'enrollment-token' }],
+      ['an invitation for a paused account', enrollment({ status: 'paused' }), { cmail_enrollment: 'enrollment-token' }],
+      ['an invitation for another address', enrollment({ email: 'someone@example.com' }), { cmail_enrollment: 'enrollment-token' }],
+    ])('issues nothing for %s', async (_label, record, cookies) => {
+      mocks.findEnrollment.mockResolvedValue(record);
+      const { result } = await request(enrollFields, cookies);
+      expect(result).toStrictEqual({ requestSent: true, purpose: 'enroll', message: NEUTRAL_MESSAGE });
+      expect(mocks.issueOtp).not.toHaveBeenCalled();
+    });
+
+    it('issues nothing when the invited address turns out to be Google or Microsoft hosted', async () => {
+      mocks.detectEmailProvider.mockResolvedValue('google');
+      const { result } = await request(enrollFields, { cmail_enrollment: 'enrollment-token' });
+      expect(result).toStrictEqual({ requestSent: true, purpose: 'enroll', message: NEUTRAL_MESSAGE });
+      expect(mocks.issueOtp).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -251,12 +338,35 @@ describe('verify a code', () => {
   const proofCleared = (cookies: ReturnType<typeof cookieJar>) =>
     cookies.delete.mock.calls.some((call) => call[0] === 'cmail_otp_proof');
 
-  it('signs in with a correct code and redirects to the mailbox (control)', async () => {
-    const { result, cookies } = await verify('1234 5678');
+  it('signs in with a correct code, records the session and redirects to the mailbox (control)', async () => {
+    const { db, runs } = fakeDb();
+    const { result, cookies } = await verify('1234 5678', { db });
     expect(result).toMatchObject({ status: 303, location: '/mail' });
-    expect(mocks.verifyOtp).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ code: '12345678' }));
+    expect(mocks.verifyOtp).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ code: '12345678', requestId: ISSUED_REQUEST_ID }));
+    expect(runs.some((sql) => sql.includes('INSERT INTO sessions'))).toBe(true);
+    expect(runs.some((sql) => sql.includes('UPDATE sessions SET revoked = 1'))).toBe(true);
+    expect(runs.some((sql) => sql.includes("WHEN status = 'pending' THEN 'active'"))).toBe(true);
     expect(cookies.set).toHaveBeenCalledWith('cmail_session', 'session-token', expect.objectContaining({ httpOnly: true }));
     expect(proofCleared(cookies)).toBe(true);
+  });
+
+  it('sends a signed-in person to the usage policy when the latest one is unsigned', async () => {
+    const { result } = await verify('12345678', { db: fakeDb({ publishedPolicy: true }).db });
+    expect(result).toMatchObject({ status: 303, location: '/policy' });
+    const signed = await verify('12345678', { db: fakeDb({ publishedPolicy: true, signedPolicy: true }).db });
+    expect(signed.result).toMatchObject({ status: 303, location: '/mail' });
+  });
+
+  it('audits a change of sign-in country', async () => {
+    mocks.findBoundUser.mockResolvedValue(person({ last_auth_country: 'NZ' }));
+    await verify('12345678');
+    expect(auditedTypes()).toContain('auth.otp.country_changed');
+  });
+
+  it('says plainly when email sign-in is switched off', async () => {
+    mocks.emailOtpEnabled.mockReturnValue(false);
+    const { result } = await verify('12345678');
+    expect(result).toMatchObject({ status: 400, data: { verifyError: 'Email sign-in is not available.' } });
   });
 
   it('refuses with 503 when the session secret is weak', async () => {
@@ -268,9 +378,10 @@ describe('verify a code', () => {
     expect(mocks.verifyOtp).not.toHaveBeenCalled();
   });
 
-  it.each([['missing', null], ['invalid', 'tampered']])('refuses and clears a %s proof cookie', async (_label, proof) => {
+  it.each([['missing', null, undefined], ['invalid', 'tampered', 'tampered']])('refuses and clears a %s proof cookie', async (_label, proof, seen) => {
     mocks.verifyOtpProof.mockResolvedValue(null);
     const { result, cookies } = await verify('12345678', { proof });
+    expect(mocks.verifyOtpProof).toHaveBeenCalledWith(seen, expect.any(String));
     expect(result).toMatchObject({ status: 400, data: { verifyError: NEUTRAL_VERIFY } });
     expect(proofCleared(cookies)).toBe(true);
     expect(mocks.verifyOtp).not.toHaveBeenCalled();
@@ -308,7 +419,7 @@ describe('verify a code', () => {
     const { result } = await verify('12345678');
     expect(result).toMatchObject({ status: 400, data: { verifyError: NEUTRAL_VERIFY } });
     expect(mocks.createSessionToken).not.toHaveBeenCalled();
-    expect(mocks.audit.mock.calls.some((call) => String(call[1].detail).includes('reason=account_unavailable'))).toBe(true);
+    expect(auditedDetail('reason=account_unavailable')).toBe(true);
   });
 
   it('never signs a manager in with an email code', async () => {
@@ -327,12 +438,38 @@ describe('verify a code', () => {
     expect(mocks.createSessionToken).not.toHaveBeenCalled();
   });
 
-  it('refuses an enrollment proof without a live enrollment', async () => {
-    mocks.verifyOtpProof.mockResolvedValue({ v: 1, purpose: 'enroll', address: 'person@example.com', requestId: '11111111-1111-1111-1111-111111111111', exp: 0 });
-    mocks.findEnrollment.mockResolvedValue(null);
-    const { result } = await verify('12345678', { cookies: { cmail_enrollment: 'enrollment-token' } });
-    expect(result).toMatchObject({ status: 400, data: { verifyError: NEUTRAL_VERIFY } });
-    expect(mocks.bindEnrolledIdentity).not.toHaveBeenCalled();
-    expect(mocks.audit.mock.calls.some((call) => String(call[1].detail).includes('reason=enrollment_invalid'))).toBe(true);
+  describe('for an invitation (purpose=enroll)', () => {
+    beforeEach(() => {
+      mocks.verifyOtpProof.mockResolvedValue({ v: 1, purpose: 'enroll', address: 'person@example.com', requestId: ISSUED_REQUEST_ID, exp: 0 });
+    });
+
+    it('binds the email identity, drops the invitation cookie and signs the invitee in (control)', async () => {
+      const { db } = fakeDb({ enrolledUser: person({ status: 'pending' }) });
+      const { result, cookies } = await verify('12345678', { db, cookies: { cmail_enrollment: 'enrollment-token' } });
+      expect(result).toMatchObject({ status: 303, location: '/mail' });
+      expect(mocks.bindEnrolledIdentity).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ enrollment_id: 'enrollment-1' }), 'email', 'person@example.com', 'person@example.com');
+      expect(cookies.delete.mock.calls.some((call) => call[0] === 'cmail_enrollment')).toBe(true);
+      expect(auditedTypes()).toContain('auth.identity_bound');
+    });
+
+    it('refuses an enrollment proof without a live invitation', async () => {
+      mocks.findEnrollment.mockResolvedValue(null);
+      const { result } = await verify('12345678', { cookies: { cmail_enrollment: 'enrollment-token' } });
+      expect(result).toMatchObject({ status: 400, data: { verifyError: NEUTRAL_VERIFY } });
+      expect(mocks.bindEnrolledIdentity).not.toHaveBeenCalled();
+      expect(auditedDetail('reason=enrollment_invalid')).toBe(true);
+    });
+
+    it('refuses neutrally when binding the identity fails', async () => {
+      mocks.bindEnrolledIdentity.mockRejectedValue(new Error('UNIQUE constraint failed'));
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      try {
+        const { result } = await verify('12345678', { cookies: { cmail_enrollment: 'enrollment-token' } });
+        expect(result).toMatchObject({ status: 400, data: { verifyError: NEUTRAL_VERIFY } });
+        expect(mocks.createSessionToken).not.toHaveBeenCalled();
+      } finally {
+        consoleError.mockRestore();
+      }
+    });
   });
 });
