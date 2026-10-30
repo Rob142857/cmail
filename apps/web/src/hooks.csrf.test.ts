@@ -60,3 +60,64 @@ describe('CSRF guard (replaces SvelteKit\'s built-in origin check)', () => {
     expect(result).toEqual({ status: 403, resolved: false });
   });
 });
+
+describe('cross-origin guard for non-form requests', () => {
+  it.each(['PATCH', 'DELETE', 'POST', 'PUT'])('blocks a JSON %s the browser marks cross-site, even without an Origin', async (method) => {
+    const result = await send('/api/messages/bulk', {
+      method,
+      headers: { 'content-type': 'application/json', 'sec-fetch-site': 'cross-site' },
+      body: '{}',
+    });
+    expect(result).toEqual({ status: 403, resolved: false });
+  });
+
+  it('blocks a JSON POST whose Origin is another site', async () => {
+    const result = await send('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'https://evil.example' },
+      body: '{}',
+    });
+    expect(result).toEqual({ status: 403, resolved: false });
+  });
+
+  it('lets safe methods through even when the browser marks them cross-site', async () => {
+    for (const method of ['GET', 'HEAD', 'OPTIONS']) {
+      const result = await send('/mail', { method, headers: { 'sec-fetch-site': 'cross-site', origin: 'https://evil.example' } });
+      expect(result.resolved).toBe(true);
+    }
+  });
+
+  it('allows a same-origin JSON request the browser marks same-origin', async () => {
+    const result = await send('/api/messages/bulk', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin', origin: ORIGIN },
+      body: '{}',
+    });
+    expect(result).toEqual({ status: 200, resolved: true });
+  });
+});
+
+describe('cross-site form refusal body', () => {
+  async function refuse(accept: string | null): Promise<Response> {
+    const url = new URL('/mail/compose?/send', ORIGIN);
+    const headers: Record<string, string> = { 'content-type': 'application/x-www-form-urlencoded' };
+    if (accept) headers.accept = accept;
+    return (handle as any)({
+      event: { url, request: new Request(url, { method: 'POST', headers, body: 'a=b' }), locals: { user: null, sessionId: null }, platform: undefined },
+      resolve: vi.fn(async () => new Response('resolved')),
+    });
+  }
+
+  it('answers a JSON client with a JSON message', async () => {
+    const response = await refuse('application/json');
+    expect(response.status).toBe(403);
+    expect(response.headers.get('content-type')).toContain('application/json');
+    expect(await response.json()).toEqual({ message: 'Cross-site POST form submissions are forbidden' });
+  });
+
+  it('answers anything else with plain text', async () => {
+    const response = await refuse('text/html');
+    expect(response.status).toBe(403);
+    expect(await response.text()).toBe('Cross-site POST form submissions are forbidden');
+  });
+});
