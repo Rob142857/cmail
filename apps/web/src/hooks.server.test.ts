@@ -17,7 +17,7 @@ interface InvokeOptions {
   userFound?: boolean;
   /** Flip the token's last signature character. */
   tamperToken?: boolean;
-  /** SESSION_SECRET the server runs with; tokens are always signed with the real one. */
+  /** SESSION_SECRET the server runs with; the cookie's token is signed with it too. */
   serverSecret?: string;
   /** expires_at on the session row (sliding renewal). */
   expiresAt?: string;
@@ -43,10 +43,11 @@ async function invoke(options: InvokeOptions): Promise<{
   resolve: ReturnType<typeof vi.fn>;
   locals: { user: User | null; sessionId: string | null };
   waitUntil: ReturnType<typeof vi.fn>;
+  runs: Array<{ query: string; args: unknown[] }>;
 }> {
   const authenticatedUser = options.role ? user(options.role) : null;
   const session = authenticatedUser
-    ? await createSessionToken(authenticatedUser.id, SESSION_SECRET, 60_000)
+    ? await createSessionToken(authenticatedUser.id, options.serverSecret ?? SESSION_SECRET, 60_000)
     : null;
   const requestUrl = new URL(options.path, 'https://mail.example.com');
   const headers = new Headers(options.headers);
@@ -59,10 +60,13 @@ async function invoke(options: InvokeOptions): Promise<{
     headers.set('origin', requestUrl.origin);
   }
 
+  const runs: Array<{ query: string; args: unknown[] }> = [];
   const db = {
     prepare(query: string) {
+      let args: unknown[] = [];
       const statement = {
-        bind() {
+        bind(...values: unknown[]) {
+          args = values;
           return statement;
         },
         async first() {
@@ -83,6 +87,7 @@ async function invoke(options: InvokeOptions): Promise<{
           return null;
         },
         async run() {
+          runs.push({ query, args });
           return { success: true, meta: { changes: 0 } };
         },
       };
@@ -106,7 +111,7 @@ async function invoke(options: InvokeOptions): Promise<{
   };
   const resolve = vi.fn(async () => new Response('resolved', { status: 200 }));
   const response = await (handle as any)({ event, resolve });
-  return { response, resolve, locals: event.locals, waitUntil: event.platform.context.waitUntil };
+  return { response, resolve, locals: event.locals, waitUntil: event.platform.context.waitUntil, runs };
 }
 
 describe('session cookie checks', () => {
@@ -125,7 +130,8 @@ describe('session cookie checks', () => {
     ['a session row with a different id', { sessionRow: 'other-id' as const }],
     ['a session row for a different user', { sessionRow: 'other-user' as const }],
     ['a user who is no longer active (paused or offboarded)', { userFound: false }],
-    ['a weak SESSION_SECRET on the server', { serverSecret: 'too-short' }],
+    // Signed with that same secret and matching the row, so only the strength check can refuse it.
+    ['a placeholder SESSION_SECRET on the server', { serverSecret: `change-me-${'x'.repeat(30)}` }],
   ])('treats %s as signed out and clears the cookie', async (_label, extra) => {
     const { response, resolve, locals } = await invoke({ path: '/mail', role: 'standard', ...extra });
     expect(locals.user).toBeNull();
@@ -142,12 +148,21 @@ describe('session cookie checks', () => {
   });
 
   it('extends a session that is close to expiry, and leaves a fresh one alone', async () => {
-    const soon = await invoke({ path: '/mail', role: 'standard', expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() });
-    expect(soon.locals.user).not.toBeNull();
-    expect(soon.waitUntil).toHaveBeenCalledTimes(1);
+    // The hook also runs a 1-in-100 cleanup through waitUntil; keep it out of this test.
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    try {
+      const soon = await invoke({ path: '/mail', role: 'standard', expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() });
+      expect(soon.locals.user).not.toBeNull();
+      expect(soon.waitUntil).toHaveBeenCalledTimes(1);
+      await soon.waitUntil.mock.calls[0][0];
+      const renewal = soon.runs.find((entry) => entry.query.includes('UPDATE sessions SET expires_at'));
+      expect(renewal?.args).toEqual([8, soon.locals.sessionId]);
 
-    const fresh = await invoke({ path: '/mail', role: 'standard', expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString() });
-    expect(fresh.waitUntil).not.toHaveBeenCalled();
+      const fresh = await invoke({ path: '/mail', role: 'standard', expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString() });
+      expect(fresh.waitUntil).not.toHaveBeenCalled();
+    } finally {
+      random.mockRestore();
+    }
   });
 });
 
