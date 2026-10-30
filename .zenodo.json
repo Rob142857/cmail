@@ -1,0 +1,8 @@
+{
+  "title": "cMail: open-source organisational email on Cloudflare",
+  "description": "Open-source organisational email on Cloudflare with personal and shared mailboxes, built on Workers, Pages, D1, R2 and Email Routing.",
+  "upload_type": "software",
+  "license": "MIT",
+  "creators": [{ "name": "Evans, Rob" }],
+  "keywords": ["cloudflare", "email", "shared-mailbox", "self-hosted", "sveltekit"]
+}
