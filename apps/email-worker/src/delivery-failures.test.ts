@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { GUARDS_OFF, deliverInbound, deliveryDatabase, memoryStorage } from './testing/delivery';
 
 // Storage and database failures after an inbound message has been accepted:
 // nothing half-written may stay behind, and the mailbox's pending quota
@@ -11,76 +12,33 @@ vi.mock('@cmail/shared/push', async (original) => ({
 
 const { default: worker } = await import('./index');
 
-interface Statement {
-  query: string;
-  values: unknown[];
-}
-
 type Recheck = 'none' | 'ours' | 'another' | 'throws';
 
 function failingDelivery(options: { failPut?: 'body' | 'attachment'; batchFails?: boolean; recheck?: Recheck } = {}) {
-  const statements: Statement[] = [];
-  const putKeys: string[] = [];
-  const deletedKeys: string[] = [];
+  // Writes go body first, then attachments.
+  const { storage, putKeys, deletedKeys } = memoryStorage((_key, index) =>
+    (options.failPut === 'body' && index === 0) || (options.failPut === 'attachment' && index > 0));
   let deliveryLookups = 0;
-
-  const database = {
-    prepare(query: string) {
-      const statement: Statement & Record<string, unknown> = {
-        query,
-        values: [],
-        bind(...values: unknown[]) {
-          statement.values = values;
-          return statement;
-        },
-        async first() {
-          statements.push(statement);
-          if (query.includes('FROM mailboxes')) return { id: 'mailbox-1', status: 'active' };
-          if (query.includes('SELECT id, body_r2_key FROM messages')) {
-            deliveryLookups += 1;
-            // The first lookup is the duplicate check before any work starts.
-            if (deliveryLookups === 1) return null;
-            const recheck = options.recheck ?? 'none';
-            if (recheck === 'throws') throw new Error('D1_ERROR: network connection lost');
-            if (recheck === 'ours') return { id: 'message-1', body_r2_key: putKeys[0] };
-            if (recheck === 'another') return { id: 'message-2', body_r2_key: 'messages/other/body' };
-          }
-          return null;
-        },
-        async all() {
-          statements.push(statement);
-          return { results: [] };
-        },
-        async run() {
-          statements.push(statement);
-          return { meta: { changes: 1 } };
-        },
-      };
-      return statement;
+  const { database, statements, batched } = deliveryDatabase({
+    first(query) {
+      if (!query.includes('SELECT id, body_r2_key FROM messages')) return undefined;
+      deliveryLookups += 1;
+      // The first lookup is the duplicate check before any work starts.
+      if (deliveryLookups === 1) return null;
+      const recheck = options.recheck ?? 'none';
+      if (recheck === 'throws') throw new Error('D1_ERROR: network connection lost');
+      if (recheck === 'ours') return { id: 'message-1', body_r2_key: putKeys[0] };
+      if (recheck === 'another') return { id: 'message-2', body_r2_key: 'messages/other/body' };
+      return null;
     },
-    async batch(list: Statement[]) {
-      statements.push(...list);
+    batch() {
       if (options.batchFails) throw new Error('D1_ERROR: database is locked');
-      return list.map(() => ({ meta: { changes: 1 } }));
     },
-  };
-
-  const storage = {
-    put: vi.fn(async (key: string) => {
-      putKeys.push(key);
-      const isBody = putKeys.length === 1;
-      if ((options.failPut === 'body' && isBody) || (options.failPut === 'attachment' && !isBody)) {
-        throw new Error('R2 put failed');
-      }
-    }),
-    delete: vi.fn(async (key: string) => {
-      deletedKeys.push(key);
-    }),
-  };
+  });
 
   const released = () => statements.some((statement) =>
     statement.query.includes('UPDATE mailbox_reservations') && statement.query.includes('storage_pending = 0'));
-  const inserted = () => statements.some((statement) => statement.query.includes('INSERT INTO messages'));
+  const inserted = () => batched.some((statement) => statement.query.includes('INSERT INTO messages'));
   const reserved = () => statements.some((statement) => statement.query.includes('INSERT OR IGNORE INTO mailbox_reservations'));
 
   return { database, storage, statements, putKeys, deletedKeys, released, inserted, reserved };
@@ -120,30 +78,13 @@ const WITH_ATTACHMENT = [
 ].join('\r\n');
 
 async function deliver(setup: ReturnType<typeof failingDelivery>, raw = PLAIN) {
-  const messageIdHeader = /^Message-ID: (.*)$/m.exec(raw)?.[1] ?? '';
-  const message = {
-    from: 'bounce@partner.example',
-    to: 'mailbox@example.test',
-    rawSize: raw.length,
-    headers: new Headers({ 'message-id': messageIdHeader }),
-    raw: new Blob([raw]).stream(),
-    setReject: vi.fn(),
-    forward: vi.fn(),
-    reply: vi.fn(),
-  };
-  const handler = worker as unknown as {
-    email(value: unknown, environment: Record<string, unknown>, context: { waitUntil(promise: Promise<unknown>): void }): Promise<void>;
-  };
-  const outcome = await handler.email(message, {
+  return deliverInbound(worker, raw, {
     DB: setup.database,
     STORAGE: setup.storage,
+    ...GUARDS_OFF,
     // Any non-zero limit turns the reservation (and its pending quota charge) on.
     INBOUND_MAILBOX_MESSAGES_PER_HOUR: '100',
-    INBOUND_MAILBOX_BYTES_PER_HOUR: '0',
-    INBOUND_SENDER_MESSAGES_PER_HOUR: '0',
-    MAILBOX_STORAGE_QUOTA_BYTES: '0',
-  }, { waitUntil: () => undefined }).then(() => null, (error: unknown) => error as Error);
-  return { error: outcome, message };
+  });
 }
 
 describe('inbound delivery after a storage failure', () => {
