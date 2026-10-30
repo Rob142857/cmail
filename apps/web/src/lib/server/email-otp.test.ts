@@ -208,6 +208,40 @@ describe('verifyOtp', () => {
     }, 1_000)).resolves.toBe('ok');
   });
 
+  it('scopes the lookup to the normalised address, the purpose and the request id', async () => {
+    const codeHash = await hashOtpCode('enroll', 'person@example.com', '12345678', SESSION_SECRET);
+    const { db } = rowDb({ id: 'otp-1', codeHash, attempts: 0, expiresEpoch: 2_000 });
+    await verifyOtp(db, {
+      purpose: 'enroll', address: '  Person@Example.COM ', code: '12345678',
+      requestId: 'request-1', sessionSecret: SESSION_SECRET,
+    }, 1_000);
+    const prepare = (db as unknown as { prepare: ReturnType<typeof vi.fn> }).prepare;
+    const lookup = prepare.mock.results[0].value as { bind: ReturnType<typeof vi.fn> };
+    expect(prepare.mock.calls[0][0]).toContain('WHERE address = ? AND purpose = ? AND request_id = ?');
+    expect(lookup.bind).toHaveBeenCalledWith('person@example.com', 'enroll', 'request-1');
+  });
+
+  it('cannot be replayed: the same correct code a second time is unknown', async () => {
+    const codeHash = await hashOtpCode('signin', 'person@example.com', '12345678', SESSION_SECRET);
+    const { db } = rowDb({ id: 'otp-1', codeHash, attempts: 0, expiresEpoch: 2_000 });
+    const attempt = () => verifyOtp(db, {
+      purpose: 'signin', address: 'person@example.com', code: '12345678',
+      requestId: 'request-1', sessionSecret: SESSION_SECRET,
+    }, 1_000);
+    await expect(attempt()).resolves.toBe('ok');
+    await expect(attempt()).resolves.toBe('unknown');
+  });
+
+  it('treats a code expiring exactly now as expired, and keeps the row', async () => {
+    const codeHash = await hashOtpCode('signin', 'person@example.com', '12345678', SESSION_SECRET);
+    const { db, getRow } = rowDb({ id: 'otp-1', codeHash, attempts: 0, expiresEpoch: 1_000 });
+    await expect(verifyOtp(db, {
+      purpose: 'signin', address: 'person@example.com', code: '12345678',
+      requestId: 'request-1', sessionSecret: SESSION_SECRET,
+    }, 1_000)).resolves.toBe('expired');
+    expect(getRow()).not.toBeNull();
+  });
+
   it('locks a request that arrives after the attempt budget is already exhausted, without inspecting the code', async () => {
     const codeHash = await hashOtpCode('signin', 'person@example.com', '12345678', SESSION_SECRET);
     const { db } = rowDb({ id: 'otp-1', codeHash, attempts: 5, expiresEpoch: 2_000 });
