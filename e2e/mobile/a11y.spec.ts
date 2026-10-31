@@ -47,8 +47,7 @@ test.describe('axe: serious and critical issues', () => {
       test(p.name, async ({ page }) => {
         await open(page, p.path);
         const violations = await seriousA11yViolations(page);
-        expect(violations, violations.join('
-')).toEqual([]);
+        expect(violations, violations.join('\n')).toEqual([]);
       });
     }
   });
