@@ -6,6 +6,8 @@ Notable changes to cmail are recorded here. The project follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-31
+
 ### Added
 - Click-time link checks: message links go through `/link`, which checks the site against a local copy of the CERT Polska Warning List (refreshed hourly by the email Worker; needs Workers Paid) and shows a warning for listed sites. A backstop only: coverage is mostly Polish threats, and unlisted links are never called safe. Signed links prevent `/link` being used as an open redirect.
 - Optional backup Worker (`apps/backup-worker`): hourly incremental copy of mail bodies and attachments to a separate private R2 bucket, a daily manifest of every object, a daily NDJSON dump of every D1 table plus the schema, and deletion-honouring retention (deleted mail is dropped from the backup after `BACKUP_RETENTION_DAYS`, default 30). Scheduled only, no HTTP surface. See docs/deployment.md, "Automated backups".
