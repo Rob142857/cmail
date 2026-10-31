@@ -359,6 +359,20 @@ Cloudflare documents [Pages rollbacks](https://developers.cloudflare.com/pages/c
 
 Do **not** blindly roll application code back after a D1 migration. Migrations are forward-only: an older application version may not understand the current schema. Roll back only after confirming the prior release is schema-compatible — otherwise deploy a forward corrective release. If recovery requires restoring D1, restore the matching R2 point too. Rehearse with the isolated recovery steps above first, and don't re-enable Email Routing until both bindings and mail-flow verification succeed.
 
+### Rotate credentials
+
+Rotate on a schedule you choose, and at once after a suspected leak or when someone with access leaves. Put the new value in with the same command you used the first time, then redeploy so every running copy picks it up. Rotate one secret at a time and check sign-in and a test message after each.
+
+| Secret | Where | What changes when you rotate it |
+| --- | --- | --- |
+| `SESSION_SECRET` | Pages | Everyone is signed out, and link-check links already in open pages stop being trusted: they show the "unverified" warning page until the page is reloaded. Pick a quiet hour. |
+| `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_SECRET` | Pages | Create the new secret in the provider's console first, set it in Pages, redeploy, test sign-in, then delete the old secret in the console. |
+| `INBOUND_SENDER_HASH_KEY` | email Worker | Sender limiting starts counting afresh. Nothing else is affected. |
+| `VAPID_PRIVATE_KEY` (and the public key) | Pages and email Worker | Existing browser notification subscriptions stop working; people must turn notifications on again. Set both runtimes to the same new pair. |
+| `BOOTSTRAP_ADMIN_TOKEN` | Pages | Only needed to create the first administrator. Remove it once bootstrap is done (step 9), and set a fresh one if you ever need it again. |
+
+Keep the old value until the new one is verified, so you can put it back. Never put a secret on a command line that is saved in shell history or paste it into a ticket or chat.
+
 ## 8. Configure inbound routing
 
 Enable Cloudflare Email Routing for the chosen mail domain. Route only intended addresses, or an explicitly approved catch-all, to the deployed email Worker. Email Routing is cmail's inbound path and is configured independently of the outbound provider — even when Cloudflare Email Service also handles outbound delivery.
