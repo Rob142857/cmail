@@ -35,6 +35,24 @@ test.describe('axe: serious and critical issues', () => {
     }
   });
 
+  // The click-time link pages. A link cmail did not sign shows the "unverified"
+  // page; a flagged one shows the "mismatch" warning. Both are plain pages.
+  test.describe('link warning pages', () => {
+    test.use({ as: 'user-mia' });
+    const pages = [
+      { name: 'unverified link', path: '/link?u=' + encodeURIComponent('https://example.org/page') },
+      { name: 'mismatched link', path: '/link?r=mismatch&u=' + encodeURIComponent('https://example.org/page') },
+    ];
+    for (const p of pages) {
+      test(p.name, async ({ page }) => {
+        await open(page, p.path);
+        const violations = await seriousA11yViolations(page);
+        expect(violations, violations.join('
+')).toEqual([]);
+      });
+    }
+  });
+
   test.describe('compose', () => {
     test.use({ as: 'user-sam' });
     test('new message', async ({ page }) => {
