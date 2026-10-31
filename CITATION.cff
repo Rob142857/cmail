@@ -2,7 +2,8 @@ cff-version: 1.2.0
 message: "If you use cMail, please cite it as below."
 title: "cMail: open-source organisational email on Cloudflare"
 type: software
-version: 0.1.0
+version: 0.2.0
+date-released: 2026-10-31
 license: MIT
 repository-code: "https://github.com/Rob142857/cmail"
 abstract: "Open-source organisational email on Cloudflare with personal and shared mailboxes, built on Workers, Pages, D1, R2 and Email Routing."
