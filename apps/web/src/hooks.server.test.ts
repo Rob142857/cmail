@@ -304,6 +304,8 @@ describe('Cloudflare edge rewriting', () => {
 describe('Workers runtime platform (adapter-cloudflare 8)', () => {
   it('fills event.platform from the runtime module when the adapter provides none', async () => {
     const runtime = { env: { DB: {} as D1Database, STORAGE: {} as R2Bucket, SESSION_SECRET }, context: { waitUntil: vi.fn() } };
+    // Keep the hook's 1-in-100 cleanup (it would hit the empty fake DB) out of this test.
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
     vi.resetModules();
     vi.doMock('#lib/server/cloudflare-runtime.js', () => ({ runtimePlatform: () => runtime }));
     const { handle: freshHandle } = await import('./hooks.server');
@@ -317,6 +319,7 @@ describe('Workers runtime platform (adapter-cloudflare 8)', () => {
     await (freshHandle as any)({ event, resolve: vi.fn(async () => new Response('ok')) });
     expect(event.platform).toBe(runtime);
 
+    random.mockRestore();
     vi.doUnmock('#lib/server/cloudflare-runtime.js');
     vi.resetModules();
   });
