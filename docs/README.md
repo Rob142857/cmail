@@ -28,6 +28,7 @@ For engineers and operators setting up a deployment, roughly in this order:
 4. [Architecture and trust boundaries](architecture.md) — read before changing authentication, authorisation, mail flow, public data, or storage.
 5. [Deployment and verification](deployment.md) — the production sequence, including identity providers, DNS, bootstrap, and controlled mail tests.
 6. [Security checklist](security-checklist.md) and [Operations checklist](operations-checklist.md) — complete both for every environment.
+7. [Running cmail](operations.md) — upgrade, back up, restore, roll back, monitor, and rotate secrets on a live deployment.
 
 For staff-portal links and optional provider-session reuse, see the
 [staff sign-in contract](staff-sign-in.md), including the Cloudflare Access
