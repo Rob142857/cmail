@@ -11,6 +11,7 @@
   <a href="https://github.com/Rob142857/cmail/actions/workflows/codeql.yml"><img src="https://github.com/Rob142857/cmail/actions/workflows/codeql.yml/badge.svg" alt="CodeQL status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2563eb.svg" alt="MIT License"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/node-%3E%3D22.17-339933.svg" alt="Node.js 22.17 or newer"></a>
+  <a href="https://doi.org/10.5281/zenodo.23833567"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.23833567.svg" alt="DOI"></a>
 </p>
 
 <p align="center">
