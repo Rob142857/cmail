@@ -70,7 +70,7 @@ Use this checklist for each environment. Adapt it to your organisation's change-
 - [ ] Review Cloudflare Email Sending quota, activity logs, native/service bindings, optional REST-token access, and preview setting, when enabled
 - [ ] Confirm backups and perform scheduled restore exercises
 - [ ] Retain D1 and R2 recovery points as matching pairs; test an isolated restore before relying on a new backup process
-- [ ] Rotate secrets according to local policy
+- [ ] Rotate secrets according to local policy (see [Rotate secrets](operations.md#rotate-secrets))
 - [ ] Remove expired OAuth credentials and administrator access
 - [ ] Apply dependency and platform security updates
 - [ ] Review retention and policy versions with accountable owners
