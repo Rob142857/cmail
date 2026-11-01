@@ -24,20 +24,23 @@ git clone https://github.com/Rob142857/cmail.git
 cd cmail
 corepack enable
 pnpm install --frozen-lockfile
-pnpm setup
+pnpm run setup
 ```
 
 Check `pnpm --version` prints the version in the `packageManager` field of
 `package.json` (an older global pnpm earlier on `PATH` is the usual cause of
 odd install errors). The engines are Node 22.17 or later; `.nvmrc` says 24.
+The `packages/shared` tests run `.ts` files with plain `node --test`, which
+needs Node 22.18 or later (type stripping on by default); CI uses the newest
+22.x.
 
-`pnpm setup` copies each `wrangler.toml.example` to an ignored `wrangler.toml`
-(web and email Worker) and creates `apps/web/.dev.vars` and
-`apps/email-worker/.dev.vars`, with a fresh development-only
+`pnpm run setup` copies each `wrangler.toml.example` to an ignored `wrangler.toml`
+(web and email Worker), creates `apps/web/.dev.vars` from `.env.example`,
+and creates `apps/email-worker/.dev.vars` with a fresh development-only
 `INBOUND_SENDER_HASH_KEY`. It never overwrites a file that exists. Set
 `SESSION_SECRET` in `apps/web/.dev.vars` (32 characters or more); the app
 refuses to run with a weak one. The backup Worker has a
-`wrangler.toml.example` but `pnpm setup` does not copy it.
+`wrangler.toml.example` but `pnpm run setup` does not copy it.
 
 Then apply the migrations to Wrangler's local D1 state and start the apps:
 
@@ -199,7 +202,8 @@ branch or from CI. See [Deployment](deployment.md#back-up-and-rehearse-recovery)
   is `['*']` in `vite.config.ts`). Any unsafe-method request with
   `sec-fetch-site: cross-site` or a different `Origin` gets 403, and a
   form-encoded POST, PUT, PATCH or DELETE must carry an `Origin` equal to the
-  app's own. Only `/oauth/token` and `/oauth/revoke` are exempt. Do not add to
+  app's own. Only `/oauth/token` and `/oauth/revoke` are exempt from that
+  form-encoded Origin rule; the cross-site check applies everywhere. Do not add to
   that list without a security review. `/bootstrap` and `/enroll/*` get
   `Referrer-Policy: strict-origin` on purpose; do not change it to
   `no-referrer`, which makes browsers send `Origin: null` and the guard rejects
@@ -338,14 +342,14 @@ domain for any inbound preview test.
 | `pnpm` complains about the engine or behaves like an older version | A global pnpm earlier on `PATH`. Run `corepack enable`, check `pnpm --version` matches `packageManager`, and use Corepack's shims for the whole shell session. Do not bypass the engine check. |
 | `pnpm install --frozen-lockfile` fails because the lockfile is out of date | CI and the docs use `pnpm install --frozen-lockfile`. If you changed a dependency, run `pnpm install` once and commit `pnpm-lock.yaml`. |
 | App starts but throws about `SESSION_SECRET` | It must be a random value of 32 or more characters in `apps/web/.dev.vars`. Generate one with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`. |
-| Local inbound mail is rejected with a generic permanent error | `INBOUND_SENDER_HASH_KEY` is missing or malformed in `apps/email-worker/.dev.vars`, and sender limiting fails closed. Set the line to `INBOUND_SENDER_HASH_KEY=` (empty) and re-run `pnpm setup`, which generates a key without printing it, or paste 32 random bytes as unpadded base64url. |
-| `.dev.vars` or `wrangler.toml` missing | Run `pnpm setup`. It only creates files that do not exist. They are ignored by git; do not commit them. |
+| Local inbound mail is rejected with a generic permanent error | `INBOUND_SENDER_HASH_KEY` is missing or malformed in `apps/email-worker/.dev.vars`, and sender limiting fails closed. Set the line to `INBOUND_SENDER_HASH_KEY=` (empty) and re-run `pnpm run setup`, which generates a key without printing it, or paste 32 random bytes as unpadded base64url. |
+| `.dev.vars` or `wrangler.toml` missing | Run `pnpm run setup`. It only creates files that do not exist. They are ignored by git; do not commit them. |
 | `pnpm config:check` fails after a Wrangler edit | Read the message: it names the file and field (a preview binding reused from production, a duplicate `namespace_id`, a preview that can send). Fix the config, not the checker. |
 | `pnpm db:migrate:verify` reports a wrong table, index or trigger count | You added schema. Update the expected numbers in `scripts/verify-migrations.mjs`. |
 | `pnpm audit` fails on `validate` | Update the dependency. Only if no fix exists, add a narrow, commented `ignoreGhsas` entry as in section 7. |
 | Mobile suite fails to start on a fresh machine | Run `pnpm exec playwright install chromium webkit` once. The suite builds the app itself and needs the local HTTPS server on port 4321 (`E2E_PORT` changes it). |
 | Playwright visual specs fail only on your machine | Baselines are per platform in `e2e/mobile/__screenshots__/<platform>/`. Update them only after an intended UI change, with `pnpm test:mobile:update`. |
-| Login or form POST returns 403 "Cross-origin" or "Cross-site form submissions are forbidden" | The CSRF rules in section 4. Make sure `APP_URL` matches the origin in the browser and that the request carries a matching `Origin`. |
+| Login or form POST returns 403 "Cross-origin request blocked" or "Cross-site POST form submissions are forbidden" | The CSRF rules in section 4. Make sure `APP_URL` matches the origin in the browser and that the request carries a matching `Origin`. |
 | OAuth sign-in fails with a redirect mismatch | The registered callback must match `<APP_URL>/auth/callback/<provider>` exactly: scheme, host, port, path and trailing slash. |
 | Windows: line-ending noise in `git status` or lint | `.gitattributes` sets `eol=lf` and `.editorconfig` sets LF. If files come out CRLF (an editor setting or a `core.autocrlf` override), re-checkout them and keep your editor on LF. |
 
@@ -369,9 +373,9 @@ In short:
    `date-released`). `.zenodo.json` has no version field; check its title,
    description and keywords are still accurate.
 3. Run `pnpm release:check` and complete the manual staging checks.
-4. After the release commit is approved and merged, create an annotated tag
-   (`git tag -a vX.Y.Z -m "cmail X.Y.Z"`), push it, and publish the GitHub
-   release. Review the notes GitHub generates from `.github/release.yml`
+4. After the release commit is approved and merged, create the tag
+   `vX.Y.Z` and publish the GitHub release in one step:
+   `gh release create vX.Y.Z --target main --generate-notes`. Review the notes GitHub generates from `.github/release.yml`
    before publishing.
 
 [← Documentation home](README.md)

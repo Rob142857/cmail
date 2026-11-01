@@ -42,7 +42,7 @@ Resolve conflicts in your private customisations, then test OAuth, inbound and o
 
 ## Configure rather than fork
 
-Run `pnpm setup` in each checkout to copy the committed examples to ignored local files. Treat `.env.example`, `apps/web/wrangler.toml.example`, and `apps/email-worker/wrangler.toml.example` as the public contract — don't replace their placeholders with real deployment values.
+Run `pnpm run setup` in each checkout to copy the committed examples to ignored local files. Treat `.env.example`, `apps/web/wrangler.toml.example`, and `apps/email-worker/wrangler.toml.example` as the public contract — don't replace their placeholders with real deployment values.
 
 The normal customisation surface is configuration:
 

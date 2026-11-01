@@ -37,7 +37,7 @@ git clone https://github.com/Rob142857/cmail.git
 cd cmail
 corepack enable
 pnpm install --frozen-lockfile
-pnpm setup
+pnpm run setup
 ```
 
 Corepack selects the exact pnpm version in `package.json`. Confirm `pnpm --version`
@@ -67,7 +67,7 @@ names unless you also update the application code that references them.
 
 ## Create local secret configuration
 
-Edit the ignored `apps/web/.dev.vars` file (created by `pnpm setup`) with
+Edit the ignored `apps/web/.dev.vars` file (created by `pnpm run setup`) with
 development-only OAuth credentials. Set:
 
 - `APP_URL` to the origin printed by the local dev server;

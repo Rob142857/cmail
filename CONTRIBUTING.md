@@ -17,7 +17,7 @@ git clone https://github.com/Rob142857/cmail.git
 cd cmail
 corepack enable
 pnpm install --frozen-lockfile
-pnpm setup
+pnpm run setup
 pnpm db:migrate:local
 pnpm dev
 ```
@@ -28,7 +28,7 @@ covers everything else you are likely to do: running one test, adding a
 migration or endpoint, changing the Worker or shared package, updating
 dependencies, common errors, and releasing.
 
-Edit the ignored `apps/web/.dev.vars` created by `pnpm setup` and use
+Edit the ignored `apps/web/.dev.vars` created by `pnpm run setup` and use
 development-only credentials. Never reuse production secrets locally or commit
 `.dev.vars`, Wrangler tenant configuration, database exports, message content,
 or logs.

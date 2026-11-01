@@ -53,7 +53,7 @@ Run commands from the repository root:
 
 | Command | Use |
 |---|---|
-| `pnpm setup` | Create ignored local configuration from committed templates |
+| `pnpm run setup` | Create ignored local configuration from committed templates |
 | `pnpm dev` | Start the SvelteKit development server |
 | `pnpm dev:worker` | Start the email Worker with `wrangler dev` |
 | `pnpm db:migrate:verify` | Apply every migration to a throwaway local D1 and check the schema |

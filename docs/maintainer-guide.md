@@ -51,7 +51,7 @@ GitHub's current social-preview requirements are documented in
    [deployment verification](deployment.md#verification) in an isolated staging
    environment.
 6. Confirm rollback, backup, restore, and credential-rotation owners.
-7. Create an annotated version tag (`vX.Y.Z`, as in `v0.2.0`) only after the
+7. Create the version tag (`vX.Y.Z`) only after the
    release commit is approved, then push it.
 
 CI runs `pnpm release:check` on Node 22, 24 and 26 for every pull request, so

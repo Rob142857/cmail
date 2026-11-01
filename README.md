@@ -130,10 +130,10 @@ git clone https://github.com/Rob142857/cmail.git
 cd cmail
 corepack enable
 pnpm install --frozen-lockfile
-pnpm setup
+pnpm run setup
 ```
 
-`pnpm setup` copies the committed Wrangler templates into local
+`pnpm run setup` copies the committed Wrangler templates into local
 `wrangler.toml` files and creates `.dev.vars` files with a fresh
 development-only key. Replace every placeholder with your own values — local
 Wrangler files and `.dev.vars` can hold tenant data or secrets and must never
