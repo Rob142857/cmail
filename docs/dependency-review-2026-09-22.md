@@ -22,8 +22,8 @@ compatibility dates are changed by the dependency upgrade.
 | eslint-plugin-svelte / globals | 3.23.0 / 17.12.0 |
 | setup-node action | 7.0.0, immutable commit pin |
 
-Node 24 LTS is the recommended local runtime; the minimum is Node 22.12.
-CI continues testing the supported Node 22 and 24 lines. Other direct
+Node 24 LTS is the recommended local runtime; the minimum is Node 22.17 (raised from 22.12 by SvelteKit 3).
+CI tests Node 22, 24 and 26. Other direct
 dependencies already at their latest stable release remain unchanged.
 
 ## Major-version adaptations
@@ -78,7 +78,7 @@ Run `pnpm install --frozen-lockfile`, `pnpm peers check`, and
 `pnpm release:check`. The release gate covers secret scanning, landing assets,
 binding isolation, lint, both compiler paths, tests, native image operations,
 fresh and upgrade-path D1 migrations, production build, vulnerability audit,
-and reachable Git history. CI repeats these checks on Node 22 and 24.
+and reachable Git history. CI repeats these checks on Node 22, 24 and 26.
 
 For each existing deployment, preserve its ignored Wrangler configuration
 and secrets; record the prior Pages deployment and Worker version; confirm

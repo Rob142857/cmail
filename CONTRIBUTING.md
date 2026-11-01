@@ -15,13 +15,20 @@ Keep deployments, credentials, customer information, and organisation-specific m
 ```sh
 git clone https://github.com/Rob142857/cmail.git
 cd cmail
-pnpm install
-pnpm setup
+corepack enable
+pnpm install --frozen-lockfile
+pnpm run setup
 pnpm db:migrate:local
 pnpm dev
 ```
 
-Edit the ignored `apps/web/.dev.vars` created by `pnpm setup` and use
+Node.js 22.17 or later is required (`.nvmrc` says 24). Use `pnpm dev:worker` in a
+second terminal for the email Worker. The [Developer guide](docs/development.md)
+covers everything else you are likely to do: running one test, adding a
+migration or endpoint, changing the Worker or shared package, updating
+dependencies, common errors, and releasing.
+
+Edit the ignored `apps/web/.dev.vars` created by `pnpm run setup` and use
 development-only credentials. Never reuse production secrets locally or commit
 `.dev.vars`, Wrangler tenant configuration, database exports, message content,
 or logs.
@@ -69,7 +76,7 @@ messages (`e2e/mobile/seed-data.mjs`). Outbound delivery is off, so nothing
 leaves the machine.
 
 ```sh
-npx playwright install chromium webkit   # once per machine
+pnpm exec playwright install chromium webkit   # once per machine
 pnpm test:mobile                         # Pixel 7, Galaxy S24 (360px), iPhone 14, desktop
 pnpm test:mobile:update                  # refresh screenshot baselines after an intended UI change
 pnpm test:mobile:report                  # open the HTML report
@@ -99,6 +106,8 @@ Automated coverage is not yet complete. Manually exercise the paths your change 
 Include a focused regression test with bug fixes when practical. Document any new test tooling and make it runnable from the workspace root.
 
 SQL behaviour (triggers, constraints, `ORDER BY`) belongs in a test against the real migrations, not a hand-written mock. The web app uses `apps/web/src/lib/server/mcp/testing/harness.ts`; the email worker uses `apps/email-worker/src/testing/sqlite-d1.ts`. Both run every migration on in-memory `node:sqlite`. Email-worker tests that need Node modules are named `*.node.test.ts`, so the Worker code itself is still type-checked with Workers types only. `pnpm test` from the root runs them all.
+
+CI runs `pnpm release:check` on Node 22, 24 and 26, and the axe and smoke specs of the mobile suite on Pixel 7 and desktop Chrome (the screenshot specs are left to `pnpm test:mobile`). Both must pass before merge. See the [Developer guide](docs/development.md#2-run-the-tests) for single-file test commands and what CI runs.
 
 ## Pull requests
 

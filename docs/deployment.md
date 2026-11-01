@@ -264,7 +264,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'
 pnpm exec wrangler secret put INBOUND_SENDER_HASH_KEY --config apps/email-worker/wrangler.toml
 ```
 
-Use a production-only value, distinct from the development key `pnpm setup` generates. Confirm both runtimes use the same reviewed `MAILBOX_STORAGE_QUOTA_BYTES`, and review the Worker's `MAX_INBOUND_DECODED_BODY_BYTES` plus hourly inbound limits before routing mail. Without a valid sender-HMAC key, inbound attempts get a generic temporary SMTP rejection and no message is stored.
+Use a production-only value, distinct from the development key `pnpm run setup` generates. Confirm both runtimes use the same reviewed `MAILBOX_STORAGE_QUOTA_BYTES`, and review the Worker's `MAX_INBOUND_DECODED_BODY_BYTES` plus hourly inbound limits before routing mail. Without a valid sender-HMAC key, inbound attempts get a generic temporary SMTP rejection and no message is stored.
 
 ## 5. Configure optional browser notifications
 

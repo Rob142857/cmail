@@ -37,7 +37,7 @@ git clone https://github.com/Rob142857/cmail.git
 cd cmail
 corepack enable
 pnpm install --frozen-lockfile
-pnpm setup
+pnpm run setup
 ```
 
 Corepack selects the exact pnpm version in `package.json`. Confirm `pnpm --version`
@@ -67,7 +67,7 @@ names unless you also update the application code that references them.
 
 ## Create local secret configuration
 
-Edit the ignored `apps/web/.dev.vars` file (created by `pnpm setup`) with
+Edit the ignored `apps/web/.dev.vars` file (created by `pnpm run setup`) with
 development-only OAuth credentials. Set:
 
 - `APP_URL` to the origin printed by the local dev server;
@@ -226,7 +226,8 @@ a production catch-all rule.
 
 Before moving to production:
 
-1. Run `pnpm lint`, `pnpm check`, `pnpm test`, and `pnpm build`.
+1. Run `pnpm lint`, `pnpm check`, `pnpm test`, and `pnpm build`. The
+   [Developer guide](development.md) lists the other test commands and what CI runs.
 2. Confirm the sign-in page exposes only configured OAuth providers.
 3. Bootstrap a manager through `/bootstrap`, then remove both bootstrap values.
 4. Create a pending user without sending an invitation and confirm direct sign-in fails.
