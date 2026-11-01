@@ -47,7 +47,8 @@
   h2 { margin: 28px 0 8px; font-size: 17px; }
   p { color: var(--text-muted); line-height: 1.65; }
   h1 + p { color: var(--text); font-size: 16px; }
-  a { color: var(--primary-text); }
+  /* Underlined so links don't rely on colour alone (WCAG 1.4.1). */
+  a { color: var(--primary-text); text-decoration: underline; text-underline-offset: 2px; }
   .fine-print { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border); font-size: 12px; }
   @media (max-width: 600px) { .notice { width: min(100% - 24px, 760px); padding-top: 20px; } article { padding: 20px; } }
 </style>
