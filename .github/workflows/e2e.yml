@@ -1,7 +1,7 @@
 name: E2E accessibility
 
 # Runs the axe accessibility and smoke specs from the mobile suite on a phone
-# and a desktop browser. Everything is local to the runner (wrangler pages dev,
+# and a desktop browser, then the phone performance budgets. Everything is local to the runner (wrangler pages dev,
 # Miniflare D1/R2, invented fixtures; see e2e/mobile/serve.mjs): nothing
 # reaches a real deployment or sends mail. Screenshot baselines are
 # platform-specific, so the visual spec is left to `pnpm test:mobile`.
@@ -48,6 +48,14 @@ jobs:
 
       - name: Run axe and smoke specs
         run: pnpm exec playwright test e2e/mobile/a11y.spec.ts e2e/mobile/smoke.spec.ts --project=pixel-7 --project=desktop-chrome
+
+      # Byte and timing budgets for sign-in, inbox, message and compose on a
+      # phone with the CPU slowed 4x (e2e/mobile/perf.spec.ts). Each page's
+      # numbers are printed as a "perf <page>:" line.
+      - name: Run performance budgets
+        run: pnpm exec playwright test e2e/mobile/perf.spec.ts --project=pixel-7 --workers=1
+        env:
+          E2E_SKIP_BUILD: "1"
 
       - name: Keep the report and traces of a failed run
         if: failure()
