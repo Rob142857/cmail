@@ -226,7 +226,8 @@ a production catch-all rule.
 
 Before moving to production:
 
-1. Run `pnpm lint`, `pnpm check`, `pnpm test`, and `pnpm build`.
+1. Run `pnpm lint`, `pnpm check`, `pnpm test`, and `pnpm build`. The
+   [Developer guide](development.md) lists the other test commands and what CI runs.
 2. Confirm the sign-in page exposes only configured OAuth providers.
 3. Bootstrap a manager through `/bootstrap`, then remove both bootstrap values.
 4. Create a pending user without sending an invitation and confirm direct sign-in fails.

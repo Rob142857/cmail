@@ -36,16 +36,26 @@ GitHub's current social-preview requirements are documented in
 1. Work from an up-to-date, reviewed branch with no unrelated changes.
 2. Review `git diff`, dependency changes, documentation, and the full commit
    list. Run `pnpm db:migrate:verify` to apply and inspect migrations in a
-   fresh temporary D1 (Cloudflare's hosted database).
+   throwaway local D1 (Cloudflare's database, emulated by Wrangler on this
+   machine; nothing remote is touched).
 3. Update [CHANGELOG.md](../CHANGELOG.md) with user-visible, operational,
-   migration, security, and compatibility notes.
+   migration, security, and compatibility notes. Rename `[Unreleased]` to
+   `[X.Y.Z] - YYYY-MM-DD` and leave a new empty `[Unreleased]` above it.
+   Set the same `version` in the root `package.json`, `apps/web`,
+   `apps/email-worker`, `apps/backup-worker` and `packages/shared`, and set
+   `version` and `date-released` in `CITATION.cff`. `.zenodo.json` carries no
+   version, so only check that its description is still accurate.
 4. Run `pnpm release:check`. A source or reachable-history secret finding is a
    release blocker.
 5. Complete affected manual scenarios from
    [deployment verification](deployment.md#verification) in an isolated staging
    environment.
 6. Confirm rollback, backup, restore, and credential-rotation owners.
-7. Create an annotated version tag only after the release commit is approved.
+7. Create an annotated version tag (`vX.Y.Z`, as in `v0.2.0`) only after the
+   release commit is approved, then push it.
+
+CI runs `pnpm release:check` on Node 22, 24 and 26 for every pull request, so
+a green run on the release commit is the same gate you ran locally.
 
 For identity changes, inspect the complete authorization-code and enrolment
 flow, not just the sign-in button. Confirm both providers obtain identity from
