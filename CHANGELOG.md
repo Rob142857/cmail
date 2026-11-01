@@ -7,6 +7,7 @@ Notable changes to cmail are recorded here. The project follows
 ## [Unreleased]
 
 ### Changed
+- Accessibility: links on the privacy and terms pages, and links in running text in Help, are now underlined so they don't rely on colour alone (WCAG 1.4.1).
 - CI: the E2E workflow now checks performance budgets for sign-in, inbox, a message and compose on a phone with the CPU slowed 4x (JavaScript and CSS size, Largest Contentful Paint, Cumulative Layout Shift).
 
 ## [0.2.0] - 2026-10-31
