@@ -11,12 +11,14 @@ import { test, expect, open } from './fixtures';
 type Metrics = { htmlKb: number; jsKb: number; cssKb: number; requests: number; lcpMs: number; cls: number };
 type Budget = { jsKb: number; cssKb: number; lcpMs: number; cls: number };
 
-// null = measure and report only (the first CI runs set the numbers).
+// Set from CI on 1 Nov 2026 (bytes about 10% over the measured size; LCP
+// measured 260-370 ms; CLS measured 0). null = measure and report only.
+// Compose carries the rich-text editor, so it is the heavy one.
 const BUDGETS: Record<string, Budget | null> = {
-  'sign-in': null,
-  inbox: null,
-  message: null,
-  compose: null,
+  'sign-in': { jsKb: 135, cssKb: 47, lcpMs: 2000, cls: 0.1 },
+  inbox: { jsKb: 195, cssKb: 62, lcpMs: 2000, cls: 0.1 },
+  message: { jsKb: 215, cssKb: 64, lcpMs: 2000, cls: 0.1 },
+  compose: { jsKb: 950, cssKb: 75, lcpMs: 2000, cls: 0.1 },
 };
 
 async function measure(page: Page, path: string, ready: string): Promise<Metrics> {
