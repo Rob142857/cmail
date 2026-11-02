@@ -129,7 +129,7 @@ afterEach(() => {
 });
 
 describe('provider outcome to journal state, end to end', () => {
-  it('records an accepted send with provider ids, header and timestamp, ready to materialize', async () => {
+  it('records an accepted send with provider ids and timestamp, ready to materialize', async () => {
     const fixture = createFixture();
     const { id } = await createJournal(fixture);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ MessageID: 'provider-id-1' }), { status: 200 })));
@@ -176,7 +176,7 @@ describe('provider outcome to journal state, end to end', () => {
     expect(await cancelRetryableJournal(fixture.db.d1, id)).toBe(false);
     expect((await findActiveOutboundJournal(fixture.db.d1, 'user-alice', key))?.id).toBe(id);
     expect(reservation(fixture, reservationId).storage_pending).toBe(1);
-    await expect(createJournal(fixture, { key })).rejects.toThrow(/UNIQUE|constraint/i);
+    await expect(createJournal(fixture, { key })).rejects.toThrow(/UNIQUE constraint failed: outbound_send_journal\./);
   });
 
   it('turns a definite 4xx from the provider into a retryable failure the sender can retry', async () => {
@@ -330,7 +330,7 @@ describe('journal transitions on the real schema', () => {
   });
 });
 
-describe('mail trace records every outbound outcome for managers', () => {
+describe('traceEmail persists each mail-trace status', () => {
   it('stores sent, deferred, bounced and rejected rows with provider ids and failed recipients', async () => {
     const fixture = createFixture();
     const base = {
@@ -362,6 +362,6 @@ describe('mail trace records every outbound outcome for managers', () => {
     await expect(traceEmail(fixture.db.d1, {
       direction: 'outbound',
       status: 'lost' as unknown as 'sent',
-    })).rejects.toThrow(/CHECK|constraint/i);
+    })).rejects.toThrow(/CHECK constraint failed/);
   });
 });

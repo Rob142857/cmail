@@ -7,7 +7,7 @@ Notable changes to cmail are recorded here. The project follows
 ## [Unreleased]
 
 ### Changed
-- Tests: mail reliability coverage for outbound sending. Provider failure mapping (Postmark, Cloudflare binding and REST: definite 4xx versus ambiguous 5xx, network and malformed responses) and the outbound journal on the real schema (accepted, ambiguous, retryable and permanent outcomes, stale-token and replay safety, quota release, idempotency-key reuse, mail-trace rows for each outcome).
+- Tests: mail reliability coverage for outbound sending. Provider failure mapping (Postmark and the Cloudflare binding: definite 4xx versus ambiguous 5xx, network and malformed responses; Cloudflare REST: authentication failure and malformed responses) and the outbound journal on the real schema (accepted, ambiguous, retryable and permanent outcomes, stale-token and replay safety, quota release, idempotency-key reuse) and that every mail-trace status is stored.
 - Accessibility: links on the privacy and terms pages, and links in running text in Help, are now underlined so they don't rely on colour alone (WCAG 1.4.1).
 - CI: the E2E workflow now checks performance budgets for sign-in, inbox, a message and compose on a phone with the CPU slowed 4x (JavaScript and CSS size, Largest Contentful Paint, Cumulative Layout Shift).
 
