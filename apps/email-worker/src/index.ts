@@ -257,10 +257,11 @@ export function normalizeEnvelopeAddress(value: string): string {
 }
 
 /**
- * Authentication-Results source IPs are usable only when inboundTransportFacts
- * obtained them from the configured, trusted authserv-id. Otherwise the
+ * Before the message is parsed no trusted source IP exists (a header IP is
+ * taken only from the first parsed Authentication-Results header of the
+ * configured authserv-id), so the inbound handler passes null and the
  * normalized (but still sender-controlled and spoofable) envelope sender is
- * the available pre-recipient actor. The input is SHA-256 pseudonymized before
+ * the pre-recipient actor. The input is SHA-256 pseudonymized before
  * it reaches Cloudflare's counter key; prefixes prevent source-type collisions.
  */
 export async function inboundRateLimitActorKey(sourceIp: string | null, senderAddress: string): Promise<string> {
@@ -479,17 +480,19 @@ export function prepareInboundBody(
   return result.ok ? { ok: true, html: result.html } : result;
 }
 
-export function inboundTransportFacts(
-  headers: Headers,
+/**
+ * Authentication facts from the first Authentication-Results header in the
+ * parsed message, which is the one the receiving boundary prepended. Reading
+ * the header list avoids the joined `message.headers` value, where a comma
+ * hidden by sender-controlled text in the boundary's own record could pull a
+ * forged record below it into the trusted one.
+ */
+export function parsedAuthenticationFacts(
+  headers: Array<{ key: string; value: string }> | undefined,
   env?: { INBOUND_AUTHSERV_ID?: string },
 ): { sourceIp: string | null; spf: string | null; dkim: string | null; dmarc: string | null } {
-  // These MIME headers stay sender-controlled until a trusted receiver
-  // authserv-id boundary is explicitly configured. With INBOUND_AUTHSERV_ID
-  // set, RFC 8601 results are taken from the topmost record and only when that
-  // record came from the named boundary. Without it, nothing is recorded.
-  const facts = parseAuthenticationResults(headers.get('authentication-results'), env?.INBOUND_AUTHSERV_ID);
-  // `arc` is parsed but not persisted: mail_trace has no column for it, and a
-  // boundary's ARC verdict is not our own chain validation.
+  const first = headers?.find((header) => header.key.toLowerCase() === 'authentication-results')?.value;
+  const facts = parseAuthenticationResults(first ?? null, env?.INBOUND_AUTHSERV_ID);
   return { sourceIp: facts.sourceIp, spf: facts.spf, dkim: facts.dkim, dmarc: facts.dmarc };
 }
 
@@ -835,8 +838,11 @@ export default {
     const recipientAddress = normalizeEnvelopeAddress(message.to);
     const senderAddress = normalizeEnvelopeAddress(message.from);
     const messageSize = message.rawSize;
-    const transport = inboundTransportFacts(message.headers, env);
-    const sourceIp = transport.sourceIp;
+    // Trusted transport facts come only from the parsed header list (below).
+    // The joined message.headers value is not used: sender text could hide the
+    // comma between the boundary's record and a forged one. Before parsing,
+    // the rate-limit signal keys on the envelope sender.
+    let sourceIp: string | null = null;
     const inboundLimit = getInboundLimit(env);
 
     if (
@@ -954,7 +960,9 @@ export default {
       return;
     }
 
-    const auth = transport;
+    // Recorded verdicts come from the parsed header list, not the joined value.
+    const auth = parsedAuthenticationFacts(parsed.headers, env);
+    sourceIp = auth.sourceIp;
     const attachments = parsed.attachments || [];
 
     if (attachments.length > getAttachmentLimit(env)) {

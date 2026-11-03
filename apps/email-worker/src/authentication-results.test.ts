@@ -127,3 +127,29 @@ describe('source address', () => {
     expect(parseAuthenticationResults('mx.example.com; spf=pass', BOUNDARY).sourceIp).toBeNull();
   });
 });
+
+describe('Cloudflare Email Routing', () => {
+  // Email Routing prepends its own record before invoking the Worker; its
+  // authserv-id is `mx.cloudflare.net`. A sender can add a record with the same
+  // id further down, so only the topmost one may count.
+  const CLOUDFLARE = 'mx.cloudflare.net';
+  const stamped = 'mx.cloudflare.net; dkim=pass header.d=example.com header.s=sel1 header.b=AbCd; '
+    + 'dmarc=fail reason="SPF/DKIM not aligned" header.from=example.org policy.dmarc=reject; '
+    + 'spf=pass (mx.cloudflare.net: domain of sender@example.com designates 192.0.2.10 as permitted sender) '
+    + 'smtp.mailfrom=sender@example.com; arc=none smtp.remote-ip=192.0.2.10';
+
+  it('reads the verdicts and remote IP from a Cloudflare-stamped record', () => {
+    expect(parseAuthenticationResults(stamped, CLOUDFLARE)).toEqual({
+      spf: 'pass',
+      dkim: 'pass',
+      dmarc: 'fail',
+      arc: 'none',
+      sourceIp: '192.0.2.10',
+    });
+  });
+
+  it('ignores a sender-supplied record with the same id below the real one', () => {
+    const joined = `${stamped}, mx.cloudflare.net; spf=pass; dkim=pass; dmarc=pass`;
+    expect(parseAuthenticationResults(joined, CLOUDFLARE).dmarc).toBe('fail');
+  });
+});

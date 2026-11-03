@@ -5,7 +5,7 @@ import worker, {
   getAttachmentLimit,
   getDecodedBodyLimit,
   getInboundLimit,
-  inboundTransportFacts,
+  parsedAuthenticationFacts,
   isInboundSizeAllowed,
   isValidEnvelopeAddress,
   lookupSenderRule,
@@ -426,18 +426,43 @@ describe('message interoperability headers', () => {
   });
 });
 
-describe('inbound transport facts', () => {
-  it('ignores sender-controlled authentication and source-IP headers', () => {
-    const headers = new Headers({
-      'Authentication-Results': 'attacker.invalid; spf=pass; dkim=pass; dmarc=fail',
-      'X-Real-IP': '203.0.113.9',
-    });
-    expect(inboundTransportFacts(headers)).toEqual({
-      sourceIp: null,
-      spf: null,
-      dkim: null,
-      dmarc: null,
-    });
+describe('parsed authentication facts', () => {
+  const env = { INBOUND_AUTHSERV_ID: 'mx.example.com' };
+
+  it('reads only the first Authentication-Results header', () => {
+    expect(parsedAuthenticationFacts([
+      { key: 'authentication-results', value: 'mx.example.com; spf=pass; dkim=pass; dmarc=fail' },
+      { key: 'Authentication-Results', value: 'mx.example.com; spf=pass; dkim=pass; dmarc=pass' },
+    ], env)).toEqual({ sourceIp: null, spf: 'pass', dkim: 'pass', dmarc: 'fail' });
+  });
+
+  it('cannot be extended by a sender record when the boundary record has an unbalanced comment', () => {
+    // A quote or paren from the envelope sender inside the boundary's comment
+    // could hide the comma in a joined value. Separate headers cannot merge.
+    expect(parsedAuthenticationFacts([
+      { key: 'authentication-results', value: 'mx.example.com; spf=pass (domain of "a(b"@example.org designates 192.0.2.1) smtp.mailfrom="a(b"@example.org' },
+      { key: 'authentication-results', value: 'x) ; dmarc=pass' },
+    ], env).dmarc).toBeNull();
+  });
+
+  it('ignores sender-controlled authentication from another authserv-id', () => {
+    expect(parsedAuthenticationFacts([
+      { key: 'authentication-results', value: 'attacker.invalid; spf=pass; dkim=pass; dmarc=pass smtp.remote-ip=203.0.113.9' },
+    ], env)).toEqual({ sourceIp: null, spf: null, dkim: null, dmarc: null });
+  });
+
+  it('takes the remote IP only from the first header', () => {
+    expect(parsedAuthenticationFacts([
+      { key: 'authentication-results', value: 'mx.example.com; spf=pass smtp.mailfrom=a@example.org' },
+      { key: 'authentication-results', value: 'mx.example.com; spf=pass smtp.remote-ip=203.0.113.9' },
+    ], env).sourceIp).toBeNull();
+  });
+
+  it('records nothing without the header, a header list or a configured boundary', () => {
+    const none = { sourceIp: null, spf: null, dkim: null, dmarc: null };
+    expect(parsedAuthenticationFacts([{ key: 'from', value: 'a@example.org' }], env)).toEqual(none);
+    expect(parsedAuthenticationFacts(undefined, env)).toEqual(none);
+    expect(parsedAuthenticationFacts([{ key: 'authentication-results', value: 'mx.example.com; dmarc=pass' }], {})).toEqual(none);
   });
 });
 
@@ -636,7 +661,7 @@ describe('pre-reservation write amplification', () => {
     }
   });
 
-  it('uses only a trusted boundary source IP for the actor key and observes the aggregate per-colo signal', async () => {
+  it('keys the pre-parse actor on the envelope sender, never a header IP, and observes the aggregate per-colo signal', async () => {
     const db = entryDatabase({
       mailbox: { id: 'mailbox-test', status: 'active' },
       existing: { id: 'inbound-existing', body_r2_key: 'messages/opaque/body' },
@@ -665,6 +690,7 @@ describe('pre-reservation write amplification', () => {
     expect(senderKey).toMatch(/^actor:[a-f0-9]{64}$/);
     expect(sourceIpKey).toMatch(/^actor:[a-f0-9]{64}$/);
     expect(senderKey).not.toBe(sourceIpKey);
+    expect(actorLimiter.limit.mock.calls[0]?.[0]?.key).toBe(senderKey);
   });
 
   it('fails open when native limiter bindings are absent or fault, then reaches the normal recipient path', async () => {

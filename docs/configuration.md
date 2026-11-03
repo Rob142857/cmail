@@ -125,6 +125,14 @@ from the receiving boundary's documented configuration and a controlled,
 authenticated test message first. A new installation leaves this setting blank
 until that evidence exists.
 
+For Cloudflare Email Routing the value is `mx.cloudflare.net`. Cloudflare
+prepends that record before it invokes the Worker and tells Workers to trust
+only the first `Authentication-Results` header with that identifier, which is
+all this parser reads. See [Authentication results](https://developers.cloudflare.com/email-service/api/route-emails/email-handler/#authentication-results).
+After setting it, send one test message and confirm that its mail-trace row
+shows SPF, DKIM and DMARC results. If they stay empty, the identifier does not
+match and nothing is trusted.
+
 ## Outbound delivery
 
 | Variable | Secret | Purpose |
