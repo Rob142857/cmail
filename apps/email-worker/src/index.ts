@@ -493,6 +493,22 @@ export function inboundTransportFacts(
   return { sourceIp: facts.sourceIp, spf: facts.spf, dkim: facts.dkim, dmarc: facts.dmarc };
 }
 
+/**
+ * Authentication facts from the first Authentication-Results header in the
+ * parsed message, which is the one the receiving boundary prepended. Reading
+ * the header list avoids the joined `message.headers` value, where a comma
+ * hidden by sender-controlled text in the boundary's own record could pull a
+ * forged record below it into the trusted one.
+ */
+export function parsedAuthenticationFacts(
+  headers: Array<{ key: string; value: string }> | undefined,
+  env?: { INBOUND_AUTHSERV_ID?: string },
+): { sourceIp: string | null; spf: string | null; dkim: string | null; dmarc: string | null } {
+  const first = headers?.find((header) => header.key.toLowerCase() === 'authentication-results')?.value;
+  const facts = parseAuthenticationResults(first ?? null, env?.INBOUND_AUTHSERV_ID);
+  return { sourceIp: facts.sourceIp, spf: facts.spf, dkim: facts.dkim, dmarc: facts.dmarc };
+}
+
 export async function stableInboundId(mailboxId: string, messageIdHeader: string): Promise<string> {
   const digest = await crypto.subtle.digest(
     'SHA-256',
@@ -954,7 +970,8 @@ export default {
       return;
     }
 
-    const auth = transport;
+    // Recorded verdicts come from the parsed header list, not the joined value.
+    const auth = parsedAuthenticationFacts(parsed.headers, env);
     const attachments = parsed.attachments || [];
 
     if (attachments.length > getAttachmentLimit(env)) {

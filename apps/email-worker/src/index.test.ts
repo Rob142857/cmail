@@ -6,6 +6,7 @@ import worker, {
   getDecodedBodyLimit,
   getInboundLimit,
   inboundTransportFacts,
+  parsedAuthenticationFacts,
   isInboundSizeAllowed,
   isValidEnvelopeAddress,
   lookupSenderRule,
@@ -438,6 +439,33 @@ describe('inbound transport facts', () => {
       dkim: null,
       dmarc: null,
     });
+  });
+});
+
+describe('parsed authentication facts', () => {
+  const env = { INBOUND_AUTHSERV_ID: 'mx.example.com' };
+
+  it('reads only the first Authentication-Results header', () => {
+    expect(parsedAuthenticationFacts([
+      { key: 'authentication-results', value: 'mx.example.com; spf=pass; dkim=pass; dmarc=fail' },
+      { key: 'Authentication-Results', value: 'mx.example.com; spf=pass; dkim=pass; dmarc=pass' },
+    ], env)).toEqual({ sourceIp: null, spf: 'pass', dkim: 'pass', dmarc: 'fail' });
+  });
+
+  it('cannot be extended by a sender record when the boundary record has an unbalanced comment', () => {
+    // A quote or paren from the envelope sender inside the boundary's comment
+    // could hide the comma in a joined value. Separate headers cannot merge.
+    expect(parsedAuthenticationFacts([
+      { key: 'authentication-results', value: 'mx.example.com; spf=pass (domain of "a(b"@example.org designates 192.0.2.1) smtp.mailfrom="a(b"@example.org' },
+      { key: 'authentication-results', value: 'x) ; dmarc=pass' },
+    ], env).dmarc).toBeNull();
+  });
+
+  it('records nothing without the header, a header list or a configured boundary', () => {
+    const none = { sourceIp: null, spf: null, dkim: null, dmarc: null };
+    expect(parsedAuthenticationFacts([{ key: 'from', value: 'a@example.org' }], env)).toEqual(none);
+    expect(parsedAuthenticationFacts(undefined, env)).toEqual(none);
+    expect(parsedAuthenticationFacts([{ key: 'authentication-results', value: 'mx.example.com; dmarc=pass' }], {})).toEqual(none);
   });
 });
 
