@@ -359,6 +359,22 @@ Cloudflare documents [Pages rollbacks](https://developers.cloudflare.com/pages/c
 
 Do **not** blindly roll application code back after a D1 migration. Migrations are forward-only: an older application version may not understand the current schema. Roll back only after confirming the prior release is schema-compatible — otherwise deploy a forward corrective release. If recovery requires restoring D1, restore the matching R2 point too. Rehearse with the isolated recovery steps above first, and don't re-enable Email Routing until both bindings and mail-flow verification succeed.
 
+### Rotate credentials
+
+Rotate on a schedule you choose, and at once after a suspected leak or when someone with access leaves. Put the new value in with the same command you used the first time. A new email Worker secret takes effect at once; redeploy Pages so the new value is used everywhere. Rotate one secret at a time and check sign-in and a test message after each.
+
+| Secret | Where | What changes when you rotate it |
+| --- | --- | --- |
+| `SESSION_SECRET` | Pages | Everyone is signed out. Email sign-in codes and bootstrap proofs still in progress stop working, so ask for a new code. Link-check links in messages already open show the "unverified" warning page when clicked, until the message is reloaded. Pick a quiet hour. |
+| `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_SECRET` | Pages | Create the new secret in the provider's console first, set it in Pages, redeploy, test sign-in, then delete the old secret in the console. |
+| `POSTMARK_API_KEY` | Pages | Create a new server token in Postmark, set it in Pages, redeploy, send a test message, then revoke the old token. Revoking first stops outbound mail. |
+| `CLOUDFLARE_EMAIL_API_TOKEN` (REST fallback only) | Pages | Create a new token with **Email Sending: Edit** only, set it in Pages, redeploy, send a test message, then delete the old token in the Cloudflare dashboard. The service binding path doesn't use it. |
+| `INBOUND_SENDER_HASH_KEY` | email Worker | Sender limiting starts counting afresh. Nothing else is affected. |
+| `VAPID_PRIVATE_KEY` (and the public key) | Pages and email Worker | Existing browser notification subscriptions stop working; people must turn notifications on again. Generate a new pair (step 5), put the new `VAPID_PUBLIC_KEY` in both Wrangler `[vars]`, store the new private key in both runtimes, and redeploy both. |
+| `BOOTSTRAP_ADMIN_TOKEN` (with `BOOTSTRAP_ADMIN_EMAIL`) | Pages | Only needed to create the first administrator. Delete both once bootstrap is done (step 9). If you need bootstrap again, or the token may have leaked, rotate the token and restart bootstrap as step 9 describes. |
+
+Keep the old value until the new one is verified, so you can put it back. Never put a secret on a command line that is saved in shell history or paste it into a ticket or chat.
+
 ## 8. Configure inbound routing
 
 Enable Cloudflare Email Routing for the chosen mail domain. Route only intended addresses, or an explicitly approved catch-all, to the deployed email Worker. Email Routing is cmail's inbound path and is configured independently of the outbound provider — even when Cloudflare Email Service also handles outbound delivery.
