@@ -365,11 +365,13 @@ Rotate on a schedule you choose, and at once after a suspected leak or when some
 
 | Secret | Where | What changes when you rotate it |
 | --- | --- | --- |
-| `SESSION_SECRET` | Pages | Everyone is signed out, and link-check links already in open pages stop being trusted: they show the "unverified" warning page until the page is reloaded. Pick a quiet hour. |
+| `SESSION_SECRET` | Pages | Everyone is signed out. Email sign-in codes and bootstrap proofs still in progress stop working, so ask for a new code. Link-check links in messages already open show the "unverified" warning page when clicked, until the message is reloaded. Pick a quiet hour. |
 | `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_SECRET` | Pages | Create the new secret in the provider's console first, set it in Pages, redeploy, test sign-in, then delete the old secret in the console. |
+| `POSTMARK_API_KEY` | Pages | Create a new server token in Postmark, set it in Pages, redeploy, send a test message, then revoke the old token. Revoking first stops outbound mail. |
+| `CLOUDFLARE_EMAIL_API_TOKEN` (REST fallback only) | Pages | Create a new token with **Email Sending: Edit** only, set it in Pages, redeploy, send a test message, then delete the old token in the Cloudflare dashboard. The service binding path doesn't use it. |
 | `INBOUND_SENDER_HASH_KEY` | email Worker | Sender limiting starts counting afresh. Nothing else is affected. |
 | `VAPID_PRIVATE_KEY` (and the public key) | Pages and email Worker | Existing browser notification subscriptions stop working; people must turn notifications on again. Set both runtimes to the same new pair. |
-| `BOOTSTRAP_ADMIN_TOKEN` | Pages | Only needed to create the first administrator. Remove it once bootstrap is done (step 9), and set a fresh one if you ever need it again. |
+| `BOOTSTRAP_ADMIN_TOKEN` (with `BOOTSTRAP_ADMIN_EMAIL`) | Pages | Only needed to create the first administrator. Delete both once bootstrap is done (step 9). If you need bootstrap again, or the token may have leaked, rotate the token and restart bootstrap as step 9 describes. |
 
 Keep the old value until the new one is verified, so you can put it back. Never put a secret on a command line that is saved in shell history or paste it into a ticket or chat.
 
