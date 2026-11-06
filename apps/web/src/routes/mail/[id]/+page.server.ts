@@ -62,7 +62,7 @@ async function loadDeliveryStatus(db: D1Database, message: Message): Promise<Del
               COALESCE(datetime(event_timestamp), received_at) AS occurred_at
        FROM delivery_events
        WHERE provider_message_id IN (SELECT value FROM json_each(?))
-       ORDER BY occurred_at, event_id
+       ORDER BY COALESCE(strftime('%Y-%m-%d %H:%M:%f', event_timestamp), received_at), received_at, event_id
        LIMIT 500`,
     ).bind(JSON.stringify(providerIds.slice(0, 50))).all<DeliveryEventView>();
     const recipientCount = new Set(
