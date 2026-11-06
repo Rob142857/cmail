@@ -3,8 +3,12 @@
 // subscription on each sending domain. Each event that matches mail cmail sent
 // is stored in delivery_events, and a terminal failure adds the recipient to
 // failed_recipients on the mail trace and on the sender's Sent copy, which the
-// message view already shows. Events for mail cmail did not send (another app
+// message view already shows, and an "Undeliverable" notice goes to the
+// sender's Inbox (bounce-notice.ts). Events for mail cmail did not send (another app
 // on the same sending domain) are acknowledged and dropped without storage.
+
+import { sendNewMailNotifications, type PushEnvironment } from '@cmail/shared/push';
+import { deliverBounceNotices, type SentCopy } from './bounce-notice';
 
 export const DELIVERY_EVENT_TYPES = ['delivered', 'deferred', 'bounced', 'failed', 'rejected', 'complained'] as const;
 export type DeliveryEventType = typeof DELIVERY_EVENT_TYPES[number];
@@ -153,8 +157,21 @@ function appendFailedRecipient(table: 'mail_trace' | 'messages', idColumn: 'trac
        )`;
 }
 
-/** Stores one validated event against the trace and Sent copy it belongs to. */
-export async function applyDeliveryEvent(db: D1Database, event: DeliveryEvent): Promise<DeliveryEventOutcome> {
+export interface DeliveryEventEnv extends PushEnvironment {
+  DB: D1Database;
+  STORAGE: R2Bucket;
+}
+
+/**
+ * Stores one validated event against the trace and Sent copy it belongs to.
+ * With `storage`, a failure also puts an Undeliverable notice in each sender
+ * mailbox; `onNotice` hears about each notice this call created.
+ */
+export async function applyDeliveryEvent(
+  db: D1Database,
+  event: DeliveryEvent,
+  notices?: { storage: R2Bucket; onNotice?: (mailboxId: string, messageId: string) => Promise<void> },
+): Promise<DeliveryEventOutcome> {
   const trace = await db.prepare(
     `SELECT trace_id, timestamp FROM mail_trace
      WHERE direction = 'outbound'
@@ -202,24 +219,31 @@ export async function applyDeliveryEvent(db: D1Database, event: DeliveryEvent): 
     // and provider tracking ID (not by mailbox, which may have been renamed).
     // Timestamps mix ISO and SQLite formats; the day of slack covers that.
     const sentCopies = await db.prepare(
-      `SELECT id FROM messages
+      `SELECT id, mailbox_id, from_address, from_name, to_addresses, cc_addresses, subject, thread_id, received_at
+       FROM messages
        WHERE direction = 'outbound'
          AND received_at >= datetime(?, '-1 day')
          AND EXISTS (
            SELECT 1 FROM json_each(messages.provider_message_ids) WHERE json_each.value = ?
          )
        LIMIT 25`,
-    ).bind(trace.timestamp, event.providerMessageId).all<{ id: string }>();
+    ).bind(trace.timestamp, event.providerMessageId).all<SentCopy>();
     for (const copy of sentCopies.results || []) {
       statements.push(db.prepare(appendFailedRecipient('messages', 'id')).bind(event.recipient, copy.id));
     }
     await db.batch(statements);
+    // Also runs for a duplicate: notice IDs are derived from the event, so a
+    // notice an earlier attempt stored is not made twice.
+    if (notices) {
+      const created = await deliverBounceNotices({ DB: db, STORAGE: notices.storage }, event, sentCopies.results || []);
+      for (const notice of created) await notices.onNotice?.(notice.mailboxId, notice.messageId);
+    }
   }
   return duplicate ? 'duplicate' : 'stored';
 }
 
 /** Queue consumer for Email Sending events. Logs counts only, never addresses or IDs. */
-export async function handleDeliveryEventBatch(batch: MessageBatch<unknown>, db: D1Database): Promise<void> {
+export async function handleDeliveryEventBatch(batch: MessageBatch<unknown>, env: DeliveryEventEnv): Promise<void> {
   const counts: Record<DeliveryEventOutcome | 'retried' | 'errors', number> = {
     stored: 0, duplicate: 0, unmatched: 0, invalid: 0, retried: 0, errors: 0,
   };
@@ -231,7 +255,13 @@ export async function handleDeliveryEventBatch(batch: MessageBatch<unknown>, db:
       continue;
     }
     try {
-      const outcome = await applyDeliveryEvent(db, event);
+      const outcome = await applyDeliveryEvent(env.DB, event, {
+        storage: env.STORAGE,
+        // A new-mail alert is best effort: the notice is already stored.
+        onNotice: async (mailboxId, messageId) => {
+          await sendNewMailNotifications(env, mailboxId, messageId).catch(() => undefined);
+        },
+      });
       if (outcome === 'unmatched' && message.attempts <= UNMATCHED_RETRY_ATTEMPTS) {
         counts.retried += 1;
         message.retry({ delaySeconds: UNMATCHED_RETRY_DELAY_SECONDS });

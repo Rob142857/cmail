@@ -838,7 +838,7 @@ export default {
   // Cloudflare Email Sending lifecycle events from the optional Queues event
   // subscription (bounces, complaints, deliveries). See delivery-events.ts.
   async queue(batch: MessageBatch<unknown>, env: Env): Promise<void> {
-    await handleDeliveryEventBatch(batch, env.DB);
+    await handleDeliveryEventBatch(batch, env);
   },
 
   async email(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext): Promise<void> {

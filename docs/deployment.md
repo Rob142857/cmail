@@ -324,8 +324,14 @@ Cloudflare puts each delivery event on a queue and the email Worker reads it:
   bounced, failed, rejected, complained) with its time, the time since the
   hand-off, the remote server's reply and the reason where the provider gives
   them.
-- Cloudflare reports bounces as events. Don't expect a bounce email (NDR) in
-  the sender's mailbox; the status in cmail is where a bounce shows.
+- Cloudflare reports bounces as events, not as a bounce email. So for each
+  bounced, failed or rejected recipient, cmail puts an **Undeliverable**
+  notice from "Mail Delivery System" in the Inbox of each mailbox that holds
+  the Sent copy, with a new-mail alert where push is set up. The notice gives
+  the cause in plain words, who has to act, how to fix it, and details for
+  email admins: the status code, the remote server's reply, the original
+  message details and the message hops. Cloudflare doesn't report the remote
+  server's name or IP address, so the notice doesn't show them.
 - Events for mail that cmail did not send, such as another app on the same
   sending domain, are dropped without being stored.
 
