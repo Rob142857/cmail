@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { applyDeliveryEvent, type DeliveryEvent } from './delivery-events';
-import { bounceAdvice, bounceNoticeContent, derivedId, enhancedCode, type SentCopy } from './bounce-notice';
+import { bounceAdvice, bounceNoticeContent, deliverBounceNotices, derivedId, enhancedCode, type SentCopy } from './bounce-notice';
 import { migratedDatabase } from './testing/sqlite-d1';
 
 // Every address, domain and ID here is a fixture.
@@ -37,24 +37,29 @@ const copy: SentCopy = {
   received_at: '2026-11-06 01:01:40',
 };
 
-function setup() {
+function setup({ withSentCopy = true } = {}) {
   const { d1, sqlite } = migratedDatabase();
   sqlite.prepare("INSERT INTO mailboxes (id, address, type) VALUES ('mailbox-1', 'sender@example.test', 'shared')").run();
   sqlite.prepare(
     `INSERT INTO mail_trace (trace_id, provider_message_ids, direction, status, envelope_from, envelope_to)
      VALUES ('trace-1', '["provider-1"]', 'outbound', 'sent', 'sender@example.test', 'missing@example.net')`,
   ).run();
-  sqlite.prepare(
-    `INSERT INTO messages (id, mailbox_id, provider_message_ids, direction, from_address, to_addresses, subject, thread_id, folder)
-     VALUES ('message-1', 'mailbox-1', '["provider-1"]', 'outbound', 'sender@example.test', '["missing@example.net"]', 'Quarterly report', 'thread-1', 'sent')`,
-  ).run();
+  if (withSentCopy) {
+    sqlite.prepare(
+      `INSERT INTO messages (id, mailbox_id, provider_message_ids, direction, from_address, to_addresses, subject, thread_id, folder)
+       VALUES ('message-1', 'mailbox-1', '["provider-1"]', 'outbound', 'sender@example.test', '["missing@example.net"]', 'Quarterly report', 'thread-1', 'sent')`,
+    ).run();
+  }
   const objects = new Map<string, string>();
-  const storage = { put: vi.fn(async (key: string, value: string) => { objects.set(key, value); }) } as unknown as R2Bucket;
+  const storage = {
+    put: vi.fn(async (key: string, value: string) => { objects.set(key, value); }),
+    delete: vi.fn(async (key: string) => { objects.delete(key); }),
+  } as unknown as R2Bucket;
   const inbox = () => sqlite.prepare(
     `SELECT id, direction, from_address, from_name, to_addresses, subject, folder, is_read, importance, thread_id, body_r2_key
      FROM messages WHERE folder = 'inbox'`,
   ).all() as Record<string, unknown>[];
-  return { d1, storage, objects, inbox };
+  return { d1, sqlite, storage, objects, inbox };
 }
 
 describe('Undeliverable notice (real migrations)', () => {
@@ -89,6 +94,31 @@ describe('Undeliverable notice (real migrations)', () => {
     expect(await applyDeliveryEvent(d1, bounceEvent(), { storage, onNotice })).toBe('duplicate');
     expect(inbox()).toHaveLength(1);
     expect(onNotice).toHaveBeenCalledOnce();
+  });
+
+  it('waits for the Sent copy while the queue can retry, then stores the event alone', async () => {
+    const { d1, inbox, storage, sqlite } = setup({ withSentCopy: false });
+    expect(await applyDeliveryEvent(d1, bounceEvent(), { storage, waitForSentCopy: true })).toBe('unmatched');
+    expect(sqlite.prepare('SELECT COUNT(*) AS n FROM delivery_events').get()).toEqual({ n: 0 });
+    expect(await applyDeliveryEvent(d1, bounceEvent(), { storage, waitForSentCopy: false })).toBe('stored');
+    expect(inbox()).toHaveLength(0);
+  });
+
+  it('never brings back a notice the user deleted', async () => {
+    const { d1, sqlite, storage, inbox } = setup();
+    const onNotice = vi.fn(async () => {});
+    await applyDeliveryEvent(d1, bounceEvent(), { storage, onNotice });
+    sqlite.prepare("DELETE FROM messages WHERE folder = 'inbox'").run();
+    await applyDeliveryEvent(d1, bounceEvent(), { storage, onNotice });
+    expect(inbox()).toHaveLength(0);
+    expect(onNotice).toHaveBeenCalledOnce();
+  });
+
+  it('removes the stored body when the mailbox is gone', async () => {
+    const { d1, storage, objects } = setup();
+    const created = await deliverBounceNotices({ DB: d1, STORAGE: storage }, bounceEvent(), [{ ...copy, mailbox_id: 'mailbox-gone' }]);
+    expect(created).toEqual([]);
+    expect(objects.size).toBe(0);
   });
 
   it('makes no notice for a delivery, a deferral or without storage', async () => {

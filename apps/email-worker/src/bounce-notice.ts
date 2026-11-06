@@ -320,7 +320,12 @@ export async function deliverBounceNotices(
       copy.thread_id,
       copy.mailbox_id,
     ).run();
-    if (Number(inserted.meta?.changes || 0) > 0) created.push({ mailboxId: copy.mailbox_id, messageId });
+    if (Number(inserted.meta?.changes || 0) > 0) {
+      created.push({ mailboxId: copy.mailbox_id, messageId });
+    } else if (!await env.DB.prepare('SELECT 1 FROM messages WHERE id = ?').bind(messageId).first()) {
+      // The mailbox is gone, so no row will ever point at this body.
+      await env.STORAGE.delete(bodyKey);
+    }
   }
   return created;
 }

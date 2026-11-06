@@ -162,15 +162,26 @@ export interface DeliveryEventEnv extends PushEnvironment {
   STORAGE: R2Bucket;
 }
 
+export interface NoticeOptions {
+  storage: R2Bucket;
+  /** Hears about each notice this call created, for a new-mail alert. */
+  onNotice?: (mailboxId: string, messageId: string) => Promise<void>;
+  /**
+   * True while the queue can still retry: a failure that arrives before its
+   * Sent copy exists is then left unmatched, so the notice is not lost.
+   */
+  waitForSentCopy?: boolean;
+}
+
 /**
  * Stores one validated event against the trace and Sent copy it belongs to.
- * With `storage`, a failure also puts an Undeliverable notice in each sender
- * mailbox; `onNotice` hears about each notice this call created.
+ * With `notices`, a failure also puts an Undeliverable notice in each sender
+ * mailbox (bounce-notice.ts).
  */
 export async function applyDeliveryEvent(
   db: D1Database,
   event: DeliveryEvent,
-  notices?: { storage: R2Bucket; onNotice?: (mailboxId: string, messageId: string) => Promise<void> },
+  notices?: NoticeOptions,
 ): Promise<DeliveryEventOutcome> {
   const trace = await db.prepare(
     `SELECT trace_id, timestamp FROM mail_trace
@@ -182,6 +193,36 @@ export async function applyDeliveryEvent(
      ORDER BY timestamp DESC LIMIT 1`,
   ).bind(MATCH_WINDOW_DAYS, event.providerMessageId).first<{ trace_id: string; timestamp: string }>();
   if (!trace) return 'unmatched';
+
+  const failure = isDeliveryFailure(event);
+  // Cloudflare sends store no Message-ID, so the Sent copy is found by time
+  // and provider tracking ID (not by mailbox, which may have been renamed).
+  // Timestamps mix ISO and SQLite formats; the day of slack covers that.
+  const sentCopies = failure
+    ? (await db.prepare(
+      `SELECT id, mailbox_id, from_address, from_name, to_addresses, cc_addresses, subject, thread_id, received_at
+       FROM messages
+       WHERE direction = 'outbound'
+         AND received_at >= datetime(?, '-1 day')
+         AND EXISTS (
+           SELECT 1 FROM json_each(messages.provider_message_ids) WHERE json_each.value = ?
+         )
+       LIMIT 25`,
+    ).bind(trace.timestamp, event.providerMessageId).all<SentCopy>()).results || []
+    : [];
+  if (failure && notices?.waitForSentCopy && !sentCopies.length) return 'unmatched';
+
+  // Notices go out before the event is stored and only for an event not yet
+  // stored: a crash in between is retried and makes the same notice IDs (a
+  // no-op), while a redelivery of a stored event never brings back a notice
+  // the user has deleted.
+  if (failure && notices) {
+    const known = await db.prepare('SELECT 1 FROM delivery_events WHERE event_id = ?').bind(event.eventId).first();
+    if (!known) {
+      const created = await deliverBounceNotices({ DB: db, STORAGE: notices.storage }, event, sentCopies);
+      for (const notice of created) await notices.onNotice?.(notice.mailboxId, notice.messageId);
+    }
+  }
 
   const inserted = await db.prepare(
     `INSERT INTO delivery_events
@@ -213,31 +254,12 @@ export async function applyDeliveryEvent(
   // idempotent, and this completes the work if an earlier attempt stopped
   // between the insert and the updates. A Sent copy written after this event
   // picks the failure up from delivery_events instead (outbound-journal.ts).
-  if (isDeliveryFailure(event)) {
+  if (failure) {
     const statements = [db.prepare(appendFailedRecipient('mail_trace', 'trace_id')).bind(event.recipient, trace.trace_id)];
-    // Cloudflare sends store no Message-ID, so the Sent copy is found by time
-    // and provider tracking ID (not by mailbox, which may have been renamed).
-    // Timestamps mix ISO and SQLite formats; the day of slack covers that.
-    const sentCopies = await db.prepare(
-      `SELECT id, mailbox_id, from_address, from_name, to_addresses, cc_addresses, subject, thread_id, received_at
-       FROM messages
-       WHERE direction = 'outbound'
-         AND received_at >= datetime(?, '-1 day')
-         AND EXISTS (
-           SELECT 1 FROM json_each(messages.provider_message_ids) WHERE json_each.value = ?
-         )
-       LIMIT 25`,
-    ).bind(trace.timestamp, event.providerMessageId).all<SentCopy>();
-    for (const copy of sentCopies.results || []) {
+    for (const copy of sentCopies) {
       statements.push(db.prepare(appendFailedRecipient('messages', 'id')).bind(event.recipient, copy.id));
     }
     await db.batch(statements);
-    // Also runs for a duplicate: notice IDs are derived from the event, so a
-    // notice an earlier attempt stored is not made twice.
-    if (notices) {
-      const created = await deliverBounceNotices({ DB: db, STORAGE: notices.storage }, event, sentCopies.results || []);
-      for (const notice of created) await notices.onNotice?.(notice.mailboxId, notice.messageId);
-    }
   }
   return duplicate ? 'duplicate' : 'stored';
 }
@@ -257,6 +279,7 @@ export async function handleDeliveryEventBatch(batch: MessageBatch<unknown>, env
     try {
       const outcome = await applyDeliveryEvent(env.DB, event, {
         storage: env.STORAGE,
+        waitForSentCopy: message.attempts <= UNMATCHED_RETRY_ATTEMPTS,
         // A new-mail alert is best effort: the notice is already stored.
         onNotice: async (mailboxId, messageId) => {
           await sendNewMailNotifications(env, mailboxId, messageId).catch(() => undefined);

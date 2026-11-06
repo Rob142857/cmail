@@ -64,7 +64,10 @@ function queueMessage(body: unknown, attempts = 1) {
 
 function envOf(db: D1Database) {
   const objects = new Map<string, string>();
-  const STORAGE = { put: vi.fn(async (key: string, value: string) => { objects.set(key, value); }) } as unknown as R2Bucket;
+  const STORAGE = {
+    put: vi.fn(async (key: string, value: string) => { objects.set(key, value); }),
+    delete: vi.fn(async (key: string) => { objects.delete(key); }),
+  } as unknown as R2Bucket;
   return { DB: db, STORAGE, objects };
 }
 
