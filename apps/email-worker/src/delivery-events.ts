@@ -36,6 +36,7 @@ const MAX_FAILED_RECIPIENTS = 100;
 const MATCH_WINDOW_DAYS = 30;
 // An event can arrive before the send's trace row is written. Unmatched
 // events are retried this many times, a minute apart, before being dropped.
+// Queue attempts start at 1, so the event is dropped on attempt 4.
 export const UNMATCHED_RETRY_ATTEMPTS = 3;
 export const UNMATCHED_RETRY_DELAY_SECONDS = 60;
 // Errors (D1 unavailable) back off 30 s, 60 s, 120 s ... up to 5 minutes.
@@ -129,14 +130,14 @@ function appendFailedRecipient(table: 'mail_trace' | 'messages', idColumn: 'trac
 /** Stores one validated event against the trace and Sent copy it belongs to. */
 export async function applyDeliveryEvent(db: D1Database, event: DeliveryEvent): Promise<DeliveryEventOutcome> {
   const trace = await db.prepare(
-    `SELECT trace_id, envelope_from, timestamp FROM mail_trace
+    `SELECT trace_id, timestamp FROM mail_trace
      WHERE direction = 'outbound'
        AND timestamp >= datetime('now', '-' || ? || ' days')
        AND EXISTS (
          SELECT 1 FROM json_each(mail_trace.provider_message_ids) WHERE json_each.value = ?
        )
      ORDER BY timestamp DESC LIMIT 1`,
-  ).bind(MATCH_WINDOW_DAYS, event.providerMessageId).first<{ trace_id: string; envelope_from: string | null; timestamp: string }>();
+  ).bind(MATCH_WINDOW_DAYS, event.providerMessageId).first<{ trace_id: string; timestamp: string }>();
   if (!trace) return 'unmatched';
 
   const inserted = await db.prepare(
@@ -165,23 +166,20 @@ export async function applyDeliveryEvent(db: D1Database, event: DeliveryEvent): 
   // picks the failure up from delivery_events instead (outbound-journal.ts).
   if (isDeliveryFailure(event)) {
     const statements = [db.prepare(appendFailedRecipient('mail_trace', 'trace_id')).bind(event.recipient, trace.trace_id)];
-    if (trace.envelope_from) {
-      // Cloudflare sends store no Message-ID, so the Sent copy is found by
-      // the sender's mailbox, time and provider tracking ID. Timestamps mix
-      // ISO and SQLite formats; the day of slack covers that.
-      const sentCopies = await db.prepare(
-        `SELECT id FROM messages
-         WHERE mailbox_id IN (SELECT id FROM mailboxes WHERE address = ?)
-           AND direction = 'outbound'
-           AND received_at >= datetime(?, '-1 day')
-           AND EXISTS (
-             SELECT 1 FROM json_each(messages.provider_message_ids) WHERE json_each.value = ?
-           )
-         LIMIT 25`,
-      ).bind(trace.envelope_from.toLowerCase(), trace.timestamp, event.providerMessageId).all<{ id: string }>();
-      for (const copy of sentCopies.results || []) {
-        statements.push(db.prepare(appendFailedRecipient('messages', 'id')).bind(event.recipient, copy.id));
-      }
+    // Cloudflare sends store no Message-ID, so the Sent copy is found by time
+    // and provider tracking ID (not by mailbox, which may have been renamed).
+    // Timestamps mix ISO and SQLite formats; the day of slack covers that.
+    const sentCopies = await db.prepare(
+      `SELECT id FROM messages
+       WHERE direction = 'outbound'
+         AND received_at >= datetime(?, '-1 day')
+         AND EXISTS (
+           SELECT 1 FROM json_each(messages.provider_message_ids) WHERE json_each.value = ?
+         )
+       LIMIT 25`,
+    ).bind(trace.timestamp, event.providerMessageId).all<{ id: string }>();
+    for (const copy of sentCopies.results || []) {
+      statements.push(db.prepare(appendFailedRecipient('messages', 'id')).bind(event.recipient, copy.id));
     }
     await db.batch(statements);
   }
@@ -202,7 +200,7 @@ export async function handleDeliveryEventBatch(batch: MessageBatch<unknown>, db:
     }
     try {
       const outcome = await applyDeliveryEvent(db, event);
-      if (outcome === 'unmatched' && message.attempts < UNMATCHED_RETRY_ATTEMPTS) {
+      if (outcome === 'unmatched' && message.attempts <= UNMATCHED_RETRY_ATTEMPTS) {
         counts.retried += 1;
         message.retry({ delaySeconds: UNMATCHED_RETRY_DELAY_SECONDS });
         continue;

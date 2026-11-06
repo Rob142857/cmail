@@ -383,7 +383,7 @@ try {
           'idx_mailbox_reservations_draft_slots',
           'idx_inbox_rules_mailbox_position',
           'idx_delivery_events_trace', 'idx_delivery_events_provider',
-          'idx_trace_outbound_timestamp', 'idx_messages_outbound_mailbox_time'
+          'idx_trace_outbound_timestamp', 'idx_messages_outbound_time'
         )) AS essential_index_count,
       (SELECT COUNT(*) FROM sqlite_master
         WHERE type = 'trigger' AND name IN (

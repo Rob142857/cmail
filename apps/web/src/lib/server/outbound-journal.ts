@@ -210,6 +210,29 @@ async function failedRecipientsWithDeliveryEvents(
   return added ? JSON.stringify(merged) : failedRecipients;
 }
 
+// Runs in the same batch as the Sent-copy insert. The batch is one
+// transaction, so a bounce stored after the read above but before this batch
+// is still merged; one stored after it finds the new copy itself. UNION drops
+// duplicates; the cap matches the send path's.
+export const MERGE_LATE_DELIVERY_FAILURES_SQL = `UPDATE messages
+  SET failed_recipients = (
+    SELECT json_group_array(address) FROM (
+      SELECT value AS address FROM json_each(messages.failed_recipients)
+      UNION
+      SELECT recipient FROM delivery_events
+      WHERE provider_message_id IN (SELECT value FROM json_each(messages.provider_message_ids))
+        AND terminal = 1 AND event_type IN ('bounced', 'failed', 'rejected')
+      LIMIT 100
+    )
+  )
+  WHERE id = ? AND direction = 'outbound'
+    AND EXISTS (
+      SELECT 1 FROM delivery_events
+      WHERE provider_message_id IN (SELECT value FROM json_each(messages.provider_message_ids))
+        AND terminal = 1 AND event_type IN ('bounced', 'failed', 'rejected')
+        AND recipient NOT IN (SELECT lower(value) FROM json_each(messages.failed_recipients))
+    )`;
+
 function validStringArray(value: string, max = 256): string[] {
   try {
     const parsed = JSON.parse(value) as unknown;
@@ -910,6 +933,10 @@ async function materializeTarget(
       attachment.size_bytes,
       targetAttachmentKey(target.message_id, attachmentIds[ordinal]),
     )),
+    ...(target.direction === 'outbound'
+      ? [db.prepare(MERGE_LATE_DELIVERY_FAILURES_SQL).bind(target.message_id)]
+      : []),
+    // Must stay last: its change count confirms the materialization.
     db.prepare(
       `UPDATE outbound_send_targets
        SET materialized_at = datetime('now')

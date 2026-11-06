@@ -242,6 +242,9 @@ function materializationDb(
           messageInserts.push(statement);
           return { meta: { changes: 1 } };
         }
+        if (statement.query.includes('UPDATE messages') && statement.query.includes('FROM delivery_events')) {
+          return { meta: { changes: 0 } };
+        }
         if (statement.query.includes('INSERT INTO attachments')) {
           attachmentWrites.push(statement.values);
           return { meta: { changes: 1 } };

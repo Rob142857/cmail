@@ -26,11 +26,11 @@ CREATE INDEX IF NOT EXISTS idx_delivery_events_provider
   ON delivery_events(provider_message_id);
 
 -- The consumer matches an event to recent outbound traces, then to the
--- sender's recent outbound messages. Cloudflare sends have no stored
+-- recent outbound messages. Cloudflare sends have no stored
 -- Message-ID, so both lookups go by time and provider tracking ID.
 CREATE INDEX IF NOT EXISTS idx_trace_outbound_timestamp
   ON mail_trace(timestamp)
   WHERE direction = 'outbound';
-CREATE INDEX IF NOT EXISTS idx_messages_outbound_mailbox_time
-  ON messages(mailbox_id, received_at)
+CREATE INDEX IF NOT EXISTS idx_messages_outbound_time
+  ON messages(received_at)
   WHERE direction = 'outbound';

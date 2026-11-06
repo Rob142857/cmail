@@ -175,18 +175,18 @@ describe('applyDeliveryEvent (real migrations)', () => {
     expect(failedOn('messages', 'message-2')).toEqual([]);
   });
 
-  it('leaves Sent copies older than the send, and other mailboxes, alone', async () => {
+  it('finds the Sent copy after its mailbox is renamed, and skips older copies', async () => {
     const { d1, sqlite, failedOn } = setup();
-    sqlite.prepare("INSERT INTO mailboxes (id, address, type) VALUES ('mailbox-2', 'other@example.test', 'shared')").run();
+    sqlite.prepare(`UPDATE mailboxes SET address = 'renamed@example.test' WHERE id = 'mailbox-1'`).run();
     sqlite.prepare(
       `INSERT INTO messages (id, mailbox_id, provider_message_ids, direction, from_address, folder, received_at)
        VALUES ('message-old', 'mailbox-1', '["provider-1"]', 'outbound', 'sender@example.test', 'sent', datetime('now', '-3 days')),
-              ('message-elsewhere', 'mailbox-2', '["provider-1"]', 'outbound', 'other@example.test', 'sent', datetime('now'))`,
+              ('message-inbound', 'mailbox-1', '["provider-1"]', 'inbound', 'sender@example.test', 'inbox', datetime('now'))`,
     ).run();
     await applyDeliveryEvent(d1, parseDeliveryEvent(sendingEvent('bounced'))!);
     expect(failedOn('messages', 'message-1')).toEqual(['missing@example.net']);
     expect(failedOn('messages', 'message-old')).toEqual([]);
-    expect(failedOn('messages', 'message-elsewhere')).toEqual([]);
+    expect(failedOn('messages', 'message-inbound')).toEqual([]);
   });
 
   it('deletes events with their trace row', async () => {
@@ -222,9 +222,11 @@ describe('handleDeliveryEventBatch', () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
     const body = sendingEvent('bounced', {}, { messageId: 'not-yet-traced' });
     const early = queueMessage(body, 1);
-    const last = queueMessage(body, UNMATCHED_RETRY_ATTEMPTS);
-    await handleDeliveryEventBatch(batchOf(early, last), d1);
+    const third = queueMessage(body, UNMATCHED_RETRY_ATTEMPTS);
+    const last = queueMessage(body, UNMATCHED_RETRY_ATTEMPTS + 1);
+    await handleDeliveryEventBatch(batchOf(early, third, last), d1);
     expect(early.retry).toHaveBeenCalledWith({ delaySeconds: UNMATCHED_RETRY_DELAY_SECONDS });
+    expect(third.retry).toHaveBeenCalledWith({ delaySeconds: UNMATCHED_RETRY_DELAY_SECONDS });
     expect(early.ack).not.toHaveBeenCalled();
     expect(last.ack).toHaveBeenCalledOnce();
     log.mockRestore();
