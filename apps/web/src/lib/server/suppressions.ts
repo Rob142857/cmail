@@ -4,8 +4,10 @@
  * finds which recipients of a refused send are on it and, where Cloudflare
  * allows, lifts a bounce block so the sender can try again.
  *
- * Looking up and lifting entries needs the optional Cloudflare REST pair
- * (CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_EMAIL_API_TOKEN, "Email Sending: Edit").
+ * Looking up and lifting entries needs CLOUDFLARE_ACCOUNT_ID and its own
+ * token, CLOUDFLARE_SUPPRESSIONS_API_TOKEN ("Email Sending: Edit"). It is
+ * separate from the REST send token so turning this on never changes how
+ * mail is sent.
  * Without it, cmail's own bounce records name the likely address and an
  * administrator lifts the block in the Cloudflare dashboard.
  */
@@ -39,7 +41,7 @@ function envString(env: Record<string, unknown>, name: string): string {
 
 function apiCredentials(env: Record<string, unknown>): { accountId: string; token: string } | null {
   const accountId = envString(env, 'CLOUDFLARE_ACCOUNT_ID');
-  const token = envString(env, 'CLOUDFLARE_EMAIL_API_TOKEN');
+  const token = envString(env, 'CLOUDFLARE_SUPPRESSIONS_API_TOKEN');
   if (!ACCOUNT_ID_RX.test(accountId)) return null;
   if (token.length < 16 || token.length > 512 || /[\s\u0000-\u001f\u007f]/.test(token)) return null;
   return { accountId, token };

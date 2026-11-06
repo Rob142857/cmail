@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { blockedMessage, findBlockedRecipients, suppressionApiAvailable, unblockRecipient } from './suppressions';
 
-const env = { CLOUDFLARE_ACCOUNT_ID: '0123456789abcdef0123456789abcdef', CLOUDFLARE_EMAIL_API_TOKEN: 'test-token-0123456789' };
+const env = { CLOUDFLARE_ACCOUNT_ID: '0123456789abcdef0123456789abcdef', CLOUDFLARE_SUPPRESSIONS_API_TOKEN: 'test-token-0123456789' };
 
 function entry(overrides: Record<string, unknown> = {}) {
   return {
@@ -113,6 +113,11 @@ describe('unblockRecipient', () => {
       {}, 'desk@example.test', 'missing@example.net', api([entry()]) as unknown as typeof fetch,
     )).toBe('unavailable');
     expect(suppressionApiAvailable({})).toBe(false);
+    // The REST send token alone doesn't turn this on.
+    expect(suppressionApiAvailable({
+      CLOUDFLARE_ACCOUNT_ID: env.CLOUDFLARE_ACCOUNT_ID,
+      CLOUDFLARE_EMAIL_API_TOKEN: 'test-token-0123456789',
+    })).toBe(false);
   });
 
   it('says not blocked when the list has no entry', async () => {
