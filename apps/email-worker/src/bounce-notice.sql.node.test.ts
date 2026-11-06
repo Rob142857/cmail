@@ -137,7 +137,7 @@ describe('notice content', () => {
       { ...copy, subject: '<b>Hi</b>' },
       '2026-11-06T01:03:00.000Z',
     );
-    expect(html).not.toMatch(/<script|<img|<b>Hi/);
+    expect(html).not.toMatch(/<script|<img|<b>Hi/i);
     expect(html).toContain('&lt;script&gt;');
     expect(subject).toBe('Undeliverable: <b>Hi</b>');
   });
