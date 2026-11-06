@@ -179,6 +179,7 @@ function materializationDb(
   targets: OutboundJournalTargetRow[],
   attachments: OutboundJournalAttachmentRow[],
   inbox: { rules: InboxRuleRow[] | 'unavailable'; address: string } | null = null,
+  lateDeliveryFailures: string[] = [],
 ) {
   let journal = { ...initialJournal };
   const messageWrites: unknown[][] = [];
@@ -209,6 +210,9 @@ function materializationDb(
         }
         if (query.includes('FROM outbound_send_targets')) return { results: targets as T[] };
         if (query.includes('FROM outbound_send_attachments')) return { results: attachments as T[] };
+        if (query.includes('FROM delivery_events')) {
+          return { results: lateDeliveryFailures.map((recipient) => ({ recipient })) as T[] };
+        }
         throw new Error(`Unexpected all query: ${query}`);
       },
       async run() {
@@ -237,6 +241,9 @@ function materializationDb(
           messageWrites.push(statement.values);
           messageInserts.push(statement);
           return { meta: { changes: 1 } };
+        }
+        if (statement.query.includes('UPDATE messages') && statement.query.includes('FROM delivery_events')) {
+          return { meta: { changes: 0 } };
         }
         if (statement.query.includes('INSERT INTO attachments')) {
           attachmentWrites.push(statement.values);
@@ -419,6 +426,27 @@ describe('outbound journal failure and recovery boundaries', () => {
     expect(objects.has(targetBodyKey(target.mailbox_id, target.message_id))).toBe(true);
     expect(objects.has(targetAttachmentKey(target.message_id, 'attachment-1'))).toBe(true);
     expect(getJournal().state).toBe('materialized');
+  });
+
+  it('adds a bounce that arrived before the Sent copy was written', async () => {
+    const journal = acceptedJournal({
+      html_sha256: await digest('<p>The body</p>'),
+      text_sha256: await digest('The body'),
+    });
+    const { bucket, seed } = fakeBucket();
+    seed(journal.html_r2_key, '<p>The body</p>', { httpMetadata: { contentType: 'text/html; charset=utf-8' } });
+    seed(journal.text_r2_key, 'The body');
+    const { db, messageWrites } = materializationDb(
+      journal,
+      [journalTarget({ attachment_ids: '[]' })],
+      [],
+      null,
+      ['late@example.net'],
+    );
+
+    await materializeOutboundJournal(db, bucket, journal.id);
+    expect(messageWrites).toHaveLength(1);
+    expect(JSON.parse(messageWrites[0]?.[4] as string)).toEqual([...JSON.parse(journal.failed_recipients), 'late@example.net']);
   });
 
   it('rejects altered staged bytes before provider dispatch', async () => {

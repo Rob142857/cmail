@@ -4,9 +4,18 @@ import { adminLoaderFailure } from '#lib/server/admin-loader-error.js';
 
 const VALID_PAGE_SIZES = [20, 50, 100];
 
+interface DeliveryEventRow {
+  recipient: string;
+  event_type: string;
+  bounce_type: string | null;
+  smtp_status: string | null;
+  smtp_response: string | null;
+  occurred_at: string;
+}
+
 export const load: PageServerLoad = async ({ platform, url }) => {
   const env = platform?.env;
-  if (!env) return { traces: [], total: 0, outboundJournals: [], outboundJournalTotal: 0, search: '', direction: '', status: '', page: 1, pageSize: 20 };
+  if (!env) return { traces: [], total: 0, deliveryEvents: {}, outboundJournals: [], outboundJournalTotal: 0, search: '', direction: '', status: '', page: 1, pageSize: 20 };
 
   const search = url.searchParams.get('q') || '';
   const direction = url.searchParams.get('direction') || '';
@@ -51,6 +60,33 @@ export const load: PageServerLoad = async ({ platform, url }) => {
     const traces = await env.DB.prepare(
       `SELECT * FROM mail_trace ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
     ).bind(...binds, pageSize, offset).all<MailTrace>();
+    // Provider delivery events (bounces, complaints, deliveries) for the
+    // outbound traces on this page, oldest first, at most 50 per trace.
+    // datetime() puts provider ISO times and SQLite times in one format.
+    const outboundTraceIds = (traces.results || [])
+      .filter((trace) => trace.direction === 'outbound')
+      .map((trace) => trace.trace_id);
+    const deliveryEvents: Record<string, DeliveryEventRow[]> = {};
+    if (outboundTraceIds.length) {
+      const events = await env.DB.prepare(
+        `SELECT trace_id, recipient, event_type, bounce_type, smtp_status, smtp_response, occurred_at
+         FROM (
+           SELECT trace_id, recipient, event_type, bounce_type, smtp_status, smtp_response,
+                  COALESCE(datetime(event_timestamp), received_at) AS occurred_at,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY trace_id
+                    ORDER BY COALESCE(datetime(event_timestamp), received_at), event_id
+                  ) AS position
+           FROM delivery_events
+           WHERE trace_id IN (SELECT value FROM json_each(?))
+         )
+         WHERE position <= 50
+         ORDER BY trace_id, position`,
+      ).bind(JSON.stringify(outboundTraceIds)).all<DeliveryEventRow & { trace_id: string }>();
+      for (const { trace_id: traceId, ...event } of events.results || []) {
+        (deliveryEvents[traceId] ||= []).push(event);
+      }
+    }
     const outboundJournalCount = await env.DB.prepare(
       `SELECT COUNT(*) AS total FROM outbound_send_journal
        WHERE state IN ('pending', 'dispatching', 'accepted', 'ambiguous', 'retryable_failure')`,
@@ -77,6 +113,7 @@ export const load: PageServerLoad = async ({ platform, url }) => {
     return {
       traces: traces.results || [],
       total,
+      deliveryEvents,
       outboundJournals: outboundJournals.results || [],
       outboundJournalTotal: outboundJournalCount?.total || 0,
       search,
@@ -87,7 +124,7 @@ export const load: PageServerLoad = async ({ platform, url }) => {
     };
   } catch (e) {
     return {
-      traces: [], total: 0, outboundJournals: [], outboundJournalTotal: 0,
+      traces: [], total: 0, deliveryEvents: {}, outboundJournals: [], outboundJournalTotal: 0,
       search, direction, status, page, pageSize, ...adminLoaderFailure('trace', e),
     };
   }

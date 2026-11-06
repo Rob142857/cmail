@@ -307,6 +307,38 @@ For local or non-service-binding environments only, set the non-secret `CLOUDFLA
 
 For Postmark, set `OUTBOUND_PROVIDER=postmark`, store `POSTMARK_API_KEY` as a Pages secret, and publish exactly the DNS records issued for your account.
 
+### Bounce and complaint feedback (optional)
+
+Cloudflare Email Service accepts a message and then delivers it later, so a
+bounce can happen after cmail has already shown the message as sent. With
+[Email Sending event subscriptions](https://developers.cloudflare.com/email-service/reference/event-subscriptions/),
+Cloudflare puts each delivery event on a queue and the email Worker reads it:
+
+- A bounced, failed or rejected recipient is added to **Failed recipients** on
+  the sender's Sent copy and on the mail trace.
+- Every event (delivered, deferred, bounced, failed, rejected, complained) is
+  listed under **Delivery events** in **Admin → Mail trace**.
+- Events for mail that cmail did not send, such as another app on the same
+  sending domain, are dropped without being stored.
+
+To turn it on:
+
+1. Apply migration `0019` (`pnpm db:migrate`) before deploying this release.
+2. Create a queue, for example `cmail-email-events`
+   (`npx wrangler queues create cmail-email-events`).
+3. In the queue's **Subscriptions**, subscribe it to **Email Sending** for each
+   sending domain. Choose all six events, or at least `message.bounced`,
+   `message.failed`, `message.rejected` and `message.complained`.
+4. Uncomment the `[[queues.consumers]]` block in the email Worker's Wrangler
+   file, set `queue` to your queue's name, and deploy the email Worker.
+5. Send a test message to an address that does not exist on a domain you
+   control, and check that the recipient appears under Failed recipients.
+
+Events are stored with their trace row and deleted with it when trace
+retention runs. An event that arrives before its trace row is retried three
+times, a minute apart, then dropped. Events only match messages sent through
+Cloudflare Email Service in the last 30 days. Postmark sends are not covered.
+
 Begin DMARC at `p=none`, collect authorised aggregate reports, and verify alignment for every legitimate sender before advancing deliberately to `p=quarantine` and then `p=reject`. Don't use the historic `pct` tag for staged enforcement. Changing MX, SPF, DKIM, or DMARC can affect other senders on the domain, so inventory them first and follow [Email authentication and sender requirements](email-authentication.md).
 
 ## 7. Deploy applications

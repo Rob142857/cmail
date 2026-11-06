@@ -51,6 +51,17 @@ simple.period = 60
 [[send_email]]
 name = "EMAIL"
 
+# Optional bounce and complaint feedback. Create a queue, subscribe it to each
+# sending domain's Email Sending events, then uncomment this block and deploy.
+# Production only: the preview Worker sends nothing, so it needs no consumer.
+# See docs/deployment.md, "Bounce and complaint feedback".
+# [[queues.consumers]]
+# queue = "cmail-email-events"
+# max_batch_size = 10
+# max_batch_timeout = 5
+# max_retries = 5
+# dead_letter_queue = "cmail-email-events-dlq" # optional: keeps events that failed every retry
+
 [vars]
 # authserv-id of the trusted boundary MTA that stamps Authentication-Results on
 # inbound mail. Inbound SPF/DKIM/DMARC verdicts are recorded only when the
