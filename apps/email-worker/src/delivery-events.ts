@@ -19,6 +19,11 @@ export interface DeliveryEvent {
   smtpStatus: string | null;
   smtpResponse: string | null;
   eventTimestamp: string | null;
+  deliveryTimeMs: number | null;
+  provider: string | null;
+  bounceClassification: string | null;
+  reason: string | null;
+  rejectionParty: string | null;
 }
 
 export type DeliveryEventOutcome = 'stored' | 'duplicate' | 'unmatched' | 'invalid';
@@ -29,6 +34,11 @@ const MAX_PROVIDER_ID_CHARS = 998;
 const MAX_ADDRESS_CHARS = 320;
 const MAX_SMTP_STATUS_CHARS = 32;
 const MAX_SMTP_RESPONSE_CHARS = 500;
+const MAX_REASON_CHARS = 500;
+const MAX_LABEL_CHARS = 64;
+const MAX_PARTY_CHARS = 32;
+// A week in milliseconds; anything larger is not a real delivery time.
+const MAX_DELIVERY_TIME_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_FAILED_RECIPIENTS = 100;
 // Provider IDs are matched against recent outbound traces only. Timestamps in
 // mail_trace mix ISO and SQLite formats, so the cut-off is approximate by up
@@ -55,6 +65,11 @@ function boundedText(value: unknown, max: number): string | null {
   const text = value.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
   if (!text) return null;
   return text.length > max ? text.slice(0, max) : text;
+}
+
+function milliseconds(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > MAX_DELIVERY_TIME_MS) return null;
+  return Math.round(value);
 }
 
 function identifier(value: unknown, max: number): string | null {
@@ -89,12 +104,18 @@ export function parseDeliveryEvent(body: unknown): DeliveryEvent | null {
 
   const delivery = record(payload.delivery);
   const bounce = record(payload.bounce);
+  const failure = record(payload.failure);
+  const rejection = record(payload.rejection);
   const metadata = record(event.metadata);
   const bounceType = bounce?.type === 'hard' || bounce?.type === 'soft' ? bounce.type : null;
   const smtpStatus = boundedText(delivery?.smtpEnhancedStatusCode, MAX_SMTP_STATUS_CHARS)
     ?? boundedText(delivery?.smtpStatusCode, MAX_SMTP_STATUS_CHARS);
-  const smtpResponse = boundedText(delivery?.smtpResponse, MAX_SMTP_RESPONSE_CHARS)
-    ?? boundedText(bounce?.reason, MAX_SMTP_RESPONSE_CHARS);
+  const smtpResponse = boundedText(delivery?.smtpResponse, MAX_SMTP_RESPONSE_CHARS);
+  const rejectionReason = [boundedText(rejection?.reason, MAX_REASON_CHARS), boundedText(rejection?.detail, MAX_REASON_CHARS)]
+    .filter(Boolean).join(': ');
+  const reason = boundedText(bounce?.reason, MAX_REASON_CHARS)
+    ?? boundedText(failure?.reason, MAX_REASON_CHARS)
+    ?? boundedText(rejectionReason, MAX_REASON_CHARS);
   const eventTimestamp = identifier(metadata?.eventTimestamp, 40);
 
   return {
@@ -107,6 +128,11 @@ export function parseDeliveryEvent(body: unknown): DeliveryEvent | null {
     smtpStatus,
     smtpResponse,
     eventTimestamp,
+    deliveryTimeMs: milliseconds(delivery?.deliveryTimeMs),
+    provider: boundedText(delivery?.provider, MAX_LABEL_CHARS),
+    bounceClassification: boundedText(bounce?.classification, MAX_LABEL_CHARS),
+    reason,
+    rejectionParty: boundedText(rejection?.party, MAX_PARTY_CHARS),
   };
 }
 
@@ -143,8 +169,9 @@ export async function applyDeliveryEvent(db: D1Database, event: DeliveryEvent): 
   const inserted = await db.prepare(
     `INSERT INTO delivery_events
        (event_id, trace_id, provider_message_id, recipient, event_type, terminal, bounce_type,
-        smtp_status, smtp_response, event_timestamp)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        smtp_status, smtp_response, event_timestamp, delivery_time_ms, provider,
+        bounce_classification, reason, rejection_party)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(event_id) DO NOTHING`,
   ).bind(
     event.eventId,
@@ -157,6 +184,11 @@ export async function applyDeliveryEvent(db: D1Database, event: DeliveryEvent): 
     event.smtpStatus,
     event.smtpResponse,
     event.eventTimestamp,
+    event.deliveryTimeMs,
+    event.provider,
+    event.bounceClassification,
+    event.reason,
+    event.rejectionParty,
   ).run();
   const duplicate = Number(inserted.meta?.changes || 0) === 0;
 

@@ -20,6 +20,7 @@ import { deriveReplyThreading } from '#lib/server/message-threading.js';
 import { sanitizeSenderDisplayName, sendEmail } from '#lib/server/outbound.js';
 import { consumeCalendarOutboundLimits } from '#lib/server/calendar-outbound.js';
 import { messageOwnershipPredicate } from '#lib/server/message-access.js';
+import { deliveryStatus, type DeliveryEventView, type DeliveryStatus } from '#lib/mail/delivery-status.js';
 
 interface InviteViewModel {
   eventId: string | null;
@@ -38,6 +39,43 @@ interface InviteViewModel {
   attendees: Array<{ address: string; name: string; partstat: string }>;
   myPartstat: string | null;
   canRespond: boolean;
+}
+
+function jsonList(value: unknown): unknown[] {
+  if (typeof value !== 'string') return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Delivery status for an outbound copy, from the provider events stored for its tracking IDs. */
+async function loadDeliveryStatus(db: D1Database, message: Message): Promise<DeliveryStatus | null> {
+  if (message.direction !== 'outbound') return null;
+  const providerIds = jsonList(message.provider_message_ids).filter((id): id is string => typeof id === 'string');
+  if (!providerIds.length) return null;
+  try {
+    const events = await db.prepare(
+      `SELECT recipient, event_type, terminal, bounce_type, smtp_status, smtp_response, reason, delivery_time_ms,
+              COALESCE(datetime(event_timestamp), received_at) AS occurred_at
+       FROM delivery_events
+       WHERE provider_message_id IN (SELECT value FROM json_each(?))
+       ORDER BY occurred_at, event_id
+       LIMIT 500`,
+    ).bind(JSON.stringify(providerIds.slice(0, 50))).all<DeliveryEventView>();
+    const recipientCount = new Set(
+      [message.to_addresses, message.cc_addresses, message.bcc_addresses]
+        .flatMap(jsonList)
+        .filter((address): address is string => typeof address === 'string')
+        .map((address) => address.toLowerCase()),
+    ).size;
+    return deliveryStatus(events.results || [], recipientCount);
+  } catch {
+    // Delivery status is a hint; a failed lookup must not hide the message.
+    return null;
+  }
 }
 
 /** Load the invite card model for a message carrying a .ics attachment. */
@@ -177,6 +215,9 @@ export const load: PageServerLoad = async ({ locals, platform, params, url }) =>
   const canReplyAll = replyAllAddsRecipients(message, assignedAddresses);
   const requestedReturnMailbox = (url.searchParams.get('mailbox') || '').slice(0, 64);
 
+  // Provider delivery events for the sender's own copy (see delivery-status.ts).
+  const delivery = await loadDeliveryStatus(env.DB, message);
+
   const icsAttachment = allAttachments.find((attachment) => isIcsAttachment(attachment.content_type));
   const invite = icsAttachment
     ? await loadInvite(env.DB, env.STORAGE, message.id, message.mailbox_address, icsAttachment)
@@ -187,6 +228,7 @@ export const load: PageServerLoad = async ({ locals, platform, params, url }) =>
     body,
     bodyUnavailable,
     invite,
+    delivery,
     // Distinct hosts, so ten disguised links to one destination read as one
     // finding rather than ten. Only risk and host cross to the client; the
     // hrefs are already in the body and do not need a second copy.

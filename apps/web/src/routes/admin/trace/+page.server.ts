@@ -1,17 +1,11 @@
 import type { PageServerLoad } from './$types';
 import type { MailTrace } from '@cmail/shared/types';
 import { adminLoaderFailure } from '#lib/server/admin-loader-error.js';
+import type { DeliveryEventView } from '#lib/mail/delivery-status.js';
 
 const VALID_PAGE_SIZES = [20, 50, 100];
 
-interface DeliveryEventRow {
-  recipient: string;
-  event_type: string;
-  bounce_type: string | null;
-  smtp_status: string | null;
-  smtp_response: string | null;
-  occurred_at: string;
-}
+type DeliveryEventRow = DeliveryEventView & { provider: string | null; rejection_party: string | null };
 
 export const load: PageServerLoad = async ({ platform, url }) => {
   const env = platform?.env;
@@ -69,9 +63,11 @@ export const load: PageServerLoad = async ({ platform, url }) => {
     const deliveryEvents: Record<string, DeliveryEventRow[]> = {};
     if (outboundTraceIds.length) {
       const events = await env.DB.prepare(
-        `SELECT trace_id, recipient, event_type, bounce_type, smtp_status, smtp_response, occurred_at
+        `SELECT trace_id, recipient, event_type, terminal, bounce_type, smtp_status, smtp_response, reason,
+                delivery_time_ms, provider, rejection_party, occurred_at
          FROM (
-           SELECT trace_id, recipient, event_type, bounce_type, smtp_status, smtp_response,
+           SELECT trace_id, recipient, event_type, terminal, bounce_type, smtp_status, smtp_response, reason,
+                  delivery_time_ms, provider, rejection_party,
                   COALESCE(datetime(event_timestamp), received_at) AS occurred_at,
                   ROW_NUMBER() OVER (
                     PARTITION BY trace_id

@@ -316,19 +316,29 @@ Cloudflare puts each delivery event on a queue and the email Worker reads it:
 
 - A bounced, failed or rejected recipient is added to **Failed recipients** on
   the sender's Sent copy and on the mail trace.
-- Every event (delivered, deferred, bounced, failed, rejected, complained) is
-  listed under **Delivery events** in **Admin → Mail trace**.
+- The sender's Sent copy shows a delivery status (Delivered, Delayed and
+  retrying, Not delivered, or marked as spam), with each recipient's latest
+  state under **Details**.
+- **Admin → Mail trace** shows a **Delivery timeline** for each sent message:
+  the hand-off to the sending service, then every event (delivered, deferred,
+  bounced, failed, rejected, complained) with its time, the time since the
+  hand-off, the remote server's reply and the reason where the provider gives
+  them.
+- Cloudflare reports bounces as events. Don't expect a bounce email (NDR) in
+  the sender's mailbox; the status in cmail is where a bounce shows.
 - Events for mail that cmail did not send, such as another app on the same
   sending domain, are dropped without being stored.
 
 To turn it on:
 
-1. Apply migration `0019` (`pnpm db:migrate`) before deploying this release.
+1. Apply migrations `0019` and `0020` (`pnpm db:migrate`) before deploying this release.
 2. Create a queue, for example `cmail-email-events`
    (`npx wrangler queues create cmail-email-events`).
 3. In the queue's **Subscriptions**, subscribe it to **Email Sending** for each
    sending domain. Choose all six events, or at least `message.bounced`,
-   `message.failed`, `message.rejected` and `message.complained`.
+   `message.failed`, `message.rejected` and `message.complained`. From the
+   command line, use the short event names:
+   `npx wrangler queues subscription create cmail-email-events --source email.sending --zone-id <zone ID> --domain <sending domain> --events "message.delivered,message.deferred,message.bounced,message.failed,message.rejected,message.complained"`
 4. Uncomment the `[[queues.consumers]]` block in the email Worker's Wrangler
    file, set `queue` to your queue's name, and deploy the email Worker.
 5. Send a test message to an address that does not exist on a domain you

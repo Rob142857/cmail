@@ -7,6 +7,7 @@ Notable changes to cmail are recorded here. The project follows
 ## [Unreleased]
 
 ### Added
+- Delivery status from Email Sending events: a status line on the sender's Sent copy (Delivered, Delayed and retrying, Not delivered, marked as spam) with each recipient's state under Details, and a Delivery timeline in Admin > Mail trace with times, the remote server's reply, delivery time and the bounce, failure or rejection reason. Migration `0020` adds these event fields (`pnpm db:migrate` before deploying). Instances without the events subscription see no change.
 - Bounce and complaint feedback from Cloudflare Email Service (optional). The email Worker reads Email Sending events from a Queues event subscription: a bounced, failed or rejected recipient is added to Failed recipients on the sender's Sent copy and on the mail trace, and every event is listed under Delivery events in Admin > Mail trace. Events for mail cmail did not send are dropped. New `delivery_events` table (migration `0019`): run `pnpm db:migrate` before deploying the email worker and web app. Setup: docs/deployment.md, "Bounce and complaint feedback".
 
 ### Changed
