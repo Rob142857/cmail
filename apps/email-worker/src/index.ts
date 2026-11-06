@@ -41,6 +41,7 @@ import {
   type InboundGuardEnv,
 } from './inbound-guard';
 import { runRetention, type RetentionEnv } from './retention';
+import { handleDeliveryEventBatch } from './delivery-events';
 
 export { retentionDays, retentionEnabled } from './retention';
 export {
@@ -832,6 +833,12 @@ export default {
       return;
     }
     ctx.waitUntil(runRetention(env));
+  },
+
+  // Cloudflare Email Sending lifecycle events from the optional Queues event
+  // subscription (bounces, complaints, deliveries). See delivery-events.ts.
+  async queue(batch: MessageBatch<unknown>, env: Env): Promise<void> {
+    await handleDeliveryEventBatch(batch, env.DB);
   },
 
   async email(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext): Promise<void> {

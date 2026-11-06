@@ -369,7 +369,7 @@ try {
           'organization_units', 'organization_roles', 'organization_positions',
           'push_subscriptions', 'push_device_preferences', 'outbound_send_journal',
           'outbound_send_targets', 'outbound_send_attachments', 'compose_preferences',
-          'inbox_rules'
+          'inbox_rules', 'delivery_events'
         )) AS application_table_count,
       (SELECT COUNT(*) FROM sqlite_master
         WHERE type = 'index' AND name IN (
@@ -381,7 +381,8 @@ try {
           'idx_mailbox_reservations_sender_time',
           'idx_mailbox_reservations_pending_storage',
           'idx_mailbox_reservations_draft_slots',
-          'idx_inbox_rules_mailbox_position'
+          'idx_inbox_rules_mailbox_position',
+          'idx_delivery_events_trace', 'idx_messages_outbound_message_id'
         )) AS essential_index_count,
       (SELECT COUNT(*) FROM sqlite_master
         WHERE type = 'trigger' AND name IN (
@@ -479,8 +480,8 @@ try {
 
   assertEqual(Number(row.migration_count), expectedMigrations.length, 'Applied migration count');
   assertArrayEqual(appliedMigrations, expectedMigrations, 'Applied migration names');
-  assertEqual(Number(row.application_table_count), 29, 'Application table count');
-  assertEqual(Number(row.essential_index_count), 11, 'Essential index count');
+  assertEqual(Number(row.application_table_count), 30, 'Application table count');
+  assertEqual(Number(row.essential_index_count), 13, 'Essential index count');
   assertEqual(Number(row.inbox_rule_trigger_count), 1, 'Inbox rule limit-trigger count');
   assertEqual(Number(row.organization_trigger_count), 2, 'Organisation cycle-trigger count');
   assertEqual(Number(row.inbound_guard_trigger_count), 5, 'Delivery reservation-trigger count');
@@ -1059,7 +1060,7 @@ try {
   const migrationLabel = expectedMigrations.length === 1 ? 'migration' : 'migrations';
   console.log(
     `Fresh D1 migration verified: ${expectedMigrations.length} ${migrationLabel}, ` +
-      '29 application tables, required indexes, atomic delivery guards, triggers, and defaults.',
+      '30 application tables, required indexes, atomic delivery guards, triggers, and defaults.',
   );
 } finally {
   rmSync(persistenceDirectory, {

@@ -147,7 +147,7 @@ In `auto` mode, cmail picks the first complete provider configuration, checking 
 
 ### Cloudflare Email Service
 
-Cloudflare Email Service is the recommended external provider. In production, Pages calls the cmail email Worker over the private `EMAIL_SERVICE` service binding. That Worker owns Cloudflare's native `send_email` binding, so the web application holds no outbound Cloudflare API token. Its result is an opaque Cloudflare tracking ID for activity and lifecycle reconciliation, not the wire RFC `Message-ID`. To enable it:
+Cloudflare Email Service is the recommended external provider. In production, Pages calls the cmail email Worker over the private `EMAIL_SERVICE` service binding. That Worker owns Cloudflare's native `send_email` binding, so the web application holds no outbound Cloudflare API token. Its result is an opaque Cloudflare tracking ID, not the wire RFC `Message-ID`. cmail stores it so delivery events can be matched back to the message (see deployment.md, "Bounce and complaint feedback"). To enable it:
 
 1. Confirm the account is on the Workers Paid plan — Email Sending is currently a public beta.
 2. Use a domain hosted on Cloudflare DNS and onboard it under **Compute → Email Service → Email Sending**. Review the Cloudflare-created bounce MX, SPF, DKIM, and DMARC records (DNS entries that route and authenticate mail) against every existing sender for the domain.

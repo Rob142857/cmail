@@ -6,6 +6,9 @@ Notable changes to cmail are recorded here. The project follows
 
 ## [Unreleased]
 
+### Added
+- Bounce and complaint feedback from Cloudflare Email Service (optional). The email Worker reads Email Sending events from a Queues event subscription: a bounced, failed or rejected recipient is added to Failed recipients on the sender's Sent copy and on the mail trace, and every event is listed under Delivery events in Admin > Mail trace. Events for mail cmail did not send are dropped. New `delivery_events` table (migration `0019`): run `pnpm db:migrate` before deploying the email worker and web app. Setup: docs/deployment.md, "Bounce and complaint feedback".
+
 ### Changed
 - Docs: `INBOUND_AUTHSERV_ID` for Cloudflare Email Routing is `mx.cloudflare.net` (Cloudflare documents it). With it set, inbound SPF, DKIM and DMARC results are recorded in mail trace and trusted calendar updates turn on. Tests cover a Cloudflare-stamped record and a spoofed one below it.
 - Email worker: recorded SPF, DKIM and DMARC verdicts (and the calendar DMARC gate) now come from the first `Authentication-Results` header in the parsed message, not the comma-joined `message.headers` value, so sender-controlled text in the boundary's own record cannot pull a forged record into it. The recorded source IP comes from the same header; the pre-parse rate-limit signal now always keys on the envelope sender.

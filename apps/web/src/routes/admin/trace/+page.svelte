@@ -256,6 +256,24 @@
             <dd>{storedList(selected.failed_recipients).join(', ')}</dd>
           {/if}
 
+          {#if data.deliveryEvents?.[selected.trace_id]?.length}
+            <dt>Delivery events</dt>
+            <dd>
+              <ul class="delivery-events">
+                {#each data.deliveryEvents[selected.trace_id] as event}
+                  <li>
+                    <span class="nowrap">{formatDateTime(event.occurred_at)}</span>
+                    <strong>{event.event_type}{event.bounce_type ? ` (${event.bounce_type})` : ''}</strong>
+                    {event.recipient}
+                    {#if event.smtp_status || event.smtp_response}
+                      <span class="mono break">— {[event.smtp_status, event.smtp_response].filter(Boolean).join(' ')}</span>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            </dd>
+          {/if}
+
           {#if selected.size_bytes}
             <dt>Size</dt>
             <dd>{(selected.size_bytes / 1024).toFixed(1)} KB</dd>
@@ -373,6 +391,9 @@
   .detail-body dd { margin: 0; word-break: break-word; }
   .mono { font-family: 'SF Mono', 'Cascadia Code', monospace; font-size: 12px; }
   .break { word-break: break-all; }
+
+  .delivery-events { margin: 0; padding-left: 1.1em; }
+  .delivery-events li + li { margin-top: 4px; }
 
   .auth-tag {
     display: inline-block; font-size: 12px; padding: 1px 8px; margin: 2px 4px 2px 0;
