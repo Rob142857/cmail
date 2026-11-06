@@ -58,6 +58,12 @@ import {
   type OutboundEmail,
 } from '#lib/server/outbound.js';
 import { consumeRateLimit } from '#lib/server/rate-limit.js';
+import {
+  blockedMessage,
+  findBlockedRecipients,
+  suppressionApiAvailable,
+  unblockRecipient,
+} from '#lib/server/suppressions.js';
 import { planRecipientDelivery } from '#lib/server/recipient-delivery.js';
 import {
   deriveReplyThreading,
@@ -1095,6 +1101,21 @@ export const actions: Actions = {
             if (cancelled) {
               await cleanupTerminalJournal(env.DB, env.STORAGE, { ...journal, state: 'cancelled' });
             }
+            if (cancelled && result.suppressed) {
+              // A definite refusal the sender can act on: a 4xx keeps it on the
+              // compose page, and the draft is kept for "Send again".
+              const blocked = await findBlockedRecipients(
+                env.DB,
+                envRecord,
+                journal.from_address,
+                validTraceRecipients(journal.envelope_recipients).split(', ').filter(Boolean),
+              );
+              return fail(422, {
+                error: blockedMessage(blocked),
+                blocked,
+                unblockAvailable: suppressionApiAvailable(envRecord),
+              });
+            }
             return fail(502, {
               error: cancelled
                 ? 'The provider didn\'t accept this message. Your draft was kept; review it and try again.'
@@ -1471,6 +1492,80 @@ export const actions: Actions = {
       });
     }
     return { savedDraftId: draftId, draftVersion: 1, savedAt: savedAt.toISOString() };
+  },
+
+  /**
+   * Lifts Cloudflare's bounce block on recipients of a send it just refused,
+   * so the sender can try again. Only addresses this mailbox was refused for
+   * in the last day, and never a complaint or read-only block.
+   */
+  unblock: async ({ request, locals, platform }) => {
+    if (!locals.user) throw redirect(303, '/');
+    const env = platform?.env;
+    if (!env) return fail(503, { error: 'Platform not available' });
+    const envRecord = env as unknown as Record<string, unknown>;
+    if (!suppressionApiAvailable(envRecord)) {
+      return fail(503, { error: 'Unblocking isn\'t set up on this server. Ask an administrator to lift the block in Cloudflare.' });
+    }
+    const formData = await request.formData();
+    const from = normalizeEmail(stringValue(formData.get('from')));
+    const addresses = [...new Set(formData.getAll('address')
+      .map((value) => normalizeEmail(typeof value === 'string' ? value : ''))
+      .filter((value): value is string => Boolean(value)))].slice(0, 10);
+    if (!from || !addresses.length) return fail(400, { error: 'Nothing to unblock.' });
+    const mailbox = await env.DB.prepare(
+      `SELECT m.id FROM mailboxes m
+       INNER JOIN mailbox_assignments ma ON m.id = ma.mailbox_id
+       WHERE m.address = ? AND ma.user_id = ? AND ma.permissions IN ('send-as', 'full') AND m.status = 'active'`,
+    ).bind(from, locals.user.id).first<{ id: string }>();
+    if (!mailbox) return fail(403, { error: 'You don\'t have permission to send from this address' });
+    let rate: Awaited<ReturnType<typeof consumeRateLimit>>;
+    try {
+      rate = await consumeRateLimit(env.DB, 'unblock', locals.user.id, 10, 60 * 60, addresses.length);
+    } catch {
+      return fail(503, { error: 'Couldn\'t check limits right now. Try again shortly.' });
+    }
+    if (!rate.allowed) return fail(429, { error: 'Too many unblock requests. Try again later.' });
+
+    const refused = await env.DB.prepare(
+      `SELECT envelope_to FROM mail_trace
+       WHERE direction = 'outbound' AND status = 'rejected' AND lower(envelope_from) = ?
+         AND timestamp >= datetime('now', '-1 day')
+       ORDER BY timestamp DESC LIMIT 50`,
+    ).bind(from).all<{ envelope_to: string | null }>().catch(() => ({ results: [] as Array<{ envelope_to: string | null }> }));
+    const refusedRecipients = new Set((refused.results || [])
+      .flatMap((row) => (row.envelope_to || '').split(','))
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean));
+    const eligible = addresses.filter((address) => refusedRecipients.has(address));
+    if (!eligible.length) return fail(400, { error: 'These addresses weren\'t refused for this mailbox recently.' });
+
+    const outcomes = [];
+    for (const address of eligible) {
+      outcomes.push({ address, outcome: await unblockRecipient(envRecord, from, address) });
+    }
+    const lifted = outcomes.filter((item) => item.outcome === 'lifted');
+    if (lifted.length) {
+      await audit(env.DB, {
+        event_type: 'email.suppression_lifted',
+        actor_id: locals.user.id,
+        actor_role: locals.user.role,
+        target: mailbox.id,
+        detail: `Lifted Cloudflare bounce block for ${lifted.length} recipient(s)`,
+        session_id: locals.sessionId,
+      }).catch(() => undefined);
+    }
+    const notAllowed = outcomes.filter((item) => item.outcome === 'not_allowed').map((item) => item.address);
+    if (notAllowed.length) {
+      return fail(422, {
+        error: `${notAllowed.join(', ')} can't be unblocked from cmail: the recipient reported spam, or Cloudflare locked the block. Ask an administrator.`,
+      });
+    }
+    if (outcomes.some((item) => item.outcome === 'unavailable')) {
+      return fail(503, { error: 'Cloudflare couldn\'t be reached to lift the block. Try again shortly.' });
+    }
+    // `not_blocked` is fine too: the block expired or was already lifted.
+    return { unblocked: lifted.map((item) => item.address) };
   },
 
   discard: async ({ request, locals, platform }) => {

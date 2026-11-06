@@ -55,6 +55,8 @@ export interface OutboundResult {
   permanentBounces?: string[];
   /** The provider may have accepted the message before the response was lost. */
   ambiguous?: true;
+  /** Cloudflare refused the send because a recipient is on its suppression list. */
+  suppressed?: true;
   error?: string;
 }
 
@@ -650,6 +652,17 @@ async function sendViaCloudflareService(email: OutboundEmail, service: Fetcher):
       body,
     });
     if (!response.ok) {
+      const code = response.status === 422
+        ? await response.json().then((data) => (data as { code?: unknown })?.code, () => undefined)
+        : undefined;
+      if (code === 'E_RECIPIENT_SUPPRESSED') {
+        return {
+          success: false,
+          provider: 'cloudflare',
+          suppressed: true,
+          error: 'Cloudflare Email Service refused a recipient on its suppression list',
+        };
+      }
       return {
         success: false,
         provider: 'cloudflare',
