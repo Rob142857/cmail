@@ -260,7 +260,7 @@
             <dt>Delivery events</dt>
             <dd>
               <ul class="delivery-events">
-                {#each data.deliveryEvents[selected.trace_id] as event}
+                {#each data.deliveryEvents[selected.trace_id] as event, index (index)}
                   <li>
                     <span class="nowrap">{formatDateTime(event.occurred_at)}</span>
                     <strong>{event.event_type}{event.bounce_type ? ` (${event.bounce_type})` : ''}</strong>

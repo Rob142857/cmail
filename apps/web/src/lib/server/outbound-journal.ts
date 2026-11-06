@@ -181,6 +181,35 @@ const ACTIVE_STATES: OutboundJournalState[] = [
   'pending', 'dispatching', 'accepted', 'ambiguous', 'retryable_failure',
 ];
 
+// A bounce event can arrive before the Sent copy is written (a fast bounce,
+// or a materialize retry). Terminal failures already stored for this send's
+// provider tracking IDs are merged into the copy's failed recipients.
+async function failedRecipientsWithDeliveryEvents(
+  db: D1Database,
+  providerIds: string,
+  failedRecipients: string,
+): Promise<string> {
+  const ids = validStringArray(providerIds, 50);
+  if (!ids.length) return failedRecipients;
+  const late = await db.prepare(
+    `SELECT DISTINCT recipient FROM delivery_events
+     WHERE provider_message_id IN (SELECT value FROM json_each(?))
+       AND terminal = 1 AND event_type IN ('bounced', 'failed', 'rejected')
+     LIMIT 100`,
+  ).bind(JSON.stringify(ids)).all<{ recipient: string }>();
+  const merged = validStringArray(failedRecipients, 100);
+  const seen = new Set(merged.map((address) => address.toLowerCase()));
+  let added = false;
+  for (const { recipient } of late.results || []) {
+    if (merged.length >= 100) break;
+    if (seen.has(recipient)) continue;
+    seen.add(recipient);
+    merged.push(recipient);
+    added = true;
+  }
+  return added ? JSON.stringify(merged) : failedRecipients;
+}
+
 function validStringArray(value: string, max = 256): string[] {
   try {
     const parsed = JSON.parse(value) as unknown;
@@ -827,7 +856,9 @@ async function materializeTarget(
     ? await internalRuleOutcome(db, storage, journal, target, attachments.length > 0)
     : null;
   const providerIds = target.direction === 'outbound' ? journal.provider_message_ids : '[]';
-  const failedRecipients = target.direction === 'outbound' ? journal.failed_recipients : '[]';
+  const failedRecipients = target.direction === 'outbound'
+    ? await failedRecipientsWithDeliveryEvents(db, providerIds, journal.failed_recipients)
+    : '[]';
   const toParticipants = addressOnlyParticipants(journal.to_addresses);
   const ccParticipants = addressOnlyParticipants(journal.cc_addresses);
   const statements = [

@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS delivery_events (
   event_type TEXT NOT NULL CHECK (
     event_type IN ('delivered', 'deferred', 'bounced', 'failed', 'rejected', 'complained')
   ),
+  terminal INTEGER NOT NULL DEFAULT 0 CHECK (terminal IN (0, 1)),
   bounce_type TEXT CHECK (bounce_type IS NULL OR bounce_type IN ('hard', 'soft')),
   smtp_status TEXT CHECK (smtp_status IS NULL OR length(smtp_status) <= 32),
   smtp_response TEXT CHECK (smtp_response IS NULL OR length(smtp_response) <= 500),
@@ -20,8 +21,16 @@ CREATE TABLE IF NOT EXISTS delivery_events (
 );
 CREATE INDEX IF NOT EXISTS idx_delivery_events_trace
   ON delivery_events(trace_id, received_at);
+-- Sent copies written after an event arrived look up its failures by ID.
+CREATE INDEX IF NOT EXISTS idx_delivery_events_provider
+  ON delivery_events(provider_message_id);
 
--- The consumer finds a sender's Sent copy by Message-ID without a mailbox.
-CREATE INDEX IF NOT EXISTS idx_messages_outbound_message_id
-  ON messages(message_id_header)
-  WHERE direction = 'outbound' AND message_id_header IS NOT NULL;
+-- The consumer matches an event to recent outbound traces, then to the
+-- sender's recent outbound messages. Cloudflare sends have no stored
+-- Message-ID, so both lookups go by time and provider tracking ID.
+CREATE INDEX IF NOT EXISTS idx_trace_outbound_timestamp
+  ON mail_trace(timestamp)
+  WHERE direction = 'outbound';
+CREATE INDEX IF NOT EXISTS idx_messages_outbound_mailbox_time
+  ON messages(mailbox_id, received_at)
+  WHERE direction = 'outbound';

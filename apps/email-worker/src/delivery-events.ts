@@ -38,6 +38,10 @@ const MATCH_WINDOW_DAYS = 30;
 // events are retried this many times, a minute apart, before being dropped.
 export const UNMATCHED_RETRY_ATTEMPTS = 3;
 export const UNMATCHED_RETRY_DELAY_SECONDS = 60;
+// Errors (D1 unavailable) back off 30 s, 60 s, 120 s ... up to 5 minutes.
+export function errorRetryDelaySeconds(attempts: number): number {
+  return Math.min(300, 30 * 2 ** Math.max(0, attempts - 1));
+}
 
 const FAILURE_TYPES: ReadonlySet<DeliveryEventType> = new Set(['bounced', 'failed', 'rejected']);
 
@@ -125,21 +129,21 @@ function appendFailedRecipient(table: 'mail_trace' | 'messages', idColumn: 'trac
 /** Stores one validated event against the trace and Sent copy it belongs to. */
 export async function applyDeliveryEvent(db: D1Database, event: DeliveryEvent): Promise<DeliveryEventOutcome> {
   const trace = await db.prepare(
-    `SELECT trace_id, message_id_header FROM mail_trace
+    `SELECT trace_id, envelope_from, timestamp FROM mail_trace
      WHERE direction = 'outbound'
        AND timestamp >= datetime('now', '-' || ? || ' days')
        AND EXISTS (
          SELECT 1 FROM json_each(mail_trace.provider_message_ids) WHERE json_each.value = ?
        )
      ORDER BY timestamp DESC LIMIT 1`,
-  ).bind(MATCH_WINDOW_DAYS, event.providerMessageId).first<{ trace_id: string; message_id_header: string | null }>();
+  ).bind(MATCH_WINDOW_DAYS, event.providerMessageId).first<{ trace_id: string; envelope_from: string | null; timestamp: string }>();
   if (!trace) return 'unmatched';
 
   const inserted = await db.prepare(
     `INSERT INTO delivery_events
-       (event_id, trace_id, provider_message_id, recipient, event_type, bounce_type,
+       (event_id, trace_id, provider_message_id, recipient, event_type, terminal, bounce_type,
         smtp_status, smtp_response, event_timestamp)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(event_id) DO NOTHING`,
   ).bind(
     event.eventId,
@@ -147,6 +151,7 @@ export async function applyDeliveryEvent(db: D1Database, event: DeliveryEvent): 
     event.providerMessageId,
     event.recipient,
     event.type,
+    event.terminal ? 1 : 0,
     event.bounceType,
     event.smtpStatus,
     event.smtpResponse,
@@ -156,18 +161,24 @@ export async function applyDeliveryEvent(db: D1Database, event: DeliveryEvent): 
 
   // The failed-recipient updates run even for a duplicate event: they are
   // idempotent, and this completes the work if an earlier attempt stopped
-  // between the insert and the updates.
+  // between the insert and the updates. A Sent copy written after this event
+  // picks the failure up from delivery_events instead (outbound-journal.ts).
   if (isDeliveryFailure(event)) {
     const statements = [db.prepare(appendFailedRecipient('mail_trace', 'trace_id')).bind(event.recipient, trace.trace_id)];
-    if (trace.message_id_header) {
+    if (trace.envelope_from) {
+      // Cloudflare sends store no Message-ID, so the Sent copy is found by
+      // the sender's mailbox, time and provider tracking ID. Timestamps mix
+      // ISO and SQLite formats; the day of slack covers that.
       const sentCopies = await db.prepare(
         `SELECT id FROM messages
-         WHERE direction = 'outbound' AND message_id_header = ?
+         WHERE mailbox_id IN (SELECT id FROM mailboxes WHERE address = ?)
+           AND direction = 'outbound'
+           AND received_at >= datetime(?, '-1 day')
            AND EXISTS (
              SELECT 1 FROM json_each(messages.provider_message_ids) WHERE json_each.value = ?
            )
          LIMIT 25`,
-      ).bind(trace.message_id_header, event.providerMessageId).all<{ id: string }>();
+      ).bind(trace.envelope_from.toLowerCase(), trace.timestamp, event.providerMessageId).all<{ id: string }>();
       for (const copy of sentCopies.results || []) {
         statements.push(db.prepare(appendFailedRecipient('messages', 'id')).bind(event.recipient, copy.id));
       }
@@ -201,7 +212,7 @@ export async function handleDeliveryEventBatch(batch: MessageBatch<unknown>, db:
     } catch (caught: unknown) {
       counts.errors += 1;
       console.error('Delivery event failed', { error: caught instanceof Error ? caught.name : 'UnknownError' });
-      message.retry();
+      message.retry({ delaySeconds: errorRetryDelaySeconds(message.attempts) });
     }
   }
   console.log('Delivery events processed', counts);

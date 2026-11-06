@@ -3,6 +3,7 @@ import {
   UNMATCHED_RETRY_ATTEMPTS,
   UNMATCHED_RETRY_DELAY_SECONDS,
   applyDeliveryEvent,
+  errorRetryDelaySeconds,
   handleDeliveryEventBatch,
   isDeliveryFailure,
   parseDeliveryEvent,
@@ -42,11 +43,11 @@ function setup() {
   sqlite.prepare("INSERT INTO mailboxes (id, address, type) VALUES ('mailbox-1', 'sender@example.test', 'shared')").run();
   sqlite.prepare(
     `INSERT INTO mail_trace (trace_id, message_id_header, provider_message_ids, direction, status, envelope_from, envelope_to)
-     VALUES ('trace-1', '<sent-1@example.test>', '["provider-1"]', 'outbound', 'sent', 'sender@example.test', 'missing@example.net')`,
+     VALUES ('trace-1', NULL, '["provider-1"]', 'outbound', 'sent', 'sender@example.test', 'missing@example.net')`,
   ).run();
   sqlite.prepare(
     `INSERT INTO messages (id, mailbox_id, message_id_header, provider_message_ids, direction, from_address, folder)
-     VALUES ('message-1', 'mailbox-1', '<sent-1@example.test>', '["provider-1"]', 'outbound', 'sender@example.test', 'sent')`,
+     VALUES ('message-1', 'mailbox-1', NULL, '["provider-1"]', 'outbound', 'sender@example.test', 'sent')`,
   ).run();
   const failedOn = (table: 'mail_trace' | 'messages', id: string) => JSON.parse(
     (sqlite.prepare(`SELECT failed_recipients FROM ${table} WHERE ${table === 'mail_trace' ? 'trace_id' : 'id'} = ?`).get(id) as { failed_recipients: string }).failed_recipients,
@@ -116,8 +117,8 @@ describe('applyDeliveryEvent (real migrations)', () => {
     expect(await applyDeliveryEvent(d1, event)).toBe('stored');
     expect(failedOn('mail_trace', 'trace-1')).toEqual(['missing@example.net']);
     expect(failedOn('messages', 'message-1')).toEqual(['missing@example.net']);
-    expect(sqlite.prepare('SELECT trace_id, event_type, bounce_type, smtp_status FROM delivery_events').get()).toEqual({
-      trace_id: 'trace-1', event_type: 'bounced', bounce_type: 'hard', smtp_status: '5.1.1',
+    expect(sqlite.prepare('SELECT trace_id, event_type, terminal, bounce_type, smtp_status FROM delivery_events').get()).toEqual({
+      trace_id: 'trace-1', event_type: 'bounced', terminal: 1, bounce_type: 'hard', smtp_status: '5.1.1',
     });
   });
 
@@ -168,10 +169,24 @@ describe('applyDeliveryEvent (real migrations)', () => {
     const { d1, sqlite, failedOn } = setup();
     sqlite.prepare(
       `INSERT INTO messages (id, mailbox_id, message_id_header, provider_message_ids, direction, from_address, folder)
-       VALUES ('message-2', 'mailbox-1', '<sent-1@example.test>', '["provider-other"]', 'outbound', 'sender@example.test', 'sent')`,
+       VALUES ('message-2', 'mailbox-1', NULL, '["provider-other"]', 'outbound', 'sender@example.test', 'sent')`,
     ).run();
     await applyDeliveryEvent(d1, parseDeliveryEvent(sendingEvent('bounced'))!);
     expect(failedOn('messages', 'message-2')).toEqual([]);
+  });
+
+  it('leaves Sent copies older than the send, and other mailboxes, alone', async () => {
+    const { d1, sqlite, failedOn } = setup();
+    sqlite.prepare("INSERT INTO mailboxes (id, address, type) VALUES ('mailbox-2', 'other@example.test', 'shared')").run();
+    sqlite.prepare(
+      `INSERT INTO messages (id, mailbox_id, provider_message_ids, direction, from_address, folder, received_at)
+       VALUES ('message-old', 'mailbox-1', '["provider-1"]', 'outbound', 'sender@example.test', 'sent', datetime('now', '-3 days')),
+              ('message-elsewhere', 'mailbox-2', '["provider-1"]', 'outbound', 'other@example.test', 'sent', datetime('now'))`,
+    ).run();
+    await applyDeliveryEvent(d1, parseDeliveryEvent(sendingEvent('bounced'))!);
+    expect(failedOn('messages', 'message-1')).toEqual(['missing@example.net']);
+    expect(failedOn('messages', 'message-old')).toEqual([]);
+    expect(failedOn('messages', 'message-elsewhere')).toEqual([]);
   });
 
   it('deletes events with their trace row', async () => {
@@ -179,6 +194,12 @@ describe('applyDeliveryEvent (real migrations)', () => {
     await applyDeliveryEvent(d1, parseDeliveryEvent(sendingEvent('bounced'))!);
     sqlite.prepare(`DELETE FROM mail_trace WHERE trace_id = 'trace-1'`).run();
     expect(eventCount()).toBe(0);
+  });
+});
+
+describe('errorRetryDelaySeconds', () => {
+  it('backs off from 30 seconds to a 5 minute cap', () => {
+    expect([1, 2, 3, 4, 5, 9].map(errorRetryDelaySeconds)).toEqual([30, 60, 120, 240, 300, 300]);
   });
 });
 
@@ -215,7 +236,7 @@ describe('handleDeliveryEventBatch', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const message = queueMessage(sendingEvent('bounced'));
     await handleDeliveryEventBatch(batchOf(message), failing);
-    expect(message.retry).toHaveBeenCalledWith();
+    expect(message.retry).toHaveBeenCalledWith({ delaySeconds: 30 });
     expect(message.ack).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith('Delivery event failed', { error: 'Error' });
     log.mockRestore();
