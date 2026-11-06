@@ -336,9 +336,10 @@ Cloudflare puts each delivery event on a queue and the email Worker reads it:
   sending domain, are dropped without being stored.
 - After a hard bounce or a spam complaint, Cloudflare puts the address on its
   suppression list and refuses later sends to it. cmail then tells the sender
-  which address is blocked and offers **Send again**. With the optional REST
-  credentials (`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_EMAIL_API_TOKEN` with
-  **Email Sending: Edit**), it also offers **Unblock and send again**, which
+  which address is blocked and offers **Send again**. With
+  `CLOUDFLARE_ACCOUNT_ID` and a Pages secret `CLOUDFLARE_SUPPRESSIONS_API_TOKEN`
+  (an account-owned token with **Email Sending: Edit** only), it also offers
+  **Unblock and send again**, which
   lifts a bounce block for an address this mailbox was just refused for.
   Complaint and read-only blocks are never lifted from cmail. Without the
   credentials, an administrator lifts a block in the dashboard: **Email
@@ -425,6 +426,7 @@ Rotate on a schedule you choose, and at once after a suspected leak or when some
 | `SESSION_SECRET` | Pages | Everyone is signed out. Email sign-in codes and bootstrap proofs still in progress stop working, so ask for a new code. Link-check links in messages already open show the "unverified" warning page when clicked, until the message is reloaded. Pick a quiet hour. |
 | `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_SECRET` | Pages | Create the new secret in the provider's console first, set it in Pages, redeploy, test sign-in, then delete the old secret in the console. |
 | `POSTMARK_API_KEY` | Pages | Create a new server token in Postmark, set it in Pages, redeploy, send a test message, then revoke the old token. Revoking first stops outbound mail. |
+| `CLOUDFLARE_SUPPRESSIONS_API_TOKEN` (Unblock button only) | Pages | Create a new account-owned token with **Email Sending: Edit** only, set it in Pages, redeploy, check the compose page offers Unblock, then delete the old token. It is separate from the send token, so it never changes how mail is sent. |
 | `CLOUDFLARE_EMAIL_API_TOKEN` (REST fallback only) | Pages | Create a new token with **Email Sending: Edit** only, set it in Pages, redeploy, send a test message, then delete the old token in the Cloudflare dashboard. The service binding path doesn't use it. |
 | `INBOUND_SENDER_HASH_KEY` | email Worker | Sender limiting starts counting afresh. Nothing else is affected. |
 | `VAPID_PRIVATE_KEY` (and the public key) | Pages and email Worker | Existing browser notification subscriptions stop working; people must turn notifications on again. Generate a new pair (step 5), put the new `VAPID_PUBLIC_KEY` in both Wrangler `[vars]`, store the new private key in both runtimes, and redeploy both. |

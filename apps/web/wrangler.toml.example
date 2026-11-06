@@ -113,7 +113,8 @@ VAPID_SUBJECT = ""
 PUSH_ENDPOINT_HOSTS = ""
 
 # SESSION_SECRET is mandatory at runtime. OAuth and optional outbound-provider
-# secrets, including the REST-fallback CLOUDFLARE_EMAIL_API_TOKEN and
+# secrets, including the REST-fallback CLOUDFLARE_EMAIL_API_TOKEN, the Unblock
+# button's CLOUDFLARE_SUPPRESSIONS_API_TOKEN and
 # POSTMARK_API_KEY, are optional groups, so keep sensitive values in Pages secrets or the
 # ignored local .dev.vars rather than declaring an incomplete required list.
 # First-run bootstrap additionally requires BOOTSTRAP_ADMIN_EMAIL and a strong,

@@ -141,6 +141,7 @@ match and nothing is trusted.
 | `EMAIL_SERVICE` | Binding | Private Pages service binding to the email Worker; recommended Cloudflare production path |
 | `CLOUDFLARE_ACCOUNT_ID` | No | Optional REST fallback: 32-character Cloudflare account ID containing the onboarded Email Sending domain |
 | `CLOUDFLARE_EMAIL_API_TOKEN` | Yes | Optional REST fallback credential with **Email Sending: Edit** permission |
+| `CLOUDFLARE_SUPPRESSIONS_API_TOKEN` | Yes | Optional. With `CLOUDFLARE_ACCOUNT_ID`, turns on **Unblock and send again** for recipients on Cloudflare's suppression list. Account-owned token with **Email Sending: Edit**; never used for sending |
 | `POSTMARK_API_KEY` | Yes | Enable Postmark delivery |
 
 In `auto` mode, cmail picks the first complete provider configuration, checking Cloudflare Email Service then Postmark. Set an explicit provider when you need deterministic selection — explicit selection fails closed if that provider's required values are missing or invalid, and cmail never silently falls through to a different provider. If no provider is ready, external outbound attempts fail while internal mailbox delivery keeps working.
