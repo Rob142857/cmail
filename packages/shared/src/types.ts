@@ -306,6 +306,7 @@ export interface Env {
   EMAIL_SERVICE?: Fetcher;
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_EMAIL_API_TOKEN?: string;
+  CLOUDFLARE_SUPPRESSIONS_API_TOKEN?: string;
   POSTMARK_API_KEY?: string;
 
   // Bootstrap — first-run manager setup (both are temporary secrets/config)

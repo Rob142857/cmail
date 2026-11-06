@@ -40,7 +40,7 @@ const tokenPatterns = [
   ['Slack token', /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/],
   ['credential-bearing URL', /\bhttps?:\/\/[^\s/:]+:[^\s/@]+@[^\s]+/],
 ];
-const assignment = /^[ \t]*(SESSION_SECRET|BOOTSTRAP_ADMIN_TOKEN|GOOGLE_CLIENT_SECRET|MICROSOFT_CLIENT_SECRET|POSTMARK_API_KEY|CLOUDFLARE_API_TOKEN|CLOUDFLARE_EMAIL_API_TOKEN|VAPID_PRIVATE_KEY|INBOUND_SENDER_HASH_KEY)[ \t]*=[ \t]*(.*?)[ \t]*\r?$/gmi;
+const assignment = /^[ \t]*(SESSION_SECRET|BOOTSTRAP_ADMIN_TOKEN|GOOGLE_CLIENT_SECRET|MICROSOFT_CLIENT_SECRET|POSTMARK_API_KEY|CLOUDFLARE_API_TOKEN|CLOUDFLARE_EMAIL_API_TOKEN|CLOUDFLARE_SUPPRESSIONS_API_TOKEN|VAPID_PRIVATE_KEY|INBOUND_SENDER_HASH_KEY)[ \t]*=[ \t]*(.*?)[ \t]*\r?$/gmi;
 const placeholder = /^(?:$|<[^>]+>|YOUR[_ -]|REPLACE[_ -]|CHANGE[_ -]|EXAMPLE[_ -]|\$\{|\$\()/i;
 const findings = new Set();
 

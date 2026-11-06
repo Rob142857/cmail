@@ -82,6 +82,7 @@ Rotate on a schedule your organisation sets, and immediately if a value is print
 | `INBOUND_SENDER_HASH_KEY` | Email Worker | Resets per-sender rate-limit buckets (a one-hour limit reset) | Generate 32 random bytes as unpadded base64url, `wrangler secret put` on the Worker |
 | `VAPID_PRIVATE_KEY` with `VAPID_PUBLIC_KEY` | Pages and Email Worker (private); both `[vars]` (public) | Existing browser subscriptions stop working. Each browser re-subscribes the next time someone opens cmail with alerts on | Rotate the pair together in both runtimes, deploy the Worker then Pages |
 | `POSTMARK_API_KEY`, `CLOUDFLARE_EMAIL_API_TOKEN` | Pages | Outbound fails while the provider and cmail disagree | Create the new key, set it, redeploy, send a test, then revoke the old key |
+| `CLOUDFLARE_SUPPRESSIONS_API_TOKEN` | Pages | Unblock and send again is unavailable until the new token is set | Create a new account-owned token with **Email Sending: Edit** only, set it, redeploy, then delete the old token |
 | `BOOTSTRAP_ADMIN_TOKEN`, `BOOTSTRAP_ADMIN_EMAIL` | Pages | Should not exist after the first manager is set up | If still present, delete both (see [Bootstrap](deployment.md#9-bootstrap-and-lock-down-administration)) |
 
 Also review who holds Cloudflare, identity-provider and DNS access, and remove anyone who no longer needs it.
