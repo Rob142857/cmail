@@ -743,19 +743,25 @@ function parseOutboundProxyPayload(value: unknown): EmailMessageBuilder | null {
   };
 }
 
+const DEFINITE_CLIENT_CODES = new Set([
+  'E_VALIDATION_ERROR', 'E_FIELD_MISSING', 'E_TOO_MANY_RECIPIENTS',
+  'E_TOO_MANY_ATTACHMENTS', 'E_SENDER_NOT_VERIFIED', 'E_RECIPIENT_NOT_ALLOWED',
+  'E_RECIPIENT_SUPPRESSED', 'E_SENDER_DOMAIN_NOT_AVAILABLE', 'E_CONTENT_TOO_LARGE',
+  'E_HEADER_NOT_ALLOWED', 'E_HEADER_USE_API_FIELD',
+  'E_HEADER_VALUE_INVALID', 'E_HEADER_VALUE_TOO_LONG', 'E_HEADER_NAME_INVALID',
+  'E_HEADERS_TOO_LARGE', 'E_HEADERS_TOO_MANY',
+]);
+const RATE_LIMIT_CODES = new Set(['E_RATE_LIMIT_EXCEEDED', 'E_DAILY_LIMIT_EXCEEDED']);
+
+function emailServiceErrorCode(error: unknown): string {
+  return isRecord(error) && typeof error.code === 'string' ? error.code : '';
+}
+
 function emailServiceFailureStatus(error: unknown): number {
-  const code = isRecord(error) && typeof error.code === 'string' ? error.code : '';
-  const definiteClientCodes = new Set([
-    'E_VALIDATION_ERROR', 'E_FIELD_MISSING', 'E_TOO_MANY_RECIPIENTS',
-    'E_TOO_MANY_ATTACHMENTS', 'E_SENDER_NOT_VERIFIED', 'E_RECIPIENT_NOT_ALLOWED',
-    'E_RECIPIENT_SUPPRESSED', 'E_SENDER_DOMAIN_NOT_AVAILABLE', 'E_CONTENT_TOO_LARGE',
-    'E_HEADER_NOT_ALLOWED', 'E_HEADER_USE_API_FIELD',
-    'E_HEADER_VALUE_INVALID', 'E_HEADER_VALUE_TOO_LONG', 'E_HEADER_NAME_INVALID',
-    'E_HEADERS_TOO_LARGE', 'E_HEADERS_TOO_MANY',
-  ]);
-  return code === 'E_RATE_LIMIT_EXCEEDED' || code === 'E_DAILY_LIMIT_EXCEEDED'
+  const code = emailServiceErrorCode(error);
+  return RATE_LIMIT_CODES.has(code)
     ? 429
-    : definiteClientCodes.has(code) ? 422 : 503;
+    : DEFINITE_CLIENT_CODES.has(code) ? 422 : 503;
 }
 
 async function handleOutboundServiceRequest(request: Request, env: Env): Promise<Response> {
@@ -810,7 +816,13 @@ async function handleOutboundServiceRequest(request: Request, env: Env): Promise
     return Response.json({ success: true, messageId });
   } catch (error) {
     const status = emailServiceFailureStatus(error);
-    return Response.json({ success: false, error: 'Cloudflare Email Service rejected the request' }, { status });
+    // Only a known code goes back to Pages, never the provider's message text.
+    const code = emailServiceErrorCode(error);
+    return Response.json({
+      success: false,
+      error: 'Cloudflare Email Service rejected the request',
+      ...(DEFINITE_CLIENT_CODES.has(code) || RATE_LIMIT_CODES.has(code) ? { code } : {}),
+    }, { status });
   }
 }
 

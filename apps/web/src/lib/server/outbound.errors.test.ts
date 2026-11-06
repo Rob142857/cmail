@@ -92,6 +92,16 @@ describe('Cloudflare private Worker binding failure mapping', () => {
     });
   });
 
+  it('marks a suppressed recipient so the sender can be told why', async () => {
+    const service = vi.fn().mockResolvedValue(Response.json({ success: false, code: 'E_RECIPIENT_SUPPRESSED' }, { status: 422 }));
+    await expect(sendEmail(email, serviceEnv(service))).resolves.toEqual({
+      success: false,
+      provider: 'cloudflare',
+      suppressed: true,
+      error: 'Cloudflare Email Service refused a recipient on its suppression list',
+    });
+  });
+
   it.each([500, 503])('treats HTTP %i as ambiguous', async (status) => {
     const service = vi.fn().mockResolvedValue(new Response('{}', { status }));
     await expect(sendEmail(email, serviceEnv(service))).resolves.toMatchObject({

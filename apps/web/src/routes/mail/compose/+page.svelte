@@ -101,6 +101,13 @@
   let attachmentError = $state('');
   let saveError = $state('');
   let sending = $state(false);
+  /** @type {HTMLButtonElement | null} */
+  let sendButton = $state(null);
+  let unblocking = $state(false);
+  let unblockError = $state('');
+  /** @type {Array<{ address: string, reason: string, canUnblock: boolean }>} */
+  const blocked = $derived(Array.isArray(form?.blocked) ? form.blocked : []);
+  const unblockable = $derived(form?.unblockAvailable ? blocked.filter((item) => item.canUnblock) : []);
 
   const BLOCKED_EXT = new Set(['.exe', '.bat', '.cmd', '.scr', '.js', '.vbs', '.ps1', '.msi', '.com', '.pif', '.hta', '.cpl', '.reg', '.inf', '.wsf']);
   const MAX_TOTAL = 20 * 1024 * 1024;
@@ -625,6 +632,40 @@
     };
   }
 
+  /** Sends the same draft again, through the normal Send path. */
+  function sendAgain() {
+    unblockError = '';
+    if (sendButton && !sendButton.disabled) sendButton.form?.requestSubmit(sendButton);
+  }
+
+  /** Asks the server to lift Cloudflare's bounce block, then sends again. */
+  async function unblockAndSend() {
+    if (unblocking || sending) return;
+    unblocking = true;
+    unblockError = '';
+    try {
+      const fd = new FormData();
+      fd.set('from', from);
+      for (const item of unblockable) fd.append('address', item.address);
+      const res = await fetch('?/unblock', {
+        method: 'POST',
+        body: fd,
+        headers: { 'x-sveltekit-action': 'true', accept: 'application/json' },
+      });
+      const result = deserialize(await res.text());
+      if (result.type !== 'success') {
+        unblockError = result.type === 'failure' && result.data?.error ? result.data.error : 'Couldn\'t lift the block. Try again shortly.';
+        return;
+      }
+    } catch {
+      unblockError = 'Couldn\'t lift the block. Try again shortly.';
+      return;
+    } finally {
+      unblocking = false;
+    }
+    sendAgain();
+  }
+
   /** @param {'text' | 'html'} next */
   function switchFormat(next) {
     if (next === bodyFormat) return;
@@ -692,7 +733,23 @@
   </header>
 
   {#if form?.error}
-    <div class="form-error" role="alert">{form.error}</div>
+    <div class="form-error" role="alert">
+      <p>{form.error}</p>
+      {#if form?.blocked}
+        {#if unblockable.length}
+          <p class="blocked-help">If the address is right, you can lift the block and send again. Cloudflare can take a few minutes to lift it; if it's refused again, wait a little and press Send again.</p>
+        {:else}
+          <p class="blocked-help">If the address is right, an administrator can lift the block in Cloudflare (Email Service, Email Sending, Suppressions). Then press Send again.</p>
+        {/if}
+        {#if unblockError}<p class="blocked-help" role="status">{unblockError}</p>{/if}
+        <div class="blocked-actions">
+          {#if unblockable.length}
+            <button type="button" class="btn btn-sm btn-primary" onclick={unblockAndSend} disabled={unblocking || sending}>{unblocking ? 'Unblocking…' : 'Unblock and send again'}</button>
+          {/if}
+          <button type="button" class="btn btn-sm" onclick={sendAgain} disabled={unblocking || sending}>Send again</button>
+        </div>
+      {/if}
+    </div>
   {/if}
   {#if saveError}<div class="form-error" role="alert">{saveError}</div>{/if}
   {#if saveConflict}
@@ -922,7 +979,7 @@
       </div>
       <div class="right">
         <button type="button" class="btn" onclick={() => void saveDraft(true)} disabled={saving || sending || !!recoveryConflict || saveConflict || !from || !hasDraftContent()}>Save draft</button>
-        <button type="submit" class="btn btn-primary send-button" disabled={sending || discarding || navigationInProgress || !!recoveryConflict || saveConflict || d.mailboxes.length === 0}>{sending ? 'Sending…' : 'Send'}</button>
+        <button type="submit" bind:this={sendButton} class="btn btn-primary send-button" disabled={sending || discarding || navigationInProgress || !!recoveryConflict || saveConflict || d.mailboxes.length === 0}>{sending ? 'Sending…' : 'Send'}</button>
       </div>
     </div>
   </form>
@@ -942,6 +999,9 @@
     border-radius: var(--radius);
     font-size: 14px;
   }
+  .form-error p { margin: 0; }
+  .form-error .blocked-help { margin-top: 6px; font-size: 13px; }
+  .blocked-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .form-warning {
     padding: 10px 14px;
     border-radius: var(--radius);

@@ -334,6 +334,15 @@ Cloudflare puts each delivery event on a queue and the email Worker reads it:
   server's name or IP address, so the notice doesn't show them.
 - Events for mail that cmail did not send, such as another app on the same
   sending domain, are dropped without being stored.
+- After a hard bounce or a spam complaint, Cloudflare puts the address on its
+  suppression list and refuses later sends to it. cmail then tells the sender
+  which address is blocked and offers **Send again**. With the optional REST
+  credentials (`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_EMAIL_API_TOKEN` with
+  **Email Sending: Edit**), it also offers **Unblock and send again**, which
+  lifts a bounce block for an address this mailbox was just refused for.
+  Complaint and read-only blocks are never lifted from cmail. Without the
+  credentials, an administrator lifts a block in the dashboard: **Email
+  Service** > **Email Sending** > **Suppressions**.
 
 To turn it on:
 

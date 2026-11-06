@@ -149,6 +149,20 @@ describe('private outbound service binding', () => {
     });
   });
 
+  it('returns the known provider code, never the provider message', async () => {
+    const send = vi.fn().mockRejectedValue(Object.assign(new Error('secret-detail'), { code: 'E_RECIPIENT_SUPPRESSED' }));
+    const response = await invokeFetch(new Request('https://cmail-email-worker.internal/internal/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: 'desk@example.test', to: ['recipient@example.net'], subject: 'Hello', html: '<p>Hello</p>' }),
+    }), { EMAIL: { send } });
+
+    expect(response.status).toBe(422);
+    const body = await response.text();
+    expect(JSON.parse(body)).toMatchObject({ success: false, code: 'E_RECIPIENT_SUPPRESSED' });
+    expect(body).not.toContain('secret-detail');
+  });
+
   it('stays backward compatible with an older payload that has no bcc field', async () => {
     const send = vi.fn().mockResolvedValue({ messageId: '<cloudflare-message@example.test>' });
     const response = await invokeFetch(new Request('https://cmail-email-worker.internal/internal/send', {
