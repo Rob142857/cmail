@@ -62,6 +62,15 @@ function queueMessage(body: unknown, attempts = 1) {
   return { id: 'q', timestamp: new Date(), body, attempts, ack: vi.fn(), retry: vi.fn() };
 }
 
+function envOf(db: D1Database) {
+  const objects = new Map<string, string>();
+  const STORAGE = {
+    put: vi.fn(async (key: string, value: string) => { objects.set(key, value); }),
+    delete: vi.fn(async (key: string) => { objects.delete(key); }),
+  } as unknown as R2Bucket;
+  return { DB: db, STORAGE, objects };
+}
+
 function batchOf(...messages: ReturnType<typeof queueMessage>[]) {
   return { queue: 'cmail-email-events', messages, ackAll: vi.fn(), retryAll: vi.fn() } as unknown as MessageBatch<unknown>;
 }
@@ -239,11 +248,14 @@ describe('handleDeliveryEventBatch', () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
     const good = queueMessage(sendingEvent('bounced'));
     const bad = queueMessage({ type: 'nonsense' });
-    await handleDeliveryEventBatch(batchOf(good, bad), d1);
+    const env = envOf(d1);
+    await handleDeliveryEventBatch(batchOf(good, bad), env);
     expect(good.ack).toHaveBeenCalledOnce();
     expect(bad.ack).toHaveBeenCalledOnce();
     expect(log).toHaveBeenCalledWith('Delivery events processed', expect.objectContaining({ stored: 1, invalid: 1 }));
     expect(JSON.stringify(log.mock.calls)).not.toMatch(/example\.net|provider-1/);
+    // The bounce also left an Undeliverable notice in the sender's Inbox.
+    expect(env.objects.size).toBe(1);
     log.mockRestore();
   });
 
@@ -254,7 +266,7 @@ describe('handleDeliveryEventBatch', () => {
     const early = queueMessage(body, 1);
     const third = queueMessage(body, UNMATCHED_RETRY_ATTEMPTS);
     const last = queueMessage(body, UNMATCHED_RETRY_ATTEMPTS + 1);
-    await handleDeliveryEventBatch(batchOf(early, third, last), d1);
+    await handleDeliveryEventBatch(batchOf(early, third, last), envOf(d1));
     expect(early.retry).toHaveBeenCalledWith({ delaySeconds: UNMATCHED_RETRY_DELAY_SECONDS });
     expect(third.retry).toHaveBeenCalledWith({ delaySeconds: UNMATCHED_RETRY_DELAY_SECONDS });
     expect(early.ack).not.toHaveBeenCalled();
@@ -267,7 +279,7 @@ describe('handleDeliveryEventBatch', () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const message = queueMessage(sendingEvent('bounced'));
-    await handleDeliveryEventBatch(batchOf(message), failing);
+    await handleDeliveryEventBatch(batchOf(message), envOf(failing));
     expect(message.retry).toHaveBeenCalledWith({ delaySeconds: 30 });
     expect(message.ack).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith('Delivery event failed', { error: 'Error' });
