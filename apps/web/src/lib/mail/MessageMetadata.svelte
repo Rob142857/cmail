@@ -3,7 +3,15 @@
   import { sanitizeParticipantName } from '@cmail/shared/message-participants';
   import { quarantineReasonPhrase } from '#lib/quarantine-reason.js';
 
-  let { message, locale, timeZone, mailboxHref } = $props();
+  /** delivery: the provider's delivery status for the sender's own copy, or null (see delivery-status.ts). */
+  let { message, delivery = null, locale, timeZone, mailboxHref } = $props();
+
+  const deliveryStateLabel = {
+    delivered: 'Delivered',
+    retrying: 'Delayed, retrying',
+    failed: 'Not delivered',
+    complained: 'Delivered, marked as spam',
+  };
 
   let expanded = $state(false);
 
@@ -101,6 +109,8 @@
     {/if}
     {#if failedRecipientList}
       <p class="compact-flag delivery-failure">Permanent bounce: {failedRecipientList}</p>
+    {:else if delivery}
+      <p class="compact-flag delivery-badge {delivery.tone}">{delivery.label}</p>
     {/if}
     {#if message.importance === 'high'}
       <p class="compact-flag importance-label high">High — important</p>
@@ -135,6 +145,21 @@
       <dt>Date</dt>
       <dd><time datetime={dateTimeAttribute(message.received_at)}>{formatDateTime(message.received_at, locale, timeZone)}</time></dd>
     </div>
+    {#if delivery}
+      <div>
+        <dt>Delivery</dt>
+        <dd>
+          <ul class="delivery-list">
+            {#each delivery.recipients as recipient (recipient.address)}
+              <li>
+                {recipient.address}: <span class="delivery-state {recipient.state}">{deliveryStateLabel[recipient.state]}</span>
+                <time datetime={dateTimeAttribute(recipient.at)}>{formatDateTime(recipient.at, locale, timeZone)}</time>
+              </li>
+            {/each}
+          </ul>
+        </dd>
+      </div>
+    {/if}
   </dl>
 {/if}
 
@@ -192,6 +217,13 @@
   .importance-label.high { color:var(--danger); }
   .importance-label.low { color:var(--primary-text); }
   .delivery-failure { color:var(--danger); font-weight:650; }
+  .delivery-badge { font-weight:600; }
+  .delivery-badge.ok { color:var(--success-text); }
+  .delivery-badge.warning, .delivery-state.retrying, .delivery-state.complained { color:var(--warning-text); }
+  .delivery-badge.danger, .delivery-state.failed { color:var(--danger); }
+  .delivery-list { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:2px; }
+  .delivery-list time { color:var(--text-muted); margin-left:4px; }
+  .delivery-state { font-weight:600; }
   .quarantine-note { color:var(--danger); font-weight:650; }
 
   @media (max-width:560px) {

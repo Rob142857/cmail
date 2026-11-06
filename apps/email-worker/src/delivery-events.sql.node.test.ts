@@ -29,6 +29,8 @@ function sendingEvent(type: string, overrides: Record<string, unknown> = {}, pay
         smtpStatusCode: '550',
         smtpEnhancedStatusCode: '5.1.1',
         smtpResponse: '550 5.1.1 User unknown',
+        deliveryTimeMs: 1840,
+        provider: 'Example Mail',
       },
       ...(type === 'bounced' ? { bounce: { type: 'hard', classification: 'permanent_failure', reason: '550 5.1.1 User unknown' } } : {}),
       ...payloadOverrides,
@@ -76,6 +78,28 @@ describe('parseDeliveryEvent', () => {
       smtpStatus: '5.1.1',
       smtpResponse: '550 5.1.1 User unknown',
       eventTimestamp: '2026-11-06T01:02:03.000Z',
+      deliveryTimeMs: 1840,
+      provider: 'Example Mail',
+      bounceClassification: 'permanent_failure',
+      reason: '550 5.1.1 User unknown',
+      rejectionParty: null,
+    });
+  });
+
+  it('reads failure and rejection reasons and drops a bad delivery time', () => {
+    const failed = parseDeliveryEvent(sendingEvent('failed', {}, {
+      delivery: { status: 'failed', deliveryTimeMs: -5 },
+      failure: { reason: 'Internal\r\nerror' },
+    }));
+    expect(failed).toMatchObject({ reason: 'Internal error', deliveryTimeMs: null, provider: null, smtpResponse: null });
+    const rejected = parseDeliveryEvent(sendingEvent('rejected', {}, {
+      delivery: { status: 'rejected', deliveryTimeMs: Number.NaN },
+      rejection: { reason: 'suppressed', party: 'sender', detail: 'Recipient is on the suppression list' },
+    }));
+    expect(rejected).toMatchObject({
+      reason: 'suppressed: Recipient is on the suppression list',
+      rejectionParty: 'sender',
+      deliveryTimeMs: null,
     });
   });
 
@@ -117,8 +141,14 @@ describe('applyDeliveryEvent (real migrations)', () => {
     expect(await applyDeliveryEvent(d1, event)).toBe('stored');
     expect(failedOn('mail_trace', 'trace-1')).toEqual(['missing@example.net']);
     expect(failedOn('messages', 'message-1')).toEqual(['missing@example.net']);
-    expect(sqlite.prepare('SELECT trace_id, event_type, terminal, bounce_type, smtp_status FROM delivery_events').get()).toEqual({
+    expect(sqlite.prepare(
+      `SELECT trace_id, event_type, terminal, bounce_type, smtp_status, delivery_time_ms, provider,
+              bounce_classification, reason, rejection_party
+       FROM delivery_events`,
+    ).get()).toEqual({
       trace_id: 'trace-1', event_type: 'bounced', terminal: 1, bounce_type: 'hard', smtp_status: '5.1.1',
+      delivery_time_ms: 1840, provider: 'Example Mail', bounce_classification: 'permanent_failure',
+      reason: '550 5.1.1 User unknown', rejection_party: null,
     });
   });
 

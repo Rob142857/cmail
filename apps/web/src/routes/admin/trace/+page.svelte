@@ -1,5 +1,6 @@
 <script>
   import { formatDateTime } from '#lib/dates.js';
+  import { deliveryStepLabel, elapsedLabel } from '#lib/mail/delivery-status.js';
   import { tick } from 'svelte';
   import MessageBar from '#lib/ui/MessageBar.svelte';
   let { data } = $props();
@@ -257,20 +258,35 @@
           {/if}
 
           {#if data.deliveryEvents?.[selected.trace_id]?.length}
-            <dt>Delivery events</dt>
+            <dt>Delivery timeline</dt>
             <dd>
-              <ul class="delivery-events">
+              <ol class="delivery-timeline">
+                <li>
+                  <span class="nowrap">{formatDateTime(selected.timestamp)}</span>
+                  <strong>Handed to the sending service</strong>
+                </li>
                 {#each data.deliveryEvents[selected.trace_id] as event, index (index)}
-                  <li>
+                  <li class="step-{event.event_type}">
                     <span class="nowrap">{formatDateTime(event.occurred_at)}</span>
-                    <strong>{event.event_type}{event.bounce_type ? ` (${event.bounce_type})` : ''}</strong>
+                    {#if elapsedLabel(selected.timestamp, event.occurred_at)}
+                      <span class="elapsed">{elapsedLabel(selected.timestamp, event.occurred_at)}</span>
+                    {/if}
+                    <strong>{deliveryStepLabel(event)}</strong>
                     {event.recipient}
+                    {#if event.provider || event.delivery_time_ms != null}
+                      <span class="step-meta">
+                        {[event.provider, event.delivery_time_ms != null ? `took ${(event.delivery_time_ms / 1000).toFixed(1)} s` : ''].filter(Boolean).join(' · ')}
+                      </span>
+                    {/if}
                     {#if event.smtp_status || event.smtp_response}
-                      <span class="mono break">— {[event.smtp_status, event.smtp_response].filter(Boolean).join(' ')}</span>
+                      <div class="mono break">Remote server: {[event.smtp_status, event.smtp_response].filter(Boolean).join(' ')}</div>
+                    {/if}
+                    {#if event.reason && event.reason !== event.smtp_response}
+                      <div class="break">Reason: {event.reason}{event.rejection_party ? ` (rejected by ${event.rejection_party})` : ''}</div>
                     {/if}
                   </li>
                 {/each}
-              </ul>
+              </ol>
             </dd>
           {/if}
 
@@ -392,8 +408,12 @@
   .mono { font-family: 'SF Mono', 'Cascadia Code', monospace; font-size: 12px; }
   .break { word-break: break-all; }
 
-  .delivery-events { margin: 0; padding-left: 1.1em; }
-  .delivery-events li + li { margin-top: 4px; }
+  .delivery-timeline { margin: 0; padding-left: 1.1em; }
+  .delivery-timeline li + li { margin-top: 6px; }
+  .delivery-timeline .elapsed, .delivery-timeline .step-meta { color: var(--text-muted); }
+  .delivery-timeline .step-delivered strong { color: var(--success-text); }
+  .delivery-timeline .step-deferred strong, .delivery-timeline .step-complained strong { color: var(--warning-text); }
+  .delivery-timeline .step-bounced strong, .delivery-timeline .step-failed strong, .delivery-timeline .step-rejected strong { color: var(--danger); }
 
   .auth-tag {
     display: inline-block; font-size: 12px; padding: 1px 8px; margin: 2px 4px 2px 0;

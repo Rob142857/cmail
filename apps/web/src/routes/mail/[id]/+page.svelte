@@ -138,7 +138,7 @@
 
   <article class="card reading">
     <h1>{data.message.subject || '(no subject)'}</h1>
-    <MessageMetadata message={data.message} locale={data.locale} timeZone={data.timeZone} {mailboxHref} />
+    <MessageMetadata message={data.message} delivery={data.delivery} locale={data.locale} timeZone={data.timeZone} {mailboxHref} />
     <MessageSafety message={data.message} riskyLinks={data.riskyLinks} />
     <MessageAttachments attachments={data.attachments} />
     {#if data.invite}
