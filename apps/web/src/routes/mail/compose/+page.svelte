@@ -64,8 +64,6 @@
   // Remounts the rich-text editor when its content is replaced from outside
   // (recovery restore or a mode switch); the editor owns its content otherwise.
   let editorKey = $state(0);
-  /** @type {{ getJson: () => any } | null} */
-  let richApi = null;
   let richEditorFailed = $state(false);
   let quotedHtml = $state(initial.quotedHtml);
   let importance = $state(initial.importance);
@@ -862,7 +860,6 @@
             defaults={d.composeDefaults}
             disabled={sending || discarding || navigationInProgress || !!recoveryConflict || saveConflict || d.mailboxes.length === 0}
             onchange={(html) => { if (html !== body) { body = html; markDirty(); } }}
-            onready={(api) => { richApi = api; }}
             onfailed={richEditorUnavailable}
           />
         {/key}
