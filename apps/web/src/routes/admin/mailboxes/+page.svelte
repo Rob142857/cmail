@@ -54,7 +54,7 @@
       submitting = key;
       return async ({ update }) => {
         try {
-          await update();
+          await update({ navigate: false });
         } finally {
           submitting = '';
         }

@@ -56,7 +56,7 @@
           submitting = submitter instanceof HTMLButtonElement ? submitter.value : 'sending';
           return async ({ update }) => {
             submitting = '';
-            await update();
+            await update({ navigate: false });
           };
         }}
       >

@@ -147,7 +147,7 @@
                       cancellingId = event.id;
                       return async ({ update }) => {
                         cancellingId = '';
-                        await update();
+                        await update({ navigate: false });
                       };
                     }}
                   >
