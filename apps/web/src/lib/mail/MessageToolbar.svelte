@@ -56,7 +56,7 @@
   <a href={returnHref} class="btn tb-back" aria-label="Back to list"><Icon name="arrowLeft" size={16} /><span class="tb-label">Back</span></a>
 
   {#if isDraft}
-    <a href={editDraftHref} class="btn btn-primary" onclick={(event) => openCompose(event, editDraftHref)}>Edit draft</a>
+    <a href={editDraftHref} class="btn btn-primary tb-reply" onclick={(event) => openCompose(event, editDraftHref)}>Edit draft</a>
     <form method="POST" action="/mail/compose?/discard">
       <input type="hidden" name="draft_id" value={messageId} />
       <input type="hidden" name="draft_version" value={draftVersion} />
@@ -133,7 +133,9 @@
   @media (max-width: 600px) {
     .toolbar { flex-wrap: nowrap; gap: 4px; margin-bottom: 12px; }
     .toolbar > .btn, .tb-more > summary { width: 44px; min-width: 44px; padding: 0; }
+    /* Text buttons (Reply, Edit draft) keep their width; the rest are icon squares. */
     .toolbar > .tb-reply { width: auto; padding: 0 14px; }
+    .toolbar form > .btn { min-height: 44px; padding: 0 12px; white-space: nowrap; }
     .tb-back { margin-right: auto; border-color: transparent; background: transparent; }
     /* Icon-only on phones; the name stays for screen readers. */
     .tb-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

@@ -3,7 +3,7 @@
   import { browser } from '$app/env';
   import { page } from '$app/state';
   import { afterNavigate, beforeNavigate, goto, replaceState } from '$app/navigation';
-  import { onMount, untrack } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import EmailAutocomplete from '#lib/EmailAutocomplete.svelte';
   import Icon from '#lib/ui/Icon.svelte';
   import { signaturePreviewDocument } from '#lib/signature-preview.js';
@@ -562,7 +562,7 @@
           } else if (result.type === 'failure' && result.data?.draftConflict) {
             saveConflict = true;
           }
-          await update();
+          await update({ navigate: false });
         } finally {
           if (!redirected) {
             allowNavigation = false;
@@ -613,11 +613,25 @@
         } else if (result.type === 'failure' && result.data?.draftConflict) {
           saveConflict = true;
         }
-        await update();
+        await update({ navigate: false });
+        if (result.type === 'failure') await showSendError();
       } finally {
         sending = false;
       }
     };
+  }
+
+  /**
+   * The error sits above the form. On a phone the person is usually scrolled
+   * down with the keyboard up, so bring it into view and move focus to it,
+   * which also closes the keyboard.
+   */
+  async function showSendError() {
+    await tick();
+    const box = document.querySelector('.compose-page .form-error');
+    if (!(box instanceof HTMLElement)) return;
+    box.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    box.focus({ preventScroll: true });
   }
 
   /** Sends the same draft again, through the normal Send path. */
@@ -724,7 +738,7 @@
   </header>
 
   {#if form?.error}
-    <div class="form-error" role="alert">
+    <div class="form-error" role="alert" tabindex="-1">
       <p>{form.error}</p>
       {#if form?.blocked}
         {#if unblockable.length}
@@ -996,6 +1010,9 @@
     font-size: 14px;
   }
   .form-error p { margin: 0; }
+  /* Clears the pinned phone bar when scrolled into view. */
+  .form-error { scroll-margin-top: calc(var(--editor-sticky-top, 0px) + 8px); }
+  .form-error:focus { outline: 2px solid var(--danger); outline-offset: 2px; }
   .form-error .blocked-help { margin-top: 6px; font-size: 13px; }
   .blocked-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .form-warning {
