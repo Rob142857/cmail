@@ -1179,12 +1179,14 @@
       top: 0;
       z-index: 6;
       margin: -14px -14px 0;
-      min-height: 56px;
+      min-height: calc(56px + env(safe-area-inset-top));
       padding: env(safe-area-inset-top) max(6px, env(safe-area-inset-right)) 0 max(6px, env(safe-area-inset-left));
       background: var(--bg);
       box-shadow: 0 1px 0 var(--border);
     }
     :global(body:has(.compose-appbar) .suite) { display: none; }
+    /* The shell grid keeps a row for the hidden suite bar; give it all to the page. */
+    :global(body:has(.compose-appbar) .shell) { grid-template-rows: minmax(0, 1fr); }
     .compose-page { --editor-sticky-top: calc(56px + env(safe-area-inset-top)); }
     .compose-header h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     .compose-header { justify-content: flex-end; min-height: 0; }

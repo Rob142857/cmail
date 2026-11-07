@@ -96,6 +96,14 @@ test.describe('on a phone', () => {
     expect(await isInViewport(page, '.rich-text-surface')).toBe(true);
   });
 
+  test('the pinned Send bar replaces the top bar and the page fills the screen', async ({ page }) => {
+    await newMessage(page);
+    await expect(page.locator('.compose-appbar')).toBeVisible();
+    await expect(page.locator('header.suite')).toBeHidden();
+    const scroller = (await page.locator('.content-scroll').boundingBox())!;
+    expect(scroller.height).toBeGreaterThan(page.viewportSize()!.height * 0.8);
+  });
+
   test('with the keyboard up, Send is still reachable without scrolling', async ({ page }) => {
     await newMessage(page);
     await page.locator('.rich-text-surface').click();
