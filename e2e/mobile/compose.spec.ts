@@ -104,6 +104,53 @@ test.describe('on a phone', () => {
     expect(scroller.height).toBeGreaterThan(page.viewportSize()!.height * 0.8);
   });
 
+  test('a refused send scrolls its message into view', async ({ page }) => {
+    await newMessage(page);
+    await page.route((url) => url.pathname === '/mail/compose' && url.search === '?/send', (route) => route.fulfill({
+      status: 422,
+      contentType: 'application/json',
+      // Like the real server, the result names where the action lands.
+      body: JSON.stringify({ type: 'failure', status: 422, location: '/mail/compose', data: '[{"error":1},"Invented refusal for the test."]' }),
+    }));
+    await page.locator('#to').fill(RECORDS);
+    await page.locator('#subject').fill('Refusal check');
+    const editor = page.locator('.rich-text-surface');
+    await editor.click();
+    for (let line = 1; line <= 20; line += 1) {
+      await page.keyboard.type(`Line ${line}`);
+      await page.keyboard.press('Enter');
+    }
+    // A saved draft puts ?draft= in the address, which made SvelteKit
+    // navigate away from the error before navigate: false.
+    await expect(page.getByRole('button', { name: 'Discard draft' })).toBeAttached({ timeout: 15_000 });
+    // Reopen it the way Drafts > Edit draft does, so the address carries the draft.
+    await expect(page).toHaveURL(/[?&]draft=/);
+    await page.reload();
+    await page.locator('.rich-text-surface').click();
+    await page.keyboard.press('End');
+    await page.locator('.compose-appbar').getByRole('button', { name: 'Send' }).click();
+    const error = page.locator('.form-error');
+    await expect(error).toContainText('Invented refusal for the test.');
+    await expect(error).toBeFocused();
+    await expect.poll(() => isInViewport(page, '.form-error')).toBe(true);
+  });
+
+  test('a saved draft opens with Edit draft and Delete draft fully readable', async ({ page }) => {
+    await newMessage(page);
+    await page.locator('#subject').fill('Draft button check');
+    await page.locator('.rich-text-surface').click();
+    await page.keyboard.type('Draft text.');
+    await expect(page).toHaveURL(/[?&]draft=/, { timeout: 15_000 });
+    const draftId = new URL(page.url()).searchParams.get('draft');
+    await open(page, `/mail/${draftId}`);
+    for (const name of ['Edit draft', 'Delete draft']) {
+      const control = page.getByRole(name === 'Edit draft' ? 'link' : 'button', { name });
+      await expect(control).toBeVisible();
+      // The words fit inside the button.
+      expect(await control.evaluate((el) => el.scrollWidth <= el.clientWidth + 1), name).toBe(true);
+    }
+  });
+
   test('with the keyboard up, Send is still reachable without scrolling', async ({ page }) => {
     await newMessage(page);
     await page.locator('.rich-text-surface').click();
