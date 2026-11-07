@@ -678,7 +678,8 @@
      More sheet for the rest, stuck to the top of the editor so it stays above
      the on-screen keyboard while typing. */
   @media (max-width: 599px) {
-    .toolbar-wrap { position: sticky; top: 0; }
+    /* A page with its own pinned bar sets --editor-sticky-top to sit below it. */
+    .toolbar-wrap { position: sticky; top: var(--editor-sticky-top, 0px); }
     .toolbar {
       flex-wrap: nowrap;
       overflow-x: auto;

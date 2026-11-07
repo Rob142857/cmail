@@ -101,7 +101,7 @@ test.describe('on a phone', () => {
     await page.locator('.rich-text-surface').click();
     await openVirtualKeyboard(page);
     await page.keyboard.type('Ready to send.');
-    expect(await isInViewport(page, 'button.send-button')).toBe(true);
+    expect(await isInViewport(page, 'button.appbar-send')).toBe(true);
   });
 
   for (const [surface, path] of [
@@ -117,12 +117,16 @@ test.describe('on a phone', () => {
       // Saving the draft adds Discard draft, the widest the bar gets.
       await expect(page.getByRole('button', { name: 'Discard draft' })).toBeVisible({ timeout: 15_000 });
       expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
-      for (const name of ['Send', 'Save draft', 'Discard draft', /^Back to/]) {
-        const box = (await page.locator('.compose-actions').getByRole('button', { name }).boundingBox())!;
+      // Back and Send live in the pinned bar on phones; the rest end the form.
+      for (const [bar, name] of [
+        ['.compose-appbar', 'Send'], ['.compose-appbar', /^Back to/],
+        ['.compose-actions', 'Save draft'], ['.compose-actions', 'Discard draft'],
+      ] as const) {
+        const box = (await page.locator(bar).getByRole('button', { name }).boundingBox())!;
         expect(box.x, String(name)).toBeGreaterThanOrEqual(0);
         expect(box.x + box.width, String(name)).toBeLessThanOrEqual(320);
       }
-      const small = await smallTapTargets(page, '.compose-actions button');
+      const small = await smallTapTargets(page, '.compose-appbar button, .compose-actions button:visible');
       expect(small, small.join('\n')).toEqual([]);
     });
   }
@@ -132,7 +136,7 @@ test.describe('on a phone', () => {
     await page.locator('input[type=file][name=attachments]').setInputFiles({
       name: 'invented-agenda.txt', mimeType: 'text/plain', buffer: Buffer.from('Invented agenda'),
     });
-    const small = await smallTapTargets(page, '.rich-text .toolbar button, .rich-text .toolbar select, .format-toggle button, .attachments button, .bcc-toggle');
+    const small = await smallTapTargets(page, '.rich-text .toolbar button, .rich-text .toolbar select, .attachments button, .bcc-toggle');
     expect(small, small.join('\n')).toEqual([]);
   });
 });

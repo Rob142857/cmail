@@ -9,21 +9,12 @@
   import { signaturePreviewDocument } from '#lib/signature-preview.js';
   import EmailHtmlFrame from '#lib/mail/EmailHtmlFrame.svelte';
   import RichTextEditor from '#lib/RichTextEditor.svelte';
-  import { plainTextToRichHtml, richDocToPlainText } from '#lib/rich-text.js';
+  import { plainTextToRichHtml } from '#lib/rich-text.js';
   let { data, form } = $props();
 
-  const FORMAT_PREFERENCE_KEY = 'cmail:compose-format';
-  /** @returns {'text' | 'html'} */
-  function preferredFormat() {
-    if (!browser) return 'html';
-    try {
-      return localStorage.getItem(FORMAT_PREFERENCE_KEY) === 'text' ? 'text' : 'html';
-    } catch {
-      return 'html';
-    }
-  }
   /** @type {any} */
   const d = $derived(data);
+  const pageTitle = $derived(d.draft ? 'Draft' : d.replyTo ? (d.isForward ? 'Forward' : d.isReplyAll ? 'Reply all' : 'Reply') : 'New message');
 
   /** @param {string} json */
   function parseList(json) { try { const a = JSON.parse(json); return Array.isArray(a) ? a.join(', ') : ''; } catch { return ''; } }
@@ -44,11 +35,10 @@
       // returns one, so a reply/forward always starts with an empty Bcc field.
       bcc: d.draft ? parseList(d.draft.bcc_addresses) : '',
       from: d.draft?.from_address || d.preferredFrom || d.mailboxes[0]?.address || '',
-      body: d.draft?.body || '',
-      // A saved draft keeps the mode it was written in; a new message uses the
-      // person's last choice (rich text unless they switched it off).
-      // (The stored preference is applied in onMount so SSR and hydration agree.)
-      bodyFormat: d.draft ? (d.draft.body_format === 'html' ? 'html' : 'text') : 'html',
+      // Every message is formatted text, like Outlook. An older plain-text
+      // draft opens converted, keeping its line breaks.
+      body: d.draft && d.draft.body_format !== 'html' && d.draft.body ? plainTextToRichHtml(d.draft.body) : d.draft?.body || '',
+      bodyFormat: 'html',
       quotedHtml: d.draft?.quoted_html || d.replyQuoteHtml || '',
       replySourceId: d.replySourceId || '',
       importance: d.draft?.importance || 'normal',
@@ -233,9 +223,12 @@
       cc: typeof saved.cc === 'string' ? saved.cc.slice(0, 20_000) : '',
       bcc: typeof saved.bcc === 'string' ? saved.bcc.slice(0, 20_000) : '',
       from: typeof saved.from === 'string' && d.mailboxes.some((mailbox) => mailbox.address === saved.from) ? saved.from : from,
-      body: typeof saved.body === 'string' ? saved.body.slice(0, 1_000_000) : '',
-      // Snapshots written before rich text existed hold plain text.
-      bodyFormat: saved.bodyFormat === 'html' ? 'html' : 'text',
+      // Snapshots written before rich text existed hold plain text: convert
+      // them, since compose is always formatted text now.
+      body: typeof saved.body !== 'string' ? ''
+        : saved.bodyFormat === 'html' ? saved.body.slice(0, 1_000_000)
+        : plainTextToRichHtml(saved.body.slice(0, 1_000_000)),
+      bodyFormat: 'html',
       importance: savedImportance,
     };
     return copy;
@@ -290,9 +283,6 @@
   }
 
   onMount(() => {
-    // Start a new message in the person's preferred mode. A draft, reply text
-    // or restored copy decides its own mode instead.
-    if (!d.draft && !body && preferredFormat() === 'text') bodyFormat = 'text';
     try {
       const saved = JSON.parse(sessionStorage.getItem(recoveryKey) || 'null');
       const recovery = normalizeRecovery(saved);
@@ -666,22 +656,6 @@
     sendAgain();
   }
 
-  /** @param {'text' | 'html'} next */
-  function switchFormat(next) {
-    if (next === bodyFormat) return;
-    if (next === 'text') {
-      if (body && !window.confirm('Switch to plain text? Bold, italics, underline, links and lists will be removed from this message.')) return;
-      body = !body ? '' : richApi ? richDocToPlainText(richApi.getJson()) : htmlTextContent(body);
-    } else {
-      body = plainTextToRichHtml(body);
-    }
-    bodyFormat = next;
-    richApi = null;
-    editorKey += 1;
-    try { localStorage.setItem(FORMAT_PREFERENCE_KEY, next); } catch { /* preference is optional */ }
-    if (body) markDirty();
-  }
-
   /**
    * Text of stored rich-text HTML when the editor isn't available to ask.
    * DOMParser documents are inert: nothing in them loads or runs.
@@ -717,8 +691,27 @@
 <svelte:window onbeforeunload={warnBeforeUnload} />
 
 <div class="compose-page">
+  <!-- Phones: a pinned bar like Outlook and Gmail, so Send is never under the keyboard. -->
+  <div class="compose-appbar">
+    <button
+      type="button"
+      class="appbar-icon"
+      aria-label={d.replyTo ? 'Back to message' : 'Back to mail'}
+      onclick={() => saveAndNavigate(d.returnHref, true, true)}
+      disabled={sending || discarding || navigationInProgress || !!recoveryConflict || saveConflict}
+    ><Icon name="arrowLeft" size={22} /></button>
+    <span class="appbar-title">{pageTitle}</span>
+    <button
+      type="submit"
+      form="compose-form"
+      class="appbar-send"
+      aria-label="Send"
+      disabled={sending || discarding || navigationInProgress || !!recoveryConflict || saveConflict || d.mailboxes.length === 0}
+    >{#if sending}<span class="appbar-sending">Sending…</span>{:else}<Icon name="send" size={22} />{/if}</button>
+  </div>
+
   <header class="compose-header">
-    <h1>{d.draft ? 'Draft' : d.replyTo ? (d.isForward ? 'Forward' : d.isReplyAll ? 'Reply all' : 'Reply') : 'New message'}</h1>
+    <h1>{pageTitle}</h1>
     <div class="status" role="status" aria-live="polite">
       {#if saving}
         Saving…
@@ -797,6 +790,7 @@
   {#if d.mailboxes.length === 0}<div class="form-error" role="alert">No mailbox with send permission. Ask an administrator for access.</div>{/if}
 
   <form
+    id="compose-form"
     method="POST"
     action="?/send"
     use:enhance={handleSubmit}
@@ -857,13 +851,7 @@
     </div>
 
     <div class="field body-field">
-      <div class="field-label-row">
-        <label for="body" id="body-label" class="sr-only">Message</label>
-        <div class="format-toggle" role="group" aria-label="Message format">
-          <button type="button" aria-pressed={bodyFormat === 'html'} onclick={() => switchFormat('html')} disabled={richEditorFailed}>Rich text</button>
-          <button type="button" aria-pressed={bodyFormat === 'text'} onclick={() => switchFormat('text')}>Plain text</button>
-        </div>
-      </div>
+      <label for="body" id="body-label" class="sr-only">Message</label>
       <input type="hidden" name="body_format" value={bodyFormat} />
       {#if bodyFormat === 'html'}
         <input type="hidden" name="body" value={body} />
@@ -989,6 +977,17 @@
   /* Fill the pane up to a generous column (Rob, 29 Oct: 820px left dead space on wide screens). */
   .compose-page { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
   .compose-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .compose-appbar { display: none; }
+  .appbar-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; font-weight: 600; }
+  .appbar-icon, .appbar-send {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 48px; min-height: 48px; padding: 0 12px;
+    border: 0; border-radius: 999px; background: transparent; color: var(--text); cursor: pointer;
+  }
+  .appbar-send { color: var(--primary-text); }
+  .appbar-icon:hover:not(:disabled), .appbar-send:hover:not(:disabled) { background: var(--bg-hover); }
+  .appbar-icon:disabled, .appbar-send:disabled { color: var(--text-disabled); cursor: not-allowed; }
+  .appbar-sending { font-size: 14px; font-weight: 600; }
   .compose-header h1 { font-size: 20px; margin: 0; font-weight: 600; }
   .status { font-size: 12px; color: var(--text-muted); }
 
@@ -1024,7 +1023,6 @@
   .compose-fields { min-width: 0; margin: 0; padding: 0; border: 0; }
   .compose-form .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
   .compose-form label { font-size: 12px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
-  .field-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .bcc-toggle {
     padding: 0; border: 0; background: none;
     color: var(--primary-text); font-size: 12px; font-weight: 500;
@@ -1048,7 +1046,6 @@
   .subject-input { flex: 1 1 auto; min-width: 0; font-size: 15px; font-weight: 600; }
   .importance-select { flex: 0 0 auto; width: auto; color: var(--text-muted); font-size: 12px; cursor: pointer; }
   .importance-select.raised { color: var(--warning); font-weight: 600; }
-  .body-field .field-label-row { justify-content: flex-end; }
   /* Editor without a frame: the toolbar sits on the page, buttons have no
      boxes (hover and pressed are tones), and the white writing paper is the
      only boundary. Focus shows as the same primary underline as the lines. */
@@ -1095,11 +1092,6 @@
   .body-field textarea { min-height: max(240px, 45vh); border-color: transparent; padding: 18px 20px; }
   .body-field textarea:focus { border-bottom-color: var(--primary); }
   /* Quiet text tabs; the selected one is ink-coloured with a primary underline. */
-  .format-toggle { display:inline-flex; gap:4px; }
-  .format-toggle button { min-height:30px; padding:2px 8px; border:0; border-radius:var(--radius); background:transparent; color:var(--text-muted); font-size:12px; font-weight:600; cursor:pointer; }
-  .format-toggle button:hover:not(:disabled) { background:var(--bg-hover); color:var(--text); }
-  .format-toggle button[aria-pressed='true'] { color:var(--text); box-shadow:inset 0 -2px 0 var(--primary); border-radius:var(--radius) var(--radius) 0 0; }
-  .format-toggle button:disabled { opacity:.5; cursor:not-allowed; }
   .format-note { color:var(--text-muted); font-size:11px; }
   .quoted-message { margin: 0 0 14px; }
   .quoted-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:6px; font-size:12px; }
@@ -1166,8 +1158,6 @@
   .btn-ghost-danger:hover { background: var(--danger-soft); }
 
   @media (pointer: coarse), (max-width: 860px) {
-    .format-toggle button { min-height: 44px; padding: 2px 14px; font-size: 13px; }
-    .format-toggle { padding: 0; }
     .bcc-toggle { min-width: 44px; min-height: 44px; font-size: 13px; }
     .att-remove { min-width: 44px; min-height: 44px; }
   }
@@ -1177,21 +1167,29 @@
     .body-field :global(.surface-wrap .placeholder) { top: 14px; left: 16px; }
     .body-field :global(.surface-wrap .editor-state) { padding: 14px 16px; }
     .body-field textarea { padding: 14px 16px; }
-    /* The action bar sticks to the bottom of the screen (and above the
-       on-screen keyboard), so Send never needs a scroll to the end. Back
-       and Discard shrink to icons so Save draft and Send always fit; at
-       very large text sizes the bar wraps rather than running off-screen. */
-    .compose-actions {
+    /* Phones: the pinned app bar holds Back and Send, and replaces the mail
+       app's own top bar while composing. A bottom bar can't do this: on
+       Android and iOS the keyboard covers the bottom of the page. Save
+       draft and Discard stay at the end of the form. */
+    .compose-appbar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
       position: sticky;
-      bottom: 0;
-      z-index: 5;
-      flex-wrap: wrap;
-      margin: 4px -14px 0;
-      padding: 8px 14px max(8px, env(safe-area-inset-bottom));
+      top: 0;
+      z-index: 6;
+      margin: -14px -14px 0;
+      min-height: 56px;
+      padding: env(safe-area-inset-top) max(6px, env(safe-area-inset-right)) 0 max(6px, env(safe-area-inset-left));
       background: var(--bg);
-      box-shadow: 0 -1px 0 var(--border), 0 -4px 12px rgba(0, 0, 0, 0.06);
-      border-top: 0;
+      box-shadow: 0 1px 0 var(--border);
     }
+    :global(body:has(.compose-appbar) .suite) { display: none; }
+    .compose-page { --editor-sticky-top: calc(56px + env(safe-area-inset-top)); }
+    .compose-header h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .compose-header { justify-content: flex-end; min-height: 0; }
+    .compose-actions .left .secondary-action:first-child, .send-button { display: none; }
+    .compose-actions { flex-wrap: wrap; }
     .compose-actions .left { gap: 4px; }
     .compose-actions .right { margin-left: auto; }
     .secondary-action { min-width: 44px; padding-inline: 10px; }
