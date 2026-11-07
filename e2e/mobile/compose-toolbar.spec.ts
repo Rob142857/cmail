@@ -287,14 +287,14 @@ test.describe('on a phone', () => {
       await openVirtualKeyboard(page);
       await page.keyboard.type('Still typing with the keyboard up');
       expect(await isInViewport(page, '.rich-text .toolbar', 44)).toBe(true);
-      expect(await isInViewport(page, 'button.send-button')).toBe(true);
+      expect(await isInViewport(page, 'button.appbar-send')).toBe(true);
       // The bar sits above the line being typed, not over it.
       const bar = await page.locator('.rich-text .toolbar').boundingBox();
       const caretLine = await editor.locator('p').last().boundingBox();
       expect(bar && caretLine && bar.y + bar.height <= caretLine.y + 1).toBe(true);
-      // ...and the sticky Send bar doesn't cover it either.
-      const actions = await page.locator('.compose-actions').boundingBox();
-      expect(caretLine && actions && caretLine.y + caretLine.height <= actions.y + 1).toBe(true);
+      // ...and the formatting bar sits under the pinned Send bar, not behind it.
+      const appbar = await page.locator('.compose-appbar').boundingBox();
+      expect(bar && appbar && bar.y >= appbar.y + appbar.height - 1).toBe(true);
       expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
       const small = await smallTapTargets(page, '.rich-text .toolbar button, .rich-text .toolbar select');
       expect(small, small.join('\n')).toEqual([]);

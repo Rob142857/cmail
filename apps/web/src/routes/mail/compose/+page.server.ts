@@ -1097,19 +1097,34 @@ export const actions: Actions = {
             });
           }
           if (resultState === 'retryable_failure') {
-            const cancelled = await cancelRetryableJournal(env.DB, journal.id).catch(() => false);
+            let cancelError = '';
+            const cancelled = await cancelRetryableJournal(env.DB, journal.id).catch((caught: unknown) => {
+              cancelError = caught instanceof Error ? caught.message.slice(0, 200) : 'unknown';
+              return false;
+            });
             if (cancelled) {
               await cleanupTerminalJournal(env.DB, env.STORAGE, { ...journal, state: 'cancelled' });
             }
-            if (cancelled && result.suppressed) {
+            // Outcome only: no addresses or content.
+            console.warn('Send refused by provider', {
+              cancelled,
+              suppressed: Boolean(result.suppressed),
+              ...(cancelError ? { cancelError } : {}),
+            });
+            if (result.suppressed) {
               // A definite refusal the sender can act on: a 4xx keeps it on the
               // compose page, and the draft is kept for "Send again".
-              const blocked = await findBlockedRecipients(
-                env.DB,
-                envRecord,
-                journal.from_address,
-                validTraceRecipients(journal.envelope_recipients).split(', ').filter(Boolean),
-              );
+              let blocked: Awaited<ReturnType<typeof findBlockedRecipients>> = [];
+              try {
+                blocked = await findBlockedRecipients(
+                  env.DB,
+                  envRecord,
+                  journal.from_address,
+                  validTraceRecipients(journal.envelope_recipients).split(', ').filter(Boolean),
+                );
+              } catch (caught) {
+                console.warn('Blocked-recipient lookup failed', caught instanceof Error ? caught.message.slice(0, 200) : 'unknown');
+              }
               return fail(422, {
                 error: blockedMessage(blocked),
                 blocked,
@@ -1151,6 +1166,7 @@ export const actions: Actions = {
         });
       }
     }
+    if (journalAction !== 'materialize') console.warn('Send ended without delivery', { journalAction, state: journal?.state || 'none' });
     if (journalAction === 'unknown') {
       return fail(502, { error: 'Delivery status is unknown. Don\'t resend this message — ask an administrator to check the send record.' });
     }
