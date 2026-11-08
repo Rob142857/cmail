@@ -357,6 +357,15 @@ describe('traceEmail persists each mail-trace status', () => {
     expect(rows[3].status_detail).toBe('Postmark rejected the request (429)');
   });
 
+  it('a retry with the same trace id keeps one row', async () => {
+    const fixture = createFixture();
+    const trace = { trace_id: 'trace-retry-1', direction: 'outbound' as const, status: 'sent' as const };
+    await traceEmail(fixture.db.d1, trace);
+    await traceEmail(fixture.db.d1, trace);
+    const count = fixture.db.sqlite.prepare('SELECT COUNT(*) AS n FROM mail_trace').get() as { n: number };
+    expect(count.n).toBe(1);
+  });
+
   it('only accepts the documented statuses', async () => {
     const fixture = createFixture();
     await expect(traceEmail(fixture.db.d1, {
