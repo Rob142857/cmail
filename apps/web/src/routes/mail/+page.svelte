@@ -420,7 +420,14 @@
               {/if}
               <span class="participant" title={participantTitle(message)}>{participantText(message)}</span>
               <span class="message-middle">
-                <span class="subject">{message.subject || '(no subject)'}</span>
+                <span class="subject">
+                  <!-- Before the subject so it never gets cut off, on any screen. -->
+                  {#if d.deliveryBadges?.[message.id]}
+                    {@const badge = d.deliveryBadges[message.id]}
+                    <span class="delivery-tag {badge.tone}" title={badge.title}>
+                      <span aria-hidden="true">{badge.text}</span><span class="sr-only">Delivery: {badge.title}. </span>
+                    </span>
+                  {/if}{message.subject || '(no subject)'}</span>
                 {#if message.snippet}<span class="snippet"><span class="snippet-sep"> — </span>{message.snippet}</span>{/if}
               </span>
               <span class="message-date">
@@ -644,6 +651,20 @@
     white-space: nowrap;
   }
   .indicators { display: inline-flex; align-items: center; gap: 4px; }
+  .delivery-tag {
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: 1px;
+    padding: 0 6px;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 16px;
+  }
+  .delivery-tag.ok { color: var(--success-text); }
+  .delivery-tag.warning { color: var(--warning-text); }
+  .delivery-tag.danger { color: var(--danger); }
   .indicator { display: inline-flex; color: var(--text-muted); }
   .indicator.importance-high,
   .indicator.importance-low { align-items:center; justify-content:center; width:15px; height:15px; font-size:15px; font-weight:800; line-height:1; }

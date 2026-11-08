@@ -3,6 +3,7 @@ import type { PageServerLoad } from './$types';
 import type { Message } from '@cmail/shared/types';
 import { escapeLike } from '#lib/server/validation.js';
 import { messageOwnershipPredicate } from '#lib/server/message-access.js';
+import { loadDeliveryBadges } from '#lib/server/delivery-badges.js';
 
 const FOLDERS = ['inbox', 'sent', 'drafts', 'archive', 'spam', 'trash'];
 const PAGE_SIZE = 50;
@@ -59,6 +60,8 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 
   const rows = result.results || [];
   const hasMore = rows.length > PAGE_SIZE;
+  const messages = rows.slice(0, PAGE_SIZE);
+  const deliveryBadges = folder === 'sent' ? await loadDeliveryBadges(env.DB, messages) : {};
 
   let currentMailbox: { id: string; address: string; display_name: string } | null = null;
   if (mailboxId) {
@@ -74,7 +77,8 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
   const mailboxUnavailable = Boolean(mailboxId && !currentMailbox);
 
   return {
-    messages: rows.slice(0, PAGE_SIZE),
+    messages,
+    deliveryBadges,
     folder,
     search,
     page,

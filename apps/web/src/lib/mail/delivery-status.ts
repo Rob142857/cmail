@@ -70,6 +70,25 @@ export function deliveryStatus(events: DeliveryEventView[], recipientCount = 0):
   return { label: delivered, tone: 'ok', recipients };
 }
 
+export interface ListBadge {
+  /** One word for the row. */
+  text: string;
+  /** The full status, for the tooltip and screen readers. */
+  title: string;
+  tone: DeliveryStatus['tone'];
+}
+
+/** The Sent list's one-word version of a delivery status. */
+export function listBadge(status: DeliveryStatus | null): ListBadge | null {
+  if (!status) return null;
+  const text = status.tone === 'danger'
+    ? 'Bounced'
+    : status.tone === 'ok'
+      ? 'Delivered'
+      : status.recipients.some((recipient) => recipient.state === 'retrying') ? 'Delayed' : 'Spam report';
+  return { text, title: status.label, tone: status.tone };
+}
+
 const STEP_LABELS: Record<string, string> = {
   delivered: 'Delivered',
   deferred: 'Delayed, will retry',
