@@ -1349,15 +1349,3 @@ async function logTrace(db: D1Database, trace: TraceInput): Promise<void> {
     console.error('Mail trace logging failed:', error instanceof Error ? error.message : 'unknown error');
   }
 }
-
-// Type declarations for Cloudflare Email Workers
-interface ForwardableEmailMessage {
-  readonly from: string;
-  readonly to: string;
-  readonly headers: Headers;
-  readonly raw: ReadableStream;
-  readonly rawSize: number;
-  setReject(reason: string): void;
-  forward(rcptTo: string, headers?: Headers): Promise<void>;
-  reply(message: unknown): Promise<void>;
-}
