@@ -1058,7 +1058,8 @@ export const actions: Actions = {
             return fail(502, { error: 'Delivery status couldn\'t be reconciled. Don\'t resend; ask an administrator to inspect the send record.' });
           }
 
-          await traceEmail(env.DB, {
+          const traceRecord: Parameters<typeof traceEmail>[1] = {
+            trace_id: generateId(),
             message_id_header: result.messageIdHeader || null,
             provider_message_ids: result.providerMessageIds || (result.messageId ? [result.messageId] : []),
             failed_recipients: result.permanentBounces || [],
@@ -1074,7 +1075,15 @@ export const actions: Actions = {
                 ? `via ${result.provider}; permanent bounce: ${(result.permanentBounces || []).join(', ')}`
                 : `via ${result.provider}`
               : result.error || `via ${result.provider}`,
-          }).catch(() => undefined);
+          };
+          // Bounce events find their send through this record, so a lost
+          // write means a lost bounce. Retry once, then say so in the log.
+          await traceEmail(env.DB, traceRecord)
+            .catch(() => traceEmail(env.DB, traceRecord))
+            .catch((error) => console.warn('Send trace write failed after retry', {
+              journal: journal?.id,
+              error: error instanceof Error ? error.name : 'unknown',
+            }));
           journal = await getOutboundJournal(env.DB, journal.id);
           if (!journal) return fail(503, { error: 'The provider result was recorded, but the send record is temporarily unavailable.' });
 

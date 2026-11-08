@@ -57,6 +57,8 @@ export async function audit(
 export async function traceEmail(
   db: D1Database,
   trace: {
+    /** Pass one to make a retry safe: a second write with the same id is ignored. */
+    trace_id?: string;
     message_id_header?: string | null;
     /** Provider tracking identifiers; not assumed to be RFC Message-IDs. */
     provider_message_ids?: string[];
@@ -78,9 +80,10 @@ export async function traceEmail(
 ): Promise<void> {
   await db.prepare(
     `INSERT INTO mail_trace (trace_id, message_id_header, provider_message_ids, failed_recipients, direction, timestamp, envelope_from, envelope_to, header_from, subject, size_bytes, status, status_detail, spf_result, dkim_result, dmarc_result, spam_score, source_ip)
-     VALUES (?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(trace_id) DO NOTHING`,
   ).bind(
-    generateId(),
+    trace.trace_id ?? generateId(),
     trace.message_id_header ?? null,
     JSON.stringify(trace.provider_message_ids || []),
     JSON.stringify(trace.failed_recipients || []),
