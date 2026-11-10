@@ -93,3 +93,40 @@ Rules are stored in the `inbox_rules` table (migration `0018`). Apply it with
 `pnpm db:migrate` before deploying the new email worker and web app. Until the
 table exists, delivery carries on as if no mailbox had rules, and the Rules
 page can't load.
+
+## How rules run
+
+For developers. The rule format and the matching code live in
+`packages/shared/src/inbox-rules.ts` and are shared by the email Worker and the
+web app, so a rule behaves the same everywhere.
+
+- **Storage.** One row per rule in `inbox_rules`: name (up to 120
+  characters), position, on or off, "stop processing more rules" (on by
+  default) and a JSON definition (up to 16,384 characters). A D1 trigger stops
+  a mailbox having more than 50 rules.
+- **Definition.** Conditions, exceptions and actions. Each condition can hold
+  up to 20 values of up to 200 characters. Text matching ignores case, extra
+  spaces and look-alike Unicode forms (NFKC). All conditions must match; any
+  one value within a condition is enough; any matching exception skips the
+  rule. A domain in **From** or **Sent to** also matches its subdomains.
+- **Actions.** Move to Archive, Spam or Trash; mark as read; star; set
+  importance. Rules can't forward, redirect, file to custom folders or delete
+  permanently, by design.
+- **Order.** Rules run by position. The first move wins and the first
+  importance wins; read and star add up. A rule with "stop processing" ends
+  the run.
+- **When they run.**
+  1. On new mail in the email Worker, only for mail headed to the Inbox. Mail
+     already sent to Spam by a sender rule or spam score skips rules. Body and
+     headers are read only if a rule needs them.
+  2. On mail sent between mailboxes in this cmail instance, in the web app
+     (`apps/web/src/lib/server/outbound-journal.ts`).
+  3. On demand with **Run now**, on the newest 1,000 messages in the Inbox.
+     Rules that look at the body or headers can't be run this way.
+- **Failure.** If rules can't be loaded or checked, the message is delivered
+  as if the mailbox had no rules, and the error is logged.
+
+Tests: `packages/shared/src/inbox-rules.test.ts`,
+`apps/email-worker/src/inbox-rules.test.ts`,
+`apps/web/src/routes/mail/rules/rules.test.ts` and
+`apps/web/src/lib/inbox-rule-editor.test.ts`.
