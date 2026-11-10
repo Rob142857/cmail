@@ -29,10 +29,22 @@ For engineers and operators setting up a deployment, roughly in this order:
 5. [Deployment and verification](deployment.md) — the production sequence, including identity providers, DNS, bootstrap, and controlled mail tests.
 6. [Security checklist](security-checklist.md) and [Operations checklist](operations-checklist.md) — complete both for every environment.
 7. [Running cmail](operations.md) — upgrade, back up, restore, roll back, monitor, and rotate secrets on a live deployment.
+8. [Upgrading and keeping your settings](upgrading.md) — where each setting lives, what an upgrade changes, upgrading a plain copy or a fork, and checking for new settings.
 
 For staff-portal links and optional provider-session reuse, see the
 [staff sign-in contract](staff-sign-in.md), including the Cloudflare Access
 identity boundary and live configuration checks.
+
+## How cmail works
+
+Technical guides for developers and operators, one feature at a time, with the code paths, data, limits and tests behind each.
+
+- [How cmail runs on Cloudflare](cloudflare-platform.md) — the four deployables, their bindings and schedules, the Cloudflare products used, migrations, and what `config:check` enforces.
+- [How sending works](sending.md) — from compose to the provider: drafts, checks, limits, the outbound journal, providers, and every error a user can see.
+- [Delivery status and bounces](delivery-and-bounces.md) — delivery events, Sent tags, Undeliverable notices, and blocked addresses with Send again and Unblock.
+- [How receiving works](receiving.md) — from Email Routing to the Inbox: rejects, guardrails, parsing, spam placement, storage, and scheduled jobs.
+- [Reading mail safely](reading-mail-safely.md) — HTML cleaning, the sandboxed frame, image blocking, and link checks against a phishing list.
+- [Inbox rules: how they run](inbox-rules.md#how-rules-run) — the rules engine: storage, matching, order, and when rules run.
 
 ## Customisation and governance
 
