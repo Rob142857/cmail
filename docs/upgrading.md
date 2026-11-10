@@ -14,8 +14,8 @@ An upgrade replaces the code. Your settings live elsewhere, so they survive it.
 | Bindings, resource names, `[vars]`, crons | `apps/web/wrangler.toml`, `apps/email-worker/wrangler.toml`, `apps/backup-worker/wrangler.toml` | No. Git ignores them. New options appear only in the `*.example` files |
 | Local development secrets | `.dev.vars` files | No. Git ignores them |
 | Production secrets (OAuth, `SESSION_SECRET`, API tokens, keys) | Cloudflare Pages and Worker secrets | No |
-| Organisation details set in the app (name, support address, links, system sender, sign-in countries, AI connections) | D1 table `org_settings`, set in **Admin > Settings** | No. These override the matching `[vars]` |
-| Directory, sender rules, signatures, usage policy, retention, inbox rules | Their own D1 tables, set in the app | No. Migrations can add tables and columns, so read the changelog before each one |
+| Organisation details set in the app (name, support address, links, system sender, sign-in countries) | D1 table `org_settings`, set in **Admin > Settings** | No. These override the matching `[vars]` |
+| AI connections, directory, sender rules, signatures, usage policy, retention, inbox rules | Their own D1 tables, set in the app | No. Migrations can add tables and columns, so read the changelog before each one |
 | Logo, icons, colour | `BRAND_*` variables pointing at your own files | No. The fallback assets in `apps/web/static/` are upstream's |
 | Mail, users, mailboxes | D1 and R2 | No, apart from migrations |
 

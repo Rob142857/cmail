@@ -46,9 +46,9 @@ failure in at that point, so a fast bounce still shows on the Sent copy.
 | Where | What |
 |---|---|
 | **Sent list** | A small tag on each message: **Delivered**, **Delayed**, **Bounced** or **Spam report**. Hovering shows counts, such as "Delivered to 1 of 3". A delay never hides a final result. |
-| **Opened Sent message** | Each recipient with their status and time: Delivered; Delayed, retrying; Not delivered; or Delivered, marked as spam. |
+| **Opened Sent message** | A status line, such as "Delivered", "Delivery delayed, retrying", "Not delivered to 1 of 3" or "…, marked as spam by 1", with each recipient's state and time under Details. |
 | **Inbox** | An **Undeliverable** notice for each final failure. |
-| **Admin > Mail trace** | The full timeline of each send, with the time between steps. |
+| **Admin > Mail trace** | The full timeline of each send: Delivered, Delayed, will retry, Bounced, Failed, Rejected before sending, or Marked as spam by the recipient, with the time between steps. |
 
 The Sent tags come from `apps/web/src/lib/server/delivery-badges.ts`, which
 loads all events for the visible page in one query, and
@@ -94,7 +94,7 @@ to 10 addresses. Without one it uses its own delivery events instead.
 
 Unblocking needs `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_SUPPRESSIONS_API_TOKEN`,
 **Send as** or **Full access** on the mailbox, and a refused send to that
-address from this mailbox in the last day. It is limited to 10 an hour per user
+address from this mailbox in the last day. It is limited to 10 addresses an hour per user
 and recorded in the audit log as `email.suppression_lifted`.
 
 cmail **never** lifts:

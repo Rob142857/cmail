@@ -46,19 +46,31 @@ before anything leaves cmail, unless the step says otherwise.
    elements, nesting depth 128).
 2. **Recipients.** To, Cc and Bcc are parsed and de-duplicated (an address in
    To is dropped from Cc and Bcc). The total must be within
-   `MAX_RECIPIENTS_PER_MESSAGE` (default 50, maximum 100).
+   `MAX_RECIPIENTS_PER_MESSAGE` (default 50, maximum 100). Cloudflare and
+   Postmark both refuse more than 50 recipients, so a higher setting only
+   helps internal-only mail.
 3. **Idempotency.** Every send carries a compose token, and a draft send also
    carries its `draft_version`. Together they form an idempotency key. If a
    send with that key already exists, cmail resumes or reports it instead of
    sending again.
 4. **Permission.** The user needs **Send as** or **Full access** on the
    sending mailbox. See [Shared mailboxes](shared-mailboxes.md).
-5. **Attachments.** Up to 25 files and 20 MiB in total. Executable and script
+5. **Attachments.** Up to 25 files and 20 MiB in total (but see the
+   provider's size limit in step 9). Executable and script
    types (for example `.exe`, `.js`, `.ps1`) are refused. File names are
    cleaned.
-6. **Internal or external.** Recipients who have a mailbox in this cmail
-   instance get a local copy straight into their Inbox, with their inbox rules
-   applied. Everyone else goes to the mail provider.
+6. **Internal or external.** If every recipient has a mailbox in this cmail
+   instance, each gets a local copy straight into their Inbox, with their inbox
+   rules applied, and nothing goes to a provider. For a mix of internal and
+   external recipients:
+   - with the Cloudflare REST API credentials set, cmail sends to the external
+     recipients only and still writes the internal copies itself;
+   - otherwise (native Cloudflare or Postmark), the provider gets one
+     submission to everyone, and the internal copies come back in through
+     Email Routing like any inbound mail. That path needs inbound routing and
+     mailbox quota to be working.
+
+   See [Architecture: outbound mail](architecture.md#outbound-mail).
 7. **Body.** HTML is the authored text, then the signature, then any quoted
    message, wrapped in the organisation's default font. A plain-text part is
    built alongside it. See [Email signatures](signatures.md).

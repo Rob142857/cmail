@@ -70,10 +70,12 @@ A scheduled Worker (cron `23 * * * *`) with no URL.
   under `versions/`.
 - Once a day it exports every D1 table as NDJSON under `d1/<day>/`, with the
   schema and a `complete.json` marker, and writes a manifest.
-- Copies of deleted objects are removed after `BACKUP_RETENTION_DAYS`
-  (default 30).
+- Copies of deleted objects, old versions, manifests and D1 exports are
+  removed after `BACKUP_RETENTION_DAYS` (default 30, allowed 7 to 365).
+  Lowering it also shortens how far back you can restore D1.
 - It stops if the two buckets look swapped, or if too many objects vanish at
-  once (`BACKUP_MAX_MISSING_SHARE`, default 20%). That suggests a mistake or
+  once (`BACKUP_MAX_MISSING_SHARE`, default 20%, and never fewer than 25
+  objects). That suggests a mistake or
   an attack, not normal use.
 
 It is deployed separately: `pnpm setup`, `pnpm deploy` and `config:check`
@@ -118,7 +120,7 @@ migrations, so roll back with a backup or Time Travel.
 | `pnpm db:migrate:preview` | Applies them to the preview D1 |
 | `pnpm db:migrate:verify` | Applies all of them to a throwaway D1 and checks the tables, triggers and upgrade fixtures |
 
-Each one runs `config:check` first.
+The first three run `config:check` first.
 
 ## What `config:check` enforces
 

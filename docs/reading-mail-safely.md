@@ -49,8 +49,8 @@ opens.
 ### Before the click
 
 When a message is shown, each `http` or `https` link is rewritten to
-`/link?u=<address>&s=<signature>`. The signature is an HMAC tied to the reader
-and to a 7-day window, keyed from `SESSION_SECRET`. A `/link` address therefore
+`/link?u=<address>&s=<signature>`. The signature is an HMAC tied to the reader,
+keyed from `SESSION_SECRET`, and valid for 7 to 14 days. A `/link` address therefore
 only works for the person who received it, and cmail can't be used as an open
 redirect.
 

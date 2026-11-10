@@ -63,7 +63,8 @@ A message can end in one of three ways:
 12. **Spam or Inbox.** See [Spam and quarantine](spam-and-quarantine.md). In order:
     - a **block** sender rule sends the message to Spam;
     - an **allow** rule sends it to the Inbox;
-    - otherwise Cloudflare's spam score (`X-CF-SpamH-Score`) is compared with
+    - otherwise the spam score (`X-CF-SpamH-Score` from Cloudflare, else
+      `X-Spam-Score` or `X-Spamd-Score`) is compared with
       `SPAM_QUARANTINE_SCORE`. With no threshold set, nothing is quarantined.
 
     An address rule beats a domain rule, and block beats allow.
