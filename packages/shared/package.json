@@ -26,10 +26,10 @@
     "test": "node --test"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20261030.1",
+    "@cloudflare/workers-types": "^5.20261110.1",
     "@types/hast": "3.0.5",
     "typescript": "^7.0.2",
-    "web-push": "3.6.7"
+    "web-push": "4.0.0"
   },
   "dependencies": {
     "rehype-parse": "9.0.1",
