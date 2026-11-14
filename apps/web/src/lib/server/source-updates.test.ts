@@ -76,6 +76,6 @@ describe('source update checks', () => {
   it('accepts .git and trailing-slash repository URLs and falls back to the public procedure', () => {
     expect(parseRepository('https://github.com/example/mail.git')).toBe('example/mail');
     expect(parseRepository('https://github.com/example/mail/')).toBe('example/mail');
-    expect(procedureUrl('not a url')).toBe('https://github.com/Rob142857/cmail/blob/main/docs/deployment.md#updating-an-existing-instance');
+    expect(procedureUrl('not a url')).toBe('https://github.com/RME-Solutions-Technology/cmail/blob/main/docs/deployment.md#updating-an-existing-instance');
   });
 });

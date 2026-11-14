@@ -30,7 +30,7 @@ The management console shows the web build's Git revision and compares it with `
 
 How it works, so you can predict and troubleshoot it:
 
-- **Upstream.** `REPO_URL` in the web `[vars]` (default `https://github.com/Rob142857/cmail`). It must be a plain public `https://github.com/<owner>/<repo>` URL; anything else is never fetched. The "Update procedure" link points at this section of that repository.
+- **Upstream.** `REPO_URL` in the web `[vars]` (default `https://github.com/RME-Solutions-Technology/cmail`). It must be a plain public `https://github.com/<owner>/<repo>` URL; anything else is never fetched. The "Update procedure" link points at this section of that repository.
 - **Sources.** The latest `main` commit comes from Git's public ref advertisement (`github.com/<repo>.git/info/refs`) and the version from `package.json` at that commit on `raw.githubusercontent.com`. Neither uses GitHub's REST API, whose 60-requests-an-hour unauthenticated limit is shared by everyone behind the same Cloudflare egress address and is usually exhausted. The REST compare API is tried only for the commit count and fork detection, and losing it is harmless.
 - **Caching.** Results are cached in the Cloudflare edge cache and in memory for an hour (ten minutes after a failed check), so a busy console asks GitHub about once an hour per location.
 - **Server-side, manager-only, no secrets.** The browser calls `/admin/source-updates` on your own instance; the Worker fetches GitHub. No token is used and the Content Security Policy needs no change.

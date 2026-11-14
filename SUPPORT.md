@@ -13,7 +13,7 @@ community-maintainer scope described above.
 1. Check the [documentation](docs/README.md), especially
    [configuration](docs/configuration.md) and
    [deployment verification](docs/deployment.md#verification).
-2. Search [existing issues](https://github.com/Rob142857/cmail/issues) for the
+2. Search [existing issues](https://github.com/RME-Solutions-Technology/cmail/issues) for the
    same symptom.
 3. Run `pnpm validate` and note the first failing command.
 4. Reduce the problem to a staging or local environment with non-sensitive test

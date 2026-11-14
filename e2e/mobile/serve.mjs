@@ -51,7 +51,7 @@ const VARS = {
   ORG_URL: `https://www.${ORG.domain}`,
   SUPPORT_EMAIL: `help@${ORG.domain}`,
   POLICY_URL: `${ORIGIN}/policy`,
-  REPO_URL: `https://github.com/Rob142857/cmail`,
+  REPO_URL: `https://github.com/RME-Solutions-Technology/cmail`,
   SYSTEM_EMAIL: `noreply@${ORG.domain}`,
   SYSTEM_FROM_NAME: `${ORG.shortName} Mail`,
   BRAND_PRIMARY_COLOR: `#0f6cbd`,

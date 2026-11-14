@@ -13,7 +13,7 @@ export function protectedResourceMetadata(env: Record<string, unknown>, resource
     scopes_supported: [...MCP_SCOPES],
     bearer_methods_supported: ['header'],
     resource_name: resourceName,
-    resource_documentation: 'https://github.com/Rob142857/cmail/blob/main/docs/mcp.md',
+    resource_documentation: 'https://github.com/RME-Solutions-Technology/cmail/blob/main/docs/mcp.md',
   };
 }
 
@@ -35,7 +35,7 @@ export function authorizationServerMetadata(env: Record<string, unknown>): Recor
     revocation_endpoint_auth_methods_supported: ['none', 'client_secret_post', 'client_secret_basic'],
     client_id_metadata_document_supported: true,
     authorization_response_iss_parameter_supported: true,
-    service_documentation: 'https://github.com/Rob142857/cmail/blob/main/docs/mcp.md',
+    service_documentation: 'https://github.com/RME-Solutions-Technology/cmail/blob/main/docs/mcp.md',
   };
 }
 

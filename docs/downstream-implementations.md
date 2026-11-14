@@ -7,7 +7,7 @@ Use the public cmail repository as the reusable product, and keep organisation-s
 Use a **private downstream repository** when you need to change application code. Start from cmail, keep the public repository as a read-only `upstream` remote, and use your private repository as `origin`:
 
 ```sh
-git clone https://github.com/Rob142857/cmail.git cmail-private
+git clone https://github.com/RME-Solutions-Technology/cmail.git cmail-private
 cd cmail-private
 git remote rename origin upstream
 git remote add origin git@github.com:YOUR-ORG/cmail-private.git

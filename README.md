@@ -7,8 +7,8 @@
 <p align="center"><strong>Self-hosted organisational email on Cloudflare.</strong></p>
 
 <p align="center">
-  <a href="https://github.com/Rob142857/cmail/actions/workflows/ci.yml"><img src="https://github.com/Rob142857/cmail/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
-  <a href="https://github.com/Rob142857/cmail/actions/workflows/codeql.yml"><img src="https://github.com/Rob142857/cmail/actions/workflows/codeql.yml/badge.svg" alt="CodeQL status"></a>
+  <a href="https://github.com/RME-Solutions-Technology/cmail/actions/workflows/ci.yml"><img src="https://github.com/RME-Solutions-Technology/cmail/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://github.com/RME-Solutions-Technology/cmail/actions/workflows/codeql.yml"><img src="https://github.com/RME-Solutions-Technology/cmail/actions/workflows/codeql.yml/badge.svg" alt="CodeQL status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2563eb.svg" alt="MIT License"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/node-%3E%3D22.17-339933.svg" alt="Node.js 22.17 or newer"></a>
   <a href="https://doi.org/10.5281/zenodo.23833567"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.23833567.svg" alt="DOI"></a>
@@ -24,7 +24,7 @@
 </p>
 
 <p align="center">
-  <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/Rob142857/cmail"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare"></a>
+  <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/RME-Solutions-Technology/cmail"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare"></a>
 </p>
 
 > [!IMPORTANT]
@@ -36,7 +36,7 @@
 > verification](docs/deployment.md#guided-repository-import).
 > Forks and private downstream repositories must replace the button's `url=`
 > value with their own repository — otherwise it always imports
-> `Rob142857/cmail`.
+> `RME-Solutions-Technology/cmail`.
 
 cmail is open-source email for organisations that want personal and shared
 mailboxes on a domain they control. It combines a SvelteKit web application
@@ -126,7 +126,7 @@ Prerequisites:
   outbound mail
 
 ```sh
-git clone https://github.com/Rob142857/cmail.git
+git clone https://github.com/RME-Solutions-Technology/cmail.git
 cd cmail
 corepack enable
 pnpm install --frozen-lockfile

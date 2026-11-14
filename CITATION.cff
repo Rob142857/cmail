@@ -5,7 +5,7 @@ type: software
 version: 0.2.0
 date-released: 2026-10-31
 license: MIT
-repository-code: "https://github.com/Rob142857/cmail"
+repository-code: "https://github.com/RME-Solutions-Technology/cmail"
 abstract: "Open-source organisational email on Cloudflare with personal and shared mailboxes, built on Workers, Pages, D1, R2 and Email Routing."
 keywords:
   - cloudflare

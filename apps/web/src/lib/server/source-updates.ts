@@ -11,7 +11,7 @@ export interface UpdateStatus {
   reason: string | null;
 }
 
-export const DEFAULT_REPOSITORY = 'https://github.com/Rob142857/cmail';
+export const DEFAULT_REPOSITORY = 'https://github.com/RME-Solutions-Technology/cmail';
 const BRANCH = 'main';
 const PROCEDURE_PATH = `/blob/${BRANCH}/docs/deployment.md#updating-an-existing-instance`;
 const TIMEOUT_MS = 5000;
