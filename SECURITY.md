@@ -11,7 +11,7 @@ Until versioned releases exist, security fixes target the latest commit on the d
 Use the repository host's private vulnerability-reporting feature when
 available. On GitHub, open the repository's **Security** tab, choose
 **Advisories**, then **Report a vulnerability**, or use the
-[private reporting form](https://github.com/Rob142857/cmail/security/advisories/new)
+[private reporting form](https://github.com/RME-Solutions-Technology/cmail/security/advisories/new)
 after the repository owner enables it.
 
 If private reporting is unavailable, ask the maintainers for a private contact channel — do not publish technical details. Do not open a public issue containing an exploit, secret, personal data, private message, tenant identifier, or production URL.

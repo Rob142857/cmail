@@ -3,13 +3,13 @@
   "version": "0.2.0",
   "private": true,
   "description": "Open-source email platform on Cloudflare — Google/Microsoft SSO, D1, R2, Email Routing",
-  "homepage": "https://github.com/Rob142857/cmail#readme",
+  "homepage": "https://github.com/RME-Solutions-Technology/cmail#readme",
   "bugs": {
-    "url": "https://github.com/Rob142857/cmail/issues"
+    "url": "https://github.com/RME-Solutions-Technology/cmail/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Rob142857/cmail.git"
+    "url": "git+https://github.com/RME-Solutions-Technology/cmail.git"
   },
   "scripts": {
     "setup": "node scripts/setup.mjs",

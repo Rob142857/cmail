@@ -367,10 +367,10 @@
       <strong>Deploying or operating this yourself?</strong>
       <p>
         Print this page to save a dated review copy, then retain the evidence listed above. See the
-        versioned <a href="https://github.com/Rob142857/cmail/blob/main/docs/assurance.md">assurance guide</a>, <a href="https://github.com/Rob142857/cmail/blob/main/docs/standards-alignment.md">ISO and ITIL alignment map</a>, and <a href="https://github.com/Rob142857/cmail/blob/main/docs/privacy-and-data-handling.md">privacy and data-handling guide</a> for full detail. The usage policy for this deployment is published in the app.
+        versioned <a href="https://github.com/RME-Solutions-Technology/cmail/blob/main/docs/assurance.md">assurance guide</a>, <a href="https://github.com/RME-Solutions-Technology/cmail/blob/main/docs/standards-alignment.md">ISO and ITIL alignment map</a>, and <a href="https://github.com/RME-Solutions-Technology/cmail/blob/main/docs/privacy-and-data-handling.md">privacy and data-handling guide</a> for full detail. The usage policy for this deployment is published in the app.
       </p>
     </div>
-    <div class="closing-actions"><a class="btn" href="/policy">Read the usage policy</a><a class="btn" href="https://github.com/Rob142857/cmail">Review source</a></div>
+    <div class="closing-actions"><a class="btn" href="/policy">Read the usage policy</a><a class="btn" href="https://github.com/RME-Solutions-Technology/cmail">Review source</a></div>
   </aside>
 </article>
 

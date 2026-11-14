@@ -33,7 +33,7 @@ Choose these values before creating resources:
 ## Install
 
 ```sh
-git clone https://github.com/Rob142857/cmail.git
+git clone https://github.com/RME-Solutions-Technology/cmail.git
 cd cmail
 corepack enable
 pnpm install --frozen-lockfile
